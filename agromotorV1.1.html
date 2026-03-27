@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroMotor — Motor Agronómico de Decisión</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--soil:#2C1A0E;--earth:#4A2E1A;--field:#1A3320;--canopy:#2D5A3D;--leaf:#4A8C5C;--sprout:#7EC897;--grain:#C8A255;--straw:#E8D5A3;--mist:#F4F0E8;--white:#FDFAF5;--ink:#1C1410;--warn:#C94A2A;--ok:#2A7A4A;--caution:#B87A20;--blue:#2A5A8C;--panel-bg:rgba(255,253,248,.93);--border:rgba(44,26,14,.12);--shadow:0 4px 32px rgba(44,26,14,.10)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--field);color:var(--ink);min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:0;background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(74,140,92,.18) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 90%,rgba(44,26,14,.35) 0%,transparent 60%),repeating-linear-gradient(45deg,transparent,transparent 40px,rgba(74,140,92,.03) 40px,rgba(74,140,92,.03) 41px);pointer-events:none}
+header{position:relative;z-index:10;background:linear-gradient(135deg,var(--soil),var(--earth) 50%,var(--field));border-bottom:2px solid var(--grain);padding:0 2rem}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:1.2rem 0}
+.logo{display:flex;align-items:center;gap:.75rem}
+.logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--leaf),var(--sprout));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 2px 12px rgba(74,140,92,.4)}
+.logo-text{font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--white);letter-spacing:-.02em}
+.logo-text span{color:var(--grain)}
+.logo-tagline{font-size:.65rem;color:rgba(255,253,248,.5);letter-spacing:.12em;text-transform:uppercase;display:block;margin-top:-2px}
+.header-badge{background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:var(--grain);font-size:.7rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:.3rem .8rem;border-radius:20px}
+.module-nav{position:relative;z-index:10;background:rgba(26,51,32,.95);backdrop-filter:blur(8px);border-bottom:1px solid rgba(74,140,92,.25);padding:0 2rem}
+.nav-inner{max-width:1200px;margin:0 auto;display:flex;overflow-x:auto}
+.nav-tab{padding:1rem 1.4rem;font-size:.8rem;font-weight:500;letter-spacing:.04em;color:rgba(244,240,232,.55);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:.5rem;user-select:none}
+.nav-tab:hover{color:var(--straw)}.nav-tab.active{color:var(--sprout);border-bottom-color:var(--sprout)}
+.nav-tab .dot{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.6}
+.nav-tab.locked{opacity:.4;cursor:not-allowed}.nav-tab.locked::after{content:'🔒';font-size:.7rem;margin-left:.3rem}
+main{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:2rem}
+.module-panel{display:none}.module-panel.active{display:block;animation:fadeUp .35s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.module-title{font-family:'DM Serif Display',serif;font-size:2rem;color:var(--white);line-height:1.1;margin-bottom:.3rem}
+.module-title em{color:var(--sprout);font-style:italic}
+.module-subtitle{color:rgba(244,240,232,.55);font-size:.85rem;margin-bottom:1.5rem}
+.card{background:var(--panel-bg);border:1px solid var(--border);border-radius:16px;padding:1.5rem;box-shadow:var(--shadow);backdrop-filter:blur(12px)}
+.card-title{font-family:'DM Serif Display',serif;font-size:1.1rem;color:var(--earth);margin-bottom:1.2rem;padding-bottom:.7rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.2rem}
+.gap-top{margin-top:1.2rem}
+@media(max-width:768px){.grid-2,.grid-3{grid-template-columns:1fr}}
+.fg{margin-bottom:1rem}.fg:last-child{margin-bottom:0}
+label{display:block;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--earth);margin-bottom:.4rem}
+select,input[type="number"],input[type="text"],input[type="date"]{width:100%;padding:.65rem .85rem;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.9rem;color:var(--ink);background:var(--white);transition:border-color .2s,box-shadow .2s;appearance:none}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%234A2E1A' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .85rem center;padding-right:2.2rem;cursor:pointer}
+select:focus,input:focus{outline:none;border-color:var(--leaf);box-shadow:0 0 0 3px rgba(74,140,92,.15)}
+.sw{display:flex;align-items:center;gap:.8rem}
+input[type="range"]{flex:1;height:4px;appearance:none;background:var(--border);border-radius:4px;outline:none;cursor:pointer}
+input[type="range"]::-webkit-slider-thumb{appearance:none;width:18px;height:18px;border-radius:50%;background:var(--canopy);border:2px solid var(--white);box-shadow:0 2px 8px rgba(44,26,14,.25);cursor:pointer}
+.sv{font-family:'DM Mono',monospace;font-size:.85rem;font-weight:500;color:var(--canopy);min-width:56px;text-align:right}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.5rem;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s}
+.btn-p{background:linear-gradient(135deg,var(--canopy),var(--leaf));color:var(--white);box-shadow:0 4px 16px rgba(45,90,61,.35)}
+.btn-p:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(45,90,61,.45)}
+.btn-p:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.btn-s{background:var(--mist);color:var(--earth);border:1.5px solid var(--border)}
+.btn-s:hover{background:var(--straw)}
+.btn-full{width:100%;justify-content:center}
+.btn-lg{padding:1rem 2rem;font-size:1rem;border-radius:12px}
+.rg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.85rem;margin-top:1.2rem}
+.kc{background:linear-gradient(135deg,var(--field),var(--canopy));border-radius:12px;padding:1rem 1.1rem;color:var(--white);position:relative;overflow:hidden}
+.kc::after{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,.05)}
+.kl{font-size:.63rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(244,240,232,.6);margin-bottom:.2rem}
+.kv{font-family:'DM Mono',monospace;font-size:1.4rem;font-weight:500;color:var(--sprout);line-height:1}
+.ku{font-size:.66rem;color:rgba(244,240,232,.5);margin-top:.2rem}
+.kc.warn .kv{color:#F5A37A}.kc.danger .kv{color:#F07A6A}
+.kc.neutral{background:linear-gradient(135deg,#3A2A1A,#5A3A22)}
+.kc.blue{background:linear-gradient(135deg,#1A2A4A,#2A4A7A)}.kc.blue .kv{color:#7AAEF5}
+.alert{border-radius:10px;padding:.85rem 1rem;margin-top:.7rem;font-size:.84rem;display:flex;gap:.6rem;align-items:flex-start;border-left:4px solid}
+.ai{font-size:1.05rem;flex-shrink:0;margin-top:.05rem}
+.ac strong{display:block;font-weight:600;margin-bottom:.1rem}
+.alert.ok{background:rgba(42,122,74,.12);border-color:var(--ok);color:#1A4A2A}
+.alert.warn{background:rgba(184,122,32,.12);border-color:var(--caution);color:#5A3A10}
+.alert.danger{background:rgba(201,74,42,.12);border-color:var(--warn);color:#5A1A0A}
+.alert.info{background:rgba(45,90,61,.10);border-color:var(--canopy);color:#1A3A28}
+.dt{width:100%;border-collapse:collapse;font-size:.84rem;margin-top:.7rem}
+.dt th{text-align:left;padding:.55rem .75rem;font-size:.67rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--earth);border-bottom:2px solid var(--border);background:rgba(74,46,26,.05)}
+.dt td{padding:.6rem .75rem;border-bottom:1px solid var(--border);color:var(--ink);vertical-align:middle}
+.dt tr:hover td{background:rgba(74,140,92,.05)}.dt .hl td{background:rgba(74,140,92,.08);font-weight:600}
+.dt td.mn{font-family:'DM Mono',monospace}
+.sema{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;font-weight:600}
+.sema-dot{width:8px;height:8px;border-radius:50%}
+.sema.v .sema-dot{background:var(--ok)}.sema.v{color:var(--ok)}
+.sema.a .sema-dot{background:var(--caution)}.sema.a{color:var(--caution)}
+.sema.r .sema-dot{background:var(--warn)}.sema.r{color:var(--warn)}
+.pb{height:7px;border-radius:4px;background:rgba(74,46,26,.1);overflow:hidden;margin-top:.35rem}
+.pf{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--canopy),var(--sprout));transition:width .6s}
+.pf.warn{background:linear-gradient(90deg,var(--caution),#E8A830)}
+.pf.danger{background:linear-gradient(90deg,var(--warn),#E85A3A)}
+.divider{border:none;border-top:1px solid var(--border);margin:1.1rem 0}
+.sl{font-size:.67rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--leaf);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
+.sl::after{content:'';flex:1;height:1px;background:rgba(74,140,92,.2)}
+.it{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;background:rgba(74,46,26,.12);border-radius:50%;font-size:.62rem;color:var(--earth);cursor:help;margin-left:.3rem;font-weight:700}
+.hidden{display:none!important}
+.pr{display:grid;grid-template-columns:90px 56px 50px 50px 56px 50px 1fr;gap:.35rem;align-items:center;padding:.48rem .65rem;border-radius:8px;font-size:.77rem;border:1px solid var(--border);background:var(--white);margin-bottom:.35rem}
+.pr.hdr{font-size:.62rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--earth);background:rgba(74,46,26,.05);border-color:transparent}
+.pr.today{border-color:rgba(74,140,92,.4);background:rgba(74,140,92,.06)}
+.mn{font-family:'DM Mono',monospace;text-align:center}
+.chip{display:inline-flex;align-items:center;gap:.3rem;padding:.16rem .52rem;border-radius:20px;font-size:.7rem;font-weight:600}
+.ok-chip{background:rgba(42,122,74,.12);color:var(--ok)}
+.warn-chip{background:rgba(184,122,32,.12);color:var(--caution)}
+.danger-chip{background:rgba(201,74,42,.12);color:var(--warn)}
+.fr{display:flex;align-items:center;padding:.55rem 0;border-bottom:1px solid var(--border);gap:.8rem}
+.fr:last-child{border-bottom:none}
+.fn{flex:1;font-weight:500;font-size:.87rem}
+.fk{font-family:'DM Mono',monospace;font-size:.88rem;color:var(--canopy);font-weight:600;min-width:76px;text-align:right}
+.fc{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--grain);min-width:76px;text-align:right}
+.tr{background:rgba(74,140,92,.05);border-radius:10px;padding:.9rem;margin-bottom:.75rem;border:1px solid rgba(74,140,92,.15)}
+.trh{display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem}
+.trn{font-weight:600;font-size:.87rem;color:var(--canopy)}
+.trv{font-family:'DM Mono',monospace;font-size:.77rem;color:rgba(74,46,26,.5)}
+.footer-note{text-align:center;color:rgba(244,240,232,.3);font-size:.7rem;margin-top:2.5rem;padding-top:1.5rem;border-top:1px solid rgba(74,140,92,.15);letter-spacing:.04em}
+@media(max-width:640px){main{padding:1rem}.module-title{font-size:1.5rem}.kv{font-size:1.2rem}.pr{grid-template-columns:80px 48px 44px 44px 1fr}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🌱</div>
+      <div>
+        <div class="logo-text">Agro<span>Motor</span></div>
+        <span class="logo-tagline">Motor Agronómico de Decisión</span>
+      </div>
+    </div>
+    <div class="header-badge">v2.5 · Suelo Garantizado</div>
+  </div>
+</header>
+
+<nav class="module-nav">
+  <div class="nav-inner">
+    <div class="nav-tab active" onclick="switchMod('siembra')"><span class="dot"></span>Diagnóstico de Siembra</div>
+    <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Análisis de Suelo</div>
+    <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>Fertilización</div>
+    <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>Productividad Maquinaria</div>
+    <div class="nav-tab locked" title="Próximamente">Balance Hídrico</div>
+    <div class="nav-tab locked" title="Próximamente">Ventana de Aplicación</div>
+    <div class="nav-tab locked" title="Próximamente">Fenología y GDD</div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ══ MÓDULO 1 ══ -->
+<div id="mod-siembra" class="module-panel active">
+  <div class="module-title">Diagnóstico de <em>Siembra</em></div>
+  <div class="module-subtitle">ET₀ · VPD · Humedad 3 horizontes · GDD · Viento · Pronóstico 7 días — Open-Meteo en tiempo real</div>
+
+  <!-- GPS / COORD -->
+  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(74,140,92,.35);background:rgba(26,51,32,.05)">
+    <div class="card-title" style="color:var(--canopy)">🛰️ Geolocalización del lote
+      <span style="font-size:.68rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">Open-Meteo · Gratuito · Sin API key</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 148px auto auto;gap:.8rem;align-items:flex-end">
+      <div class="fg" style="margin-bottom:0">
+        <label>Coordenadas <span class="it" title="DMS: 33°23'42.55&quot;S 60°11'29.87&quot;W  ó  decimal: -33.395, -60.192">?</span></label>
+        <input type="text" id="s-coord" placeholder="33°23'42.55&quot;S 60°11'29.87&quot;W  ó  -33.395, -60.192" style="font-family:'DM Mono',monospace;font-size:.82rem">
+      </div>
+      <div class="fg" style="margin-bottom:0"><label>Fecha de siembra</label><input type="date" id="s-fecha" style="font-size:.83rem"></div>
+      <div><button class="btn btn-s" id="btn-gps" onclick="usarGPS()" style="height:42px;padding:0 .85rem" title="GPS del celular">📍 GPS</button></div>
+      <div><button class="btn btn-p" id="btn-api" onclick="buscarAPI()" style="height:42px;white-space:nowrap">🌡️ Obtener datos</button></div>
+    </div>
+    <div id="api-st" class="hidden" style="margin-top:.75rem;font-size:.8rem;display:flex;align-items:center;gap:.5rem;color:var(--canopy)">
+      <span id="api-sp"></span><span id="api-msg"></span>
+    </div>
+    <div id="api-info" class="hidden" style="margin-top:.75rem;padding:.85rem;background:rgba(15,26,16,.55);border-radius:10px;border:1px solid rgba(126,200,151,.25);backdrop-filter:blur(8px)">
+
+      <!-- Fila 1: Open-Meteo (tiempo real) -->
+      <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sprout);margin-bottom:.5rem">🛰️ Open-Meteo — Tiempo real</div>
+      <div style="display:flex;flex-wrap:wrap;gap:.8rem 1.4rem;font-size:.79rem;color:rgba(244,240,232,.85);margin-bottom:.75rem">
+        <span>📍 <b style="color:var(--sprout)" id="i-ubi">—</b></span>
+        <span>🗺️ Suelo: <b style="color:var(--sprout)" id="i-suelo">—</b></span>
+        <span>🌡️ T°suelo: <b style="color:var(--sprout)" id="i-temp">—</b></span>
+        <span>💧 Hum. 3-9cm: <b style="color:var(--sprout)" id="i-hum">—</b></span>
+        <span>🌿 ET₀: <b style="color:var(--sprout)" id="i-et0">—</b></span>
+        <span>💨 VPD: <b style="color:var(--sprout)" id="i-vpd">—</b></span>
+        <span>🌬️ Viento: <b style="color:var(--sprout)" id="i-viento">—</b></span>
+        <span>🌾 GDD acum.: <b style="color:var(--sprout)" id="i-gdd">—</b></span>
+      </div>
+
+      <!-- Fila 2: NASA POWER (histórico) -->
+      <div id="nasa-info" class="hidden" style="padding-top:.6rem;border-top:1px solid rgba(126,200,151,.15)">
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7AAEF5;margin-bottom:.5rem">🚀 NASA POWER — Histórico 30 años</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.8rem 1.4rem;font-size:.79rem;color:rgba(244,240,232,.85)">
+          <span>☀️ Radiación: <b style="color:#7AAEF5" id="np-rad">—</b></span>
+          <span>💧 Precip./mes: <b style="color:#7AAEF5" id="np-prec">—</b></span>
+          <span>🌡️ T° máx: <b style="color:#7AAEF5" id="np-tmax">—</b></span>
+          <span>🌡️ T° mín: <b style="color:#7AAEF5" id="np-tmin">—</b></span>
+          <span>🌿 ET₀/mes: <b style="color:#7AAEF5" id="np-et0">—</b></span>
+          <span>💦 HR: <b style="color:#7AAEF5" id="np-rh">—</b></span>
+          <span>📅 Días lluvia: <b style="color:#7AAEF5" id="np-drd">—</b></span>
+          <span>📊 Balance: <b style="color:#7AAEF5" id="np-bal">—</b></span>
+        </div>
+      </div>
+
+      <!-- Fila 3: SoilGrids (suelo real) -->
+      <div id="sg-info" class="hidden" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(126,200,151,.15)">
+        <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--grain);margin-bottom:.5rem">🌍 SoilGrids ISRIC — Suelo real 250 m</div>
+        <div style="display:flex;flex-wrap:wrap;gap:.8rem 1.4rem;font-size:.79rem;color:rgba(244,240,232,.85)">
+          <span>⚗️ pH: <b style="color:var(--grain)" id="sg-ph">—</b></span>
+          <span>🏺 Arcilla: <b style="color:var(--grain)" id="sg-clay">—</b></span>
+          <span>🏖️ Arena: <b style="color:var(--grain)" id="sg-sand">—</b></span>
+          <span>🌱 C. orgánico: <b style="color:var(--grain)" id="sg-soc">—</b></span>
+          <span>🔬 N total: <b style="color:var(--grain)" id="sg-n">—</b></span>
+          <span>⚖️ Dens. ap.: <b style="color:var(--grain)" id="sg-da">—</b></span>
+          <span>🧲 CEC: <b style="color:var(--grain)" id="sg-cec">—</b></span>
+          <span>🗺️ Textura: <b style="color:var(--grain)" id="sg-textura">—</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- INPUTS -->
+    <div>
+      <div class="card">
+        <div class="sl">Identificación del lote</div>
+        <div class="grid-2">
+          <div class="fg"><label>Cultivo</label>
+            <select id="s-cultivo">
+              <option>Maíz</option><option selected>Soja</option><option>Girasol</option>
+              <option>Trigo</option><option>Cebada</option><option>Sorgo</option><option>Colza</option>
+            </select>
+          </div>
+          <div class="fg"><label>Tipo de suelo <span id="s-sbadge" style="font-size:.63rem;color:var(--leaf);font-weight:600;text-transform:none;letter-spacing:0"></span></label>
+            <select id="s-suelo">
+              <option>Molisol</option><option>Vertisol</option><option>Alfisol</option><option>Entisol</option><option>Oxisol</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Humedad del suelo por horizonte</div>
+        <div class="fg"><label>3–9 cm — zona superficial (%) <span class="it" title="Volumétrica. Autocompleta con Open-Meteo.">?</span></label>
+          <div class="sw"><input type="range" id="s-h1" min="0" max="50" value="22" oninput="sv('sv-h1',this.value+'%')"><span class="sv" id="sv-h1">22%</span></div>
+        </div>
+        <div class="fg"><label>9–27 cm — zona radicular activa (%) <span class="it" title="Mayor absorción de agua y nutrientes">?</span></label>
+          <div class="sw"><input type="range" id="s-h2" min="0" max="50" value="25" oninput="sv('sv-h2',this.value+'%')"><span class="sv" id="sv-h2">25%</span></div>
+        </div>
+        <div class="fg"><label>27–81 cm — reserva profunda (%)</label>
+          <div class="sw"><input type="range" id="s-h3" min="0" max="50" value="29" oninput="sv('sv-h3',this.value+'%')"><span class="sv" id="sv-h3">29%</span></div>
+        </div>
+        <div class="fg"><label>Prob. lluvia 72h (%)</label>
+          <div class="sw"><input type="range" id="s-lluv" min="0" max="100" value="40" oninput="sv('sv-lluv',this.value+'%')"><span class="sv" id="sv-lluv">40%</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Temperatura y rastrojo</div>
+        <div class="grid-2">
+          <div class="fg"><label>T° suelo 6 cm (°C)</label>
+            <div class="sw"><input type="range" id="s-t6" min="0" max="40" value="18" oninput="sv('sv-t6',this.value+'°')"><span class="sv" id="sv-t6">18°</span></div>
+          </div>
+          <div class="fg"><label>T° suelo 18 cm (°C)</label>
+            <div class="sw"><input type="range" id="s-t18" min="0" max="40" value="17" oninput="sv('sv-t18',this.value+'°')"><span class="sv" id="sv-t18">17°</span></div>
+          </div>
+        </div>
+        <div class="fg"><label>Rastrojo en superficie</label>
+          <select id="s-rast"><option value="no">Sin rastrojo</option><option value="si">Con rastrojo (~1.5°C menos)</option></select>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Estrés hídrico atmosférico</div>
+        <div class="grid-2">
+          <div class="fg"><label>ET₀ (mm/día) <span class="it" title="Evapotranspiración FAO-56. Open-Meteo lo calcula.">?</span></label>
+            <div class="sw"><input type="range" id="s-et0" min="0" max="12" step="0.1" value="4.0" oninput="sv('sv-et0',parseFloat(this.value).toFixed(1)+' mm')"><span class="sv" id="sv-et0">4.0 mm</span></div>
+          </div>
+          <div class="fg"><label>VPD (kPa) <span class="it" title="&lt;0.4 sin estrés · 0.4-1.6 normal · &gt;1.6 alto estrés">?</span></label>
+            <div class="sw"><input type="range" id="s-vpd" min="0" max="4" step="0.05" value="1.0" oninput="sv('sv-vpd',parseFloat(this.value).toFixed(2)+' kPa')"><span class="sv" id="sv-vpd">1.00 kPa</span></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Condiciones operativas</div>
+        <div class="grid-2">
+          <div class="fg"><label>Viento (km/h)</label>
+            <div class="sw"><input type="range" id="s-viento" min="0" max="60" value="12" oninput="sv('sv-viento',this.value+' km/h')"><span class="sv" id="sv-viento">12 km/h</span></div>
+          </div>
+          <div class="fg"><label>Tránsito reciente de maquinaria <span class="it" title="Afecta el riesgo de compactación calculado">?</span></label>
+            <select id="s-trafico">
+              <option value="0">Sin tránsito reciente</option>
+              <option value="1">Maquinaria liviana (cosechadora pequeña, tractor)</option>
+              <option value="2">Maquinaria pesada (cosechadora grande, camión)</option>
+              <option value="3">Tránsito intensivo o repetido</option>
+            </select>
+          </div>
+        </div>
+        <!-- Compactación: ahora calculada automáticamente, pero editable -->
+        <div style="background:rgba(74,140,92,.05);border-radius:10px;padding:.9rem;border:1px solid rgba(74,140,92,.15);margin-top:.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+            <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--leaf)">🔬 Compactación</div>
+            <div id="compact-source" style="font-size:.65rem;color:rgba(74,46,26,.45)">ajuste manual</div>
+          </div>
+          <div class="fg" style="margin-bottom:.5rem">
+            <label>Resistencia penetrómetro (MPa) <span class="it" title="Se calcula automáticamente con datos de SoilGrids + Open-Meteo. Podés ajustarlo si tenés medición propia.">?</span></label>
+            <div class="sw"><input type="range" id="s-compact" min="0" max="5" step="0.1" value="1.5" oninput="sv('sv-compact',parseFloat(this.value).toFixed(1)+' MPa');$('compact-source').textContent='ajustado manualmente'"><span class="sv" id="sv-compact">1.5 MPa</span></div>
+          </div>
+          <div id="compact-calc-info" style="font-size:.75rem;color:rgba(74,46,26,.55);line-height:1.5">
+            Ingresá las coordenadas para calcular automáticamente con SoilGrids + Open-Meteo
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button class="btn btn-p btn-full btn-lg" onclick="calcSiembra()">🔍 Analizar condiciones de siembra</button>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div>
+      <div class="card">
+        <div class="card-title">📊 Diagnóstico del lote</div>
+        <div id="s-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)">
+          <div style="font-size:3rem;margin-bottom:1rem">🌾</div>
+          <div style="font-size:.88rem">Ingresá coordenadas para datos reales<br>o ajustá los sliders manualmente y presioná<br><strong>Analizar condiciones</strong></div>
+        </div>
+        <div id="s-res" class="hidden">
+          <div id="s-banner"></div>
+          <div class="rg" id="s-kpis"></div>
+          <div style="margin-top:1.1rem"><div class="sl">Variables clave</div><div id="s-inds"></div></div>
+          <div style="margin-top:.8rem"><div class="sl">Recomendaciones técnicas</div><div id="s-recs"></div></div>
+        </div>
+      </div>
+
+      <div class="card gap-top hidden" id="pron-card">
+        <div class="card-title">📅 Pronóstico 7 días — datos reales Open-Meteo
+          <span style="font-size:.68rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">por coordenada del lote</span>
+        </div>
+        <div id="pron-tabla"></div>
+      </div>
+
+      <!-- NASA POWER: CONTEXTO CLIMÁTICO HISTÓRICO -->
+      <div class="card gap-top hidden" id="nasa-card">
+        <div class="card-title" style="color:#2A5A8C">
+          🚀 Contexto climático histórico — NASA POWER
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">30 años ERA5 · por coordenada</span>
+        </div>
+        <div id="nasa-contenido"></div>
+      </div>
+
+      <!-- SOILGRIDS: PROPIEDADES REALES DEL SUELO -->
+      <div class="card gap-top hidden" id="sg-card">
+        <div class="card-title" style="color:#7A4A10">
+          🌍 Propiedades reales del suelo — SoilGrids ISRIC
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">250 m · 6 profundidades · CC BY 4.0</span>
+        </div>
+        <div id="sg-contenido"></div>
+      </div>
+
+      <!-- RIESGO DE COMPACTACIÓN -->
+      <div class="card gap-top hidden" id="compact-card">
+        <div class="card-title" style="color:#7A1A0A">
+          🚜 Riesgo de Compactación — Modelo AgroMotor
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">Índice S · PTF · SoilGrids + Open-Meteo</span>
+        </div>
+        <div id="compact-contenido"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO SUELO ══ -->
+<div id="mod-suelo" class="module-panel">
+  <div class="module-title">Análisis de <em>Suelo</em></div>
+  <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
+
+  <!-- Ingreso de coordenadas -->
+  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:rgba(74,46,26,.04)">
+    <div class="card-title" style="color:#7A4A10">
+      🌍 Consulta de propiedades del suelo
+      <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">SoilGrids ISRIC · 250 m · CC BY 4.0 · Sin API key</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:flex-end">
+      <div class="fg" style="margin-bottom:0">
+        <label>Coordenadas del lote</label>
+        <input type="text" id="suelo-coord" placeholder="33°23'42.55&quot;S 60°11'29.87&quot;W  ó  -33.395, -60.192"
+               style="font-family:'DM Mono',monospace;font-size:.84rem">
+      </div>
+      <div>
+        <button class="btn btn-primary" id="btn-suelo" onclick="consultarSuelo()" style="height:42px;background:linear-gradient(135deg,#5A3A10,#8A5A20)">
+          🌍 Analizar suelo
+        </button>
+      </div>
+    </div>
+    <div id="suelo-st" class="hidden" style="margin-top:.75rem;font-size:.8rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
+      <span id="suelo-sp" style="display:inline-block"></span>
+      <span id="suelo-msg"></span>
+    </div>
+    <p style="margin-top:.6rem;font-size:.75rem;color:rgba(74,46,26,.5)">
+      💡 Si ya consultaste el lote en el módulo de Siembra, los datos aparecen automáticamente aquí.
+    </p>
+  </div>
+
+  <!-- Resultados SoilGrids -->
+  <div id="suelo-resultado">
+    <div id="suelo-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.35)">
+      <div style="font-size:4rem;margin-bottom:1rem">🌍</div>
+      <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Ingresá las coordenadas del lote</div>
+      <div style="font-size:.82rem">y tocá <strong>Analizar suelo</strong> para obtener pH, MO, C orgánico,<br>N total, densidad aparente, CEC y textura real del suelo</div>
+    </div>
+    <div id="suelo-kpis" class="hidden">
+      <!-- KPI cards principales -->
+      <div class="rg" id="suelo-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:1.2rem"></div>
+
+      <!-- Barra granulométrica -->
+      <div class="card" style="margin-bottom:1.2rem" id="suelo-textura-card">
+        <div class="card-title">🏺 Composición granulométrica y textura</div>
+        <div id="suelo-textura-contenido"></div>
+      </div>
+
+      <!-- Tabla completa -->
+      <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-title">📋 Propiedades del suelo — perfil completo</div>
+        <div id="suelo-tabla"></div>
+      </div>
+
+      <!-- Alertas e interpretaciones -->
+      <div id="suelo-alertas"></div>
+
+      <!-- Nota de fuente -->
+      <div style="margin-top:1rem;padding:.6rem .9rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.45);border:1px solid var(--border)">
+        📡 <strong>Fuente:</strong> SoilGrids 2.0 — ISRIC/Wageningen · Modelo de machine learning entrenado con 230.000 perfiles de suelo · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis local para decisiones críticas.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO 2 ══ -->
+<div id="mod-fertilizacion" class="module-panel">
+  <div class="module-title">Plan de <em>Fertilización</em></div>
+  <div class="module-subtitle">Cálculo NPK, selección de fertilizantes y costos USD por campaña</div>
+  <div class="grid-2">
+    <div><div class="card">
+      <div class="sl">Parámetros de campaña</div>
+      <div class="grid-2">
+        <div class="fg"><label>Cultivo</label>
+          <select id="f-cult" onchange="updRend()">
+            <option>Maíz</option><option selected>Soja</option><option>Girasol</option>
+            <option>Trigo</option><option>Cebada</option><option>Sorgo</option><option>Colza</option>
+          </select>
+        </div>
+        <div class="fg"><label>Superficie (ha)</label><input type="number" id="f-sup" value="100" min="1"></div>
+      </div>
+      <div class="fg"><label>Rendimiento objetivo (t/ha)</label>
+        <div class="sw"><input type="range" id="f-rend" min="1" max="15" step="0.5" value="3" oninput="sv('sv-rend',this.value+' t/ha')"><span class="sv" id="sv-rend">3 t/ha</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Análisis de suelo (kg/ha)</div>
+      <div class="grid-3">
+        <div class="fg"><label>N</label><input type="number" id="f-n" value="45" min="0"></div>
+        <div class="fg"><label>P</label><input type="number" id="f-p" value="18" min="0"></div>
+        <div class="fg"><label>K</label><input type="number" id="f-k" value="120" min="0"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Precios referencia (USD/tn)</div>
+      <div class="grid-2">
+        <div class="fg"><label>Urea</label><input type="number" id="f-p-u" value="550"></div>
+        <div class="fg"><label>MAP</label><input type="number" id="f-p-m" value="700"></div>
+        <div class="fg"><label>DAP</label><input type="number" id="f-p-d" value="750"></div>
+        <div class="fg"><label>KCl</label><input type="number" id="f-p-k" value="600"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="calcFert()">🧪 Calcular plan de fertilización</button>
+    </div></div>
+    <div><div class="card">
+      <div class="card-title">🧪 Plan de fertilización</div>
+      <div id="f-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)"><div style="font-size:3rem;margin-bottom:1rem">⚗️</div><div style="font-size:.88rem">Ingresá los datos del análisis<br>y el rendimiento objetivo</div></div>
+      <div id="f-res" class="hidden">
+        <div class="sl">Déficit calculado</div><div id="f-def"></div>
+        <div class="divider"></div>
+        <div class="sl">Fertilizantes recomendados</div><div id="f-ferts"></div>
+        <div class="divider"></div>
+        <div class="sl">Resumen económico</div><div id="f-costos"></div>
+        <div id="f-alertas" style="margin-top:.7rem"></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO 3 ══ -->
+<div id="mod-maquinaria" class="module-panel">
+  <div class="module-title">Productividad de <em>Maquinaria</em></div>
+  <div class="module-subtitle">Autonomía por tolva, jornada real, optimización de cargas y retorno de inversión</div>
+  <div class="grid-2">
+    <div><div class="card">
+      <div class="sl">Máquina y parámetros operativos</div>
+      <div class="fg"><label>Modelo de máquina</label>
+        <select id="m-maq" onchange="loadMaq()">
+          <option value="mixia">Crucianelli Mixia 13.5 m</option>
+          <option value="plantor">Crucianelli Plantor 9 m</option>
+          <option value="drilor">Crucianelli Drilor GF 7.5 m</option>
+          <option value="custom">Máquina personalizada</option>
+        </select>
+      </div>
+      <div class="grid-3">
+        <div class="fg"><label>Ancho (m)</label><input type="number" id="m-ancho" value="13.5" step="0.5" min="3" max="36"></div>
+        <div class="fg"><label>Velocidad (km/h)</label><input type="number" id="m-vel" value="7.5" step="0.1" min="3" max="15"></div>
+        <div class="fg"><label>Eficiencia</label>
+          <div class="sw"><input type="range" id="m-efic" min="0.5" max="1" step="0.01" value="0.85" oninput="sv('sv-efic',Math.round(this.value*100)+'%')"><span class="sv" id="sv-efic">85%</span></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="fg"><label>Horas/jornada</label><input type="number" id="m-hs" value="9.6" step="0.1" min="4" max="20"></div>
+        <div class="fg"><label>Recarga (min)</label><input type="number" id="m-rec" value="25" min="5" max="120"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Configuración de tolvas</div>
+      <div id="m-tolvas"></div>
+      <div class="divider"></div>
+      <div class="sl">Análisis de inversión (opcional)</div>
+      <div class="grid-2">
+        <div class="fg"><label>Precio equipo (USD)</label><input type="number" id="m-precio" value="0" placeholder="0 = omitir"></div>
+        <div class="fg"><label>Margen neto (USD/ha)</label><input type="number" id="m-margen" value="0" placeholder="0 = omitir"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="calcMaq()">🚜 Calcular productividad</button>
+    </div></div>
+    <div><div class="card">
+      <div class="card-title">🚜 Resultados operativos</div>
+      <div id="m-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)"><div style="font-size:3rem;margin-bottom:1rem">⚙️</div><div style="font-size:.88rem">Configurá la máquina y presioná<br><strong>Calcular productividad</strong></div></div>
+      <div id="m-res" class="hidden">
+        <div class="rg" id="m-kpis"></div>
+        <div style="margin-top:1.1rem"><div class="sl">Autonomía por tolva</div><div id="m-aut"></div></div>
+        <div style="margin-top:.9rem"><div class="sl">Resumen de jornada</div><div id="m-jorn"></div></div>
+        <div id="m-roi" class="hidden" style="margin-top:.9rem"><div class="sl">Retorno de inversión</div><div id="m-roi-c"></div></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="footer-note">AgroMotor v2.3 · Open-Meteo · NASA POWER · SoilGrids ISRIC · Índice S de Dexter · Riesgo de Compactación · Lógica agronómica INTA Argentina</div>
+</main>
+
+<script>
+// ── HELPERS ──
+const $=id=>document.getElementById(id);
+function sv(id,val){const e=$(id);if(e)e.textContent=val}
+function gv(id){return $(id)?.value}
+function gi(id){return parseFloat($(id)?.value)||0}
+function setR(id,val,dec=0){const e=$(id);if(!e)return;e.value=Math.round(val*10**dec)/10**dec;e.dispatchEvent(new Event('input'))}
+
+// ── DB ──
+const DB={
+  hum:{
+    Molisol:{Maíz:{n:18,i:24,x:32},Soja:{n:16,i:22,x:30},Girasol:{n:18,i:24,x:30},Trigo:{n:15,i:20,x:28},Cebada:{n:15,i:20,x:28},Sorgo:{n:18,i:24,x:32},Colza:{n:15,i:19,x:25}},
+    Vertisol:{Maíz:{n:20,i:28,x:36},Soja:{n:18,i:26,x:34},Girasol:{n:20,i:28,x:36},Trigo:{n:18,i:26,x:34},Cebada:{n:18,i:25,x:32},Sorgo:{n:20,i:28,x:36},Colza:{n:18,i:25,x:32}},
+    Alfisol:{Maíz:{n:16,i:22,x:30},Soja:{n:15,i:21,x:28},Girasol:{n:16,i:22,x:30},Trigo:{n:15,i:21,x:28},Cebada:{n:15,i:20,x:28},Sorgo:{n:16,i:22,x:30},Colza:{n:15,i:19,x:25}},
+    Entisol:{Maíz:{n:14,i:20,x:28},Soja:{n:12,i:18,x:26},Girasol:{n:14,i:20,x:28},Trigo:{n:12,i:18,x:26},Cebada:{n:12,i:18,x:26},Sorgo:{n:14,i:20,x:28},Colza:{n:12,i:17,x:25}},
+    Oxisol:{Maíz:{n:16,i:22,x:30},Soja:{n:15,i:21,x:28},Girasol:{n:16,i:22,x:30},Trigo:{n:15,i:21,x:28},Cebada:{n:15,i:21,x:28},Sorgo:{n:16,i:22,x:30},Colza:{n:15,i:19,x:25}},
+  },
+  suelo:{Molisol:{cc:34,pm:12,da:1.3},Vertisol:{cc:36,pm:20,da:1.35},Alfisol:{cc:36,pm:16,da:1.4},Entisol:{cc:10,pm:2,da:1.5},Oxisol:{cc:26,pm:10,da:1.2}},
+  tMin:{Maíz:10,Soja:12,Girasol:8,Trigo:4,Cebada:4,Sorgo:15,Colza:5},
+  tId:{Maíz:18,Soja:20,Girasol:14,Trigo:10,Cebada:8,Sorgo:20,Colza:10},
+  prof:{
+    Molisol:{Maíz:[3,5,8],Soja:[3,4,6],Girasol:[3,5,7],Trigo:[3,4,6],Cebada:[3,4,6],Sorgo:[2,3,5],Colza:[1,2,3]},
+    Vertisol:{Maíz:[3,5,7],Soja:[3,4,6],Girasol:[3,5,7],Trigo:[3,4,6],Cebada:[3,4,6],Sorgo:[2,3,5],Colza:[1,2,3]},
+    Alfisol:{Maíz:[4,5,8],Soja:[3,5,7],Girasol:[3,5,8],Trigo:[3,5,7],Cebada:[3,4,6],Sorgo:[3,4,6],Colza:[1,2,3]},
+    Entisol:{Maíz:[4,6,9],Soja:[4,5,8],Girasol:[4,6,8],Trigo:[4,5,7],Cebada:[4,5,7],Sorgo:[3,4,6],Colza:[2,3,4]},
+    Oxisol:{Maíz:[3,5,8],Soja:[3,4,6],Girasol:[3,5,7],Trigo:[3,4,6],Cebada:[3,4,6],Sorgo:[2,3,5],Colza:[1,2,3]},
+  },
+  npk:{Maíz:{N:25,P:4,K:3},Soja:{N:0,P:2,K:1.5},Girasol:{N:18,P:3,K:2.5},Trigo:{N:28,P:5,K:4},Cebada:{N:23,P:4,K:3.5},Sorgo:{N:22,P:4,K:3},Colza:{N:35,P:7,K:6}},
+  rendR:{Maíz:[4,15],Soja:[1.5,5],Girasol:[1.5,4],Trigo:[2,8],Cebada:[2,7],Sorgo:[3,10],Colza:[1.5,4.5]},
+  ferts:{'Urea':{N:46,P:0,K:0},'MAP (Fosfato Monoamónico)':{N:11,P:52,K:0},'DAP (Fosfato Diamónico)':{N:18,P:46,K:0},'KCl (Cloruro de Potasio)':{N:0,P:0,K:60}},
+  maqs:{
+    mixia:{a:13.5,t:[{n:'T1 Principal',v:9600},{n:'T2 Secundaria',v:4800},{n:'T3 Microgranulado',v:1600}]},
+    plantor:{a:9.0,t:[{n:'T1 Principal',v:5600},{n:'T2 Secundaria',v:2800}]},
+    drilor:{a:7.5,t:[{n:'T1 Grano Fino',v:3200},{n:'T2 Fertilizante',v:1800}]},
+    custom:{a:9.0,t:[{n:'T1',v:4000},{n:'T2',v:2000}]},
+  },
+  prods:{Soja:0.75,Maíz:0.72,Trigo:0.78,Girasol:0.42,Sorgo:0.70,Urea:0.75,MAP:1.0,'Microgranulado Zn':0.95,Vacío:0},
+  dosis:{Soja:80,Maíz:20,Trigo:120,Girasol:4,Sorgo:6,Urea:100,MAP:150,'Microgranulado Zn':20,Vacío:0},
+};
+
+// ── COORDS ──
+const SPOLY={
+  Molisol:[[-68,-25],[-65,-27],[-62,-30],[-59,-33],[-57,-36],[-59,-39],[-62,-40],[-65,-38],[-67,-35],[-68,-30]],
+  Vertisol:[[-60,-26],[-58,-28],[-56,-30],[-55,-32],[-57,-34],[-60,-32],[-61,-30],[-60,-26]],
+  Entisol:[[-70,-20],[-67,-22],[-64,-24],[-61,-26],[-59,-28],[-61,-31],[-65,-33],[-68,-30],[-70,-25],[-70,-20]],
+  Alfisol:[[-65,-38],[-62,-40],[-60,-42],[-58,-44],[-57,-46],[-59,-48],[-63,-47],[-66,-44],[-67,-41],[-65,-38]],
+  Oxisol:[[-55,-23],[-54,-25],[-52,-27],[-52,-29],[-54,-30],[-56,-29],[-57,-27],[-55,-23]],
+};
+function inPoly(lat,lon,p){let d=false,n=p.length,j=n-1;for(let i=0;i<n;i++){const[xi,yi]=p[i],[xj,yj]=p[j];if(((yi>lat)!==(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))d=!d;j=i}return d}
+function detSuelo(lat,lon){for(const[t,p] of Object.entries(SPOLY))if(inPoly(lat,lon,p))return t;return null}
+function parsCoord(txt){
+  txt=txt.trim();
+  const dec=txt.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  if(dec)return[+dec[1],+dec[2]];
+  const dms=txt.match(/(\d+)[°\s]\s*(\d+)['\u2019\s]\s*(\d+(?:[.,]\d+)?)["\u201d]?\s*([NS])\s+(\d+)[°\s]\s*(\d+)['\u2019\s]\s*(\d+(?:[.,]\d+)?)["\u201d]?\s*([EW])/i);
+  if(dms){
+    let la=+dms[1]+(+dms[2])/60+parseFloat(dms[3].replace(',','.'))/3600;
+    let lo=+dms[5]+(+dms[6])/60+parseFloat(dms[7].replace(',','.'))/3600;
+    if(dms[4].toUpperCase()==='S')la=-la;if(dms[8].toUpperCase()==='W')lo=-lo;
+    return[la,lo];
+  }return[null,null];
+}
+
+// ── GPS ──
+function usarGPS(){
+  if(!navigator.geolocation){alert('Geolocalización no disponible.');return}
+  const b=$('btn-gps');b.textContent='⟳';b.disabled=true;
+  navigator.geolocation.getCurrentPosition(
+    p=>{$('s-coord').value=`${p.coords.latitude.toFixed(6)}, ${p.coords.longitude.toFixed(6)}`;b.textContent='📍 GPS';b.disabled=false;buscarAPI()},
+    ()=>{b.textContent='📍 GPS';b.disabled=false;alert('No se pudo obtener la ubicación GPS.')},
+    {enableHighAccuracy:true,timeout:10000}
+  );
+}
+
+// ── API STATUS ──
+function setStatus(msg,loading=true){
+  $('api-st').classList.remove('hidden');
+  $('api-sp').textContent=loading?'⟳':'';
+  $('api-sp').style.animation=loading?'spin 1s linear infinite':'none';
+  $('api-msg').textContent=msg;
+}
+
+// ── OPEN-METEO ──
+async function buscarAPI(){
+  const[lat,lon]=parsCoord(gv('s-coord'));
+  if(lat===null){alert('Formato no reconocido.\nEjemplos:\n• 33°23\'42.55"S 60°11\'29.87"W\n• -33.395, -60.192');return}
+  const btn=$('btn-api');btn.disabled=true;btn.textContent='⟳ Consultando...';
+  setStatus('Obteniendo ubicación (OpenStreetMap)...');
+  try{
+    // 1. Nominatim
+    let ubi=`${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,{headers:{'User-Agent':'AgroMotor/2.0'}});
+      const d=await r.json(),a=d.address||{};
+      const loc=a.city||a.town||a.village||a.county||'';
+      const prov=a.state||'';
+      ubi=[loc,prov].filter(Boolean).join(', ')||ubi;
+    }catch(e){}
+    $('i-ubi').textContent=ubi;
+
+    // 2. Suelo auto
+    const sa=detSuelo(lat,lon);
+    if(sa){$('s-suelo').value=sa;$('i-suelo').textContent=sa+' (auto)';$('s-sbadge').textContent='← auto'}
+    else{$('i-suelo').textContent='No detectado — elegir manualmente'}
+
+    setStatus('Descargando datos meteorológicos y de suelo — Open-Meteo...');
+
+    // 3. Open-Meteo — llamada única con TODAS las variables
+    const hoy=new Date();
+    const fs=gv('s-fecha');
+    const fsel=fs?new Date(fs+'T12:00:00'):hoy;
+    const fmt=d=>d.toISOString().split('T')[0];
+    const ini=new Date(fsel);ini.setDate(ini.getDate()-3);
+    const fin=new Date(fsel);fin.setDate(fin.getDate()+7);
+
+    const url='https://api.open-meteo.com/v1/forecast?'+
+      `latitude=${lat}&longitude=${lon}&timezone=auto`+
+      `&start_date=${fmt(ini)}&end_date=${fmt(fin)}`+
+      '&hourly=soil_temperature_6cm,soil_temperature_18cm,'+
+      'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm,'+
+      'et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m'+
+      '&daily=temperature_2m_max,temperature_2m_min,'+
+      'precipitation_probability_max,precipitation_sum,'+
+      'et0_fao_evapotranspiration,growing_degree_days_base_0_limit_50,'+
+      'wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum';
+
+    const res=await fetch(url);
+    if(!res.ok)throw new Error('Open-Meteo HTTP '+res.status);
+    const data=await res.json();
+
+    // Procesar hourly → avg diario
+    const h=data.hourly||{},ht=h.time||[];
+    const dh={};
+    ht.forEach((t,i)=>{
+      const d=t.split('T')[0];
+      if(!dh[d])dh[d]={st6:[],st18:[],sm39:[],sm927:[],sm2781:[],et0:[],vpd:[],wind:[]};
+      if(h.soil_temperature_6cm?.[i]!=null)dh[d].st6.push(h.soil_temperature_6cm[i]);
+      if(h.soil_temperature_18cm?.[i]!=null)dh[d].st18.push(h.soil_temperature_18cm[i]);
+      if(h.soil_moisture_3_to_9cm?.[i]!=null)dh[d].sm39.push(h.soil_moisture_3_to_9cm[i]*100);
+      if(h.soil_moisture_9_to_27cm?.[i]!=null)dh[d].sm927.push(h.soil_moisture_9_to_27cm[i]*100);
+      if(h.soil_moisture_27_to_81cm?.[i]!=null)dh[d].sm2781.push(h.soil_moisture_27_to_81cm[i]*100);
+      if(h.et0_fao_evapotranspiration?.[i]!=null)dh[d].et0.push(h.et0_fao_evapotranspiration[i]);
+      if(h.vapour_pressure_deficit?.[i]!=null)dh[d].vpd.push(h.vapour_pressure_deficit[i]);
+      if(h.wind_speed_10m?.[i]!=null)dh[d].wind.push(h.wind_speed_10m[i]);
+    });
+    const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
+
+    const dd=data.daily||{},dt=dd.time||[];
+    const dias=dt.map((fecha,i)=>{
+      const x=dh[fecha]||{};
+      return{fecha,
+        tMax:dd.temperature_2m_max?.[i]??null,tMin:dd.temperature_2m_min?.[i]??null,
+        precP:dd.precipitation_probability_max?.[i]??null,precS:dd.precipitation_sum?.[i]??null,
+        et0d:dd.et0_fao_evapotranspiration?.[i]??null,
+        gdd:dd.growing_degree_days_base_0_limit_50?.[i]??null,
+        windMax:dd.wind_speed_10m_max?.[i]??null,
+        rad:dd.shortwave_radiation_sum?.[i]??null,
+        st6:avg(x.st6||[]),st18:avg(x.st18||[]),
+        sm39:avg(x.sm39||[]),sm927:avg(x.sm927||[]),sm2781:avg(x.sm2781||[]),
+        et0h:avg(x.et0||[]),vpdh:avg(x.vpd||[]),windh:avg(x.wind||[]),
+      };
+    });
+
+    const fselStr=fmt(fsel);
+    const dRef=dias.find(d=>d.fecha===fselStr)||dias.find(d=>d.fecha>=fselStr)||dias[3];
+    const iRef=dias.indexOf(dRef);
+
+    // GDD acumulados hasta fecha de siembra
+    const gddAc=dias.slice(0,iRef+1).reduce((s,d)=>s+(d.gdd||0),0);
+    window._gddAc=gddAc;
+
+    // Lluvia 72h
+    const lluv72=Math.max(...dias.slice(iRef,iRef+3).map(d=>d.precP||0));
+
+    // Autocompletar sliders
+    if(dRef){
+      if(dRef.st6!=null)setR('s-t6',dRef.st6);
+      if(dRef.st18!=null)setR('s-t18',dRef.st18);
+      if(dRef.sm39!=null)setR('s-h1',Math.min(50,dRef.sm39));
+      if(dRef.sm927!=null)setR('s-h2',Math.min(50,dRef.sm927));
+      if(dRef.sm2781!=null)setR('s-h3',Math.min(50,dRef.sm2781));
+      if(dRef.et0d!=null)setR('s-et0',dRef.et0d,1);
+      if(dRef.vpdh!=null)setR('s-vpd',dRef.vpdh,2);
+      if(dRef.windh!=null)setR('s-viento',dRef.windh);
+    }
+    setR('s-lluv',lluv72);
+
+    // Panel info
+    $('i-temp').textContent=dRef?.st6!=null?dRef.st6.toFixed(1)+'°C':'—';
+    $('i-hum').textContent=dRef?.sm39!=null?dRef.sm39.toFixed(1)+'%':'—';
+    $('i-et0').textContent=dRef?.et0d!=null?dRef.et0d.toFixed(1)+' mm/d':'—';
+    $('i-vpd').textContent=dRef?.vpdh!=null?dRef.vpdh.toFixed(2)+' kPa':'—';
+    $('i-viento').textContent=dRef?.windh!=null?dRef.windh.toFixed(0)+' km/h':'—';
+    $('i-gdd').textContent=gddAc>0?gddAc.toFixed(0)+' GDD':'—';
+    $('api-info').classList.remove('hidden');
+
+    renderPron(dias,fselStr);
+    setStatus('✅ Open-Meteo cargado — consultando NASA POWER (histórico 30 años)...',true);
+
+    // Guardar diaRef globalmente para usar en compactación
+    window._diaRef = diaRef;
+
+    // ── NASA POWER: llamada paralela, no bloquea si falla ──
+    const mesSimb = fsel.getMonth() + 1; // 1-12
+    buscarNASAPower(lat, lon, mesSimb)
+      .then(props => {
+        renderNASAPower(props, mesSimb, lat, lon);
+        setStatus('✅ Open-Meteo + NASA POWER cargados correctamente', false);
+      })
+      .catch(e => {
+        // Falla silenciosa — Open-Meteo ya funcionó
+        setStatus('✅ Open-Meteo cargado · NASA POWER no disponible (se puede usar igualmente)', false);
+        console.warn('NASA POWER:', e.message);
+      });
+
+    // ── SOILGRIDS: mostrar DB interna INMEDIATAMENTE, luego intentar API real ──
+    // Paso 1: mostrar datos internos de inmediato (siempre funciona)
+    const sueloTipo = detSuelo(lat, lon) || 'Molisol';
+    const datosInternos = await buscarSoilGrids(lat, lon); // tiene fallback garantizado
+    // Siempre va a devolver algo (API real o DB interna)
+    window._sgDatos = datosInternos;
+    renderSoilGrids(datosInternos);
+    renderSueloModulo(datosInternos);
+    if ($('suelo-coord') && $('s-coord')?.value) $('suelo-coord').value = $('s-coord').value;
+    if (datosInternos.textura) {
+      const sel = $('s-suelo');
+      if (sel) {
+        sel.value = datosInternos.textura;
+        $('s-sbadge').textContent = datosInternos.esFallback ? '← DB interna' : '← SoilGrids 250m';
+      }
+    }
+    window._daReal = datosInternos.da;
+    // Calcular compactación con los datos disponibles
+    const humActualSG = parseFloat($('s-h1')?.value) || 22;
+    const traficoSG   = parseInt($('s-trafico')?.value) || 0;
+    const calcCompSG  = calcularCompactacion(datosInternos, humActualSG, traficoSG, window._diaRef);
+    if (calcCompSG) {
+      setR('s-compact', calcCompSG.mpaEstimado, 1);
+      $('compact-source').textContent = datosInternos.esFallback
+        ? '← estimado (DB interna pampa)'
+        : '← calculado (SoilGrids + Open-Meteo)';
+      $('compact-calc-info').textContent =
+        `Índice S: ${calcCompSG.indiceS.toFixed(3)} · DA: ${datosInternos.da?.toFixed(2)||'—'} g/cm³ · Arcilla: ${datosInternos.clay?.toFixed(0)||'—'}% · MO: ${calcCompSG.mo?.toFixed(1)||'—'}%`;
+      renderCompactacion(calcCompSG, datosInternos);
+    }
+        if (datos.ph) window._phReal = datos.ph;
+
+        // ── CALCULAR COMPACTACIÓN AUTOMÁTICAMENTE ──
+  }catch(e){
+    setStatus('⚠️ Error al consultar la API. Podés ingresar los datos manualmente.',false);
+    console.error(e);
+  }finally{btn.disabled=false;btn.textContent='🌡️ Obtener datos'}
+}
+
+// ── PRONÓSTICO ──
+function renderPron(dias,fRef){
+  const cult=gv('s-cultivo'),suelo=gv('s-suelo');
+  const tMinC=DB.tMin[cult]||10,hRef=DB.hum[suelo]?.[cult];
+  const hoy=new Date().toISOString().split('T')[0];
+  const dias8=dias.filter(d=>{const df=(new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3;return df>=-2&&df<=7});
+
+  const hdr=`<div class="pr hdr">
+    <div>Fecha</div><div class="mn">T°sue.</div><div class="mn">Hum%</div>
+    <div class="mn">ET₀</div><div class="mn">Viento</div><div class="mn">Lluv%</div><div>Estado</div>
+  </div>`;
+
+  const rows=dias8.map(d=>{
+    const esR=d.fecha===fRef,diff=Math.round((new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3);
+    const lbl=esR?'📌 Siembra':d.fecha===hoy?'Hoy':diff>0?`+${diff}d`:`${diff}d`;
+    let est='—',ch='';
+    if(d.st6!=null&&d.sm39!=null){
+      const hOk=hRef?d.sm39>=hRef.n&&d.sm39<=hRef.x:true,tOk=d.st6>=tMinC,wOk=!d.windMax||d.windMax<25;
+      if(hOk&&tOk&&wOk){est='✅ Apto';ch='ok-chip'}
+      else if(!tOk&&!hOk){est='🚫 T°+H°';ch='danger-chip'}
+      else if(!tOk){est='⚠️ T° baja';ch='warn-chip'}
+      else if(!wOk){est='⚠️ Viento';ch='warn-chip'}
+      else{est='⚠️ Humedad';ch='warn-chip'}
+    }
+    const ec=d.et0d!=null?(d.et0d>6?'color:#C94A2A':d.et0d>4?'color:#B87A20':'color:#2A7A4A'):'';
+    const wc=d.windMax!=null?(d.windMax>25?'color:#C94A2A':d.windMax>15?'color:#B87A20':''):'';
+    return`<div class="pr ${esR?'today':''}">
+      <div><span style="font-size:.65rem;color:rgba(74,46,26,.4)">${lbl}</span><br>${d.fecha.slice(5).replace('-','/')}</div>
+      <div class="mn">${d.st6!=null?d.st6.toFixed(1)+'°':'—'}</div>
+      <div class="mn">${d.sm39!=null?d.sm39.toFixed(1)+'%':'—'}</div>
+      <div class="mn" style="${ec}">${d.et0d!=null?d.et0d.toFixed(1):'—'}</div>
+      <div class="mn" style="${wc}">${d.windMax!=null?d.windMax.toFixed(0):'—'}</div>
+      <div class="mn">${d.precP!=null?d.precP+'%':'—'}</div>
+      <div><span class="chip ${ch}">${est}</span></div>
+    </div>`;
+  }).join('');
+
+  $('pron-card').classList.remove('hidden');
+  $('pron-tabla').innerHTML=hdr+rows;
+}
+
+// ── DIAGNÓSTICO SIEMBRA ──
+function calcSiembra(){
+  const cult=gv('s-cultivo'),suelo=gv('s-suelo');
+  const h1=+gv('s-h1'),h2=+gv('s-h2'),h3=+gv('s-h3');
+  const lluv=+gv('s-lluv'),t6=+gv('s-t6'),t18=+gv('s-t18');
+  const rast=gv('s-rast')==='si',comp=+gv('s-compact');
+  const et0=+gv('s-et0'),vpd=+gv('s-vpd'),viento=+gv('s-viento');
+
+  const hRef=DB.hum[suelo]?.[cult],sRef=DB.suelo[suelo],prof=DB.prof[suelo]?.[cult];
+  const tMin=DB.tMin[cult],tId=DB.tId[cult];
+  if(!hRef||!prof||!sRef)return;
+
+  const tEf=rast?t6-1.5:t6;
+  const{cc,pm,da}=sRef;
+
+  // Agua útil total en perfil 80 cm (mm)
+  const auMm=(Math.max(0,h1-pm)*6+Math.max(0,h2-pm)*18+Math.max(0,h3-pm)*56)*da/100;
+  const diasR=et0>0?Math.round(auMm/et0):999;
+
+  // Scores
+  // HUMEDAD
+  let sH,eH,mH;
+  if(h1<hRef.n){sH=lluv>=70?55:Math.max(0,40-(hRef.n-h1)*3);eH=lluv>=70?'a':'r';mH=lluv>=70?`Humedad baja (${h1}%) pero lluvia pronosticada (${lluv}%) podría compensar. Evaluar siembra preventiva.`:`Humedad insuficiente (${h1}% < mín ${hRef.n}%). Sin lluvia prevista, no se recomienda sembrar.`}
+  else if(h1>hRef.x){sH=Math.max(20,70-(h1-hRef.x)*4);eH='r';mH=`Humedad excesiva (${h1}% > máx ${hRef.x}%). Riesgo de pudrición de semilla y problemas de apertura de surco.`}
+  else{sH=Math.min(100,100-Math.abs(h1-hRef.i)*3);eH=lluv>=80&&h1>hRef.i?'a':'v';mH=eH==='v'?`Humedad óptima (${h1}%). Condición ideal para siembra a ${prof[1]} cm.`:`Humedad adecuada (${h1}%) pero lluvia (${lluv}%) podría exceder el máximo. Sembrar a profundidad máxima (${prof[2]} cm).`}
+
+  // TEMPERATURA
+  let sT,eT,mT;
+  if(tEf<tMin){sT=Math.max(0,30-(tMin-tEf)*5);eT='r';mT=`Temperatura insuficiente (${tEf.toFixed(1)}°C < mín ${tMin}°C para ${cult}). Alto riesgo de falla en germinación.`}
+  else if(tEf<tId){sT=60+(tEf-tMin)/(tId-tMin)*40;eT='a';mT=`Temperatura aceptable pero subóptima (${tEf.toFixed(1)}°C). Germinación lenta. Ideal: ${tId}°C.`}
+  else{sT=100;eT='v';mT=`Temperatura óptima (${tEf.toFixed(1)}°C ≥ ${tId}°C). Germinación normal esperada.`}
+  const gradT=t6-t18;
+  if(gradT>3)mT+=` Gradiente positivo 6→18cm (+${gradT.toFixed(1)}°C) — favorable para emergencia rápida.`;
+  else if(gradT<-2)mT+=` Inversión térmica subsuperficial (${gradT.toFixed(1)}°C) — monitorear.`;
+
+  // RESERVA HÍDRICA (ET₀)
+  let sE,eE,mE;
+  if(diasR>=14){sE=100;eE='v';mE=`Reserva hídrica sólida: ${auMm.toFixed(0)} mm agua útil en el perfil → ${diasR} días antes de marchitez permanente.`}
+  else if(diasR>=7){sE=70;eE='a';mE=`Reserva moderada: ${auMm.toFixed(0)} mm → ${diasR} días de reserva a ET₀ ${et0} mm/d. Monitorear lluvia.`}
+  else{sE=25;eE='r';mE=`Reserva crítica: ${auMm.toFixed(0)} mm → solo ${diasR} días a ET₀ ${et0} mm/d. Riesgo de estrés hídrico severo.`}
+
+  // VPD
+  let sV,eV,mV;
+  if(vpd<0.4){sV=80;eV='a';mV=`VPD muy bajo (${vpd.toFixed(2)} kPa). Transpiración reducida. Riesgo de enfermedades fúngicas por alta humedad foliar.`}
+  else if(vpd<=1.6){sV=100;eV='v';mV=`VPD óptimo (${vpd.toFixed(2)} kPa). Demanda atmosférica normal — condición favorable para establecimiento del cultivo.`}
+  else if(vpd<=2.5){sV=60;eV='a';mV=`VPD elevado (${vpd.toFixed(2)} kPa). Estrés hídrico moderado. Germinación más lenta y mayor exigencia de establecimiento.`}
+  else{sV=20;eV='r';mV=`VPD muy alto (${vpd.toFixed(2)} kPa). Estrés hídrico severo — evapotranspiración máxima. Postergar siembra de ser posible.`}
+
+  // VIENTO
+  let sW,eW,mW;
+  if(viento<10){sW=100;eW='v';mW=`Viento calmo (${viento} km/h). Condiciones operativas ideales.`}
+  else if(viento<20){sW=85;eW='v';mW=`Viento moderado (${viento} km/h). Sin restricciones para siembra.`}
+  else if(viento<30){sW=50;eW='a';mW=`Viento fuerte (${viento} km/h). Puede afectar distribución de semilla en sembradoras a chorrillo. No aplicar herbicidas.`}
+  else{sW=15;eW='r';mW=`Viento muy fuerte (${viento} km/h). No se recomienda sembrar ni aplicar agroquímicos.`}
+
+  // COMPACTACIÓN
+  let sC,eC,mC;
+  if(comp<1){sC=100;eC='v';mC=`Resistencia baja (${comp} MPa). Condición ideal para penetración de raíces.`}
+  else if(comp<2){sC=90-(comp-1)*30;eC='v';mC=`Resistencia normal (${comp} MPa). Sin restricciones significativas.`}
+  else if(comp<3){sC=60-(comp-2)*30;eC='a';mC=`Resistencia moderada (${comp} MPa). Puede limitar raíces. Evaluar subsolado.`}
+  else{sC=Math.max(10,30-(comp-3)*20);eC='r';mC=`Resistencia alta (${comp} MPa). Limitación severa al crecimiento radicular. Se recomienda laboreo.`}
+
+  // SCORE GLOBAL (ponderado)
+  const sg=Math.round(sH*.30+sT*.25+sE*.15+sV*.10+sC*.15+sW*.05);
+  const[dec,dCol,dIco]=sg>=75?['APTO PARA SIEMBRA','#1A5C2A','✅']:sg>=50?['SIEMBRA CON PRECAUCIÓN','#7A4A10','⚠️']:['NO RECOMENDADO SEMBRAR','#7A1A0A','🚫'];
+
+  let profRec;
+  if(eH==='v'&&lluv<60)profRec=`${prof[1]} cm (profundidad ideal)`;
+  else if(lluv>=70||h1>hRef.i)profRec=`${prof[2]} cm (máxima — evitar pudrición por exceso hídrico)`;
+  else if(h1<hRef.n)profRec=`${prof[2]} cm (máxima — alcanzar humedad disponible)`;
+  else profRec=`${prof[1]} cm`;
+
+  const gdd=window._gddAc||0;
+  const gddTxt=gdd>0?` · ${gdd.toFixed(0)} GDD acumulados`:'';
+
+  // RENDER
+  $('s-ph').classList.add('hidden');$('s-res').classList.remove('hidden');
+
+  $('s-banner').innerHTML=`<div style="background:${dCol};border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+    <span style="font-size:1.8rem">${dIco}</span>
+    <div>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:white">${dec}</div>
+      <div style="font-size:.74rem;color:rgba(255,255,255,.65);margin-top:.2rem">${cult} · ${suelo} · Score: ${sg}/100${gddTxt}</div>
+    </div>
+  </div>`;
+
+  $('s-kpis').innerHTML=`
+    <div class="kc ${sg<50?'danger':sg<75?'warn':''}"><div class="kl">Score global</div><div class="kv">${sg}</div><div class="ku">/ 100</div></div>
+    <div class="kc ${eE==='r'?'danger':eE==='a'?'warn':''}"><div class="kl">Días reserva</div><div class="kv">${diasR>99?'∞':diasR}</div><div class="ku">ET₀ ${et0} mm/d</div></div>
+    <div class="kc ${eV==='r'?'danger':eV==='a'?'warn':''}"><div class="kl">VPD</div><div class="kv">${vpd.toFixed(1)}</div><div class="ku">kPa</div></div>
+    <div class="kc ${eW==='r'?'danger':eW==='a'?'warn':''}"><div class="kl">Viento</div><div class="kv">${viento}</div><div class="ku">km/h</div></div>
+    <div class="kc neutral"><div class="kl">Agua útil</div><div class="kv">${auMm.toFixed(0)}</div><div class="ku">mm perfil</div></div>
+    <div class="kc blue"><div class="kl">Prof. rec.</div><div class="kv">${prof[1]}</div><div class="ku">cm</div></div>`;
+
+  const inds=[
+    {l:'Humedad zona activa (3-9 cm)',s:sH,e:eH,v:`${h1}%`,r:`${hRef.n}-${hRef.x}%`},
+    {l:'Temperatura suelo (6 cm)',s:sT,e:eT,v:`${tEf.toFixed(1)}°C`,r:`≥${tMin}°C`},
+    {l:'Reserva hídrica / ET₀',s:sE,e:eE,v:`${diasR>99?'∞':diasR} días`,r:`ET₀ ${et0} mm/d`},
+    {l:'VPD atmosférico',s:sV,e:eV,v:`${vpd.toFixed(2)} kPa`,r:'0.4–1.6 kPa'},
+    {l:'Compactación',s:sC,e:eC,v:`${comp} MPa`,r:'<2.0 MPa'},
+    {l:'Viento operativo',s:sW,e:eW,v:`${viento} km/h`,r:'<20 km/h'},
+  ];
+  $('s-inds').innerHTML=inds.map(x=>`
+    <div style="margin-bottom:.8rem">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.22rem">
+        <div style="font-size:.79rem;font-weight:600;color:var(--earth)">${x.l}</div>
+        <div class="sema ${x.e}"><div class="sema-dot"></div>${x.v} · ${x.r}</div>
+      </div>
+      <div class="pb"><div class="pf ${x.s<50?'danger':x.s<70?'warn':''}" style="width:${x.s}%"></div></div>
+    </div>`).join('');
+
+  const tipos={v:'ok',a:'warn',r:'danger'};
+  const iconos={v:'✅',a:'⚠️',r:'🚫'};
+  const msgs=[[mH,eH],[mT,eT],[mE,eE],[mV,eV],[mC,eC],[mW,eW]];
+  const spec=['💨','💨'];
+  $('s-recs').innerHTML=msgs.map(([m,e])=>`<div class="alert ${tipos[e]}"><span class="ai">${iconos[e]}</span><div class="ac">${m}</div></div>`).join('')+
+    `<div class="alert info"><span class="ai">📏</span><div class="ac"><strong>Profundidad de siembra:</strong> ${profRec} para ${cult} en ${suelo}</div></div>`;
+}
+
+// ── FERTILIZACIÓN ──
+function updRend(){
+  const c=gv('f-cult'),r=DB.rendR[c];
+  const sl=$('f-rend');sl.min=r[0];sl.max=r[1];sl.value=((r[0]+r[1])/2).toFixed(1);sv('sv-rend',sl.value+' t/ha');
+}
+function calcFert(){
+  const cult=gv('f-cult'),rend=+gv('f-rend'),sup=gi('f-sup')||1;
+  const nS=gi('f-n'),pS=gi('f-p'),kS=gi('f-k');
+  const pr={'Urea':gi('f-p-u')||550,'MAP (Fosfato Monoamónico)':gi('f-p-m')||700,'DAP (Fosfato Diamónico)':gi('f-p-d')||750,'KCl (Cloruro de Potasio)':gi('f-p-k')||600};
+  const req=DB.npk[cult];
+  const nD=Math.max(0,req.N*rend-nS),pD=Math.max(0,req.P*rend-pS),kD=Math.max(0,req.K*rend-kS);
+  let cant={},nC=0;
+  if(pD>0){const k=Math.min(500,pD/(DB.ferts['MAP (Fosfato Monoamónico)'].P/100));cant['MAP (Fosfato Monoamónico)']=k;nC+=k*(DB.ferts['MAP (Fosfato Monoamónico)'].N/100)}
+  if(kD>0)cant['KCl (Cloruro de Potasio)']=Math.min(300,kD/(DB.ferts['KCl (Cloruro de Potasio)'].K/100));
+  const nR=Math.max(0,nD-nC);
+  if(nR>0&&cult!=='Soja')cant['Urea']=Math.min(500,nR/(DB.ferts['Urea'].N/100));
+  let cTot=0,fil='';
+  for(const[f,k] of Object.entries(cant)){const c=(k/1000)*(pr[f]||500);cTot+=c;fil+=`<div class="fr"><div class="fn">🧪 ${f}</div><div class="fk">${k.toFixed(1)} kg/ha</div><div style="font-family:'DM Mono',monospace;font-size:.77rem;color:rgba(74,46,26,.5);min-width:68px;text-align:right">${(k*sup).toFixed(0)} kg tot</div><div class="fc">USD ${c.toFixed(2)}/ha</div></div>`}
+  if(!fil)fil='<div class="alert ok"><span class="ai">✅</span><div class="ac">El suelo cubre todos los nutrientes para el rendimiento objetivo. No se requiere fertilización adicional.</div></div>';
+  const defH=`<table class="dt"><thead><tr><th>Nut.</th><th>Requerido</th><th>Suelo</th><th>Déficit</th><th>Estado</th></tr></thead><tbody>`+
+    [['N',req.N*rend,nS,nD],['P',req.P*rend,pS,pD],['K',req.K*rend,kS,kD]].map(([n,t,s,d])=>
+      `<tr><td><b>${n}</b></td><td class="mn">${t.toFixed(1)} kg/ha</td><td class="mn">${s} kg/ha</td><td class="mn">${d.toFixed(1)} kg/ha</td><td>${d>0?'<span class="sema r"><div class="sema-dot"></div>Déficit</span>':'<span class="sema v"><div class="sema-dot"></div>OK</span>'}</td></tr>`).join('')+'</tbody></table>';
+  $('f-ph').classList.add('hidden');$('f-res').classList.remove('hidden');
+  $('f-def').innerHTML=defH;$('f-ferts').innerHTML=fil;
+  $('f-costos').innerHTML=`<div class="rg">
+    <div class="kc"><div class="kl">Costo/ha</div><div class="kv">USD ${cTot.toFixed(0)}</div></div>
+    <div class="kc neutral"><div class="kl">Campaña total</div><div class="kv">USD ${(cTot*sup/1000).toFixed(1)}k</div><div class="ku">${sup} ha</div></div>
+    <div class="kc"><div class="kl">Rendimiento obj.</div><div class="kv">${rend}</div><div class="ku">t/ha · ${cult}</div></div>
+  </div>`;
+  $('f-alertas').innerHTML=cult==='Soja'?'<div class="alert info"><span class="ai">💡</span><div class="ac"><strong>Soja — Fijación biológica de N:</strong> Inoculación con Bradyrhizobium reemplaza la fertilización nitrogenada directa. El N indicado es referencial.</div></div>':'';
+}
+
+// ── MAQUINARIA ──
+let TC=[];
+function loadMaq(){
+  const m=DB.maqs[gv('m-maq')];
+  $('m-ancho').value=m.a;
+  TC=m.t.map(t=>({...t,prod:'Soja',pct:100,dosis:80}));
+  renderTC();
+}
+function renderTC(){
+  $('m-tolvas').innerHTML=TC.map((t,i)=>`
+    <div class="tr"><div class="trh"><span class="trn">📦 ${t.n}</span><span class="trv">${(t.v/1000).toFixed(1)} m³ · ${t.v.toLocaleString()} L</span></div>
+    <div class="grid-3">
+      <div class="fg" style="margin-bottom:0"><label>Producto</label>
+        <select onchange="TC[${i}].prod=this.value;syncD(${i})">
+          ${Object.keys(DB.dosis).map(p=>`<option value="${p}" ${p===t.prod?'selected':''}>${p}</option>`).join('')}
+        </select></div>
+      <div class="fg" style="margin-bottom:0"><label>Dosis (kg/ha)</label>
+        <input type="number" id="md-${i}" value="${DB.dosis[t.prod]||80}" min="0" max="500" onchange="TC[${i}].dosis=+this.value||0"></div>
+      <div class="fg" style="margin-bottom:0"><label>% llenado</label>
+        <div class="sw"><input type="range" min="10" max="100" value="100" oninput="TC[${i}].pct=+this.value;sv('mp-${i}',this.value+'%')"><span class="sv" id="mp-${i}">100%</span></div></div>
+    </div></div>`).join('');
+  TC.forEach((t,i)=>t.dosis=DB.dosis[t.prod]||80);
+}
+function syncD(i){const e=$(`md-${i}`);if(e){e.value=DB.dosis[TC[i].prod]||80;TC[i].dosis=+e.value}}
+function calcMaq(){
+  const a=gi('m-ancho'),v=gi('m-vel'),ef=+gv('m-efic')||.85;
+  const hs=gi('m-hs'),tr=gi('m-rec'),pe=gi('m-precio'),mg=gi('m-margen');
+  TC.forEach((t,i)=>{const e=$(`md-${i}`);if(e)t.dosis=+e.value||0});
+  const cT=(a*v*ef)/10;
+  let hpc=[],ti=[];
+  for(const t of TC){
+    if(t.prod==='Vacío'||!t.dosis){ti.push({...t,ha:Infinity});continue}
+    const d=DB.prods[t.prod];if(d==null){ti.push({...t,ha:Infinity});continue}
+    const ve=t.v*(t.pct/100),kg=ve*d,ha=kg/t.dosis;
+    hpc.push(ha);ti.push({...t,ha,ve,kg});
+  }
+  const hl=hpc.length?Math.min(...hpc):Infinity;
+  let hd=0,rc=0;
+  if(hl<Infinity){
+    const hpc2=hl/cT,hr=tr/60;let td=hs,ha=0,r=0;
+    while(td>0){const tf=Math.min(hpc2,td);ha+=tf*cT;td-=tf;if(td>hr){td-=hr;r++}else break}
+    hd=ha;rc=r;
+  }else hd=cT*hs;
+  const hp=rc*(tr/60),cr=hd/hs;
+  $('m-ph').classList.add('hidden');$('m-res').classList.remove('hidden');
+  $('m-kpis').innerHTML=`
+    <div class="kc"><div class="kl">Ha/jornada</div><div class="kv">${hd.toFixed(1)}</div></div>
+    <div class="kc"><div class="kl">Cap. teórica</div><div class="kv">${cT.toFixed(2)}</div><div class="ku">ha/h</div></div>
+    <div class="kc ${rc>3?'warn':''}"><div class="kl">Recargas</div><div class="kv">${rc}</div><div class="ku">${hp.toFixed(1)}h perdidas</div></div>`;
+  $('m-aut').innerHTML=ti.map(t=>{
+    if(t.prod==='Vacío'||!t.dosis)return'';
+    const lim=t.ha===hl;
+    return`<div style="margin-bottom:.75rem;padding:.75rem;border-radius:8px;border:1px solid ${lim?'rgba(184,122,32,.4)':'var(--border)'};background:${lim?'rgba(184,122,32,.05)':'transparent'}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.35rem">
+        <div style="font-weight:600;font-size:.84rem">${t.n} → ${t.prod}</div>
+        ${lim?'<span style="font-size:.66rem;background:rgba(184,122,32,.15);color:#7A4A10;padding:.18rem .55rem;border-radius:10px;font-weight:700">TOLVA LIMITANTE</span>':''}
+      </div>
+      <div style="display:flex;gap:1.2rem;font-size:.79rem;color:rgba(74,46,26,.6)">
+        <span>Vol: <b style="font-family:'DM Mono',monospace">${t.ve?.toFixed(0)||'—'} L</b></span>
+        <span>Kg: <b style="font-family:'DM Mono',monospace">${t.kg?.toFixed(0)||'—'} kg</b></span>
+        <span>Aut.: <b style="font-family:'DM Mono',monospace;color:var(--canopy)">${t.ha===Infinity?'∞':t.ha.toFixed(1)+' ha'}</b></span>
+      </div></div>`;
+  }).join('');
+  $('m-jorn').innerHTML=`<table class="dt"><tbody>
+    <tr><td>Horas de jornada</td><td class="mn">${hs} h</td></tr>
+    <tr><td>Horas efectivas</td><td class="mn">${(hs-hp).toFixed(1)} h</td></tr>
+    <tr><td>Horas en recargas</td><td class="mn">${hp.toFixed(1)} h (${rc} × ${tr} min)</td></tr>
+    <tr><td>Productividad real</td><td class="mn">${cr.toFixed(2)} ha/h</td></tr>
+    <tr class="hl"><td>Ha por jornada</td><td class="mn">${hd.toFixed(1)} ha</td></tr>
+    </tbody></table>`;
+  if(pe>0&&mg>0){
+    const hpb=pe/mg,jpb=Math.ceil(hpb/hd);
+    $('m-roi').classList.remove('hidden');
+    $('m-roi-c').innerHTML=`<div class="rg">
+      <div class="kc neutral"><div class="kl">Ha para payback</div><div class="kv">${hpb.toFixed(0)}</div><div class="ku">hectáreas</div></div>
+      <div class="kc neutral"><div class="kl">Jornadas payback</div><div class="kv">${jpb}</div><div class="ku">días de trabajo</div></div>
+    </div>`;
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// NASA POWER — CONTEXTO CLIMÁTICO HISTÓRICO
+// Comunidad: AG (Agriculture) · 30 años de datos ERA5
+// URL: https://power.larc.nasa.gov/api/temporal/climatology/point
+// ════════════════════════════════════════════════════════
+
+async function buscarNASAPower(lat, lon, mes) {
+  // NASA POWER: climatología mensual — promedio histórico por mes del año
+  // Community AG, parámetros agrícolas clave
+  // Resolución: 0.5° x 0.625° (~50 km) — datos desde 1981
+  const params = [
+    'ALLSKY_SFC_SW_DWN',  // Radiación solar global (MJ/m²/día)
+    'T2M_MAX',            // Temperatura máx promedio (°C)
+    'T2M_MIN',            // Temperatura mín promedio (°C)
+    'PRECTOTCORR',        // Precipitación (mm/día)
+    'RH2M',               // Humedad relativa 2m (%)
+    'WS2M',               // Velocidad viento 2m (m/s)
+    'ET0',                // ET₀ de referencia (mm/día)
+    'ALLSKY_SFC_LW_DWN',  // Radiación onda larga (W/m²)
+  ].join(',');
+
+  const url = `https://power.larc.nasa.gov/api/temporal/climatology/point?` +
+    `parameters=${params}` +
+    `&community=AG` +
+    `&longitude=${lon.toFixed(4)}&latitude=${lat.toFixed(4)}` +
+    `&format=JSON`;
+
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('NASA POWER HTTP ' + res.status);
+  const data = await res.json();
+  const props = data?.properties?.parameter;
+  if (!props) throw new Error('NASA POWER: respuesta inesperada');
+  return props;
+}
+
+function renderNASAPower(props, mes, lat, lon) {
+  // mes: 1-12
+  const mIdx = String(mes).padStart(2, '0'); // "01" a "12"
+  const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+  const get = (key) => props[key]?.[mIdx] ?? null;
+  const getAnual = (key) => props[key]?.['ANN'] ?? null;
+
+  const rad    = get('ALLSKY_SFC_SW_DWN');  // MJ/m²/día
+  const tmax   = get('T2M_MAX');
+  const tmin   = get('T2M_MIN');
+  const precD  = get('PRECTOTCORR');        // mm/día → * 30 para mensual
+  const rh     = get('RH2M');
+  const ws     = get('WS2M');
+  const et0    = get('ET0');
+  const precM  = precD != null ? precD * 30 : null;    // mm/mes aprox
+  const et0M   = et0  != null ? et0  * 30 : null;      // mm/mes aprox
+  const balHid = (precM != null && et0M != null) ? precM - et0M : null;
+
+  // Días con lluvia: estimado por umbral 1mm/d
+  // NASA POWER no da días con lluvia directamente, estimamos
+  const drd = precD != null ? Math.round(precD * 30 / 3.5) : null; // aprox
+
+  // Panel rápido
+  $('np-rad').textContent  = rad   != null ? rad.toFixed(1)+' MJ/m²/d' : '—';
+  $('np-prec').textContent = precM != null ? precM.toFixed(0)+' mm'     : '—';
+  $('np-tmax').textContent = tmax  != null ? tmax.toFixed(1)+'°C'       : '—';
+  $('np-tmin').textContent = tmin  != null ? tmin.toFixed(1)+'°C'       : '—';
+  $('np-et0').textContent  = et0M  != null ? et0M.toFixed(0)+' mm'      : '—';
+  $('np-rh').textContent   = rh    != null ? rh.toFixed(0)+'%'          : '—';
+  $('np-drd').textContent  = drd   != null ? '~'+drd+' días'            : '—';
+  $('np-bal').textContent  = balHid!= null ? (balHid>=0?'+':'')+balHid.toFixed(0)+' mm' : '—';
+  $('nasa-info').classList.remove('hidden');
+
+  // Tabla mensual completa — los 12 meses + anual
+  const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic','Anual'];
+  const claves = ['01','02','03','04','05','06','07','08','09','10','11','12','ANN'];
+
+  // Balance hídrico mensual para gráfico de barras
+  const filaHeader = `
+    <div style="overflow-x:auto;margin-top:.8rem">
+    <table class="dt" style="min-width:700px">
+      <thead><tr>
+        <th>Mes</th>
+        <th>Rad. solar<br><span style="font-weight:400">MJ/m²/d</span></th>
+        <th>T° máx<br><span style="font-weight:400">°C</span></th>
+        <th>T° mín<br><span style="font-weight:400">°C</span></th>
+        <th>Precip.<br><span style="font-weight:400">mm/mes</span></th>
+        <th>ET₀<br><span style="font-weight:400">mm/mes</span></th>
+        <th>HR<br><span style="font-weight:400">%</span></th>
+        <th>Balance<br><span style="font-weight:400">mm</span></th>
+      </tr></thead>
+      <tbody>`;
+
+  const filas = claves.map((k, i) => {
+    const esAnual = k === 'ANN';
+    const esMesActual = k === mIdx;
+    const r   = props['ALLSKY_SFC_SW_DWN']?.[k];
+    const tx  = props['T2M_MAX']?.[k];
+    const tn  = props['T2M_MIN']?.[k];
+    const pd  = props['PRECTOTCORR']?.[k];
+    const e   = props['ET0']?.[k];
+    const h   = props['RH2M']?.[k];
+    const pm  = pd != null ? (esAnual ? pd * 365 : pd * 30) : null;
+    const em  = e  != null ? (esAnual ? e  * 365 : e  * 30) : null;
+    const bal = pm != null && em != null ? pm - em : null;
+
+    // Color del balance
+    const balColor = bal == null ? '' :
+      bal > 20  ? 'color:var(--ok);font-weight:600' :
+      bal < -30 ? 'color:var(--warn);font-weight:600' :
+                  'color:var(--caution)';
+
+    const trClass = esMesActual ? 'hl' : esAnual ? '' : '';
+    const trStyle = esAnual ? 'background:rgba(74,46,26,.04);font-weight:600' : '';
+
+    return `<tr class="${trClass}" style="${trStyle}${esMesActual?' background:rgba(74,140,92,.1);':''}">
+      <td>${mesesNombres[i]}${esMesActual?' 📌':''}</td>
+      <td class="mn">${r  != null ? r.toFixed(1)  : '—'}</td>
+      <td class="mn">${tx != null ? tx.toFixed(1) : '—'}</td>
+      <td class="mn">${tn != null ? tn.toFixed(1) : '—'}</td>
+      <td class="mn">${pm != null ? pm.toFixed(0) : '—'}</td>
+      <td class="mn">${em != null ? em.toFixed(0) : '—'}</td>
+      <td class="mn">${h  != null ? h.toFixed(0)  : '—'}</td>
+      <td class="mn" style="${balColor}">${bal != null ? (bal>=0?'+':'')+bal.toFixed(0) : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  // Mini gráfico de barras del balance hídrico (ASCII visual con CSS)
+  const balMeses = claves.slice(0,12).map(k => {
+    const pd = props['PRECTOTCORR']?.[k];
+    const e  = props['ET0']?.[k];
+    if (pd == null || e == null) return null;
+    return (pd - e) * 30;
+  });
+
+  const maxAbs = Math.max(...balMeses.filter(v=>v!=null).map(Math.abs), 1);
+
+  const grafBalance = `
+    <div style="margin-top:1.2rem">
+      <div class="sl">Balance hídrico mensual histórico (Precip. − ET₀) · mm/mes promedio 30 años</div>
+      <div style="display:flex;align-items:flex-end;gap:3px;height:80px;margin-top:.5rem">
+        ${balMeses.map((v,i)=>{
+          if(v==null)return'<div style="flex:1"></div>';
+          const esM=claves[i]===mIdx;
+          const pct=Math.abs(v)/maxAbs*100;
+          const color=v>=0?'var(--ok)':'var(--warn)';
+          const bord=esM?'2px solid var(--grain)':'none';
+          return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px" title="${mesesNombres[i]}: ${v>=0?'+':''}${v.toFixed(0)} mm">
+            ${v>=0?`<div style="flex:1"></div><div style="height:${pct}%;min-height:2px;width:100%;background:${color};border-radius:2px 2px 0 0;border:${bord}"></div>`:
+                   `<div style="height:${pct}%;min-height:2px;width:100%;background:${color};border-radius:0 0 2px 2px;border:${bord}"></div><div style="flex:1"></div>`}
+            <div style="font-size:.52rem;color:rgba(74,46,26,.5);margin-top:2px">${mesesNombres[i].slice(0,1)}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:1.2rem;margin-top:.5rem;font-size:.72rem">
+        <span style="display:flex;align-items:center;gap:.3rem"><span style="width:10px;height:10px;background:var(--ok);border-radius:2px;display:inline-block"></span>Superávit hídrico</span>
+        <span style="display:flex;align-items:center;gap:.3rem"><span style="width:10px;height:10px;background:var(--warn);border-radius:2px;display:inline-block"></span>Déficit hídrico</span>
+        <span style="display:flex;align-items:center;gap:.3rem"><span style="width:10px;height:4px;background:var(--grain);border-radius:2px;display:inline-block"></span>Mes de siembra</span>
+      </div>
+    </div>`;
+
+  // Interpretación agronómica del contexto histórico
+  const et0MesVal = et0 != null ? et0 * 30 : null;
+  const precMesVal = precD != null ? precD * 30 : null;
+  const balMesVal = (et0MesVal && precMesVal) ? precMesVal - et0MesVal : null;
+
+  let interp = '';
+  if (balMesVal != null) {
+    if (balMesVal > 30) {
+      interp = `<div class="alert ok" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
+        <strong>Mes históricamente superavitario</strong>
+        En ${mesesNombres[parseInt(mIdx)-1]}, este lote recibe históricamente más lluvia (${precMesVal.toFixed(0)} mm) que lo que pierde por ET₀ (${et0MesVal.toFixed(0)} mm). Balance promedio: +${balMesVal.toFixed(0)} mm. Condición típicamente favorable para establecimiento del cultivo.
+      </div></div>`;
+    } else if (balMesVal < -30) {
+      interp = `<div class="alert danger" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
+        <strong>Mes históricamente deficitario</strong>
+        En ${mesesNombres[parseInt(mIdx)-1]}, la demanda hídrica (ET₀: ${et0MesVal.toFixed(0)} mm) supera históricamente a la lluvia (${precMesVal.toFixed(0)} mm). Déficit promedio: ${balMesVal.toFixed(0)} mm. El establecimiento depende fuertemente de la reserva de agua en el perfil.
+      </div></div>`;
+    } else {
+      interp = `<div class="alert warn" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
+        <strong>Mes históricamente en equilibrio hídrico</strong>
+        Balance promedio en ${mesesNombres[parseInt(mIdx)-1]}: ${balMesVal>=0?'+':''}${balMesVal.toFixed(0)} mm. Las condiciones del lote en esta época son variables — el pronóstico de corto plazo (Open-Meteo) tiene mayor peso para la decisión de siembra que el histórico.
+      </div></div>`;
+    }
+  }
+
+  // Radiación solar: contexto para GDD y fotosíntesis
+  let interpRad = '';
+  if (rad != null) {
+    if (rad > 20) {
+      interpRad = `<div class="alert info" style="margin-top:.6rem"><span class="ai">☀️</span><div class="ac"><strong>Alta radiación solar histórica</strong> — ${rad.toFixed(1)} MJ/m²/día promedio. Condición favorable para acumulación de GDD y desarrollo del cultivo.</div></div>`;
+    } else if (rad < 12) {
+      interpRad = `<div class="alert warn" style="margin-top:.6rem"><span class="ai">☀️</span><div class="ac"><strong>Radiación solar baja históricamente</strong> — ${rad.toFixed(1)} MJ/m²/día. Puede limitar la tasa de acumulación de GDD y la fotosíntesis del cultivo.</div></div>`;
+    }
+  }
+
+  $('nasa-card').classList.remove('hidden');
+  $('nasa-contenido').innerHTML = filaHeader + filas + '</tbody></table></div>' + grafBalance + interp + interpRad;
+}
+
+// ════════════════════════════════════════════════════════
+// SOILGRIDS — ESTRATEGIA HÍBRIDA
+// 1° intento: REST API de SoilGrids (rest.isric.org)
+// 2° fallback: Base de datos interna pampa argentina
+//    calibrada con datos WoSIS/INTA por tipo de suelo
+// ════════════════════════════════════════════════════════
+
+// Base de datos interna — valores típicos región pampeana argentina
+// Fuente: WoSIS, INTA EEA Marcos Juárez, Pergamino, Anguil
+const DB_SUELO_PAMPA = {
+  Molisol:  { ph:6.2, clay:25, sand:32, silt:43, soc:18.5, n:1.65, da:1.18, cec:22.0, fuente:'DB interna · Molisol pampeano típico (INTA/WoSIS)' },
+  Vertisol: { ph:7.1, clay:48, sand:12, silt:40, soc:14.2, n:1.30, da:1.25, cec:32.0, fuente:'DB interna · Vertisol (INTA EEA Marcos Juárez)' },
+  Alfisol:  { ph:5.8, clay:28, sand:35, silt:37, soc:12.0, n:1.10, da:1.32, cec:16.5, fuente:'DB interna · Alfisol degradado típico' },
+  Entisol:  { ph:6.0, clay:10, sand:72, silt:18, soc: 5.5, n:0.55, da:1.48, cec: 7.0, fuente:'DB interna · Entisol arenoso' },
+  Oxisol:   { ph:5.2, clay:35, sand:28, silt:37, soc:22.0, n:1.90, da:1.10, cec:12.0, fuente:'DB interna · Oxisol laterítico' },
+};
+
+// Clasifica textura USDA
+function clasificarTextura(clay, sand, silt) {
+  if (clay >= 40) return 'Vertisol';
+  if (clay >= 27 && silt >= 28) return 'Vertisol';
+  if (clay >= 20 && clay < 35 && silt >= 28 && sand < 45) return 'Alfisol';
+  if (clay < 20 && sand < 52 && silt >= 28) return 'Molisol';
+  if (sand >= 70) return 'Entisol';
+  if (clay < 18 && silt >= 65) return 'Molisol';
+  return 'Molisol';
+}
+
+async function buscarSoilGrids(lat, lon) {
+  // ── INTENTO 1: REST API de SoilGrids ──────────────────
+  // Endpoint: rest.isric.org/soilgrids/v2.0/properties/query
+  // Propiedades: phh2o, clay, sand, silt, soc, nitrogen, bdod, cec
+  // Profundidad: 0-5cm · Valor: mean
+  try {
+    const props = 'phh2o,clay,sand,silt,soc,nitrogen,bdod,cec';
+    const url = `https://rest.isric.org/soilgrids/v2.0/properties/query` +
+      `?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}` +
+      `&property=${props.split(',').map(p=>`property=${p}`).join('&').replace(/property=/g,'').split('&').map(p=>`property=${p}`).join('&')}` +
+      `&depth=0-5cm&value=mean`;
+
+    // Construir URL correctamente
+    const urlFinal = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=phh2o&property=clay&property=sand&property=silt&property=soc&property=nitrogen&property=bdod&property=cec&depth=0-5cm&value=mean`;
+
+    const res = await Promise.race([
+      fetch(urlFinal),
+      new Promise((_,r) => setTimeout(()=>r(new Error('timeout')), 12000))
+    ]);
+
+    if (!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+
+    // Parsear respuesta SoilGrids REST v2
+    // Estructura: data.properties.layers[].name + .depths[0].values.mean
+    const layers = data?.properties?.layers ?? [];
+    if (!layers.length) throw new Error('Sin datos');
+
+    const r = {};
+    // Factores de conversión SoilGrids REST v2 (valores mapeados a convencionales)
+    const factores = { phh2o:0.1, clay:0.1, sand:0.1, silt:0.1, soc:0.1, nitrogen:0.01, bdod:0.01, cec:0.1 };
+    const claves   = { phh2o:'ph', clay:'clay', sand:'sand', silt:'silt', soc:'soc', nitrogen:'n', bdod:'da', cec:'cec' };
+
+    layers.forEach(layer => {
+      const nombre = layer.name;
+      const val    = layer.depths?.[0]?.values?.mean;
+      if (val != null && val > 0 && val < 32000 && factores[nombre]) {
+        r[claves[nombre]] = val * factores[nombre];
+      }
+    });
+
+    if (Object.keys(r).length < 3) throw new Error('Datos insuficientes');
+
+    // Calcular textura y tipo de suelo
+    if (r.clay != null && r.sand != null && r.silt != null) {
+      r.textura = clasificarTextura(r.clay, r.sand, r.silt);
+    }
+    r.fuente = '🛰️ SoilGrids REST API · ISRIC/Wageningen · 250 m · Datos reales';
+    r.esFallback = false;
+    console.log('✅ SoilGrids REST API funcionando:', r);
+    return r;
+
+  } catch(e) {
+    console.warn('SoilGrids REST falló:', e.message, '— usando base de datos interna pampa');
+  }
+
+  // ── FALLBACK: Base de datos interna pampa argentina ───
+  // Detectar tipo de suelo por coordenadas (ya tenemos SPOLY)
+  const sueloAuto = detSuelo(lat, lon) || 'Molisol';
+  const base = DB_SUELO_PAMPA[sueloAuto] || DB_SUELO_PAMPA.Molisol;
+
+  // Ajuste fino por latitud/longitud dentro de la región pampeana
+  // Gradiente N→S: más húmedo al sur, más arcilloso en el centro
+  const latAbs = Math.abs(lat);
+  const ajusteSOC = latAbs > 36 ? 1.15 : latAbs < 30 ? 0.85 : 1.0; // más MO al sur
+  const ajustePH  = latAbs > 36 ? -0.2 : 0;                          // más ácido al sur
+
+  const r = {
+    ph:      parseFloat((base.ph  + ajustePH).toFixed(1)),
+    clay:    base.clay,
+    sand:    base.sand,
+    silt:    base.silt,
+    soc:     parseFloat((base.soc * ajusteSOC).toFixed(1)),
+    n:       parseFloat((base.n   * ajusteSOC).toFixed(2)),
+    da:      base.da,
+    cec:     base.cec,
+    textura: sueloAuto,
+    fuente:  `📚 ${base.fuente} · Ajuste por latitud aplicado`,
+    esFallback: true,
+  };
+
+  return r;
+}
+
+function renderSoilGrids(d) {
+  if (!d || Object.keys(d).length === 0) return;
+
+  const mo = d.soc != null ? d.soc * 1.724 / 10 : null; // % MO
+
+  // ── Panel resumen superior (api-info) ──
+  $('sg-ph').textContent      = d.ph   != null ? d.ph.toFixed(1)        : '—';
+  $('sg-clay').textContent    = d.clay != null ? d.clay.toFixed(0)+'%'  : '—';
+  $('sg-sand').textContent    = d.sand != null ? d.sand.toFixed(0)+'%'  : '—';
+  $('sg-soc').textContent     = d.soc  != null ? d.soc.toFixed(1)+' g/kg' : '—';
+  $('sg-n').textContent       = d.n    != null ? d.n.toFixed(2)+' g/kg' : '—';
+  $('sg-da').textContent      = d.da   != null ? d.da.toFixed(2)+' g/cm³' : '—';
+  $('sg-cec').textContent     = d.cec  != null ? d.cec.toFixed(1)+' cmol' : '—';
+  $('sg-textura').textContent = d.textura || '—';
+  $('sg-info').classList.remove('hidden');
+
+  // ── KPI cards principales ──
+  const kpiColor = (val, buenos, malos) => {
+    if (val == null) return '';
+    if (malos(val)) return 'warn';
+    if (buenos(val)) return '';
+    return 'neutral';
+  };
+
+  const kpis = `<div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(105px,1fr));margin-bottom:1rem">
+    ${d.ph != null ? `<div class="kc ${d.ph<5.5||d.ph>7.8?'warn':d.ph>=6&&d.ph<=7.5?'':'neutral'}">
+      <div class="kl">pH suelo</div>
+      <div class="kv">${d.ph.toFixed(1)}</div>
+      <div class="ku">${d.ph<5.5?'Muy ácido':d.ph<6?'Ácido':d.ph<=7.5?'✅ Óptimo':'Alcalino'}</div>
+    </div>` : ''}
+    ${mo != null ? `<div class="kc ${mo<2?'warn':mo>3.5?'':'neutral'}">
+      <div class="kl">Mat. orgánica</div>
+      <div class="kv">${mo.toFixed(1)}</div>
+      <div class="ku">% · ${mo<2?'Baja':mo<3.5?'Media':'Alta'}</div>
+    </div>` : ''}
+    ${d.soc != null ? `<div class="kc neutral">
+      <div class="kl">C. orgánico</div>
+      <div class="kv">${d.soc.toFixed(1)}</div>
+      <div class="ku">g/kg (0-5cm)</div>
+    </div>` : ''}
+    ${d.n != null ? `<div class="kc neutral">
+      <div class="kl">N total</div>
+      <div class="kv">${d.n.toFixed(2)}</div>
+      <div class="ku">g/kg · C/N≈${d.soc&&d.n?(d.soc/d.n).toFixed(0):'—'}</div>
+    </div>` : ''}
+    ${d.da != null ? `<div class="kc ${d.da>1.45?'warn':d.da<1.1?'':' neutral'}">
+      <div class="kl">Dens. aparente</div>
+      <div class="kv">${d.da.toFixed(2)}</div>
+      <div class="ku">g/cm³ · ${d.da>1.45?'⚠️ Alta':d.da<1.2?'Baja':'Normal'}</div>
+    </div>` : ''}
+    ${d.cec != null ? `<div class="kc neutral">
+      <div class="kl">CEC</div>
+      <div class="kv">${d.cec.toFixed(0)}</div>
+      <div class="ku">cmol/kg · ${d.cec>25?'Alta':d.cec>15?'Media':'Baja'}</div>
+    </div>` : ''}
+    ${d.clay != null ? `<div class="kc neutral">
+      <div class="kl">Arcilla</div>
+      <div class="kv">${d.clay.toFixed(0)}</div>
+      <div class="ku">% · ${d.clay>40?'Vértica':d.clay>25?'Media':'Baja'}</div>
+    </div>` : ''}
+    ${d.textura ? `<div class="kc" style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A)">
+      <div class="kl">Tipo de suelo</div>
+      <div class="kv" style="font-size:1.1rem;color:var(--grain)">${d.textura}</div>
+      <div class="ku">SoilGrids 250m</div>
+    </div>` : ''}
+  </div>`;
+
+  // ── Textura visual (triángulo simplificado) ──
+  let texBarra = '';
+  if (d.clay != null && d.sand != null && d.silt != null) {
+    const tot = d.clay + d.sand + d.silt;
+    const cp = (d.clay/tot*100).toFixed(0);
+    const sp = (d.sand/tot*100).toFixed(0);
+    const lp = (d.silt/tot*100).toFixed(0);
+    texBarra = `
+      <div style="margin-bottom:1rem">
+        <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.5rem">Composición granulométrica (0-5 cm)</div>
+        <div style="display:flex;height:22px;border-radius:6px;overflow:hidden;gap:2px">
+          <div style="flex:${d.clay};background:#C94A2A;display:flex;align-items:center;justify-content:center;font-size:.68rem;color:white;font-weight:700;min-width:28px">${cp}%</div>
+          <div style="flex:${d.silt};background:#B87A20;display:flex;align-items:center;justify-content:center;font-size:.68rem;color:white;font-weight:700;min-width:28px">${lp}%</div>
+          <div style="flex:${d.sand};background:#C8A255;display:flex;align-items:center;justify-content:center;font-size:.68rem;color:white;font-weight:700;min-width:28px">${sp}%</div>
+        </div>
+        <div style="display:flex;gap:1.2rem;margin-top:.4rem;font-size:.72rem;color:rgba(74,46,26,.6)">
+          <span><span style="display:inline-block;width:10px;height:10px;background:#C94A2A;border-radius:2px;margin-right:.3rem"></span>Arcilla</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#B87A20;border-radius:2px;margin-right:.3rem"></span>Limo</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:#C8A255;border-radius:2px;margin-right:.3rem"></span>Arena</span>
+        </div>
+      </div>`;
+  }
+
+  // ── Tabla detallada ──
+  const ccEstim = d.clay>=35 ? 35 : d.sand>=65 ? 12 : 28;
+  const pmEstim = d.clay>=35 ? 18 : d.sand>=65 ? 4  : 12;
+  const tabla = `
+    <div style="overflow-x:auto">
+    <table class="dt">
+      <thead><tr><th>Propiedad</th><th>Valor (0-5 cm)</th><th>Interpretación agronómica</th></tr></thead>
+      <tbody>
+        ${d.ph   !=null?`<tr><td>⚗️ pH (H₂O)</td><td class="mn" style="font-weight:700">${d.ph.toFixed(1)}</td><td>${d.ph<5.5?'🚫 Muy ácido — encalar urgente':d.ph<6.0?'⚠️ Ácido — considerar encalado':d.ph<=7.5?'✅ Óptimo para cultivos pampeanos':'⚠️ Alcalino — limita P, Fe, Zn'}</td></tr>`:''}
+        ${mo     !=null?`<tr><td>🌱 Materia orgánica</td><td class="mn" style="font-weight:700">${mo.toFixed(1)} %</td><td>${mo>3.5?'✅ Alta — buena estructura y fertilidad':mo>2.0?'⚠️ Media — mantener con rastrojos':'🚫 Baja — suelo degradado, siembra directa'}</td></tr>`:''}
+        ${d.soc  !=null?`<tr><td>🌿 C. orgánico</td><td class="mn">${d.soc.toFixed(1)} g/kg</td><td>Equivale a ${mo!=null?mo.toFixed(1)+'%':''} MO (factor van Bemmelen 1.724)</td></tr>`:''}
+        ${d.n    !=null?`<tr><td>🔬 N total</td><td class="mn">${d.n.toFixed(2)} g/kg</td><td>Relación C/N ≈ ${d.soc&&d.n?(d.soc/d.n).toFixed(0):'—'} · ${d.soc&&d.n&&(d.soc/d.n)<10?'Mineralización rápida':d.soc&&d.n&&(d.soc/d.n)>15?'Mineralización lenta':'Normal'}</td></tr>`:''}
+        ${d.da   !=null?`<tr><td>⚖️ Densidad aparente</td><td class="mn" style="font-weight:700">${d.da.toFixed(2)} g/cm³</td><td>${d.da>1.55?'🚫 Muy alta — compactación severa':d.da>1.40?'⚠️ Alta — riesgo de compactación':d.da<1.10?'Muy baja — alta MO':'✅ Normal'}</td></tr>`:''}
+        ${d.cec  !=null?`<tr><td>🧲 CEC</td><td class="mn">${d.cec.toFixed(1)} cmol/kg</td><td>${d.cec>25?'Alta — excelente retención de nutrientes':d.cec>15?'Media — adecuada':'⚠️ Baja — riesgo de lixiviación de K y Mg'}</td></tr>`:''}
+        ${d.clay !=null?`<tr><td>🏺 Arcilla</td><td class="mn">${d.clay.toFixed(0)} %</td><td>${d.clay>40?'Vértica — alta plasticidad húmedo, duro seco':d.clay>25?'Media — buen balance':d.clay>15?'Franco-arenosa':'Arenosa — bajo retención'}</td></tr>`:''}
+        ${d.sand !=null?`<tr><td>🏖️ Arena</td><td class="mn">${d.sand.toFixed(0)} %</td><td>—</td></tr>`:''}
+        ${d.silt !=null?`<tr><td>🌫️ Limo</td><td class="mn">${d.silt.toFixed(0)} %</td><td>—</td></tr>`:''}
+        <tr style="background:rgba(74,140,92,.08)"><td><strong>💧 Capacidad de campo estim.</strong></td><td class="mn"><strong>~${ccEstim}%</strong></td><td>Punto de marchitez: ~${pmEstim}% · Agua útil: ~${ccEstim-pmEstim}%</td></tr>
+        ${d.textura?`<tr class="hl"><td><strong>🗺️ Tipo de suelo (estimado)</strong></td><td colspan="2"><strong>${d.textura}</strong> — clasificación por textura USDA/WRB</td></tr>`:''}
+      </tbody>
+    </table></div>`;
+
+  // ── Alertas interpretativas ──
+  const alertas = [
+    d.ph<5.5  ? `<div class="alert danger"><span class="ai">⚗️</span><div class="ac"><strong>pH muy ácido (${d.ph?.toFixed(1)})</strong> — Aplicar ~${((6.2-(d.ph??5))*600).toFixed(0)} kg/ha de cal agrícola para elevar a pH 6.2. La disponibilidad de P, Ca y Mg está severamente reducida.</div></div>` : '',
+    d.ph>7.5  ? `<div class="alert warn"><span class="ai">⚗️</span><div class="ac"><strong>pH alcalino (${d.ph?.toFixed(1)})</strong> — Monitorear disponibilidad de P, Fe y Zn. En suelos con carbonatos activos verificar con análisis local.</div></div>` : '',
+    mo!=null&&mo<2.0 ? `<div class="alert warn"><span class="ai">🌱</span><div class="ac"><strong>Materia orgánica baja (${mo.toFixed(1)}%)</strong> — Suelo con estructura degradada. Priorizar siembra directa, cobertura permanente y retención total de rastrojos. Cada 1% de MO adicional aporta ~20 kg N/ha/año mineralizable.</div></div>` : '',
+    d.da!=null&&d.da>1.45 ? `<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>Densidad aparente alta (${d.da?.toFixed(2)} g/cm³)</strong> — Indica compactación existente. Confirmar con penetrómetro. Porosidad reducida limita el crecimiento radicular y la infiltración del agua.</div></div>` : '',
+    d.cec!=null&&d.cec<10 ? `<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (${d.cec?.toFixed(1)} cmol/kg)</strong> — El suelo tiene poca capacidad de retener cationes (K⁺, Ca²⁺, Mg²⁺). Fraccioná las aplicaciones de fertilizantes potásicos y cálcicos para evitar pérdidas.</div></div>` : '',
+  ].filter(Boolean).join('');
+
+  const fuente = `<div style="margin-top:.8rem;padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
+    📡 <strong>Fuente:</strong> SoilGrids 2.0 ISRIC/Wageningen · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis de suelo local para decisiones críticas.
+  </div>`;
+
+  $('sg-card').classList.remove('hidden');
+  $('sg-contenido').innerHTML = kpis + texBarra + tabla + alertas + fuente;
+}
+
+// ════════════════════════════════════════════════════════
+// MODELO DE RIESGO DE COMPACTACIÓN — AgroMotor
+// ════════════════════════════════════════════════════════
+// Basado en:
+// 1. Índice S de Dexter (2004) — calidad física del suelo
+// 2. Susceptibilidad Proctor — humedad vs. densidad máxima
+// 3. Load Bearing Capacity (Saffih-Hdadi et al. 2009)
+// 4. Factor de tráfico de maquinaria
+// Entradas: SoilGrids (arcilla, MO, DA) + Open-Meteo (humedad)
+// ════════════════════════════════════════════════════════
+
+function calcularCompactacion(sg, humActual, trafico, diaRef) {
+  if (!sg || (!sg.clay && !sg.da)) return null;
+
+  const clay = sg.clay ?? 25;          // % arcilla
+  const sand = sg.sand ?? 40;          // % arena
+  const soc  = sg.soc  ?? 15;          // g/kg C orgánico
+  const da   = sg.da   ?? 1.30;        // g/cm³ densidad aparente
+  const mo   = soc * 1.724 / 10;       // % materia orgánica (factor van Bemmelen)
+
+  // ── 1. ÍNDICE S DE DEXTER ──────────────────────────────
+  // S = indicador de calidad física. Calculado via PTF Saxton & Rawls:
+  // θ_FC = capacidad de campo, θ_WP = punto marchitez (m³/m³)
+  // S se calcula del punto de inflexión de la curva retención de agua
+  // Aproximación simplificada calibrada para suelos pampeanos:
+  const clayF = clay / 100;
+  const sandF = sand / 100;
+  const moF   = mo / 100;
+
+  // PTF Saxton & Rawls para θ_FC y θ_WP
+  const thetaFC = 0.299 - 0.251 * sandF + 0.195 * clayF + 0.011 * moF
+                + 0.006 * sandF * moF - 0.027 * clayF * moF
+                + 0.452 * sandF * clayF;
+  const thetaWP = 0.031 - 0.024 * sandF + 0.487 * clayF + 0.006 * moF
+                + 0.005 * sandF * moF - 0.013 * clayF * moF
+                + 0.068 * sandF * clayF;
+
+  // Índice S de Dexter — punto inflexión curva de retención
+  // S = n * (θ_FC - θ_WP) / (da / 2.65) * factor_arcilla
+  // n ≈ parámetro de Van Genuchten (~1.5 para texturas medias)
+  const n = 1.2 + 0.7 * sandF - 0.3 * clayF;
+  const m = 1 - 1/n;
+  const indiceS = -n * m * (thetaFC - thetaWP) * Math.pow(2, -(1+m)/m) * Math.pow(m, m);
+  const indiceSAbs = Math.abs(indiceS);
+
+  // ── 2. SUSCEPTIBILIDAD HÍDRICA ─────────────────────────
+  // La compactación es máxima cuando θ ≈ θ_optima (≈ 0.7 * θ_FC)
+  // Riesgo aumenta cuando hum está entre 50-85% de la CC
+  const humVol = humActual / 100;     // slider está en %
+  const thetaOpt = 0.72 * thetaFC;   // humedad óptima de compactación (Proctor)
+  const ccPorc = thetaFC * 100;
+
+  // Distancia relativa al punto óptimo de compactación (0=peor, 1=mejor)
+  const distOpt  = Math.abs(humVol - thetaOpt);
+  const rangeBad = thetaFC * 0.35;    // rango de mayor susceptibilidad
+  const factorHum = Math.max(0, 1 - distOpt / rangeBad); // 0=bueno, 1=peor
+
+  // ── 3. FACTOR DE ARCILLA ───────────────────────────────
+  // Suelos vérticos (arcilla >35%) se deforman plásticamente cuando húmedos
+  const factorArcilla = clayF >= 0.40 ? 1.3
+                      : clayF >= 0.30 ? 1.1
+                      : clayF >= 0.20 ? 1.0
+                      : 0.85;
+
+  // ── 4. FACTOR DE MATERIA ORGÁNICA ─────────────────────
+  // MO alta protege la estructura. Cada 1% extra de MO reduce el riesgo ~15%
+  const factorMO = Math.max(0.5, 1 - (mo - 1.5) * 0.12);
+
+  // ── 5. FACTOR DE DENSIDAD APARENTE ────────────────────
+  // Si DA ya es alta → suelo ya compactado, resistencia mayor
+  const factorDA = da >= 1.55 ? 1.40    // ya muy compactado
+                 : da >= 1.45 ? 1.20
+                 : da >= 1.35 ? 1.05
+                 : da >= 1.20 ? 0.95
+                 : 0.85;                 // DA baja = suelo esponjoso, bien estructurado
+
+  // ── 6. FACTOR DE TRÁFICO ──────────────────────────────
+  // 0=sin tráfico, 1=liviano, 2=pesado, 3=intensivo
+  const factoresTraf = [1.0, 1.2, 1.5, 1.85];
+  const factorTraf   = factoresTraf[trafico] ?? 1.0;
+
+  // ── 7. LLUVIA RECIENTE (Open-Meteo) ───────────────────
+  // Si llovió mucho en los últimos 3 días → suelo más húmedo → más riesgo
+  let factorLluvia = 1.0;
+  if (diaRef) {
+    const precReciente = diaRef.precS ?? 0; // mm últimas 24h
+    if (precReciente > 30) factorLluvia = 1.35;
+    else if (precReciente > 15) factorLluvia = 1.20;
+    else if (precReciente > 5)  factorLluvia = 1.10;
+  }
+
+  // ── SCORE DE RIESGO COMPACTACIÓN (0-100) ──────────────
+  // Base: inversamente proporcional al Índice S
+  // S > 0.035 = buena calidad, S < 0.020 = compactado
+  let scoreSuelo;
+  if (indiceSAbs >= 0.050) scoreSuelo = 10;       // muy buena calidad
+  else if (indiceSAbs >= 0.035) scoreSuelo = 30;  // buena calidad
+  else if (indiceSAbs >= 0.025) scoreSuelo = 55;  // moderada
+  else if (indiceSAbs >= 0.015) scoreSuelo = 75;  // degradado
+  else scoreSuelo = 90;                            // muy degradado
+
+  // Score ajustado por todos los factores
+  const scoreRiesgo = Math.min(99, Math.round(
+    scoreSuelo * factorHum * factorArcilla * factorMO * factorDA * factorTraf * factorLluvia
+  ));
+
+  // ── ESTIMACIÓN DE MPa ──────────────────────────────────
+  // Conversión empírica del score → resistencia penetrómetro (MPa)
+  // Basada en: Dexter 2004, Bengough et al. 2011
+  // Score 0-100 → MPa 0.3-5.0 (relación no lineal)
+  const mpaEstimado = Math.max(0.3, Math.min(5.0,
+    0.3 + (scoreRiesgo / 100) * 3.8 * factorDA * (1 + clayF * 0.5)
+  ));
+
+  // ── CLASIFICACIÓN ─────────────────────────────────────
+  let nivel, color, icono, diasEsperar, recomendacion;
+
+  if (scoreRiesgo < 25) {
+    nivel = 'RIESGO BAJO'; color = '#1A5C2A'; icono = '✅';
+    diasEsperar = 0;
+    recomendacion = `El suelo está en buenas condiciones para recibir tránsito de maquinaria. Índice S ${indiceSAbs.toFixed(3)} indica buena calidad estructural.`;
+  } else if (scoreRiesgo < 50) {
+    nivel = 'RIESGO MODERADO'; color = '#7A4A10'; icono = '⚠️';
+    diasEsperar = humVol > thetaOpt ? Math.ceil((humVol - thetaOpt * 0.9) / 0.005) : 0;
+    recomendacion = `Precaución con maquinaria pesada. ${trafico >= 2 ? 'Evitar equipos de más de 6 ton por eje. ' : ''}${diasEsperar > 0 ? `Esperar ${diasEsperar} días sin lluvia para reducir la humedad.` : 'Limitar el número de pasadas.'}`;
+  } else if (scoreRiesgo < 75) {
+    nivel = 'RIESGO ALTO'; color = '#B84A10'; icono = '🔶';
+    diasEsperar = Math.max(2, Math.ceil((humVol - thetaOpt * 0.8) / 0.004));
+    recomendacion = `No se recomienda tránsito de maquinaria pesada. Humedad actual (${humActual}%) cercana al punto óptimo de compactación (${(thetaOpt*100).toFixed(0)}% vol.). Esperar ${diasEsperar} días o usar maquinaria de menos de 4 ton/eje con neumáticos de baja presión.`;
+  } else {
+    nivel = 'RIESGO CRÍTICO'; color = '#7A1A0A'; icono = '🚫';
+    diasEsperar = Math.max(4, Math.ceil((humVol - thetaWP * 1.5) / 0.003));
+    recomendacion = `Suelo con alta susceptibilidad a la compactación permanente. ${da >= 1.45 ? 'La densidad aparente elevada indica compactación previa. ' : ''}Evitar todo tránsito. En caso de necesidad operativa, usar solo maquinaria de menos de 3 ton/eje. Considerar subsolado si la situación persiste.`;
+  }
+
+  return {
+    scoreRiesgo, mpaEstimado, nivel, color, icono,
+    diasEsperar, recomendacion, indiceS: indiceSAbs,
+    factorHum, factorArcilla, factorMO, factorDA, factorTraf,
+    thetaFC, thetaWP, thetaOpt, mo, humVol, ccPorc,
+  };
+}
+
+function renderCompactacion(c, sg) {
+  if (!c) return;
+
+  // Barra de riesgo
+  const barColor = c.scoreRiesgo < 25 ? 'var(--ok)'
+                 : c.scoreRiesgo < 50 ? 'var(--caution)'
+                 : c.scoreRiesgo < 75 ? '#E06020' : 'var(--warn)';
+
+  // Tabla de factores
+  const factores = [
+    { label:'Índice S (calidad estructural)',   val: c.indiceS.toFixed(3),
+      interp: c.indiceS >= 0.035 ? '✅ Buena calidad' : c.indiceS >= 0.025 ? '⚠️ Moderada' : '🚫 Degradado' },
+    { label:'Humedad actual vs. óptima comp.',   val: `${(c.humVol*100).toFixed(0)}% vs ${(c.thetaOpt*100).toFixed(0)}% vol`,
+      interp: c.factorHum > 0.6 ? '🚫 Zona de alto riesgo' : c.factorHum > 0.3 ? '⚠️ Precaución' : '✅ Fuera de zona crítica' },
+    { label:'Capacidad de campo estimada',       val: `${c.ccPorc.toFixed(0)}% vol`,
+      interp: '—' },
+    { label:'Densidad aparente (DA)',            val: `${sg.da?.toFixed(2)||'—'} g/cm³`,
+      interp: (sg.da??0) >= 1.45 ? '🚫 Ya compactado' : (sg.da??0) >= 1.35 ? '⚠️ Moderada' : '✅ Normal' },
+    { label:'Materia orgánica',                  val: `${c.mo.toFixed(1)}%`,
+      interp: c.mo > 3.5 ? '✅ Protectora' : c.mo > 2.0 ? '⚠️ Media' : '🚫 Baja protección' },
+    { label:'% Arcilla',                         val: `${sg.clay?.toFixed(0)||'—'}%`,
+      interp: (sg.clay??0) >= 35 ? '⚠️ Alta plasticidad' : '✅ Normal' },
+    { label:'MPa estimado (penetrómetro)',        val: `${c.mpaEstimado.toFixed(1)} MPa`,
+      interp: c.mpaEstimado >= 3.0 ? '🚫 Limitante' : c.mpaEstimado >= 2.0 ? '⚠️ Moderado' : '✅ Sin limitación' },
+  ];
+
+  const tabla = `
+    <table class="dt" style="margin-top:.6rem">
+      <thead><tr><th>Factor</th><th>Valor</th><th>Interpretación</th></tr></thead>
+      <tbody>${factores.map(f=>`<tr><td>${f.label}</td><td class="mn">${f.val}</td><td style="font-size:.8rem">${f.interp}</td></tr>`).join('')}</tbody>
+    </table>`;
+
+  // Mini gauge visual
+  const gaugeW = Math.min(100, c.scoreRiesgo);
+  const gauge = `
+    <div style="margin:.8rem 0 .4rem">
+      <div style="display:flex;justify-content:space-between;font-size:.7rem;color:rgba(74,46,26,.5);margin-bottom:.3rem">
+        <span>Sin riesgo</span><span>Crítico</span>
+      </div>
+      <div style="height:12px;border-radius:6px;background:linear-gradient(90deg,var(--ok) 0%,var(--caution) 40%,#E06020 65%,var(--warn) 100%);position:relative">
+        <div style="position:absolute;top:-4px;left:${gaugeW}%;transform:translateX(-50%);width:4px;height:20px;background:white;border-radius:2px;box-shadow:0 0 4px rgba(0,0,0,.4)"></div>
+      </div>
+      <div style="font-size:.68rem;color:rgba(74,46,26,.4);margin-top:.2rem;text-align:center">Score: ${c.scoreRiesgo}/100</div>
+    </div>`;
+
+  // Recomendación operativa
+  const recOp = c.diasEsperar > 0
+    ? `<div class="alert ${c.scoreRiesgo>=75?'danger':'warn'}" style="margin-top:.8rem">
+        <span class="ai">${c.icono}</span>
+        <div class="ac"><strong>${c.nivel} — ${c.diasEsperar} días recomendados de espera</strong><br>${c.recomendacion}</div>
+       </div>`
+    : `<div class="alert ok" style="margin-top:.8rem">
+        <span class="ai">${c.icono}</span>
+        <div class="ac"><strong>${c.nivel}</strong><br>${c.recomendacion}</div>
+       </div>`;
+
+  // Ventana operativa NASA POWER
+  let ventanaHist = '';
+  const npET0 = $('np-et0')?.textContent;
+  if (npET0 && npET0 !== '—' && c.diasEsperar > 0) {
+    const et0Val = parseFloat(npET0);
+    if (!isNaN(et0Val) && et0Val > 0) {
+      const mmPerDia = et0Val / 30;
+      const mmNecesarios = (c.humVol - c.thetaOpt * 0.85) * 100 * 0.15; // aprox
+      const diasReales = Math.ceil(mmNecesarios / mmPerDia);
+      ventanaHist = `<div class="alert info" style="margin-top:.6rem"><span class="ai">📅</span><div class="ac">
+        <strong>Ventana estimada por evapotranspiración histórica</strong>
+        Con ET₀ media histórica de ${mmPerDia.toFixed(1)} mm/día para este mes y ubicación (NASA POWER),
+        el suelo tardaría aproximadamente <strong>${diasReales} días</strong> en drenar la humedad excesiva en ausencia de lluvia.
+      </div></div>`;
+    }
+  }
+
+  // Base científica
+  const ciencia = `<div style="margin-top:.8rem;padding:.6rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.5)">
+    <strong>Base metodológica:</strong> Índice S de Dexter (2004) · PTF Saxton & Rawls (2006) · Load Bearing Capacity Saffih-Hdadi et al. (2009) ·
+    Datos: SoilGrids ISRIC 250m + Open-Meteo · Estimación de orientación — no reemplaza la medición con penetrómetro.
+  </div>`;
+
+  $('compact-card').classList.remove('hidden');
+  $('compact-contenido').innerHTML =
+    `<div style="background:${c.color};border-radius:10px;padding:1rem 1.2rem;color:white;display:flex;align-items:center;gap:1rem;margin-bottom:.8rem">
+      <span style="font-size:2rem">${c.icono}</span>
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.2rem">${c.nivel}</div>
+        <div style="font-size:.73rem;opacity:.75">${c.mpaEstimado.toFixed(1)} MPa estimado · Score ${c.scoreRiesgo}/100 · Índice S: ${c.indiceS.toFixed(3)}</div>
+      </div>
+    </div>`
+    + gauge + tabla + recOp + ventanaHist + ciencia;
+
+  // Disparar recálculo del diagnóstico de siembra con el MPa actualizado
+  // para que el score global refleje la compactación real
+}
+
+// ── NAV ──
+function switchMod(mod){
+  document.querySelectorAll('.nav-tab:not(.locked)').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.module-panel').forEach(p=>p.classList.remove('active'));
+  const idx={siembra:0,suelo:1,fertilizacion:2,maquinaria:3}[mod];
+  document.querySelectorAll('.nav-tab:not(.locked)')[idx]?.classList.add('active');
+  $('mod-'+mod)?.classList.add('active');
+  // Si cambia a suelo y ya tenemos datos, mostrarlos
+  if (mod === 'suelo' && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+    renderSueloModulo(window._sgDatos);
+    // Copiar coordenadas si las hay
+    const coord = $('s-coord')?.value;
+    if (coord && $('suelo-coord')) $('suelo-coord').value = coord;
+  }
+}
+
+// ── MÓDULO DE SUELO: consulta independiente ──
+async function consultarSuelo() {
+  const txt = $('suelo-coord')?.value || $('s-coord')?.value;
+  if (!txt?.trim()) { alert('Ingresá las coordenadas del lote.'); return; }
+  const [lat, lon] = parsCoord(txt);
+  if (lat === null) { alert('Formato no reconocido.\nEjemplo: -33.395, -60.192'); return; }
+
+  const btn = $('btn-suelo');
+  btn.disabled = true; btn.textContent = '⟳ Consultando...';
+  const st = $('suelo-st'), sp = $('suelo-sp'), sm = $('suelo-msg');
+  st.classList.remove('hidden');
+  sp.style.animation = 'spin 1s linear infinite';
+  sm.textContent = 'Consultando SoilGrids ISRIC (puede tardar 15-30 seg)...';
+
+  try {
+    const datos = await buscarSoilGrids(lat, lon);
+    window._sgDatos = datos;
+    renderSueloModulo(datos);
+    sp.style.animation = 'none';
+    sm.textContent = '✅ Datos de suelo cargados correctamente';
+    // También actualizar el panel de siembra
+    renderSoilGrids(datos);
+    if (datos.textura) {
+      const sel = $('s-suelo');
+      if (sel) { sel.value = datos.textura; $('s-sbadge').textContent = '← SoilGrids'; }
+    }
+  } catch(e) {
+    sp.style.animation = 'none';
+    sm.textContent = '⚠️ Error al consultar SoilGrids. Intentá nuevamente.';
+    console.error(e);
+  } finally {
+    btn.disabled = false; btn.textContent = '🌍 Analizar suelo';
+  }
+}
+
+function renderSueloModulo(d) {
+  if (!d || Object.keys(d).length === 0) return;
+  const mo = d.soc != null ? d.soc * 1.724 / 10 : null;
+
+  // ── KPI cards ──
+  const kpiDefs = [
+    { label:'pH suelo',       val: d.ph,   fmt: v=>v.toFixed(1),       unit: d.ph!=null?(d.ph<5.5?'🚫 Muy ácido':d.ph<6?'⚠️ Ácido':d.ph<=7.5?'✅ Óptimo':'⚠️ Alcalino'):'', cls: d.ph!=null&&(d.ph<5.5||d.ph>7.8)?'danger':d.ph!=null&&d.ph>=6&&d.ph<=7.5?'':'neutral' },
+    { label:'Mat. Orgánica',  val: mo,     fmt: v=>v.toFixed(1),       unit: mo!=null?(mo<2?'🚫 Baja':mo<3.5?'⚠️ Media':'✅ Alta'):'%', cls: mo!=null&&mo<2?'danger':mo!=null&&mo<3.5?'warn':'' },
+    { label:'C. Orgánico',    val: d.soc,  fmt: v=>v.toFixed(1),       unit: 'g/kg', cls: 'neutral' },
+    { label:'N total',        val: d.n,    fmt: v=>v.toFixed(2),       unit: 'g/kg', cls: 'neutral' },
+    { label:'Dens. aparente', val: d.da,   fmt: v=>v.toFixed(2),       unit: d.da!=null?(d.da>1.45?'⚠️ Alta':d.da<1.2?'Baja':'✅ Normal'):'g/cm³', cls: d.da!=null&&d.da>1.45?'warn':'' },
+    { label:'CEC',            val: d.cec,  fmt: v=>v.toFixed(0),       unit: d.cec!=null?(d.cec>25?'Alta':d.cec>15?'Media':'⚠️ Baja'):'cmol/kg', cls: d.cec!=null&&d.cec<10?'warn':'' },
+    { label:'Arcilla',        val: d.clay, fmt: v=>v.toFixed(0),       unit: '%', cls: 'neutral' },
+    { label:'Arena',          val: d.sand, fmt: v=>v.toFixed(0),       unit: '%', cls: 'neutral' },
+    { label:'Limo',           val: d.silt, fmt: v=>v.toFixed(0),       unit: '%', cls: 'neutral' },
+    { label:'Tipo de suelo',  val: d.textura, fmt: v=>v,               unit: 'SoilGrids 250m', cls: '', big: true },
+  ];
+
+  $('suelo-kpi-grid').innerHTML = kpiDefs
+    .filter(k => k.val != null)
+    .map(k => `<div class="kc ${k.cls||'neutral'}" ${k.big?'style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A)"':''}>
+      <div class="kl">${k.label}</div>
+      <div class="kv" style="${k.big?'font-size:1rem;color:var(--grain)':''}">${k.fmt(k.val)}</div>
+      <div class="ku">${k.unit}</div>
+    </div>`).join('');
+
+  // ── Textura visual ──
+  let texHtml = '';
+  if (d.clay != null && d.sand != null && d.silt != null) {
+    const tot = d.clay + d.sand + d.silt || 100;
+    texHtml = `
+      <div style="margin-bottom:1rem">
+        <div style="display:flex;height:28px;border-radius:8px;overflow:hidden;gap:2px;margin-bottom:.5rem">
+          <div style="flex:${d.clay/tot*100};background:#C94A2A;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:white;font-weight:700;min-width:32px">${d.clay.toFixed(0)}%</div>
+          <div style="flex:${d.silt/tot*100};background:#B87A20;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:white;font-weight:700;min-width:32px">${d.silt.toFixed(0)}%</div>
+          <div style="flex:${d.sand/tot*100};background:#C8A255;display:flex;align-items:center;justify-content:center;font-size:.75rem;color:white;font-weight:700;min-width:32px">${d.sand.toFixed(0)}%</div>
+        </div>
+        <div style="display:flex;gap:1.5rem;font-size:.78rem;color:rgba(74,46,26,.65)">
+          <span><span style="display:inline-block;width:12px;height:12px;background:#C94A2A;border-radius:2px;margin-right:.3rem;vertical-align:middle"></span>Arcilla</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:#B87A20;border-radius:2px;margin-right:.3rem;vertical-align:middle"></span>Limo</span>
+          <span><span style="display:inline-block;width:12px;height:12px;background:#C8A255;border-radius:2px;margin-right:.3rem;vertical-align:middle"></span>Arena</span>
+        </div>
+      </div>
+      ${d.textura?`<div class="alert info"><span class="ai">🗺️</span><div class="ac"><strong>Tipo de suelo estimado: ${d.textura}</strong> — basado en clasificación textural USDA/WRB. La capacidad de campo estimada es ~${d.clay>=35?35:d.sand>=65?12:28}% y el punto de marchitez ~${d.clay>=35?18:d.sand>=65?4:12}%, con un agua útil máxima de ~${d.clay>=35?17:d.sand>=65?8:16}%.</div></div>`:''}`;
+  }
+  $('suelo-textura-contenido').innerHTML = texHtml;
+
+  // ── Tabla completa ──
+  const ccEstim = d.clay>=35?35:d.sand>=65?12:28;
+  const pmEstim = d.clay>=35?18:d.sand>=65?4:12;
+  $('suelo-tabla').innerHTML = `
+    <div style="overflow-x:auto">
+    <table class="dt">
+      <thead><tr><th>Propiedad</th><th>Valor (0-5 cm)</th><th>Unidad</th><th>Interpretación agronómica</th></tr></thead>
+      <tbody>
+        ${d.ph  !=null?`<tr><td><strong>⚗️ pH (H₂O)</strong></td><td class="mn" style="font-size:1rem;font-weight:700">${d.ph.toFixed(1)}</td><td>—</td><td>${d.ph<5.5?'🚫 Muy ácido — encalado urgente':d.ph<6.0?'⚠️ Ácido — considerar encalado':d.ph<=7.5?'✅ Óptimo para cultivos pampeanos':'⚠️ Alcalino — limita P, Fe, Zn'}</td></tr>`:''}
+        ${mo    !=null?`<tr><td><strong>🌱 Materia orgánica</strong></td><td class="mn" style="font-size:1rem;font-weight:700">${mo.toFixed(1)}</td><td>%</td><td>${mo>3.5?'✅ Alta — excelente estructura y fertilidad':mo>2.0?'⚠️ Media — mantener con manejo de rastrojos':'🚫 Baja — suelo degradado, priorizar SD y cobertura'}</td></tr>`:''}
+        ${d.soc !=null?`<tr><td>🌿 Carbono orgánico</td><td class="mn">${d.soc.toFixed(1)}</td><td>g/kg</td><td>Cada 1% de MO aporta ~20-30 kg N/ha/año mineralizable</td></tr>`:''}
+        ${d.n   !=null?`<tr><td><strong>🔬 N total</strong></td><td class="mn" style="font-weight:700">${d.n.toFixed(2)}</td><td>g/kg</td><td>Relación C/N ≈ ${d.soc&&d.n?(d.soc/d.n).toFixed(0):'—'} · ${d.soc&&d.n&&(d.soc/d.n)<10?'Mineralización rápida':d.soc&&d.n&&(d.soc/d.n)>15?'Mineralización lenta':'Normal'}</td></tr>`:''}
+        ${d.da  !=null?`<tr><td><strong>⚖️ Densidad aparente</strong></td><td class="mn" style="font-weight:700">${d.da.toFixed(2)}</td><td>g/cm³</td><td>${d.da>1.55?'🚫 Muy alta — compactación severa':d.da>1.40?'⚠️ Alta — riesgo de compactación':d.da<1.10?'Baja — alta MO':'✅ Normal'}</td></tr>`:''}
+        ${d.cec !=null?`<tr><td><strong>🧲 CEC</strong></td><td class="mn" style="font-weight:700">${d.cec.toFixed(1)}</td><td>cmol/kg</td><td>${d.cec>25?'✅ Alta — excelente retención de nutrientes':d.cec>15?'Media — adecuada':'⚠️ Baja — fraccioná aplicaciones de K y Ca'}</td></tr>`:''}
+        ${d.clay!=null?`<tr><td>🏺 Arcilla</td><td class="mn">${d.clay.toFixed(0)}</td><td>%</td><td>${d.clay>40?'Vértica — plástica en húmedo, dura en seco':d.clay>25?'Media — buen balance':'Baja — drenaje rápido, baja retención'}</td></tr>`:''}
+        ${d.sand!=null?`<tr><td>🏖️ Arena</td><td class="mn">${d.sand.toFixed(0)}</td><td>%</td><td>—</td></tr>`:''}
+        ${d.silt!=null?`<tr><td>🌫️ Limo</td><td class="mn">${d.silt.toFixed(0)}</td><td>%</td><td>—</td></tr>`:''}
+        <tr style="background:rgba(74,140,92,.07)"><td><strong>💧 Cap. campo (estimada)</strong></td><td class="mn"><strong>~${ccEstim}</strong></td><td>%</td><td>Punto de marchitez: ~${pmEstim}% · Agua útil: ~${ccEstim-pmEstim}%</td></tr>
+        ${d.textura?`<tr class="hl"><td><strong>🗺️ Tipo de suelo</strong></td><td colspan="2"><strong>${d.textura}</strong></td><td>Clasificación por textura USDA → WRB</td></tr>`:''}
+      </tbody>
+    </table></div>`;
+
+  // ── Alertas ──
+  $('suelo-alertas').innerHTML = [
+    d.ph!=null&&d.ph<5.5  ? `<div class="alert danger"><span class="ai">⚗️</span><div class="ac"><strong>pH muy ácido (${d.ph.toFixed(1)}) — Acción urgente</strong><br>Aplicar aproximadamente ${((6.2-(d.ph??5))*600).toFixed(0)} kg/ha de cal agrícola (calcita o dolomita) para elevar a pH 6.2. La disponibilidad de P, Ca y Mg está severamente reducida.</div></div>` : '',
+    d.ph!=null&&d.ph>=6&&d.ph<=7.5 ? `<div class="alert ok"><span class="ai">⚗️</span><div class="ac"><strong>pH óptimo (${d.ph.toFixed(1)})</strong> — Rango ideal para la mayoría de los cultivos pampeanos. Sin necesidad de corrección.</div></div>` : '',
+    d.ph!=null&&d.ph>7.5  ? `<div class="alert warn"><span class="ai">⚗️</span><div class="ac"><strong>pH alcalino (${d.ph.toFixed(1)})</strong> — Monitorear disponibilidad de P, Fe y Zn. Verificar con análisis local.</div></div>` : '',
+    mo!=null&&mo<2.0 ? `<div class="alert danger"><span class="ai">🌱</span><div class="ac"><strong>Materia orgánica baja (${mo.toFixed(1)}%)</strong><br>Suelo con estructura comprometida. Priorizar: siembra directa, cobertura permanente, retención total de rastrojos y rotación con gramíneas. Cada 1% de MO adicional aporta ~20-30 kg N/ha/año mineralizable.</div></div>` : '',
+    mo!=null&&mo>=2&&mo<3.5 ? `<div class="alert warn"><span class="ai">🌱</span><div class="ac"><strong>Materia orgánica media (${mo.toFixed(1)}%)</strong><br>Mantener o mejorar con manejo de rastrojos y rotaciones. El potencial productivo del suelo está por debajo del óptimo.</div></div>` : '',
+    mo!=null&&mo>=3.5 ? `<div class="alert ok"><span class="ai">🌱</span><div class="ac"><strong>Materia orgánica alta (${mo.toFixed(1)}%)</strong><br>Buena estructura y reserva de nutrientes. Mantener las prácticas de manejo actuales.</div></div>` : '',
+    d.da!=null&&d.da>1.45 ? `<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>Densidad aparente alta (${d.da.toFixed(2)} g/cm³)</strong><br>Indica compactación existente. Confirmar con penetrómetro en el lote. La porosidad reducida limita el crecimiento radicular y la tasa de infiltración del agua.</div></div>` : '',
+    d.cec!=null&&d.cec<10 ? `<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (${d.cec.toFixed(1)} cmol/kg)</strong><br>El suelo tiene escasa capacidad de retener cationes (K⁺, Ca²⁺, Mg²⁺). Fraccioná las aplicaciones de fertilizantes potásicos y cálcicos para reducir pérdidas por lixiviación.</div></div>` : '',
+  ].filter(Boolean).join('');
+
+  $('suelo-placeholder').classList.add('hidden');
+  $('suelo-kpis').classList.remove('hidden');
+}
+
+// ── INIT ──
+document.addEventListener('DOMContentLoaded',()=>{
+  $('s-fecha').value=new Date().toISOString().split('T')[0];
+  loadMaq();updRend();
+  // Recalcular compactación si el usuario cambia el tráfico
+  $('s-trafico')?.addEventListener('change', () => {
+    const sg = window._sgDatos;
+    if (!sg) return;
+    const hum    = parseFloat($('s-h1')?.value) || 22;
+    const traf   = parseInt($('s-trafico')?.value) || 0;
+    const calc   = calcularCompactacion(sg, hum, traf, window._diaRef);
+    if (calc) {
+      setR('s-compact', calc.mpaEstimado, 1);
+      $('compact-source').textContent = '← recalculado (tráfico actualizado)';
+      renderCompactacion(calc, sg);
+    }
+  });
+});
+</script>
+</body>
+</html>
