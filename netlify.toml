@@ -1,0 +1,16 @@
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = "default-src 'self' https: 'unsafe-inline' 'unsafe-eval'"
+
+[[headers]]
+  for = "/js/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/css/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
