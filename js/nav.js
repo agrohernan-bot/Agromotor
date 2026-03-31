@@ -3,11 +3,11 @@
 // switchMod con lazy loading · DOMContentLoaded init
 // renderSueloModulo · Control de navegación
 // ════════════════════════════════════════════════════════
-
+ 
 // ── LAZY LOADER ──────────────────────────────────────────
 // Carga un módulo JS solo cuando el usuario lo necesita
 const AM_MODULOS_CARGADOS = {};
-
+ 
 function amCargarModulo(archivo, callback) {
   if (AM_MODULOS_CARGADOS[archivo]) {
     if (callback) callback();
@@ -25,7 +25,7 @@ function amCargarModulo(archivo, callback) {
   };
   document.head.appendChild(script);
 }
-
+ 
 // Precarga en segundo plano los módulos más usados
 function amPrecargarModulos() {
   // Después de 2 segundos, precargar los módulos más probables
@@ -41,7 +41,7 @@ function amPrecargarModulos() {
     amCargarModulo('pdf.js');
   }, 5000);
 }
-
+ 
 // ── SWITCH DE MÓDULOS CON LAZY LOADING ───────────────────
 function switchMod(mod) {
   // Control de acceso por plan
@@ -49,7 +49,7 @@ function switchMod(mod) {
     if (typeof amMostrarModalUpgrade === 'function') amMostrarModalUpgrade(mod);
     return;
   }
-
+ 
   // Módulos que necesitan cargarse bajo demanda
   const modLazy = {
     'hidrico':         ['hidrico.js'],
@@ -60,7 +60,7 @@ function switchMod(mod) {
     'seguimiento':     ['seguimiento.js'],
     'cosecha':         ['cosecha.js'],
   };
-
+ 
   const archivos = modLazy[mod];
   if (archivos) {
     // Contar cuántos necesitan cargarse
@@ -80,7 +80,7 @@ function switchMod(mod) {
       document.querySelectorAll('.nav-tab:not(.locked)').forEach(t => t.classList.remove('active'));
       const idx = {siembra:0,suelo:1,economia:2,fertilizacion:3,maquinaria:4,hidrico:5,cultivares:6,asistente:7,mapa:8,pulverizacion:9,seguimiento:10,cosecha:11}[mod];
       document.querySelectorAll('.nav-tab:not(.locked)')[idx]?.classList.add('active');
-
+ 
       // Cargar todos los archivos del módulo en secuencia
       let i = 0;
       function cargarSiguiente() {
@@ -94,21 +94,21 @@ function switchMod(mod) {
       return;
     }
   }
-
+ 
   _activarModulo(mod);
 }
-
+ 
 function _activarModulo(mod) {
   document.querySelectorAll('.nav-tab:not(.locked)').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
-
+ 
   const idx = {siembra:0,suelo:1,economia:2,fertilizacion:3,maquinaria:4,hidrico:5,cultivares:6,asistente:7,mapa:8,pulverizacion:9,seguimiento:10,cosecha:11}[mod];
   document.querySelectorAll('.nav-tab:not(.locked)')[idx]?.classList.add('active');
   $('mod-' + mod)?.classList.add('active');
-
+ 
   // Hooks post-activación por módulo
   if (mod === 'suelo' && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
-    renderSueloModulo(window._sgDatos);
+    if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
     const coord = $('s-coord')?.value;
     if (coord && $('suelo-coord')) $('suelo-coord').value = coord;
   }
@@ -163,14 +163,14 @@ function _activarModulo(mod) {
   if (mod === 'seguimiento') segInit?.();
   if (mod === 'cosecha') cosInit?.();
 }
-
+ 
 // ════════════════════════════════════════════════════════
 // AGROMOTOR — nav.js
 // switchMod con lazy loading · DOMContentLoaded init
 // renderSueloModulo · Control de navegación principal
 // ════════════════════════════════════════════════════════
-
-
+ 
+ 
 // ── INIT ──
 document.addEventListener('DOMContentLoaded',()=>{
   $('s-fecha').value=new Date().toISOString().split('T')[0];
@@ -199,14 +199,14 @@ async function consultarSuelo() {
   if (!txt?.trim()) { alert('Ingresá las coordenadas del lote.'); return; }
   const [lat, lon] = parsCoord(txt);
   if (lat === null) { alert('Formato no reconocido.\nEjemplo: -33.395, -60.192'); return; }
-
+ 
   const btn = $('btn-suelo');
   btn.disabled = true; btn.textContent = '⟳ Consultando...';
   const st = $('suelo-st'), sp = $('suelo-sp'), sm = $('suelo-msg');
   st.classList.remove('hidden');
   sp.style.animation = 'spin 1s linear infinite';
   sm.textContent = 'Consultando SoilGrids ISRIC (puede tardar 15-30 seg)...';
-
+ 
   try {
     const datos = await buscarSoilGrids(lat, lon);
     window._sgDatos = datos;
@@ -227,11 +227,11 @@ async function consultarSuelo() {
     btn.disabled = false; btn.textContent = '🌍 Analizar suelo';
   }
 }
-
+ 
 function renderSueloModulo(d) {
   if (!d || Object.keys(d).length === 0) return;
   const mo = d.soc != null ? d.soc * 1.724 / 10 : null;
-
+ 
   // ── KPI cards ──
   const kpiDefs = [
     { label:'pH suelo',       val: d.ph,   fmt: v=>v.toFixed(1),       unit: d.ph!=null?(d.ph<5.5?'🚫 Muy ácido':d.ph<6?'⚠️ Ácido':d.ph<=7.5?'✅ Óptimo':'⚠️ Alcalino'):'', cls: d.ph!=null&&(d.ph<5.5||d.ph>7.8)?'danger':d.ph!=null&&d.ph>=6&&d.ph<=7.5?'':'neutral' },
@@ -245,7 +245,7 @@ function renderSueloModulo(d) {
     { label:'Limo',           val: d.silt, fmt: v=>v.toFixed(0),       unit: '%', cls: 'neutral' },
     { label:'Tipo de suelo',  val: d.textura, fmt: v=>v,               unit: 'SoilGrids 250m', cls: '', big: true },
   ];
-
+ 
   $('suelo-kpi-grid').innerHTML = kpiDefs
     .filter(k => k.val != null)
     .map(k => `<div class="kc ${k.cls||'neutral'}" ${k.big?'style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A)"':''}>
@@ -253,7 +253,7 @@ function renderSueloModulo(d) {
       <div class="kv" style="${k.big?'font-size:1rem;color:var(--grain)':''}">${k.fmt(k.val)}</div>
       <div class="ku">${k.unit}</div>
     </div>`).join('');
-
+ 
   // ── Textura visual ──
   let texHtml = '';
   if (d.clay != null && d.sand != null && d.silt != null) {
@@ -274,7 +274,7 @@ function renderSueloModulo(d) {
       ${d.textura?`<div class="alert info"><span class="ai">🗺️</span><div class="ac"><strong>Tipo de suelo estimado: ${d.textura}</strong> — basado en clasificación textural USDA/WRB. La capacidad de campo estimada es ~${d.clay>=35?35:d.sand>=65?12:28}% y el punto de marchitez ~${d.clay>=35?18:d.sand>=65?4:12}%, con un agua útil máxima de ~${d.clay>=35?17:d.sand>=65?8:16}%.</div></div>`:''}`;
   }
   $('suelo-textura-contenido').innerHTML = texHtml;
-
+ 
   // ── Tabla completa ──
   const ccEstim = d.clay>=35?35:d.sand>=65?12:28;
   const pmEstim = d.clay>=35?18:d.sand>=65?4:12;
@@ -296,7 +296,7 @@ function renderSueloModulo(d) {
         ${d.textura?`<tr class="hl"><td><strong>🗺️ Tipo de suelo</strong></td><td colspan="2"><strong>${d.textura}</strong></td><td>Clasificación por textura USDA → WRB</td></tr>`:''}
       </tbody>
     </table></div>`;
-
+ 
   // ── Alertas ──
   $('suelo-alertas').innerHTML = [
     d.ph!=null&&d.ph<5.5  ? `<div class="alert danger"><span class="ai">⚗️</span><div class="ac"><strong>pH muy ácido (${d.ph.toFixed(1)}) — Acción urgente</strong><br>Aplicar aproximadamente ${((6.2-(d.ph??5))*600).toFixed(0)} kg/ha de cal agrícola (calcita o dolomita) para elevar a pH 6.2. La disponibilidad de P, Ca y Mg está severamente reducida.</div></div>` : '',
@@ -308,7 +308,7 @@ function renderSueloModulo(d) {
     d.da!=null&&d.da>1.45 ? `<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>Densidad aparente alta (${d.da.toFixed(2)} g/cm³)</strong><br>Indica compactación existente. Confirmar con penetrómetro en el lote. La porosidad reducida limita el crecimiento radicular y la tasa de infiltración del agua.</div></div>` : '',
     d.cec!=null&&d.cec<10 ? `<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (${d.cec.toFixed(1)} cmol/kg)</strong><br>El suelo tiene escasa capacidad de retener cationes. Fraccioná las aplicaciones de K y Ca.</div></div>` : '',
   ].filter(Boolean).join('');
-
+ 
   $('suelo-placeholder').classList.add('hidden');
   $('suelo-kpis').classList.remove('hidden');
 }
@@ -317,3 +317,4 @@ function renderSueloModulo(d) {
 // Usa jsPDF para construir el PDF directamente (sin html2canvas)
 // Resultado: reporte profesional A4 listo para WhatsApp
 // ════════════════════════════════════════════════════════
+ 
