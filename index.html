@@ -4,22 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
-
+ 
   <!-- Fuentes -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-
+ 
   <!-- Estilos propios -->
   <link rel="stylesheet" href="css/agromotor.css">
-
+ 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#1E4D2B">
 </head>
 <body>
-
-
-
+ 
+ 
+ 
 <header>
   <div class="header-inner">
     <div class="logo">
@@ -60,7 +60,7 @@
     </div>
   </div>
 </header>
-
+ 
 <nav class="module-nav">
   <div class="nav-inner">
     <div class="nav-tab active" onclick="switchMod('siembra')"><span class="dot"></span>Diagnóstico de Siembra</div>
@@ -76,14 +76,14 @@
     <div class="nav-tab locked" title="Próximamente">Fenología y GDD</div>
   </div>
 </nav>
-
+ 
 <main>
-
+ 
 <!-- ══ MÓDULO 1 ══ -->
 <div id="mod-siembra" class="module-panel active">
   <div class="module-title">Diagnóstico de <em>Siembra</em></div>
   <div class="module-subtitle">ET₀ · VPD · Humedad 3 horizontes · GDD · Viento · Pronóstico 7 días — Open-Meteo en tiempo real</div>
-
+ 
   <!-- GPS / COORD -->
   <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(74,140,92,.35);background:rgba(26,51,32,.05)">
     <div class="card-title" style="color:var(--canopy)">🛰️ Geolocalización del lote
@@ -102,7 +102,7 @@
       <span id="api-sp"></span><span id="api-msg"></span>
     </div>
     <div id="api-info" class="hidden" style="margin-top:.75rem;padding:.85rem;background:rgba(15,26,16,.55);border-radius:10px;border:1px solid rgba(126,200,151,.25);backdrop-filter:blur(8px)">
-
+ 
       <!-- Fila 1: Open-Meteo (tiempo real) -->
       <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--sprout);margin-bottom:.5rem">🛰️ Open-Meteo — Tiempo real</div>
       <div style="display:flex;flex-wrap:wrap;gap:.8rem 1.4rem;font-size:.79rem;color:rgba(244,240,232,.85);margin-bottom:.75rem">
@@ -115,7 +115,7 @@
         <span>🌬️ Viento: <b style="color:var(--sprout)" id="i-viento">—</b></span>
         <span>🌾 GDD acum.: <b style="color:var(--sprout)" id="i-gdd">—</b></span>
       </div>
-
+ 
       <!-- Fila 2: NASA POWER (histórico) -->
       <div id="nasa-info" class="hidden" style="padding-top:.6rem;border-top:1px solid rgba(126,200,151,.15)">
         <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#7AAEF5;margin-bottom:.5rem">🚀 NASA POWER — Histórico 30 años</div>
@@ -130,7 +130,7 @@
           <span>📊 Balance: <b style="color:#7AAEF5" id="np-bal">—</b></span>
         </div>
       </div>
-
+ 
       <!-- Fila 3: SoilGrids (suelo real) -->
       <div id="sg-info" class="hidden" style="margin-top:.6rem;padding-top:.6rem;border-top:1px solid rgba(126,200,151,.15)">
         <div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--grain);margin-bottom:.5rem">🌍 SoilGrids ISRIC — Suelo real 250 m</div>
@@ -147,7 +147,7 @@
       </div>
     </div>
   </div>
-
+ 
   <div class="grid-2">
     <!-- INPUTS -->
     <div>
@@ -166,7 +166,7 @@
             </select>
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Humedad del suelo por horizonte</div>
         <div class="fg"><label>3–9 cm — zona superficial (%) <span class="it" title="Volumétrica. Autocompleta con Open-Meteo.">?</span></label>
@@ -181,7 +181,7 @@
         <div class="fg"><label>Prob. lluvia 72h (%)</label>
           <div class="sw"><input type="range" id="s-lluv" min="0" max="100" value="40" oninput="sv('sv-lluv',this.value+'%')"><span class="sv" id="sv-lluv">40%</span></div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Temperatura y rastrojo</div>
         <div class="grid-2">
@@ -195,7 +195,7 @@
         <div class="fg"><label>Rastrojo en superficie</label>
           <select id="s-rast"><option value="no">Sin rastrojo</option><option value="si">Con rastrojo (~1.5°C menos)</option></select>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Estrés hídrico atmosférico</div>
         <div class="grid-2">
@@ -206,7 +206,7 @@
             <div class="sw"><input type="range" id="s-vpd" min="0" max="4" step="0.05" value="1.0" oninput="sv('sv-vpd',parseFloat(this.value).toFixed(2)+' kPa')"><span class="sv" id="sv-vpd">1.00 kPa</span></div>
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Condiciones operativas</div>
         <div class="grid-2">
@@ -236,12 +236,12 @@
             Ingresá las coordenadas para calcular automáticamente con SoilGrids + Open-Meteo
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <button class="btn btn-p btn-full btn-lg" onclick="if(typeof calcSiembra==='function')calcSiembra();else alert('Cargando... intentá de nuevo en un segundo')">🔍 Analizar condiciones de siembra</button>
       </div>
     </div>
-
+ 
     <!-- RESULTADOS -->
     <div>
       <div class="card">
@@ -257,14 +257,14 @@
           <div style="margin-top:.8rem"><div class="sl">Recomendaciones técnicas</div><div id="s-recs"></div></div>
         </div>
       </div>
-
+ 
       <div class="card gap-top hidden" id="pron-card">
         <div class="card-title">📅 Pronóstico 7 días — datos reales Open-Meteo
           <span style="font-size:.68rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">por coordenada del lote</span>
         </div>
         <div id="pron-tabla"></div>
       </div>
-
+ 
       <!-- NASA POWER: CONTEXTO CLIMÁTICO HISTÓRICO -->
       <div class="card gap-top hidden" id="nasa-card">
         <div class="card-title" style="color:#2A5A8C">
@@ -273,7 +273,7 @@
         </div>
         <div id="nasa-contenido"></div>
       </div>
-
+ 
       <!-- SOILGRIDS: PROPIEDADES REALES DEL SUELO -->
       <div class="card gap-top hidden" id="sg-card">
         <div class="card-title" style="color:#7A4A10">
@@ -282,7 +282,7 @@
         </div>
         <div id="sg-contenido"></div>
       </div>
-
+ 
       <!-- RIESGO DE COMPACTACIÓN -->
       <div class="card gap-top hidden" id="compact-card">
         <div class="card-title" style="color:#7A1A0A">
@@ -294,12 +294,12 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO SUELO ══ -->
 <div id="mod-suelo" class="module-panel">
   <div class="module-title">Análisis de <em>Suelo</em></div>
   <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
-
+ 
   <!-- Ingreso de coordenadas -->
   <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:rgba(74,46,26,.04)">
     <div class="card-title" style="color:#7A4A10">
@@ -326,7 +326,7 @@
       💡 Si ya consultaste el lote en el módulo de Siembra, los datos aparecen automáticamente aquí.
     </p>
   </div>
-
+ 
   <!-- Resultados SoilGrids -->
   <div id="suelo-resultado">
     <div id="suelo-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.35)">
@@ -337,22 +337,22 @@
     <div id="suelo-kpis" class="hidden">
       <!-- KPI cards principales -->
       <div class="rg" id="suelo-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:1.2rem"></div>
-
+ 
       <!-- Barra granulométrica -->
       <div class="card" style="margin-bottom:1.2rem" id="suelo-textura-card">
         <div class="card-title">🏺 Composición granulométrica y textura</div>
         <div id="suelo-textura-contenido"></div>
       </div>
-
+ 
       <!-- Tabla completa -->
       <div class="card" style="margin-bottom:1.2rem">
         <div class="card-title">📋 Propiedades del suelo — perfil completo</div>
         <div id="suelo-tabla"></div>
       </div>
-
+ 
       <!-- Alertas e interpretaciones -->
       <div id="suelo-alertas"></div>
-
+ 
       <!-- Nota de fuente -->
       <div style="margin-top:1rem;padding:.6rem .9rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.45);border:1px solid var(--border)">
         📡 <strong>Fuente:</strong> SoilGrids 2.0 — ISRIC/Wageningen · Modelo de machine learning entrenado con 230.000 perfiles de suelo · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis local para decisiones críticas.
@@ -360,7 +360,7 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO 2 ══ -->
 <div id="mod-fertilizacion" class="module-panel">
   <div class="module-title">Plan de <em>Fertilización</em></div>
@@ -412,7 +412,7 @@
     </div></div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO 3 ══ -->
 <div id="mod-maquinaria" class="module-panel">
   <div class="module-title">Productividad de <em>Maquinaria</em></div>
@@ -463,16 +463,16 @@
     </div></div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO ECONOMÍA ══ -->
 <div id="mod-economia" class="module-panel">
   <div class="module-title">Economía de <em>Campaña</em></div>
   <div class="module-subtitle">Margen bruto actual y a cosecha · Precios Rosario · Dólar en tiempo real · Insumos · Flete · Arrendamiento</div>
-
+ 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA: INPUTS -->
     <div>
-
+ 
       <!-- PRECIOS DE GRANOS -->
       <div class="card">
         <div class="card-title">🌾 Precios de granos
@@ -490,7 +490,7 @@
             <option value="Sorgo">Sorgo</option>
           </select>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Precio disponible (hoy · Rosario)</div>
         <div class="grid-2">
@@ -503,7 +503,7 @@
             <input type="number" id="ec-precio-qq" readonly style="background:rgba(74,140,92,.06);font-weight:600">
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Precio a cosecha (futuro Matba-Rofex)
           <span id="ec-futuro-label" style="font-size:.68rem;font-weight:400;color:var(--leaf)"> — Mayo 2026</span>
@@ -524,7 +524,7 @@
           💡 <strong>Etapa 2:</strong> estos precios se cargarán automáticamente desde Matba-Rofex en tiempo real. Por ahora ingresalos manualmente consultando <a href="https://www.bcr.com.ar/es/mercados/mercado-de-granos/cotizaciones/cotizaciones-locales-0" target="_blank" style="color:var(--leaf)">BCR Rosario</a>.
         </div>
       </div>
-
+ 
       <!-- PRODUCCIÓN -->
       <div class="card" style="margin-top:1rem">
         <div class="card-title">📊 Producción del lote</div>
@@ -543,7 +543,7 @@
           <input type="number" id="ec-rend-fut" value="3.2" step="0.1" min="0.5" max="15" oninput="ecCalc()">
         </div>
       </div>
-
+ 
       <!-- COSTOS -->
       <div class="card" style="margin-top:1rem">
         <div class="card-title">💸 Costos de producción (USD/ha)</div>
@@ -560,7 +560,7 @@
           <div class="fg"><label>Cosecha (labor)</label><input type="number" id="ec-cosecha" value="45" min="0" oninput="ecCalc()"></div>
           <div class="fg"><label>Seguros y otros</label><input type="number" id="ec-otros" value="15" min="0" oninput="ecCalc()"></div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Comercialización</div>
         <div class="grid-2">
@@ -583,7 +583,7 @@
             <input type="number" id="ec-secado" value="0" min="0" oninput="ecCalc()">
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Tierra</div>
         <div class="grid-2">
@@ -599,14 +599,14 @@
             <input type="number" id="ec-arriendo-qq" value="10" step="0.5" min="0" max="30" oninput="ecCalc()">
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <button class="btn btn-p btn-full btn-lg" onclick="ecActualizarDolar()">
           💱 Actualizar dólar y recalcular
         </button>
       </div>
     </div>
-
+ 
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
       <!-- DÓLAR EN TIEMPO REAL -->
@@ -616,7 +616,7 @@
           <div style="text-align:center;padding:1rem;color:rgba(74,46,26,.4);font-size:.85rem">Cargando...</div>
         </div>
       </div>
-
+ 
       <!-- COMPARATIVO: HOY vs. COSECHA -->
       <div class="card" style="margin-top:1rem" id="ec-res-card">
         <div class="card-title">📈 Comparativo de márgenes</div>
@@ -625,10 +625,10 @@
           <div style="font-size:.88rem">Completá los datos y el motor<br>calcula el margen actual y a cosecha</div>
         </div>
         <div id="ec-res" class="hidden">
-
+ 
           <!-- Cards comparativas -->
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem">
-
+ 
             <!-- HOY -->
             <div style="background:linear-gradient(135deg,#1A3320,#2D5A3D);border-radius:12px;padding:1rem;color:white">
               <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:.6rem">📍 PRECIO HOY</div>
@@ -638,7 +638,7 @@
                 Ingreso bruto: <strong id="ec-r-ing-disp">—</strong>
               </div>
             </div>
-
+ 
             <!-- COSECHA -->
             <div style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A);border-radius:12px;padding:1rem;color:white">
               <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:.6rem">🎯 PRECIO COSECHA</div>
@@ -649,7 +649,7 @@
               </div>
             </div>
           </div>
-
+ 
           <!-- Tabla de márgenes -->
           <div style="overflow-x:auto">
           <table class="dt">
@@ -663,16 +663,16 @@
             <tbody id="ec-tabla-body"></tbody>
           </table>
           </div>
-
+ 
           <!-- KPI PRINCIPALES -->
           <div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:1rem" id="ec-kpis"></div>
-
+ 
           <!-- RELACIÓN INSUMO/PRODUCTO -->
           <div style="margin-top:1rem" id="ec-relaciones"></div>
-
+ 
           <!-- PUNTO DE EQUILIBRIO -->
           <div id="ec-breakeven" style="margin-top:.8rem"></div>
-
+ 
           <!-- NOTA METODOLÓGICA -->
           <div style="margin-top:.8rem;padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
@@ -683,16 +683,16 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO BALANCE HÍDRICO ══ -->
 <div id="mod-hidrico" class="module-panel">
   <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático</div>
   <div class="module-subtitle">ENSO · Agua disponible · Requerimiento del cultivo · Rendimiento alcanzable · Riego suplementario</div>
-
+ 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA -->
     <div>
-
+ 
       <!-- PANEL ENSO -->
       <div class="card" style="border:1.5px solid rgba(42,90,140,.3);background:rgba(42,90,140,.04)">
         <div class="card-title" style="color:#2A5A8C">
@@ -706,7 +706,7 @@
           🌊 Actualizar estado ENSO
         </button>
       </div>
-
+ 
       <!-- CONFIGURACIÓN CULTIVO Y ZONA -->
       <div class="card" style="margin-top:1rem">
         <div class="card-title">🌾 Configuración del lote</div>
@@ -741,7 +741,7 @@
             </select>
           </div>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Agua disponible inicial en el perfil</div>
         <div class="grid-2">
@@ -755,7 +755,7 @@
           </div>
         </div>
       </div>
-
+ 
       <!-- ESCENARIO CLIMÁTICO ENSO -->
       <div class="card" style="margin-top:1rem">
         <div class="card-title">🌧️ Precipitación esperada en campaña</div>
@@ -779,7 +779,7 @@
           </div>
         </div>
         <div id="bh-enso-info" style="margin-top:.5rem;font-size:.75rem;padding:.5rem .7rem;border-radius:6px;background:rgba(74,46,26,.04)"></div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Precipitación histórica del lote (NASA POWER)</div>
         <div class="fg">
@@ -787,7 +787,7 @@
           <input type="number" id="bh-precip-hist" value="580" min="100" max="1200" oninput="bhActualizar()">
         </div>
       </div>
-
+ 
       <!-- RIEGO SUPLEMENTARIO -->
       <div class="card" style="margin-top:1rem;border:1px solid rgba(42,90,140,.2)">
         <div class="card-title" style="color:#2A5A8C">💧 Riego suplementario (opcional)</div>
@@ -818,7 +818,7 @@
         </button>
       </div>
     </div>
-
+ 
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
       <div class="card" id="bh-res-card">
@@ -829,31 +829,31 @@
           <div style="font-size:.8rem">El motor calculará el agua disponible,<br>el rendimiento alcanzable y si necesitás riego</div>
         </div>
         <div id="bh-res" class="hidden">
-
+ 
           <!-- Gauge de agua disponible -->
           <div id="bh-gauge" style="margin-bottom:1.2rem"></div>
-
+ 
           <!-- KPIs -->
           <div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:1.2rem" id="bh-kpis"></div>
-
+ 
           <!-- Balance mensual -->
           <div id="bh-balance-tabla" style="margin-bottom:1rem"></div>
-
+ 
           <!-- Rendimiento alcanzable vs objetivo -->
           <div id="bh-rendimiento" style="margin-bottom:1rem"></div>
-
+ 
           <!-- Riego -->
           <div id="bh-riego-res" class="hidden" style="margin-bottom:1rem"></div>
-
+ 
           <!-- Fertilización ajustada -->
           <div id="bh-fertilizacion" style="margin-bottom:1rem"></div>
-
+ 
           <!-- Nota -->
           <div style="padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Metodología:</strong> FAO-56 Penman-Monteith (Kc × ET₀) · Función respuesta rendimiento/agua FAO (Doorenbos & Kassam) ·
             ENSO: NOAA/CPC · ET₀ histórica: NASA POWER · Datos de suelo: SoilGrids ISRIC
           </div>
-
+ 
           <!-- BOTONES ADICIONALES -->
           <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap">
             <button onclick="bhStressTest()" class="btn btn-s" style="flex:1;min-width:140px">
@@ -863,30 +863,30 @@
               📅 Estimar floración (GDD)
             </button>
           </div>
-
+ 
           <!-- STRESS TEST RESULTADO -->
           <div id="bh-stress" class="hidden" style="margin-top:.9rem"></div>
-
+ 
           <!-- GDD FLORACIÓN RESULTADO -->
           <div id="bh-gdd" class="hidden" style="margin-top:.9rem"></div>
-
+ 
         </div>
       </div>
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO CULTIVARES ══ -->
 <div id="mod-cultivares" class="module-panel">
   <div class="module-title">Recomendador de <em>Cultivares</em></div>
   <div class="module-subtitle">Grupos de madurez · Ventana óptima de siembra · Ranking RECSO/INTA 2024-25 · Filtros por zona, tecnología y empresa</div>
-
+ 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA: FILTROS -->
     <div>
       <div class="card">
         <div class="card-title">🎯 Parámetros del lote</div>
-
+ 
         <div class="fg">
           <label>Cultivo</label>
           <select id="cv-cultivo" onchange="cvActualizar()">
@@ -896,12 +896,12 @@
             <option value="Girasol">Girasol</option>
           </select>
         </div>
-
+ 
         <div class="fg">
           <label>Fecha de siembra planificada</label>
           <input type="date" id="cv-fecha" onchange="cvActualizar()">
         </div>
-
+ 
         <div class="fg">
           <label>Zona agroecológica <span id="cv-zona-auto" style="font-size:.65rem;color:var(--leaf);font-weight:600"></span></label>
           <select id="cv-zona" onchange="cvActualizar()">
@@ -912,7 +912,7 @@
             <option value="semiarida">Semiárida pampeana (oeste BA, La Pampa sur)</option>
           </select>
         </div>
-
+ 
         <div class="fg">
           <label>Tipo de siembra</label>
           <select id="cv-tipo-siem" onchange="cvActualizar()">
@@ -922,7 +922,7 @@
             <option value="tardia">Siembra tardía</option>
           </select>
         </div>
-
+ 
         <div class="fg">
           <label>Calidad de ambiente</label>
           <select id="cv-ambiente" onchange="cvActualizar()">
@@ -931,10 +931,10 @@
             <option value="bajo">Bajo potencial (restricciones de suelo/agua)</option>
           </select>
         </div>
-
+ 
         <div class="divider"></div>
         <div class="sl">Filtros adicionales</div>
-
+ 
         <div class="fg">
           <label>Tecnología</label>
           <select id="cv-tecnologia" onchange="cvActualizar()">
@@ -946,7 +946,7 @@
             <option value="HB4">HB4 (tolerancia a sequía)</option>
           </select>
         </div>
-
+ 
         <div class="fg">
           <label>Empresa semillera</label>
           <select id="cv-empresa" onchange="cvActualizar()">
@@ -962,7 +962,7 @@
             <option value="Baguette">Baguette (trigo)</option>
           </select>
         </div>
-
+ 
         <div class="fg">
           <label>Prioridad de selección</label>
           <select id="cv-prioridad" onchange="cvActualizar()">
@@ -972,12 +972,12 @@
             <option value="precoz">Mayor precocidad (escape a estreses)</option>
           </select>
         </div>
-
+ 
         <button class="btn btn-p btn-full btn-lg" onclick="cvActualizar()" style="margin-top:.8rem">
           🌱 Buscar cultivares recomendados
         </button>
       </div>
-
+ 
       <!-- Info metodológica -->
       <div class="card" style="margin-top:1rem;background:rgba(74,46,26,.03);border:1px solid var(--border)">
         <div class="card-title" style="font-size:.82rem">📚 Fuentes de datos</div>
@@ -990,7 +990,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
       <!-- Panel de zona y GM recomendados -->
@@ -1002,13 +1002,13 @@
           </div>
         </div>
       </div>
-
+ 
       <!-- Ventana de siembra -->
       <div class="card gap-top hidden" id="cv-ventana-card">
         <div class="card-title">📅 Ventana óptima de siembra</div>
         <div id="cv-ventana-info"></div>
       </div>
-
+ 
       <!-- Ranking de cultivares -->
       <div class="card gap-top" id="cv-ranking-card">
         <div class="card-title">🏆 Ranking de cultivares recomendados
@@ -1030,7 +1030,7 @@
         </div>
         <div id="cv-donde-content"></div>
       </div>
-
+ 
       <!-- COMPARADOR DE CULTIVARES -->
       <div class="card gap-top hidden" id="cv-comp-card">
         <div class="card-title">⚖️ Comparador de cultivares
@@ -1038,14 +1038,14 @@
         </div>
         <div id="cv-comp-content"></div>
       </div>
-
+ 
       <!-- DENSIDAD DE SIEMBRA -->
       <div class="card gap-top" id="cv-densidad-card" style="border:1.5px solid rgba(74,140,92,.2)">
         <div class="card-title" style="color:var(--canopy)">
           📏 Densidad de Siembra Recomendada
           <span style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)">ajustada por agua · fecha · condiciones</span>
         </div>
-
+ 
         <div class="grid-2" style="margin-bottom:.9rem">
           <div class="fg">
             <label>Distancia entre surcos (m)</label>
@@ -1058,11 +1058,11 @@
               oninput="dsRender()" placeholder="35">
           </div>
         </div>
-
+ 
         <button onclick="dsRender()" class="btn btn-p btn-full" style="margin-bottom:1rem">
           📏 Calcular densidad recomendada
         </button>
-
+ 
         <div id="ds-res">
           <div style="text-align:center;padding:1.5rem;color:rgba(74,46,26,.35);font-size:.82rem">
             <div style="font-size:2rem;margin-bottom:.5rem">📏</div>
@@ -1073,14 +1073,14 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO ASISTENTE IA ══ -->
 <div id="mod-asistente" class="module-panel">
   <div class="module-title">Asistente <em>Agronómico IA</em></div>
   <div class="module-subtitle">Consultá sobre tu lote en lenguaje natural · El motor usa todos los datos disponibles para responderte</div>
-
+ 
   <div style="display:grid;grid-template-columns:1fr 320px;gap:1.2rem;align-items:start">
-
+ 
     <!-- CHAT PRINCIPAL -->
     <div>
       <!-- Contexto del lote activo -->
@@ -1088,7 +1088,7 @@
         <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--leaf);margin-bottom:.4rem">📍 Lote activo en el motor</div>
         <div id="ia-contexto-resumen" style="font-size:.78rem;color:var(--field);display:flex;flex-wrap:wrap;gap:.8rem"></div>
       </div>
-
+ 
       <!-- Área de chat -->
       <div id="ia-chat" style="background:rgba(26,51,32,.03);border:1px solid rgba(74,140,92,.2);border-radius:14px;min-height:420px;max-height:560px;overflow-y:auto;padding:1.2rem;display:flex;flex-direction:column;gap:.8rem">
         <!-- Mensaje de bienvenida -->
@@ -1103,7 +1103,7 @@
           </div>
         </div>
       </div>
-
+ 
       <!-- Input de pregunta -->
       <div style="margin-top:.8rem;display:flex;gap:.6rem;align-items:flex-end">
         <div style="flex:1">
@@ -1121,12 +1121,12 @@
         </button>
       </div>
     </div>
-
+ 
     <!-- PANEL LATERAL: PREGUNTAS RÁPIDAS -->
     <div>
       <div class="card" style="padding:.9rem">
         <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.7rem">⚡ Preguntas rápidas</div>
-
+ 
         <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em">🌾 Siembra</div>
         ${['¿Puedo sembrar soja esta semana con las condiciones actuales?',
            '¿Cuál es el riesgo de compactación si entro mañana con la sembradora?',
@@ -1134,27 +1134,27 @@
            '¿A qué profundidad conviene sembrar con esta humedad?'].map(p =>
           `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(74,140,92,.06);border:1px solid rgba(74,140,92,.15);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
         ).join('')}
-
+ 
         <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">🌍 Suelo y agua</div>
         ${['¿Cómo está la reserva hídrica del lote para este cultivo?',
            '¿Necesito corregir el pH antes de sembrar?',
            '¿Cuántos mm le falta al lote para alcanzar el rendimiento objetivo?'].map(p =>
           `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(42,90,140,.06);border:1px solid rgba(42,90,140,.12);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
         ).join('')}
-
+ 
         <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">💰 Economía</div>
         ${['¿Es rentable sembrar soja con el precio actual?',
            '¿Cuál es el punto de equilibrio en qq/ha para este lote?',
            '¿Conviene esperar el precio futuro o vender disponible?'].map(p =>
           `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(200,162,85,.08);border:1px solid rgba(200,162,85,.2);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
         ).join('')}
-
+ 
         <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">🌊 Clima y ENSO</div>
         ${['¿Qué impacto tiene el ENSO actual en este lote?',
            '¿Cuál es la probabilidad de déficit hídrico en floración?'].map(p =>
           `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(42,90,140,.06);border:1px solid rgba(42,90,140,.12);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
         ).join('')}
-
+ 
         <div style="margin-top:.8rem;padding:.5rem .7rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.68rem;color:rgba(74,46,26,.45);line-height:1.5">
           🤖 Powered by <strong>Claude AI</strong> (Anthropic) · Las respuestas usan los datos reales de tu lote cuando están disponibles.
         </div>
@@ -1162,14 +1162,14 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO MAPA DISTRIBUIDORES ══ -->
 <div id="mod-mapa" class="module-panel">
   <div class="module-title">🗺️ Dónde <em>Comprar</em></div>
   <div class="module-subtitle">Mapa interactivo de distribuidores · Distancia desde tu lote · Contacto directo · Listing verificado</div>
-
+ 
   <div class="grid-2" style="gap:1.2rem">
-
+ 
     <!-- COLUMNA IZQUIERDA: FILTROS + LISTA -->
     <div>
       <!-- Filtros -->
@@ -1230,13 +1230,13 @@
           </label>
         </div>
       </div>
-
+ 
       <!-- Lista de resultados -->
       <div style="margin-top:.8rem">
         <div id="mp-count" style="font-size:.75rem;color:rgba(74,46,26,.5);margin-bottom:.5rem;font-weight:600"></div>
         <div id="mp-lista" style="max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem"></div>
       </div>
-
+ 
       <!-- CTA para agronomías -->
       <div style="margin-top:.8rem;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(200,162,85,.08),rgba(74,140,92,.06));border-radius:10px;border:1px solid rgba(200,162,85,.25)">
         <div style="font-size:.8rem;font-weight:700;color:var(--earth);margin-bottom:.3rem">🏪 ¿Tu agronomía no aparece?</div>
@@ -1246,17 +1246,17 @@
         </a>
       </div>
     </div>
-
+ 
     <!-- COLUMNA DERECHA: MAPA -->
     <div>
       <!-- Banner coordenadas -->
       <div id="mp-lote-banner" class="hidden" style="margin-bottom:.8rem;padding:.65rem .9rem;background:rgba(74,140,92,.08);border-radius:8px;border:1px solid rgba(74,140,92,.2);font-size:.78rem;color:var(--field)">
         <strong>📍 Lote activo:</strong> <span id="mp-lote-coord"></span> · mostrando distribuidores más cercanos
       </div>
-
+ 
       <!-- Mapa principal -->
       <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 12px rgba(74,46,26,.1)">
-
+ 
         <!-- Mapa OpenStreetMap via iframe Leaflet -->
         <div id="mp-mapa-container" style="height:480px;background:#e8f0e8;display:flex;align-items:center;justify-content:center">
           <div id="mp-mapa-placeholder" style="text-align:center;color:rgba(74,46,26,.4)">
@@ -1266,7 +1266,7 @@
           </div>
           <div id="mp-mapa" style="width:100%;height:100%;display:none"></div>
         </div>
-
+ 
         <!-- Leyenda sobre el mapa -->
         <div style="position:absolute;bottom:12px;left:12px;background:white;border-radius:8px;padding:.5rem .75rem;font-size:.7rem;box-shadow:0 2px 8px rgba(0,0,0,.15);border:1px solid rgba(74,46,26,.1)">
           <div style="display:flex;gap:.8rem;flex-wrap:wrap">
@@ -1277,10 +1277,10 @@
           </div>
         </div>
       </div>
-
+ 
       <!-- Distribuidor seleccionado -->
       <div id="mp-seleccionado" class="hidden" style="margin-top:.8rem"></div>
-
+ 
       <!-- Info fuente -->
       <div style="margin-top:.7rem;font-size:.7rem;color:rgba(74,46,26,.4);text-align:center">
         Mapa: OpenStreetMap · Datos: RNCyFS-INASE + relevamiento AgroMotor · Leaflet.js
@@ -1288,12 +1288,12 @@
     </div>
   </div>
 </div>
-
+ 
 <!-- ══ MÓDULO PULVERIZACIÓN ══ -->
 <div id="mod-pulverizacion" class="module-panel">
   <div class="module-title">Ventana de <em>Pulverización</em></div>
   <div class="module-subtitle">Semáforo agronómico · Condiciones meteo en tiempo real · Delta T · Deriva · Caldo · Calidad de agua · Registro</div>
-
+ 
   <!-- Sub-navegación interna -->
   <div class="pulv-nav">
     <div class="pulv-tab active" onclick="pulvTab('condiciones',this)">🌤 Condiciones</div>
@@ -1303,14 +1303,14 @@
     <div class="pulv-tab" onclick="pulvTab('hrac',this)">🧬 Resistencias HRAC</div>
     <div class="pulv-tab" onclick="pulvTab('agua',this)">🔬 Calidad de Agua</div>
   </div>
-
+ 
   <!-- GPS bar -->
   <div class="gps-bar-pulv" id="pulv-gps-bar">
     <div class="gps-dot-p loading" id="pulv-gps-dot"></div>
     <div style="font-size:.8rem;color:rgba(237,224,196,.65);flex:1" id="pulv-gps-txt">Usando datos del módulo de Siembra...</div>
     <button onclick="pulvRefrescarMeteo()" style="background:rgba(58,122,184,.2);border:1px solid rgba(58,122,184,.4);color:#7ABAEE;font-size:.74rem;font-weight:600;padding:.38rem .85rem;border-radius:8px;cursor:pointer;font-family:inherit">🔄 Actualizar</button>
   </div>
-
+ 
   <!-- ── TAB CONDICIONES ── -->
   <div class="pulv-panel active" id="pulv-condiciones">
     <div class="sem-card" id="pulv-sem-card">
@@ -1334,7 +1334,7 @@
         <div class="alertas-l" id="pulv-alertas"></div>
       </div>
     </div>
-
+ 
     <!-- Ventana horaria -->
     <div class="card gap-top hidden" id="pulv-ventana-card">
       <div class="card-title">📅 Ventana de aplicación — Próximas 24 hs
@@ -1349,7 +1349,7 @@
       <div style="font-size:.73rem;color:rgba(74,46,26,.45);margin-top:.6rem">⚠️ Los bloques nocturnos (20-7 hs) pueden presentar riesgo de inversión térmica.</div>
     </div>
   </div>
-
+ 
   <!-- ── TAB CALDO ── -->
   <div class="pulv-panel" id="pulv-caldo">
     <div class="calc-g">
@@ -1408,7 +1408,7 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- ── TAB DERIVA ── -->
   <div class="pulv-panel" id="pulv-deriva">
     <div class="two-col">
@@ -1459,7 +1459,7 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- ── TAB REGISTRO ── -->
   <div class="pulv-panel" id="pulv-registro">
     <div class="reg-grid">
@@ -1517,7 +1517,7 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- ── TAB HRAC ── -->
   <div class="pulv-panel" id="pulv-hrac">
     <div style="margin-bottom:1rem">
@@ -1538,7 +1538,7 @@
       </div>
     </div>
   </div>
-
+ 
   <!-- ── TAB AGUA ── -->
   <div class="pulv-panel" id="pulv-agua">
     <div class="agua-g2">
@@ -1575,7 +1575,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Delta T, Viento, HR -->
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.2rem">
       <div class="agua-med">
@@ -1602,7 +1602,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Selector producto + botón -->
     <div class="card" style="margin-bottom:1.2rem">
       <div class="card-title">🧴 Producto / Mezcla a aplicar</div>
@@ -1618,7 +1618,7 @@
       </div>
       <button onclick="pulvCalcAgua()" class="btn btn-p">🔬 Analizar y recomendar</button>
     </div>
-
+ 
     <div class="grid-2">
       <div class="panel-card">
         <div class="card-hdr"><div class="card-ttl">Calidad de Agua</div><div id="pa-agua-badge" style="font-size:1.2rem">❓</div></div>
@@ -1631,12 +1631,12 @@
     </div>
     <div style="margin-top:.8rem;font-size:.7rem;color:rgba(237,224,196,.25);text-align:center">Recomendaciones basadas en INTA · CASAFE · Extensión INTA Marcos Juárez y Oliveros · Verificar marbete del producto</div>
   </div>
-
+ 
 </div>
-
+ 
 <div class="footer-note">AgroMotor v3.5 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
 </main>
-
+ 
 <!-- ══ MODAL SISTEMA DE PLANES ══ -->
 <div id="am-modal" class="hidden" style="
   position:fixed;inset:0;z-index:9999;
@@ -1644,7 +1644,7 @@
   backdrop-filter:blur(12px);
   display:flex;align-items:center;justify-content:center;
   padding:1rem">
-
+ 
   <div style="
     background:var(--panel-bg);
     border-radius:24px;
@@ -1653,7 +1653,7 @@
     box-shadow:0 24px 80px rgba(0,0,0,.4);
     border:1px solid var(--border);
     position:relative">
-
+ 
     <!-- Cerrar -->
     <button onclick="amCerrarModal()" style="
       position:absolute;top:1rem;right:1rem;
@@ -1664,7 +1664,7 @@
       transition:background .2s;z-index:1"
       onmouseenter="this.style.background='rgba(61,34,16,.2)'"
       onmouseleave="this.style.background='rgba(61,34,16,.1)'">✕</button>
-
+ 
     <!-- ── VISTA PLANES ── -->
     <div id="am-vista-planes">
       <!-- Header -->
@@ -1680,10 +1680,10 @@
           Módulo premium: <strong id="am-upgrade-modulo" style="color:var(--canopy)"></strong>
         </div>
       </div>
-
+ 
       <!-- Cards de planes -->
       <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
-
+ 
         <!-- FREE -->
         <div style="border:1.5px solid rgba(58,122,74,.3);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(58,122,74,.04)">
           <div style="font-size:1.8rem;margin-bottom:.4rem">🌱</div>
@@ -1708,7 +1708,7 @@
             Empezar gratis
           </button>
         </div>
-
+ 
         <!-- ASESOR PRO -->
         <div style="border:2px solid var(--grain);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(200,162,85,.06);position:relative">
           <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);
@@ -1739,7 +1739,7 @@
             Empezar 14 días gratis
           </button>
         </div>
-
+ 
         <!-- EMPRESA -->
         <div style="border:1.5px solid rgba(42,90,140,.3);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(42,90,140,.04)">
           <div style="font-size:1.8rem;margin-bottom:.4rem">🏢</div>
@@ -1764,7 +1764,7 @@
           </button>
         </div>
       </div>
-
+ 
       <!-- Footer del modal -->
       <div style="padding:0 1.5rem 1.5rem;text-align:center">
         <button onclick="amCambiarVista('login')" style="
@@ -1774,7 +1774,7 @@
         </button>
       </div>
     </div>
-
+ 
     <!-- ── VISTA LOGIN ── -->
     <div id="am-vista-login" class="hidden">
       <div style="padding:2rem">
@@ -1802,7 +1802,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- ── VISTA REGISTRO ── -->
     <div id="am-vista-registro" class="hidden">
       <div style="padding:2rem">
@@ -1839,7 +1839,7 @@
     </div>
   </div>
 </div>
-
+ 
 <style>
 @keyframes amFadeIn  { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
 @keyframes amFadeOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.96)} }
@@ -1847,13 +1847,13 @@
 .am-locked::after { content:'🔒' !important; opacity:1 !important; }
 .nav-tab.am-locked { opacity:.45; }
 </style>
-
+ 
 <script>
 function amRegistrarPlan(plan) {
   $('am-reg-plan') && ($('am-reg-plan').value = plan);
   amCambiarVista('registro');
 }
-
+ 
 function amMostrarPerfil() {
   if (!AM_SESION) { amMostrarModal('login'); return; }
   const plan = AM_PLANES[AM_SESION.plan];
@@ -1862,44 +1862,45 @@ function amMostrarPerfil() {
   );
   if (confirmar) amCerrarSesion();
 }
-
+ 
 // Cargar sesión al inicio
 amCargarSesion();
 </script>
-
-
+ 
+ 
 <!-- ══ LIBRERÍAS EXTERNAS ══ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-<!-- ══ CAPA 1: CORE — siempre disponible ══ -->
+ 
+<!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/core.js"></script>
 <script src="js/login.js"></script>
 <script src="js/cache.js"></script>
-
-<!-- ══ CAPA 2: MÓDULOS DE ARRANQUE — livianos, siempre cargados ══ -->
+ 
+<!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
+<script src="js/nav.js"></script>
+ 
+<!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
 <script src="js/siembra.js"></script>
 <script src="js/siembra-apis.js"></script>
 <script src="js/economia.js"></script>
 <script src="js/fertilizacion.js"></script>
 <script src="js/maquinaria.js"></script>
-
-<!-- ══ CAPA 3: MÓDULOS LAZY — se cargan al tocar la pestaña ══
+<script src="js/asistente.js"></script>
+<script src="js/pdf.js"></script>
+ 
+<!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
   • hidrico.js            → Balance hídrico FAO-56 + ENSO
   • cultivares.js         → DB RECSO/INTA + ranking + zonas
   • cultivares-extra.js   → Comparador + Stress test + GDD + Densidad
   • mapa.js               → OpenStreetMap + distribuidores
-  • asistente.js          → Claude API + contexto lote
-  • pdf.js                → Reporte A4 profesional
   • pulverizacion.js      → Semáforo + Delta T + HRAC + Caldo
   • seguimiento.js        → Campaña + NDVI + GDD en tiempo real
   • cosecha.js            → Decisión cosecha + BCRA + escenarios
 ══ -->
-
-<!-- ══ CAPA 4: NAVEGACIÓN — último en cargar ══ -->
-<script src="js/nav.js"></script>
-
+ 
 </body>
 </html>
+ 
