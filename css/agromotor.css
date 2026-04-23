@@ -1176,3 +1176,96 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 .legend { display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.5rem; justify-content: center; }
 .legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; color: #666; }
 .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* ════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — ≤ 768px
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  /* ── HEADER ── */
+  header { padding: 0 .75rem; }
+
+  .header-inner {
+    flex-wrap: wrap;
+    padding: .65rem 0;
+    gap: .45rem;
+  }
+
+  .logo-text { font-size: 1.2rem; }
+  .logo-tagline { display: none; }
+  .logo-icon { width: 34px; height: 34px; font-size: 1.1rem; }
+
+  .header-right {
+    flex-wrap: wrap;
+    gap: .35rem;
+    width: 100%;
+  }
+
+  /* Ocultar badge de versión y lógica INTA en mobile */
+  .header-badge { display: none !important; }
+  .header-inta  { display: none !important; }
+
+  /* Botones del header más compactos */
+  #btn-pdf, #am-btn-login, #am-btn-user {
+    font-size: .68rem !important;
+    padding: .3rem .65rem !important;
+  }
+
+  /* Selector de lotes del header — ancho completo */
+  .header-right > div:has(#am-global-lotes) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* ── NAVEGACIÓN ── */
+  .module-nav { padding: 0 .5rem; }
+  .nav-tab { padding: .65rem .75rem; font-size: .72rem; }
+
+  /* ── MAIN PADDING ── */
+  main { padding: .75rem .75rem 4rem; }
+
+  /* ── DASHBOARD GRID: 2 col → 1 col ── */
+  #mod-dashboard > div[style*="grid-template-columns:1fr 310px"],
+  #mod-dashboard > div[style*="grid-template-columns: 1fr 310px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── MAPA: reducir altura ── */
+  #am-inline-map { height: 240px !important; }
+
+  /* ── INPUT COORDENADAS: stack ── */
+  #mod-dashboard div[style*="grid-template-columns:1fr auto auto"],
+  #mod-dashboard div[style*="grid-template-columns: 1fr auto auto"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  #mod-dashboard #s-coord { grid-column: 1 / -1; }
+
+  /* ── DASHBOARD HEADER INTERNO: stack ── */
+  #mod-dashboard > div[style*="justify-content:space-between"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* ── TÍTULOS DE MÓDULO ── */
+  .module-title { font-size: 1.4rem !important; }
+
+  /* ── CARDS: padding reducido ── */
+  .card { padding: .85rem !important; }
+
+  /* ── MODALES: full screen en mobile ── */
+  #am-modal > div {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    min-height: 100vh !important;
+  }
+
+  /* ── GRIDS GENERALES: 2-col → 1-col ── */
+  .two-col, .sem-top, .calc-g, .reg-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── BOTONES DE ACCIÓN: full width ── */
+  .btn-full-mobile { width: 100% !important; }
+}
