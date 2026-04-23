@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AgroMotor · Siembra Variable</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gd:#1b5e35;--gm:#2d9e5e;--gl:#e8f5ee;--amb:#f59e0b;--red:#dc2626;--bdr:#e5e7eb;--txt:#111827;--mut:#6b7280}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f4f0;color:var(--txt);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
+header{background:var(--gd);color:#fff;padding:0 16px;height:46px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.brand{display:flex;align-items:center;gap:8px}
+.brand-name{font-size:16px;font-weight:700;letter-spacing:-.3px}
+.brand-sep{color:rgba(255,255,255,.35)}
+.brand-mod{font-size:13px;color:rgba(255,255,255,.82)}
+.badges{display:flex;gap:6px;align-items:center}
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.5px}
+.badge-beta{background:rgba(255,255,255,.18);color:#fff}
+.badge-demo{background:var(--amb);color:#1c1917}
+.badge-api{background:#16a34a;color:#fff;display:none}
+.badge-api.show{display:inline-block}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:278px;background:#fff;border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.panel{border-bottom:1px solid var(--bdr)}
+.ph{padding:9px 14px;font-size:12px;font-weight:600;color:var(--gd);display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}
+.ph:hover{background:var(--gl)}
+.ph .arr{font-size:10px;transition:transform .2s}
+.pb{padding:11px 14px;display:flex;flex-direction:column;gap:8px}
+.flabel{font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px}
+input[type=text],input[type=password],select{width:100%;padding:6px 10px;border:1px solid var(--bdr);border-radius:6px;font-size:12px;color:var(--txt);outline:none;background:#fff}
+input:focus,select:focus{border-color:var(--gm)}
+.igrp{display:flex;gap:5px}.igrp input{flex:1}
+.btn{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{background:var(--gd);color:#fff}.btn-primary:hover:not(:disabled){background:var(--gm)}
+.btn-sec{background:var(--gl);color:var(--gd);border:1px solid #c6e8d4}.btn-sec:hover:not(:disabled){background:#d1eed9}
+.btn-danger{background:#fef2f2;color:var(--red);border:1px solid #fecaca}.btn-danger:hover{background:#fee2e2}
+.btn-sm{padding:4px 9px;font-size:11px}.btn-full{width:100%}
+.arow{display:flex;gap:6px}
+.tog-row{display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer}
+.tog-row input[type=checkbox]{width:14px;height:14px;accent-color:var(--gd);cursor:pointer}
+.weight-row{display:flex;align-items:center;gap:8px;font-size:11px}
+.weight-row input[type=range]{flex:1;accent-color:var(--gd)}
+.weight-val{min-width:30px;text-align:right;font-weight:700;color:var(--gd)}
+.empty-msg{font-size:12px;color:var(--mut);text-align:center;padding:12px 0;line-height:1.6}
+.srow{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid #f3f4f6}
+.srow:last-child{border:none}
+.sval{font-weight:700;color:var(--gd)}
+.hint{font-size:11px;color:var(--mut);line-height:1.5}
+.hint a{color:var(--gm);text-decoration:none}.hint a:hover{text-decoration:underline}
+.api-status{font-size:11px;display:flex;align-items:center;gap:5px;color:var(--mut)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot-ok{background:#16a34a}.dot-demo{background:var(--amb)}.dot-err{background:var(--red)}
+.ndvi-hi{color:#1a9641}.ndvi-md{color:#b45309}.ndvi-lo{color:var(--red)}
+.btn-zona{flex:1;padding:6px 0;border:1px solid var(--bdr);border-radius:6px;background:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--mut)}
+.btn-zona.active{background:var(--gd);color:#fff;border-color:var(--gd)}
+.btn-zona:hover:not(.active){background:var(--gl);border-color:var(--gm);color:var(--gd)}
+.presc-table{width:100%;border-collapse:collapse;font-size:11px}
+.presc-table th{font-size:10px;font-weight:700;color:var(--mut);text-transform:uppercase;padding:3px 3px 5px;border-bottom:1px solid var(--bdr);text-align:left}
+.presc-table td{padding:5px 3px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
+.presc-table tr:last-child td{border-bottom:none}
+.amb-chip{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.presc-input{width:54px;padding:3px 5px;border:1px solid var(--bdr);border-radius:4px;font-size:11px;text-align:right;outline:none}
+.presc-input:focus{border-color:var(--gm)}
+.csv-tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--gl);color:var(--gd);border:1px solid #c6e8d4;padding:4px 9px;border-radius:6px;font-weight:600}
+.col-sel{display:flex;flex-direction:column;gap:5px}
+.col-row{display:flex;align-items:center;gap:6px;font-size:11px}
+.col-row label{width:52px;color:var(--mut);font-weight:600}
+.col-row select{flex:1;padding:3px 6px;font-size:11px}
+.map-area{flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden}
+#map{flex:1}
+.legend-box{position:absolute;bottom:125px;right:10px;background:rgba(255,255,255,.96);border-radius:8px;padding:10px 12px;box-shadow:0 2px 8px rgba(0,0,0,.15);z-index:1000;font-size:11px;min-width:168px}
+.legend-title{font-weight:700;font-size:12px;color:var(--gd);margin-bottom:7px}
+.li{display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.li-sq{width:15px;height:9px;border-radius:2px;flex-shrink:0}
+.chart-panel{background:#fff;border-top:1px solid var(--bdr);padding:8px 14px 8px;flex-shrink:0;height:118px;max-height:118px;overflow:hidden}
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.chart-hdr span{font-size:12px;font-weight:600;color:var(--gd)}
+.chart-tag{font-size:10px;color:var(--mut);background:#f3f4f6;padding:1px 7px;border-radius:8px}
+#ndvi-chart{max-height:80px!important}
+.map-demo-badge{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(245,158,11,.9);color:#1c1917;font-size:11px;font-weight:700;padding:3px 12px;border-radius:12px;z-index:1000;letter-spacing:.4px;pointer-events:none}
+.draw-hint{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:7px 9px;color:#92400e;font-size:11px;line-height:1.6}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span style="font-size:19px">🌾</span>
+    <span class="brand-name">AgroMotor</span>
+    <span class="brand-sep">·</span>
+    <span class="brand-mod">Siembra &amp; Fertilización Variable</span>
+  </div>
+  <div class="badges">
+    <span class="badge badge-beta">BETA</span>
+    <span class="badge badge-demo" id="bdemo">DEMO</span>
+    <span class="badge badge-api" id="bapi">API REAL</span>
+  </div>
+</header>
+
+<div class="layout">
+<aside class="sidebar">
+
+  <div class="panel">
+    <div class="ph" onclick="togglePanel(this)"><span>⚙️ API Agromonitoring</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <span class="flabel">API Key</span>
+      <div class="igrp">
+        <input type="password" id="api-key" placeholder="Pegá tu key aquí..."/>
+        <button class="btn btn-sec" onclick="conectarAPI()">→</button>
+      </div>
+      <div class="api-status" id="api-status">
+        <span class="dot dot-demo"></span><span>Modo demo · datos simulados</span>
+      </div>
+      <p class="hint"><a href="https://agromonitoring.com" target="_blank">Obtener API key gratuita →</a></p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph" onclick="togglePanel(this)"><span>📍 Lote</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <button class="btn btn-primary btn-full" id="btn-dibujar" onclick="activarDibujo()">✏️ Dibujar lote en el mapa</button>
+      <div id="draw-hint" class="draw-hint" style="display:none">
+        <strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar
+      </div>
+      <div id="lote-empty" class="empty-msg" style="padding:6px 0">o importá un GeoJSON ↓</div>
+      <div id="lote-info" style="display:none;flex-direction:column;gap:0">
+        <div class="srow"><span>Superficie</span><span class="sval" id="l-area">—</span></div>
+        <div class="srow"><span>Perímetro</span><span class="sval" id="l-peri">—</span></div>
+        <div class="srow"><span>Centroide</span><span class="sval" id="l-cent" style="font-size:10px">—</span></div>
+      </div>
+      <div class="arow">
+        <label class="btn btn-sec btn-sm" style="cursor:pointer">
+          📂 GeoJSON<input type="file" accept=".geojson,.json" onchange="importarGeoJSON(event)" style="display:none"/>
+        </label>
+        <button class="btn btn-danger btn-sm" onclick="limpiarLote()">✕ Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph" onclick="togglePanel(this)"><span>📊 Rendimientos históricos</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <p class="hint">CSV del monitor de cosecha (John Deere, Ag Leader, CNH)</p>
+      <label class="btn btn-sec btn-full" style="cursor:pointer">
+        📂 Importar CSV del monitor
+        <input type="file" accept=".csv,.txt" onchange="importarCSV(event)" style="display:none"/>
+      </label>
+      <div id="csv-ok" style="display:none"></div>
+      <div id="csv-cols" class="col-sel" style="display:none">
+        <div class="col-row"><label>Latitud</label><select id="col-lat"></select></div>
+        <div class="col-row"><label>Longitud</label><select id="col-lng"></select></div>
+        <div class="col-row"><label>Rendim.</label><select id="col-rend"></select></div>
+        <button class="btn btn-primary btn-full" onclick="confirmarCSV()" style="margin-top:2px">✓ Confirmar columnas</button>
+      </div>
+      <div id="yield-status" style="display:none" class="hint"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph" onclick="togglePanel(this)"><span>🛰 Variabilidad NDVI</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <span class="flabel">Período de análisis</span>
+      <select id="periodo">
+        <option value="6">Últimos 6 meses</option>
+        <option value="12" selected>Campaña actual · 12 meses</option>
+        <option value="24">Últimos 2 años</option>
+        <option value="60">Histórico 5 años</option>
+      </select>
+      <label class="tog-row">
+        <input type="checkbox" id="use-elev" onchange="toggleElevUI()"/>
+        Incluir topografía SRTM 30m
+      </label>
+      <div id="elev-config" style="display:none;flex-direction:column;gap:4px">
+        <div class="weight-row">
+          <span>NDVI</span>
+          <input type="range" id="w-ndvi" min="30" max="80" step="10" value="60" oninput="syncWeights()"/>
+          <span class="weight-val" id="w-ndvi-v">60%</span>
+        </div>
+        <div class="weight-row">
+          <span>Topog.</span>
+          <input type="range" id="w-elev" min="20" max="70" step="10" value="40" oninput="syncWeights2()"/>
+          <span class="weight-val" id="w-elev-v">40%</span>
+        </div>
+        <p class="hint" style="font-style:italic">Zonas bajas = mayor potencial (Pampa húmeda)</p>
+      </div>
+      <button class="btn btn-primary btn-full" id="btn-analizar" onclick="analizarNDVI()" disabled>
+        🛰 Analizar variabilidad del lote
+      </button>
+      <div id="ndvi-result" style="display:none;flex-direction:column;gap:0">
+        <div class="srow"><span>NDVI promedio</span><span class="sval" id="r-avg">—</span></div>
+        <div class="srow"><span>NDVI máximo</span><span class="sval" id="r-max">—</span></div>
+        <div class="srow"><span>NDVI mínimo</span><span class="sval" id="r-min">—</span></div>
+        <div class="srow"><span>Variabilidad (CV)</span><span class="sval" id="r-cv">—</span></div>
+        <div class="srow"><span>Fuente</span><span class="sval" id="r-src" style="font-size:10px">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="ph" onclick="togglePanel(this)"><span>🗺 Zonificación</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <span class="flabel">Número de ambientes</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-zona" id="z2" onclick="selZonas(2)">2</button>
+        <button class="btn-zona active" id="z3" onclick="selZonas(3)">3</button>
+        <button class="btn-zona" id="z4" onclick="selZonas(4)">4</button>
+      </div>
+      <span class="flabel">Suavizado de bordes</span>
+      <select id="smoothing">
+        <option value="0">Sin suavizar</option>
+        <option value="2" selected>Suave (2 pasadas)</option>
+        <option value="4">Fuerte (4 pasadas)</option>
+      </select>
+      <button class="btn btn-primary btn-full" id="btn-zonificar" onclick="zonificar()" disabled>
+        🗺 Generar zonas de manejo
+      </button>
+      <div id="zona-result" style="display:none;flex-direction:column;gap:0"></div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-prescripcion" style="display:none">
+    <div class="ph" onclick="togglePanel(this)"><span>💊 Prescripción por zona</span><span class="arr">▾</span></div>
+    <div class="pb" id="pb-prescripcion"></div>
+  </div>
+
+  <div class="panel" id="panel-exportar" style="display:none">
+    <div class="ph" onclick="togglePanel(this)"><span>📤 Exportar al monitor</span><span class="arr">▾</span></div>
+    <div class="pb">
+      <button class="btn btn-primary btn-full" onclick="exportarShapefile()">📦 Shapefile (.zip)</button>
+      <button class="btn btn-sec btn-full" onclick="exportarGeoJSON()" style="margin-top:5px">🌐 GeoJSON</button>
+      <button class="btn btn-sec btn-full" onclick="exportarCSVPresc()" style="margin-top:5px">📊 CSV prescripción</button>
+      <p class="hint" style="margin-top:4px">Compatible con QGIS · John Deere Ops Center · Ag Leader · mapshaper.org</p>
+    </div>
+  </div>
+
+</aside>
+
+<div class="map-area">
+  <div id="demo-badge" class="map-demo-badge">MODO DEMO · datos simulados</div>
+  <div id="map"></div>
+  <div class="legend-box" id="legend" style="display:none"></div>
+  <div class="chart-panel" id="chart-panel" style="display:none">
+    <div class="chart-hdr">
+      <span>NDVI histórico del lote</span>
+      <span class="chart-tag" id="chart-tag">SIMULADO</span>
+    </div>
+    <canvas id="ndvi-chart" height="80" style="height:80px;width:100%"></canvas>
+  </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+<script src="https://unpkg.com/shpwrite@0.3.2/shpwrite.js"></script>
+
+<script>
+// ══ ESTADO ══════════════════════════════════════════════════
+var map, drawnItems, ndviLayer, zonaLayer, yieldLayer, ndviChart;
+var apiKey=null, modoDemo=true, loteGeoJSON=null;
+var lastGridValues=null, lastGridInfo=null, lastElevValues=null;
+var zonaData=null, numZonas=3;
+var yieldPuntos=null, csvHeaders=[], csvRows=[];
+var ZONE_COLORS=['#1a6b3c','#f59e0b','#e05a3a','#7c3aed'];
+var ZONE_NAMES=['Ambiente A','Ambiente B','Ambiente C','Ambiente D'];
+
+// ══ MAPA ════════════════════════════════════════════════════
+(function(){
+  map=L.map('map',{zoomControl:true}).setView([-33.45,-62.9],13);
+  var sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri',maxZoom:19});
+  var osm=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OSM',maxZoom:19});
+  sat.addTo(map);
+  L.control.layers({'Satélite':sat,'Callejero':osm}).addTo(map);
+  drawnItems=new L.FeatureGroup().addTo(map);
+})();
+
+// ══ DIBUJO NATIVO ═══════════════════════════════════════════
+var _d=false,_pts=[],_mks=[],_pl=null,_pv=null;
+function activarDibujo(){
+  if(_d){cancelarDibujo();return;}
+  _d=true;_pts=[];
+  map.getContainer().style.cursor='crosshair';
+  map.doubleClickZoom.disable();
+  map.on('click',_ck);map.on('dblclick',_dk);map.on('mousemove',_mv);
+  document.addEventListener('keydown',_es);
+  document.getElementById('draw-hint').style.display='block';
+  document.getElementById('btn-dibujar').textContent='⏹ Cancelar dibujo';
+  document.getElementById('btn-dibujar').style.background='#92400e';
+}
+function _ck(e){
+  _pts.push(e.latlng);
+  _mks.push(L.circleMarker(e.latlng,{radius:5,fillColor:'#1b5e35',fillOpacity:1,color:'#fff',weight:2}).addTo(map));
+  if(_pl)map.removeLayer(_pl);
+  if(_pts.length>1)_pl=L.polyline(_pts,{color:'#1b5e35',weight:2,dashArray:'6 4'}).addTo(map);
+}
+function _mv(e){
+  if(!_d||!_pts.length)return;
+  if(_pv)map.removeLayer(_pv);
+  _pv=L.polyline(_pts.concat([e.latlng]),{color:'#1b5e35',weight:1.5,opacity:.5,dashArray:'4 4'}).addTo(map);
+}
+function _dk(){
+  if(_pts.length>0)_pts.pop();
+  if(_mks.length>0){map.removeLayer(_mks.pop());}
+  if(_pts.length<3){cancelarDibujo();return;}
+  var layer=L.polygon(_pts,{color:'#1b5e35',weight:2,fillColor:'#1b5e35',fillOpacity:.08});
+  _reset();setLote(layer);
+}
+function _es(e){if(e.key==='Escape')cancelarDibujo();}
+function _reset(){
+  _d=false;map.getContainer().style.cursor='';
+  map.doubleClickZoom.enable();
+  map.off('click',_ck);map.off('dblclick',_dk);map.off('mousemove',_mv);
+  document.removeEventListener('keydown',_es);
+  _mks.forEach(function(m){map.removeLayer(m);});_mks=[];_pts=[];
+  if(_pl){map.removeLayer(_pl);_pl=null;}
+  if(_pv){map.removeLayer(_pv);_pv=null;}
+}
+function cancelarDibujo(){
+  _reset();
+  document.getElementById('draw-hint').style.display='none';
+  document.getElementById('btn-dibujar').textContent='✏️ Dibujar lote en el mapa';
+  document.getElementById('btn-dibujar').style.background='';
+}
+
+// ══ LOTE ════════════════════════════════════════════════════
+function setLote(layer){
+  cancelarDibujo();
+  drawnItems.clearLayers();drawnItems.addLayer(layer);
+  loteGeoJSON=layer.toGeoJSON();
+  var ha=(turf.area(loteGeoJSON)/10000).toFixed(1);
+  var line=turf.polygonToLine(loteGeoJSON);
+  var peri=(turf.length(line,{units:'kilometers'})*1000).toFixed(0);
+  var c=turf.centroid(loteGeoJSON).geometry.coordinates;
+  document.getElementById('lote-empty').style.display='none';
+  document.getElementById('lote-info').style.display='flex';
+  document.getElementById('l-area').textContent=ha+' ha';
+  document.getElementById('l-peri').textContent=peri+' m';
+  document.getElementById('l-cent').textContent=c[1].toFixed(4)+'°, '+c[0].toFixed(4)+'°';
+  document.getElementById('btn-analizar').disabled=false;
+  map.fitBounds(layer.getBounds().pad(0.12));
+}
+function limpiarLote(){
+  drawnItems.clearLayers();loteGeoJSON=null;
+  [ndviLayer,zonaLayer,yieldLayer].forEach(function(l){if(l)map.removeLayer(l);});
+  ndviLayer=zonaLayer=yieldLayer=null;
+  ['lote-info','ndvi-result','zona-result','chart-panel','legend','panel-prescripcion','panel-exportar'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el){el.style.display='none';}
+  });
+  document.getElementById('lote-empty').style.display='block';
+  document.getElementById('btn-analizar').disabled=true;
+  document.getElementById('btn-zonificar').disabled=true;
+  lastGridValues=lastGridInfo=lastElevValues=null;
+  if(ndviChart){ndviChart.destroy();ndviChart=null;}
+}
+function importarGeoJSON(ev){
+  var file=ev.target.files[0];if(!file)return;
+  var r=new FileReader();
+  r.onload=function(e){
+    try{
+      var data=JSON.parse(e.target.result);
+      var feat=data.type==='FeatureCollection'?data.features[0]:data.type==='Feature'?data:{type:'Feature',geometry:data,properties:{}};
+      if(!feat){alert('GeoJSON sin polígono');return;}
+      var coords=feat.geometry.type==='Polygon'
+        ?feat.geometry.coordinates[0].map(function(c){return[c[1],c[0]];})
+        :feat.geometry.coordinates[0][0].map(function(c){return[c[1],c[0]];});
+      setLote(L.polygon(coords,{color:'#1b5e35',weight:2,fillOpacity:.08}));
+    }catch(err){alert('Error: '+err.message);}
+  };
+  r.readAsText(file);
+}
+
+// ══ API ══════════════════════════════════════════════════════
+function conectarAPI(){
+  var key=document.getElementById('api-key').value.trim();if(!key)return;
+  var st=document.getElementById('api-status');
+  st.innerHTML='<span class="dot" style="background:#9ca3af"></span> Verificando...';
+  fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid='+key)
+    .then(function(r){
+      if(r.ok){
+        apiKey=key;modoDemo=false;
+        document.getElementById('bdemo').style.display='none';
+        document.getElementById('bapi').classList.add('show');
+        document.getElementById('demo-badge').style.display='none';
+        document.getElementById('chart-tag').textContent='Sentinel-2 real';
+        st.innerHTML='<span class="dot dot-ok"></span> Conectado · Agromonitoring';
+      }else throw 0;
+    }).catch(function(){
+      st.innerHTML='<span class="dot dot-err"></span> API key inválida';
+    });
+}
+
+// ══ CSV RENDIMIENTOS ════════════════════════════════════════
+function importarCSV(ev){
+  var file=ev.target.files[0];if(!file)return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var lines=e.target.result.split('\n').filter(function(l){return l.trim();});
+    if(lines.length<2){alert('CSV vacío');return;}
+    var sep=lines[0].indexOf(';')>-1?';':',';
+    csvHeaders=lines[0].split(sep).map(function(h){return h.trim().replace(/"/g,'');});
+    csvRows=lines.slice(1).map(function(l){
+      return l.split(sep).map(function(v){return v.trim().replace(/"/g,'');});
+    }).filter(function(r){return r.length===csvHeaders.length;});
+    poblarSelectoresCSV();
+  };
+  r.readAsText(file);
+}
+function poblarSelectoresCSV(){
+  var opts=csvHeaders.map(function(h,i){return'<option value="'+i+'">'+h+'</option>';}).join('');
+  ['col-lat','col-lng','col-rend'].forEach(function(id){document.getElementById(id).innerHTML=opts;});
+  var auto={'col-lat':['lat','latitud','latitude','y'],'col-lng':['lon','lng','longitude','longitud','x'],'col-rend':['yield','rend','dry','tn','ton','kg','bu']};
+  Object.keys(auto).forEach(function(sid){
+    auto[sid].forEach(function(kw){
+      for(var i=0;i<csvHeaders.length;i++){
+        if(csvHeaders[i].toLowerCase().indexOf(kw)>-1){document.getElementById(sid).value=i;return;}
+      }
+    });
+  });
+  document.getElementById('csv-ok').style.display='block';
+  document.getElementById('csv-ok').innerHTML='<span class="csv-tag">📊 '+csvRows.length.toLocaleString('es')+' filas cargadas</span>';
+  document.getElementById('csv-cols').style.display='flex';
+}
+function confirmarCSV(){
+  var iLat=+document.getElementById('col-lat').value;
+  var iLng=+document.getElementById('col-lng').value;
+  var iR=+document.getElementById('col-rend').value;
+  var pts=[];var err=0;
+  csvRows.forEach(function(row){
+    var la=parseFloat(row[iLat]),lo=parseFloat(row[iLng]),v=parseFloat(row[iR]);
+    if(!isNaN(la)&&!isNaN(lo)&&!isNaN(v))pts.push({lat:la,lng:lo,val:v});else err++;
+  });
+  if(!pts.length){alert('Sin filas válidas');return;}
+  yieldPuntos=pts;
+  document.getElementById('csv-cols').style.display='none';
+  document.getElementById('yield-status').style.display='block';
+  document.getElementById('yield-status').innerHTML='✓ '+pts.length.toLocaleString('es')+' puntos de rendimiento cargados'+(err?' ('+err+' omitidas)':'');
+  mostrarYieldMapa(pts);
+}
+function mostrarYieldMapa(pts){
+  if(yieldLayer)map.removeLayer(yieldLayer);
+  var vals=pts.map(function(p){return p.val;});
+  var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals);
+  yieldLayer=L.featureGroup();
+  pts.forEach(function(p){
+    var t=(p.val-mn)/(mx-mn||1);
+    L.circleMarker([p.lat,p.lng],{radius:3,fillColor:t>.66?'#1a9641':t>.33?'#fee08b':'#d73027',fillOpacity:.7,color:'transparent',weight:0})
+     .bindTooltip('Rend: '+p.val.toFixed(1),{sticky:true}).addTo(yieldLayer);
+  });
+  yieldLayer.addTo(map);
+}
+
+// ══ IDW INTERPOLACIÓN ═══════════════════════════════════════
+function idw(lng,lat,pts,p){
+  p=p||2;var ws=0,tw=0;
+  var near=pts.slice().sort(function(a,b){return dist2(a,lng,lat)-dist2(b,lng,lat);}).slice(0,12);
+  near.forEach(function(pt){
+    var d=dist2(pt,lng,lat);
+    if(d<1e-8){ws=pt.val;tw=1;return;}
+    var w=1/Math.pow(d,p);ws+=w*pt.val;tw+=w;
+  });
+  return tw>0?ws/tw:0;
+}
+function dist2(pt,lng,lat){return Math.sqrt(Math.pow(pt.lng-lng,2)+Math.pow(pt.lat-lat,2));}
+
+// ══ ELEVACIÓN SRTM ══════════════════════════════════════════
+function toggleElevUI(){
+  var on=document.getElementById('use-elev').checked;
+  document.getElementById('elev-config').style.display=on?'flex':'none';
+}
+function syncWeights(){
+  var nv=+document.getElementById('w-ndvi').value;
+  document.getElementById('w-ndvi-v').textContent=nv+'%';
+  document.getElementById('w-elev-v').textContent=(100-nv)+'%';
+  document.getElementById('w-elev').value=100-nv;
+}
+function syncWeights2(){
+  var ev=+document.getElementById('w-elev').value;
+  document.getElementById('w-elev-v').textContent=ev+'%';
+  document.getElementById('w-ndvi-v').textContent=(100-ev)+'%';
+  document.getElementById('w-ndvi').value=100-ev;
+}
+async function fetchElevaciones(pts){
+  var elev=new Array(pts.length).fill(null),batch=100;
+  for(var i=0;i<pts.length;i+=batch){
+    var slice=pts.slice(i,i+batch);
+    var locs=slice.map(function(p){return p[1]+','+p[0];}).join('|');
+    try{
+      var res=await fetch('https://api.opentopodata.org/v1/srtm30m?locations='+locs);
+      var data=await res.json();
+      if(data.results)data.results.forEach(function(r,j){elev[i+j]=r.elevation;});
+    }catch(e){}
+    if(i+batch<pts.length)await new Promise(function(rs){setTimeout(rs,350);});
+  }
+  return elev;
+}
+
+// ══ ANÁLISIS NDVI ════════════════════════════════════════════
+async function analizarNDVI(){
+  if(!loteGeoJSON)return;
+  var btn=document.getElementById('btn-analizar');
+  btn.disabled=true;btn.textContent='⏳ Analizando...';
+  if(ndviLayer){map.removeLayer(ndviLayer);ndviLayer=null;}
+  if(zonaLayer){map.removeLayer(zonaLayer);zonaLayer=null;}
+
+  var meses=+document.getElementById('periodo').value;
+  var useElev=document.getElementById('use-elev').checked;
+  var gridInfo=buildGrid(loteGeoJSON);
+  var historial,gridValues,fuente;
+
+  try{
+    if(!modoDemo&&apiKey){
+      var res=await analizarConAPI(loteGeoJSON,apiKey,meses,gridInfo);
+      historial=res.historial;gridValues=res.gridValues;fuente='Sentinel-2 · Agromonitoring';
+    }else{
+      var dem=generarDemo(gridInfo,meses);
+      historial=dem.historial;gridValues=dem.gridValues;fuente='Simulado · Modo demo';
+    }
+  }catch(e){
+    var dem=generarDemo(gridInfo,meses);
+    historial=dem.historial;gridValues=dem.gridValues;fuente='Demo (fallback)';
+  }
+
+  lastElevValues=null;
+  if(useElev){
+    btn.textContent='⛰ Obteniendo SRTM...';
+    var elevs=await fetchElevaciones(gridInfo.points);
+    if(elevs.some(function(v){return v!==null;}))lastElevValues=elevs;
+  }
+
+  lastGridValues=gridValues;lastGridInfo=gridInfo;
+
+  ndviLayer=dibujarGrillaNDVI(gridInfo,gridValues);
+  ndviLayer.addTo(map);
+  actualizarLeyendaNDVI();
+
+  var sum=0,mx=-Infinity,mn=Infinity;
+  gridValues.forEach(function(v){sum+=v;if(v>mx)mx=v;if(v<mn)mn=v;});
+  var avg=sum/gridValues.length;
+  var std=Math.sqrt(gridValues.reduce(function(s,v){return s+(v-avg)*(v-avg);},0)/gridValues.length);
+  var cv=(std/avg*100).toFixed(1);
+  document.getElementById('r-avg').textContent=avg.toFixed(3);
+  document.getElementById('r-avg').className='sval '+(avg>.65?'ndvi-hi':avg>.45?'ndvi-md':'ndvi-lo');
+  document.getElementById('r-max').textContent=mx.toFixed(3);
+  document.getElementById('r-min').textContent=mn.toFixed(3);
+  document.getElementById('r-cv').textContent=cv+'% · '+(cv>15?'⚠ alta':'✓ normal');
+  document.getElementById('r-src').textContent=fuente+(lastElevValues?' + SRTM':'');
+  document.getElementById('ndvi-result').style.display='flex';
+  document.getElementById('btn-zonificar').disabled=false;
+  renderChart(historial);
+  btn.disabled=false;btn.textContent='🔄 Re-analizar';
+}
+
+async function analizarConAPI(geo,key,meses,gridInfo){
+  var now=Math.floor(Date.now()/1000),from=now-meses*30*86400;
+  var pr=await fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid='+key,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:'am_'+Date.now(),geo_json:geo})
+  });
+  var poly=await pr.json();
+  var hr=await fetch('https://agromonitoring.com/agromonitoring/v1/ndvi/history?polyid='+poly.id+'&from='+from+'&to='+now+'&appid='+key);
+  var hist=await hr.json();
+  var historial=hist.map(function(h){
+    return{fecha:new Date(h.dt*1000).toLocaleDateString('es-AR',{day:'2-digit',month:'short'}),valor:h.data.mean};
+  });
+  var mean=historial.reduce(function(s,h){return s+h.valor;},0)/(historial.length||1);
+  return{historial,gridValues:gridInfo.points.map(function(p){return clamp(mean+noise(p[1]*48,p[0]*48)*.2,.15,.92);})};
+}
+
+function generarDemo(gridInfo,meses){
+  var hist=[],now=new Date(),steps=Math.min(meses*2,38);
+  for(var i=steps;i>=0;i--){
+    var d=new Date(now.getTime()-i*14*86400000),mes=d.getMonth();
+    hist.push({fecha:d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}),
+      valor:clamp(.32+.43*Math.max(0,Math.sin((mes-1)*Math.PI/5.5))+(Math.random()-.5)*.07,.12,.91)});
+  }
+  return{historial:hist,gridValues:gridInfo.points.map(function(p){return clamp(.57+noise(p[1]*52,p[0]*52)*.30,.22,.90);})};
+}
+
+// ══ GRILLA ══════════════════════════════════════════════════
+function buildGrid(geo){
+  var area=turf.area(geo);
+  var cellM=Math.max(18,Math.sqrt(area/1000));
+  var cd=cellM/111000,bbox=turf.bbox(geo),pts=[];
+  for(var lat=bbox[1]+cd/2;lat<bbox[3];lat+=cd){
+    for(var lng=bbox[0]+cd/2;lng<bbox[2];lng+=cd){
+      if(turf.booleanPointInPolygon(turf.point([lng,lat]),geo))pts.push([lng,lat]);
+    }
+  }
+  return{points:pts,cellDeg:cd};
+}
+function buildGridIndex(gi){
+  var cd=gi.cellDeg,idx={};
+  gi.points.forEach(function(p,i){
+    idx[Math.round(p[1]/cd)+'|'+Math.round(p[0]/cd)]=i;
+  });
+  return{idx,cd};
+}
+function vecinos(i,gi,gidx){
+  var p=gi.points[i],cd=gidx.cd,res=[];
+  [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]].forEach(function(o){
+    var k=(Math.round(p[1]/cd)+o[0])+'|'+(Math.round(p[0]/cd)+o[1]);
+    if(gidx.idx[k]!==undefined)res.push(gidx.idx[k]);
+  });
+  return res;
+}
+function dibujarGrillaNDVI(gi,vals){
+  var layer=L.featureGroup(),cd=gi.cellDeg;
+  gi.points.forEach(function(p,i){
+    var v=vals[i]!==undefined?vals[i]:.5;
+    L.rectangle([[p[1]-cd/2,p[0]-cd/2],[p[1]+cd/2,p[0]+cd/2]],
+      {fillColor:ndviColor(v),fillOpacity:.74,color:'transparent',weight:0})
+     .bindTooltip('NDVI: '+v.toFixed(3),{sticky:true}).addTo(layer);
+  });
+  return layer;
+}
+
+// ══ K-MEANS 1D ══════════════════════════════════════════════
+function kmeans1D(vals,k){
+  var mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals);
+  var centroids=[];
+  for(var i=0;i<k;i++)centroids.push(mn+(mx-mn)*(i+.5)/k);
+  var asgn=new Array(vals.length).fill(0);
+  for(var iter=0;iter<100;iter++){
+    var changed=false;
+    for(var i=0;i<vals.length;i++){
+      var best=0,bd=Infinity;
+      for(var j=0;j<k;j++){var d=Math.abs(vals[i]-centroids[j]);if(d<bd){bd=d;best=j;}}
+      if(asgn[i]!==best){asgn[i]=best;changed=true;}
+    }
+    if(!changed)break;
+    var sums=new Array(k).fill(0),cnts=new Array(k).fill(0);
+    for(var i=0;i<vals.length;i++){sums[asgn[i]]+=vals[i];cnts[asgn[i]]++;}
+    for(var j=0;j<k;j++){if(cnts[j]>0)centroids[j]=sums[j]/cnts[j];}
+  }
+  var order=centroids.map(function(c,i){return{c,i};}).sort(function(a,b){return b.c-a.c;});
+  var rm={};order.forEach(function(o,r){rm[o.i]=r;});
+  return{assignments:asgn.map(function(a){return rm[a];}),centroids:order.map(function(o){return o.c;})};
+}
+
+// ══ SUAVIZADO MAJORITY FILTER ════════════════════════════════
+function majorityFilter(asgn,gi,passes){
+  var gidx=buildGridIndex(gi),res=asgn.slice();
+  for(var p=0;p<passes;p++){
+    var next=res.slice();
+    for(var i=0;i<gi.points.length;i++){
+      var nb=vecinos(i,gi,gidx);if(!nb.length)continue;
+      var cnt={};
+      nb.forEach(function(n){var z=res[n];cnt[z]=(cnt[z]||0)+1;});
+      var mc=0,bz=res[i];
+      Object.keys(cnt).forEach(function(z){if(cnt[z]>mc){mc=cnt[z];bz=+z;}});
+      next[i]=bz;
+    }
+    res=next;
+  }
+  return res;
+}
+
+// ══ ZONIFICACIÓN ════════════════════════════════════════════
+function selZonas(k){
+  numZonas=k;
+  [2,3,4].forEach(function(n){document.getElementById('z'+n).classList.toggle('active',n===k);});
+}
+function zonificar(){
+  if(!lastGridValues||!lastGridInfo)return;
+  var wN=+document.getElementById('w-ndvi').value||60;
+  var wE=100-wN;
+  var useElev=document.getElementById('use-elev').checked&&lastElevValues;
+  var normN=normalize(lastGridValues);
+  var normE=useElev?normalize(lastElevValues.map(function(v){return v===null?0:v;})):null;
+  var normY=null;
+  if(yieldPuntos){
+    var yv=lastGridInfo.points.map(function(p){return idw(p[0],p[1],yieldPuntos,2);});
+    normY=normalize(yv);
+  }
+  var composite=normN.map(function(n,i){
+    var score=0,tot=0;
+    score+=n*(wN/100);tot+=wN/100;
+    if(normE){score+=(1-normE[i])*(wE/100);tot+=wE/100;}
+    if(normY){score+=normY[i]*.25;tot+=.25;}
+    return score/tot;
+  });
+  var result=kmeans1D(composite,numZonas);
+  var passes=+document.getElementById('smoothing').value||0;
+  var smoothed=passes>0?majorityFilter(result.assignments,lastGridInfo,passes):result.assignments;
+  zonaData={assignments:smoothed,centroids:result.centroids,k:numZonas,gridInfo:lastGridInfo,gridValues:lastGridValues,composite};
+  if(ndviLayer)map.removeLayer(ndviLayer);
+  if(zonaLayer)map.removeLayer(zonaLayer);
+  zonaLayer=dibujarZonas(zonaData);zonaLayer.addTo(map);
+  actualizarLeyendaZonas(numZonas,result.centroids);
+  statsZonas(zonaData);
+  document.getElementById('panel-prescripcion').style.display='block';
+  document.getElementById('panel-exportar').style.display='block';
+  renderPrescrip(zonaData);
+  setTimeout(function(){document.getElementById('panel-prescripcion').scrollIntoView({behavior:'smooth',block:'nearest'});},200);
+}
+function dibujarZonas(zd){
+  var layer=L.featureGroup(),cd=zd.gridInfo.cellDeg;
+  zd.gridInfo.points.forEach(function(p,i){
+    var z=zd.assignments[i];
+    L.rectangle([[p[1]-cd/2,p[0]-cd/2],[p[1]+cd/2,p[0]+cd/2]],
+      {fillColor:ZONE_COLORS[z],fillOpacity:.74,color:'transparent',weight:0})
+     .bindTooltip(ZONE_NAMES[z]+' · NDVI '+zd.gridValues[i].toFixed(3),{sticky:true}).addTo(layer);
+  });
+  return layer;
+}
+function actualizarLeyendaNDVI(){
+  document.getElementById('legend').innerHTML=
+    '<div class="legend-title">Índice NDVI</div>'+
+    ['#1a9641','#91cf60','#d9ef8b','#fee08b','#fc8d59','#d73027'].map(function(c,i){
+      var labels=['Alto · >0.75','Bueno · 0.65–0.75','Moderado · 0.55–0.65','Bajo · 0.45–0.55','Muy bajo · 0.30–0.45','Crítico · <0.30'];
+      return'<div class="li"><span class="li-sq" style="background:'+c+'"></span>'+labels[i]+'</div>';
+    }).join('');
+  document.getElementById('legend').style.display='block';
+}
+function actualizarLeyendaZonas(k,centroids){
+  document.getElementById('legend').innerHTML=
+    '<div class="legend-title">Zonas de manejo</div>'+
+    Array.from({length:k},function(_,i){
+      return'<div class="li"><span class="li-sq" style="background:'+ZONE_COLORS[i]+'"></span>'+ZONE_NAMES[i]+' · score '+centroids[i].toFixed(3)+'</div>';
+    }).join('');
+  document.getElementById('legend').style.display='block';
+}
+function statsZonas(zd){
+  var tot=zd.gridInfo.points.length,area=turf.area(loteGeoJSON)/10000;
+  var cnt=new Array(zd.k).fill(0);
+  zd.assignments.forEach(function(a){cnt[a]++;});
+  document.getElementById('zona-result').innerHTML=
+    Array.from({length:zd.k},function(_,i){
+      return'<div class="srow"><span><span class="amb-chip" style="background:'+ZONE_COLORS[i]+'"></span>'+ZONE_NAMES[i]+'</span>'+
+            '<span class="sval">'+(cnt[i]/tot*area).toFixed(1)+' ha · '+(cnt[i]/tot*100).toFixed(0)+'%</span></div>';
+    }).join('');
+  document.getElementById('zona-result').style.display='flex';
+  document.getElementById('zona-result').style.flexDirection='column';
+}
+
+// ══ PRESCRIPCIÓN ════════════════════════════════════════════
+function renderPrescrip(zd){
+  var tot=zd.gridInfo.points.length,area=turf.area(loteGeoJSON)/10000;
+  var cnt=new Array(zd.k).fill(0);zd.assignments.forEach(function(a){cnt[a]++;});
+  var ds=[8.5,7.5,6.5,5.5],df=[200,160,120,90];
+  var html='<table class="presc-table"><thead><tr><th>Amb.</th><th>ha</th>'+
+    '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">sem/m²</small></th>'+
+    '<th>Fertiliz.<br><small style="font-weight:400;color:#9ca3af">kg/ha</small></th></tr></thead><tbody>';
+  for(var i=0;i<zd.k;i++){
+    var ha=(cnt[i]/tot*area).toFixed(1);
+    html+='<tr><td><span class="amb-chip" style="background:'+ZONE_COLORS[i]+'"></span><strong>'+String.fromCharCode(65+i)+'</strong></td>'+
+          '<td>'+ha+'</td>'+
+          '<td><input class="presc-input" id="sem-'+i+'" type="number" min="2" max="15" step=".5" value="'+ds[i]+'" oninput="calcTotales()"/></td>'+
+          '<td><input class="presc-input" id="fer-'+i+'" type="number" min="0" max="500" step="10" value="'+df[i]+'" oninput="calcTotales()"/></td></tr>';
+  }
+  html+='</tbody></table><div id="totales-presc"></div>';
+  document.getElementById('pb-prescripcion').innerHTML=html;
+  calcTotales();
+}
+function calcTotales(){
+  if(!zonaData)return;
+  var tot=zonaData.gridInfo.points.length,area=turf.area(loteGeoJSON)/10000;
+  var cnt=new Array(zonaData.k).fill(0);zonaData.assignments.forEach(function(a){cnt[a]++;});
+  var tf=0,ts=0;
+  for(var i=0;i<zonaData.k;i++){
+    var ha=cnt[i]/tot*area;
+    tf+=ha*(+document.getElementById('fer-'+i).value||0);
+    ts+=ha*(+document.getElementById('sem-'+i).value||0)*10000;
+  }
+  document.getElementById('totales-presc').innerHTML=
+    '<div style="border-top:1px solid var(--bdr);margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:0">'+
+    '<div class="srow"><span>Total fertilizante</span><span class="sval">'+Math.round(tf).toLocaleString('es')+' kg</span></div>'+
+    '<div class="srow"><span>Total semillas</span><span class="sval">'+Math.round(ts/1000).toLocaleString('es')+' miles</span></div></div>';
+}
+
+// ══ EXPORTACIÓN ══════════════════════════════════════════════
+function _features(){
+  var cd=zonaData.gridInfo.cellDeg;
+  return zonaData.gridInfo.points.map(function(p,i){
+    var z=zonaData.assignments[i];
+    return{type:'Feature',
+      geometry:{type:'Polygon',coordinates:[[
+        [p[0]-cd/2,p[1]-cd/2],[p[0]+cd/2,p[1]-cd/2],
+        [p[0]+cd/2,p[1]+cd/2],[p[0]-cd/2,p[1]+cd/2],[p[0]-cd/2,p[1]-cd/2]
+      ]]},
+      properties:{ambiente:ZONE_NAMES[z],
+        ndvi:+zonaData.gridValues[i].toFixed(3),
+        dosis_semilla_sem_m2:+(document.getElementById('sem-'+z)||{value:0}).value,
+        dosis_fertilizante_kg_ha:+(document.getElementById('fer-'+z)||{value:0}).value}
+    };
+  });
+}
+function exportarGeoJSON(){
+  if(!zonaData)return;
+  dl(JSON.stringify({type:'FeatureCollection',features:_features()},null,2),'prescripcion_'+hoy()+'.geojson','application/json');
+}
+function exportarCSVPresc(){
+  if(!zonaData)return;
+  var tot=zonaData.gridInfo.points.length,area=turf.area(loteGeoJSON)/10000;
+  var cnt=new Array(zonaData.k).fill(0);zonaData.assignments.forEach(function(a){cnt[a]++;});
+  var lines=['Ambiente,Superficie_ha,NDVI_promedio,Score_compuesto,Dosis_semilla_sem_m2,Dosis_fertilizante_kg_ha'];
+  for(var i=0;i<zonaData.k;i++){
+    var ha=(cnt[i]/tot*area).toFixed(2);
+    var ndviProm=zonaData.gridValues.filter(function(_,j){return zonaData.assignments[j]===i;})
+      .reduce(function(s,v,_,a){return s+v/a.length;},0).toFixed(3);
+    lines.push([ZONE_NAMES[i],ha,ndviProm,zonaData.centroids[i].toFixed(3),
+      (document.getElementById('sem-'+i)||{value:''}).value,
+      (document.getElementById('fer-'+i)||{value:''}).value].join(','));
+  }
+  dl(lines.join('\n'),'prescripcion_'+hoy()+'.csv','text/csv');
+}
+function exportarShapefile(){
+  if(!zonaData)return;
+  var geojson={type:'FeatureCollection',features:_features()};
+  try{
+    if(typeof shpwrite==='undefined')throw new Error('no disponible');
+    shpwrite.download(geojson,{outputType:'blob',compression:'DEFLATE',types:{polygon:'prescripcion'}});
+  }catch(e){
+    alert('Shapefile no disponible en este navegador ('+e.message+'). Exportando GeoJSON.\nPodés convertirlo en mapshaper.org o QGIS.');
+    exportarGeoJSON();
+  }
+}
+function dl(content,name,type){
+  var b=new Blob([content],{type});var u=URL.createObjectURL(b);
+  var a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);
+}
+function hoy(){return new Date().toISOString().slice(0,10);}
+
+// ══ CHART ════════════════════════════════════════════════════
+function renderChart(hist){
+  document.getElementById('chart-panel').style.display='block';
+  setTimeout(function(){map.invalidateSize();},50);
+  if(ndviChart)ndviChart.destroy();
+  ndviChart=new Chart(document.getElementById('ndvi-chart').getContext('2d'),{
+    type:'line',
+    data:{labels:hist.map(function(h){return h.fecha;}),
+      datasets:[{label:'NDVI',data:hist.map(function(h){return+h.valor.toFixed(3);}),
+        borderColor:'#1b5e35',backgroundColor:'rgba(27,94,53,.07)',borderWidth:1.5,
+        pointRadius:2,pointBackgroundColor:'#1b5e35',tension:.38,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return' NDVI '+c.parsed.y.toFixed(3);}}}},
+      scales:{x:{ticks:{font:{size:9},maxRotation:0,maxTicksLimit:16},grid:{display:false}},
+              y:{min:0,max:1,ticks:{font:{size:9},stepSize:.2},grid:{color:'#f3f4f6'}}}}
+  });
+}
+
+// ══ UTILS ════════════════════════════════════════════════════
+function ndviColor(v){return v>.75?'#1a9641':v>.65?'#91cf60':v>.55?'#d9ef8b':v>.45?'#fee08b':v>.30?'#fc8d59':'#d73027';}
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function normalize(arr){
+  var vld=arr.filter(function(v){return v!==null&&!isNaN(v);});
+  var mn=Math.min.apply(null,vld),mx=Math.max.apply(null,vld),rng=mx-mn;
+  return arr.map(function(v){return(v===null||isNaN(v))?.5:(rng>0?(v-mn)/rng:.5);});
+}
+function noise(x,y){
+  return .40*Math.sin(x*.63+y*.31)+.25*Math.sin(x*1.41-y*.87+1.3)+
+         .20*Math.sin(x*2.17+y*1.73+2.8)+.15*Math.sin(x*3.61-y*2.43+4.2);
+}
+function togglePanel(h){
+  var b=h.nextElementSibling,arr=h.querySelector('.arr');
+  var open=b.style.display!=='none';
+  b.style.display=open?'none':'flex';
+  if(arr)arr.style.transform=open?'rotate(-90deg)':'';
+}
+</script>
+</body>
+</html>

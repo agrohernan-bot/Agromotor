@@ -1,0 +1,234 @@
+/* ════════════════════════════════════════════════════════
+   AGROMOTOR — Alerta Sanitaria · estilos del módulo
+   Todo bajo .as-wrap para no contaminar el scope global
+   ════════════════════════════════════════════════════════ */
+
+.as-wrap {
+  /* Variables locales del módulo */
+  --as-low:    #166534; --as-low-bg:  #DCFCE7; --as-low-bd:  #BBF7D0;
+  --as-med:    #92400E; --as-med-bg:  #FEF3C7; --as-med-bd:  #FDE68A;
+  --as-high:   #991B1B; --as-high-bg: #FEE2E2; --as-high-bd: #FECACA;
+  --as-none:   #6B7280; --as-none-bg: #F3F4F6; --as-none-bd: #E5E7EB;
+  --as-canopy: #1B4332;
+  --as-leaf:   #2D6A4F;
+  --as-mint:   #40916C;
+  --as-sage:   #74C69D;
+  --as-mist:   #B7E4C7;
+  --as-border: rgba(45,106,79,0.18);
+  --as-ink:    #1A2F1E;
+  font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ── Input panel ─────────────────────────────────────── */
+.as-input-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr auto;
+  gap: .65rem;
+  align-items: flex-end;
+  background: #fff;
+  border: 1.5px solid var(--as-border);
+  border-radius: 12px;
+  padding: .85rem 1rem;
+  margin-bottom: 1rem;
+}
+.as-fg label {
+  display: block; font-size: .6rem; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--as-leaf); margin-bottom: .22rem;
+}
+.as-fg input,
+.as-fg select {
+  width: 100%; padding: .45rem .65rem;
+  border: 1.5px solid var(--as-border); border-radius: 8px;
+  font-size: .82rem; color: var(--as-ink); background: #fafaf7;
+  font-family: inherit; outline: none;
+}
+.as-fg input:focus, .as-fg select:focus {
+  border-color: var(--as-mint);
+  box-shadow: 0 0 0 3px rgba(64,145,108,.12);
+}
+.as-btn-analizar {
+  height: 38px; padding: 0 1.2rem;
+  background: linear-gradient(135deg, var(--as-leaf), var(--as-mint));
+  color: #fff; border: none; border-radius: 8px;
+  font-size: .82rem; font-weight: 700; letter-spacing: .03em;
+  cursor: pointer; font-family: inherit; transition: opacity .2s;
+  white-space: nowrap;
+}
+.as-btn-analizar:hover   { opacity: .9; }
+.as-btn-analizar:disabled{ opacity: .5; cursor: not-allowed; }
+
+/* ── Resultados layout ───────────────────────────────── */
+.as-results {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.1rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .as-input-bar { grid-template-columns: 1fr 1fr; }
+  .as-results   { grid-template-columns: 1fr; }
+}
+
+/* ── Placeholder / loading ───────────────────────────── */
+.as-placeholder {
+  grid-column: 1 / -1;
+  text-align: center; padding: 4rem 1.5rem;
+  color: rgba(74,46,26,.35);
+}
+.as-ph-icon  { font-size: 3.5rem; margin-bottom: 1rem; opacity: .4; }
+.as-ph-text  { font-size: .85rem; line-height: 1.7; }
+.as-loading  { text-align: center; padding: 3rem 1rem; }
+.as-spinner  { font-size: 2.2rem; animation: as-spin .9s linear infinite; display: inline-block; }
+@keyframes as-spin { to { transform: rotate(360deg); } }
+.as-loading-text { font-size: .8rem; color: var(--as-mint); margin-top: .8rem; font-style: italic; }
+.as-error-box {
+  background: var(--as-high-bg); border: 1.5px solid var(--as-high-bd);
+  border-radius: 10px; padding: .8rem 1rem;
+  color: var(--as-high); font-size: .78rem; line-height: 1.5;
+}
+
+/* ── Weather strip ───────────────────────────────────── */
+.as-weather-strip {
+  background: linear-gradient(135deg, var(--as-canopy), #1E4976);
+  border-radius: 12px; padding: .8rem 1rem;
+  color: #fff; margin-bottom: .85rem;
+  display: flex; flex-wrap: wrap;
+}
+.as-weather-item {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 55px; padding: .15rem 0;
+}
+.as-weather-item:not(:last-child) { border-right: 1px solid rgba(255,255,255,.12); }
+.as-w-val  { font-size: 1.05rem; font-weight: 700; }
+.as-w-lbl  { font-size: .57rem; opacity: .6; text-transform: uppercase; letter-spacing: .06em; margin-top: .12rem; }
+
+/* ── Fenología ───────────────────────────────────────── */
+.as-feno-card {
+  background: #fff; border: 1.5px solid var(--as-border);
+  border-radius: 11px; padding: .65rem .85rem;
+  margin-bottom: .85rem; display: flex; align-items: center; gap: .65rem;
+  box-shadow: 0 1px 6px rgba(27,67,50,.07);
+}
+.as-feno-icon   { font-size: 1.5rem; flex-shrink: 0; }
+.as-feno-info   { flex: 1; min-width: 0; }
+.as-feno-cultivo{ font-size: .6rem; font-weight: 700; text-transform: uppercase; color: var(--as-leaf); letter-spacing: .07em; }
+.as-feno-estado { font-size: .92rem; font-weight: 700; color: var(--as-ink); margin-top: .08rem; }
+.as-feno-gdd    { font-size: .67rem; color: #666; margin-top: .08rem; }
+.as-feno-bar    { margin-top: .4rem; height: 5px; background: var(--as-mist); border-radius: 3px; overflow: hidden; }
+.as-feno-fill   { height: 100%; background: linear-gradient(90deg, var(--as-leaf), var(--as-sage)); border-radius: 3px; transition: width .5s; }
+
+/* ── Summary strip ───────────────────────────────────── */
+.as-summary-strip {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  gap: .5rem; margin-bottom: .85rem;
+}
+.as-summary-item { border-radius: 10px; padding: .55rem .4rem; text-align: center; border: 1.5px solid; }
+.as-si-count { font-size: 1.4rem; font-weight: 700; }
+.as-si-label { font-size: .58rem; letter-spacing: .06em; text-transform: uppercase; margin-top: .08rem; opacity: .8; }
+.as-si-high  { background: var(--as-high-bg); color: var(--as-high); border-color: var(--as-high-bd); }
+.as-si-med   { background: var(--as-med-bg);  color: var(--as-med);  border-color: var(--as-med-bd); }
+.as-si-low   { background: var(--as-low-bg);  color: var(--as-low);  border-color: var(--as-low-bd); }
+
+/* ── Section title ───────────────────────────────────── */
+.as-section-title {
+  font-size: .62rem; font-weight: 700; letter-spacing: .11em;
+  text-transform: uppercase; color: var(--as-mint);
+  margin: 1rem 0 .55rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.as-section-title::after { content: ''; flex: 1; height: 1px; background: var(--as-border); }
+
+/* ── Disease cards ───────────────────────────────────── */
+.as-disease-card {
+  background: #fff; border: 1.5px solid var(--as-border);
+  border-radius: 13px; padding: .85rem .9rem;
+  margin-bottom: .6rem; position: relative; overflow: hidden;
+  box-shadow: 0 1px 6px rgba(27,67,50,.07);
+}
+.as-disease-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 5px; border-radius: 4px 0 0 4px;
+}
+.as-dc-low::before  { background: var(--as-low); }
+.as-dc-med::before  { background: var(--as-med); }
+.as-dc-high::before { background: var(--as-high); }
+.as-dc-none::before { background: var(--as-none); }
+
+.as-dc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.as-dc-left   { flex: 1; min-width: 0; }
+.as-dc-name   { font-size: .86rem; font-weight: 700; color: var(--as-ink); }
+.as-dc-sci    { font-size: .63rem; font-style: italic; color: #999; margin-top: .08rem; }
+
+.as-risk-badge {
+  font-size: .63rem; font-weight: 700; letter-spacing: .06em;
+  padding: .2rem .55rem; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0; border: 1px solid;
+}
+.as-rb-low  { background: var(--as-low-bg);  color: var(--as-low);  border-color: var(--as-low-bd); }
+.as-rb-med  { background: var(--as-med-bg);  color: var(--as-med);  border-color: var(--as-med-bd); }
+.as-rb-high { background: var(--as-high-bg); color: var(--as-high); border-color: var(--as-high-bd); }
+.as-rb-none { background: var(--as-none-bg); color: var(--as-none); border-color: var(--as-none-bd); }
+
+.as-score-bar  { margin-top: .55rem; height: 5px; background: #f0f0f0; border-radius: 3px; overflow: hidden; }
+.as-score-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+.as-dc-low  .as-score-fill { background: var(--as-low); }
+.as-dc-med  .as-score-fill { background: var(--as-med); }
+.as-dc-high .as-score-fill { background: var(--as-high); }
+.as-dc-none .as-score-fill { background: var(--as-none); }
+
+.as-dc-reason   { font-size: .72rem; color: #555; margin-top: .5rem; line-height: 1.55; }
+.as-feno-warn   { font-size: .67rem; color: var(--as-none); margin-top: .28rem; font-style: italic; }
+.as-dc-rec {
+  margin-top: .45rem; padding: .32rem .55rem;
+  border-radius: 7px; font-size: .72rem; font-weight: 700; border: 1px solid;
+}
+.as-dc-low  .as-dc-rec { background: var(--as-low-bg);  color: var(--as-low);  border-color: var(--as-low-bd); }
+.as-dc-med  .as-dc-rec { background: var(--as-med-bg);  color: var(--as-med);  border-color: var(--as-med-bd); }
+.as-dc-high .as-dc-rec { background: var(--as-high-bg); color: var(--as-high); border-color: var(--as-high-bd); }
+.as-dc-none .as-dc-rec { background: var(--as-none-bg); color: var(--as-none); border-color: var(--as-none-bd); }
+
+/* ── Forecast heatmap ────────────────────────────────── */
+.as-forecast-wrap {
+  background: #fff; border: 1.5px solid var(--as-border);
+  border-radius: 13px; overflow: hidden; margin-bottom: .6rem;
+  box-shadow: 0 1px 6px rgba(27,67,50,.07);
+}
+.as-fh-inner {
+  display: grid; grid-template-columns: 130px repeat(7,1fr);
+  background: var(--as-canopy); color: #fff;
+  padding: .5rem .8rem;
+}
+.as-fh-label { font-size: .58rem; text-transform: uppercase; letter-spacing: .05em; color: rgba(255,255,255,.7); display: flex; align-items: center; }
+.as-fh-day   { text-align: center; font-size: .58rem; color: rgba(255,255,255,.85); }
+.as-fh-day span { display: block; font-size: .72rem; color: #fff; font-weight: 700; }
+.as-forecast-row {
+  display: grid; grid-template-columns: 130px repeat(7,1fr);
+  border-top: 1px solid var(--as-border);
+  padding: 0 .8rem; align-items: center; min-height: 36px;
+}
+.as-forecast-row:hover { background: rgba(64,145,108,.04); }
+.as-fr-disease { font-size: .7rem; font-weight: 700; color: var(--as-ink); padding: .35rem 0; }
+.as-fr-sci     { font-size: .58rem; font-style: italic; color: #aaa; display: block; }
+.as-fr-cell    { display: flex; justify-content: center; align-items: center; padding: .2rem .05rem; }
+.as-fr-dot     { width: 20px; height: 20px; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: 700; }
+.as-fr-dot.as-risk-low  { background: var(--as-low-bg);  color: var(--as-low); }
+.as-fr-dot.as-risk-med  { background: var(--as-med-bg);  color: var(--as-med); }
+.as-fr-dot.as-risk-high { background: var(--as-high-bg); color: var(--as-high); }
+.as-fr-dot.as-risk-none { background: var(--as-none-bg); color: var(--as-none); }
+
+/* ── Legend ──────────────────────────────────────────── */
+.as-legend { display: flex; gap: .8rem; flex-wrap: wrap; margin-top: .5rem; justify-content: center; }
+.as-legend-item { display: flex; align-items: center; gap: .3rem; font-size: .63rem; color: #666; }
+.as-legend-dot  { width: 10px; height: 10px; border-radius: 3px; }
+
+/* ── Panel lateral derecho ───────────────────────────── */
+.as-side-panel {
+  position: sticky; top: 10px;
+}
+.as-rain-note {
+  font-size: .68rem; padding: .32rem .65rem;
+  background: rgba(0,0,0,.03); border-radius: 7px;
+  margin-bottom: .7rem; border-left: 3px solid currentColor;
+  line-height: 1.5;
+}

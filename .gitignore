@@ -1,0 +1,17 @@
+# Supabase local
+supabase/.branches
+supabase/.temp
+supabase/config.toml
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+*~
+
+# Logs
+*.log

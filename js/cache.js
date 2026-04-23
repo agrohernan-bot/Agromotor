@@ -1,0 +1,327 @@
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — cache.js & Global Lot Manager
+// Persistencia localStorage · Múltiples Lotes
+// ════════════════════════════════════════════════════════
+
+const LOTES_KEY = 'am_global_lotes_v2';
+let AM_LOTES = [];
+let AM_LOTE_ACTIVO = 'default';
+
+function amCargarLotesGlobales() {
+  try {
+    const raw = localStorage.getItem(LOTES_KEY);
+    if(raw) {
+      const data = JSON.parse(raw);
+      AM_LOTES = Array.isArray(data.lotes) ? data.lotes : [];
+      AM_LOTE_ACTIVO = data.activo || 'default';
+    }
+  } catch(e) {
+    console.warn("Error loading lotes:", e);
+    AM_LOTES = [];
+  }
+  
+  if(!Array.isArray(AM_LOTES) || AM_LOTES.length === 0) {
+    AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: {} }];
+    AM_LOTE_ACTIVO = 'default';
+  }
+  
+  amRenderSelectLotes();
+}
+
+function amGetLoteLimit() {
+  if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.devMode) return 999;
+  if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
+    return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
+  }
+  return 1;
+}
+
+function amRenderSelectLotes() {
+  const sel = document.getElementById('am-global-lotes');
+  const selDash = document.getElementById('am-dash-lotes');
+  const listCont = document.getElementById('am-lista-lotes');
+  const counter = document.getElementById('dash-lotes-counter');
+
+  if(sel) sel.innerHTML = '';
+  if(selDash) selDash.innerHTML = '';
+  if(listCont) listCont.innerHTML = '';
+
+  const limite = amGetLoteLimit();
+  const total = AM_LOTES.length;
+  if (counter) {
+    const pct = limite < 999 ? total / limite : 0;
+    const color = pct >= 1 ? '#C94A2A' : pct >= 0.8 ? '#C8A255' : '#7AAEF5';
+    counter.textContent = limite < 999 ? `${total} / ${limite} lotes` : `${total} lotes`;
+    counter.style.color = color;
+    counter.style.borderColor = color + '44';
+  }
+
+  AM_LOTES.forEach(L => {
+    if(sel) {
+      const opt = document.createElement('option');
+      opt.value = L.id; opt.textContent = L.nombre; opt.style.background = '#1A2A20';
+      if(L.id === AM_LOTE_ACTIVO) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    if(selDash) {
+      const opt2 = document.createElement('option');
+      opt2.value = L.id; opt2.textContent = L.nombre; opt2.style.background = '#1A2A20';
+      if(L.id === AM_LOTE_ACTIVO) opt2.selected = true;
+      selDash.appendChild(opt2);
+    }
+
+    if(listCont) {
+      const coord   = L.data?.coord   || null;
+      const cultivo = L.data?.cultivo  || null;
+      const isActive = L.id === AM_LOTE_ACTIVO;
+
+      const card = document.createElement('div');
+      card.style.cssText = `
+        border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
+        border-radius: 10px;
+        background: ${isActive ? 'rgba(122,174,245,.1)' : '#fff'};
+        padding: .75rem .9rem;
+        cursor: pointer;
+        transition: all .18s;
+        display: flex; flex-direction: column; gap: .4rem;
+        box-shadow: ${isActive ? '0 2px 8px rgba(122,174,245,.2)' : '0 1px 3px rgba(0,0,0,.06)'};
+      `;
+      card.onclick = () => amCambiarLoteGlobalDesdeDash(L.id);
+      card.onmouseover = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.4)'; card.style.boxShadow='0 2px 8px rgba(122,174,245,.15)'; }};
+      card.onmouseout  = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.15)'; card.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'; }};
+
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;gap:.45rem">
+          <span style="font-size:1.1rem">${isActive ? '🗺️' : '📍'}</span>
+          <div style="font-weight:700;color:#1A3A6C;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${L.nombre}</div>
+          ${isActive ? '<span style="margin-left:auto;font-size:.6rem;font-weight:700;background:#7AAEF5;color:#fff;padding:1px 6px;border-radius:6px">ACTIVO</span>' : ''}
+        </div>
+        ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
+        ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
+      `;
+      listCont.appendChild(card);
+    }
+  });
+}
+
+window.amCambiarLoteGlobalDesdeDash = function(val) {
+  const sel = document.getElementById('am-global-lotes');
+  if(sel) {
+    sel.value = val;
+    amCambiarLoteGlobal();
+  }
+};
+
+function amLimpiarDOM() {
+  const camposLimpiar = ['s-coord', 's-cultivo', 's-fecha', 's-suelo', 'ec-precio-disp', 'ec-precio-fut', 'ec-rend', 'ec-sup'];
+  camposLimpiar.forEach(i => {
+    const el = document.getElementById(i);
+    if(el) el.value = '';
+  });
+  const spanLimpiar = ['sv-t6','sv-t18','sv-h1','sv-h2','sv-h3','sv-et0','sv-vpd','sv-viento','i-gdd', 'i-ubi', 'i-suelo', 'i-temp', 'i-hum', 'i-et0', 'i-vpd', 'i-viento', 'i-gdd', 'np-rad', 'np-prec', 'np-tmax', 'np-tmin', 'np-et0', 'np-rh', 'np-drd', 'np-bal', 'sg-ph', 'sg-soc', 'sg-n', 'sg-da', 'sg-cec', 'sg-mo', 'sg-textura'];
+  spanLimpiar.forEach(i => {
+    const el = document.getElementById(i);
+    if(el) el.textContent = '—';
+  });
+  window._sgDatos = null;
+  const mapaMsg = document.getElementById('api-msg');
+  if(mapaMsg) mapaMsg.textContent = '';
+  const mapSp = document.getElementById('api-sp');
+  if(mapSp) mapSp.style.animation = 'none';
+  
+  const apiInfo = document.getElementById('api-info');
+  const apiPh = document.getElementById('api-info-placeholder');
+  const nasaInfo = document.getElementById('nasa-info');
+  if(apiInfo) apiInfo.classList.add('hidden');
+  if(nasaInfo) nasaInfo.classList.add('hidden');
+  if(apiPh) apiPh.classList.remove('hidden');
+}
+
+window.amCrearLoteGlobal = function() {
+  const limite = amGetLoteLimit();
+  if (AM_LOTES.length >= limite) {
+    const msg = limite === 1
+      ? 'El plan Free permite 1 lote. Actualizá a Asesor Pro para tener hasta 15 lotes.'
+      : `Tu plan permite hasta ${limite} lotes y ya los usaste todos. Considerá actualizar tu plan.`;
+    if(typeof amToast === 'function') amToast(msg, 'error');
+    else alert(msg);
+    return;
+  }
+  const nombre = prompt('Nombre del nuevo lote (ej. Lote Sur - Soja):');
+  if(!nombre) return;
+  const id = 'lote_' + Date.now();
+
+  cacheGuardar();
+
+  AM_LOTES.push({ id, nombre, data: {} });
+  AM_LOTE_ACTIVO = id;
+  
+  amLimpiarDOM();
+  
+  amGuardarLotesEstado();
+  amRenderSelectLotes();
+  
+  if(typeof cacheCargar === 'function') cacheCargar();
+  if(typeof amActualizarUI === 'function') amActualizarUI();
+  if(typeof amToast === 'function') amToast(`Lote "${nombre}" creado`, 'ok');
+  
+  if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+};
+
+window.amEliminarLoteGlobal = function() {
+  if (AM_LOTES.length <= 1) {
+    if(typeof amToast === 'function') amToast('Debe haber al menos un lote activo.', 'error');
+    else alert('Debe haber al menos un lote activo.');
+    return;
+  }
+  
+  const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+  if (!lote) return;
+  
+  if (!confirm(`¿Estás seguro de que deseás eliminar el lote "${lote.nombre}" y todos sus datos?`)) return;
+  
+  AM_LOTES = AM_LOTES.filter(l => l.id !== AM_LOTE_ACTIVO);
+  AM_LOTE_ACTIVO = AM_LOTES[0].id;
+  
+  amGuardarLotesEstado();
+  amLimpiarDOM();
+  cacheCargar();
+  amRenderSelectLotes();
+  
+  if(typeof amToast === 'function') amToast(`Lote "${lote.nombre}" eliminado`, 'ok');
+  if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+  
+  const coordVal = document.getElementById('s-coord')?.value;
+  if(coordVal && typeof buscarAPI === 'function') {
+    setTimeout(buscarAPI, 300);
+  }
+};
+
+window.amCambiarLoteGlobal = function() {
+  const sel = document.getElementById('am-global-lotes');
+  if(!sel) return;
+  
+  cacheGuardar(); // Guardar actual antes de cambiar
+  
+  AM_LOTE_ACTIVO = sel.value;
+  amGuardarLotesEstado();
+  
+  amLimpiarDOM(); 
+  
+  const success = cacheCargar();
+  if(success && typeof amToast === 'function') {
+    const activeLote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+    amToast('Cargado: ' + (activeLote ? activeLote.nombre : AM_LOTE_ACTIVO), 'ok');
+  }
+  
+  // Refrescar módulo actual si es necesario
+  if(typeof switchMod === 'function') {
+    const actTab = document.querySelector('.nav-tab.active');
+    // Si estamos en el dashboard, refrescar mapa e info
+    if (actTab && actTab.textContent.includes('Dashboard')) {
+      if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+    }
+  }
+  
+  // Auto-fetch data para el lote cargado
+  const coordVal = document.getElementById('s-coord')?.value;
+  if(coordVal && typeof buscarAPI === 'function') {
+    setTimeout(buscarAPI, 300);
+  }
+  
+  amRenderSelectLotes(); // Actualizar visualmente la lista
+};
+
+function amGuardarLotesEstado() {
+  localStorage.setItem(LOTES_KEY, JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+}
+
+function cacheGuardar() {
+  try {
+    const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+    if(!lote) return;
+    
+    lote.data = {
+      ts: Date.now(),
+      coord:   document.getElementById('s-coord')?.value,
+      cultivo: document.getElementById('s-cultivo')?.value,
+      fecha:   document.getElementById('s-fecha')?.value,
+      suelo:   document.getElementById('s-suelo')?.value,
+      t6:     document.getElementById('sv-t6')?.textContent,
+      t18:    document.getElementById('sv-t18')?.textContent,
+      h1:     document.getElementById('sv-h1')?.textContent,
+      h2:     document.getElementById('sv-h2')?.textContent,
+      h3:     document.getElementById('sv-h3')?.textContent,
+      et0:    document.getElementById('sv-et0')?.textContent,
+      vpd:    document.getElementById('sv-vpd')?.textContent,
+      viento: document.getElementById('sv-viento')?.textContent,
+      gdd:    document.getElementById('i-gdd')?.textContent,
+      precioDisp: document.getElementById('ec-precio-disp')?.value,
+      precioFut:  document.getElementById('ec-precio-fut')?.value,
+      rendEc:     document.getElementById('ec-rend')?.value,
+      supEc:      document.getElementById('ec-sup')?.value,
+      sgDatos: window._sgDatos || null,
+    };
+    
+    // Almacenar también la data de los info badges si queremos
+    const badgeIds = ['i-ubi', 'i-suelo', 'i-temp', 'i-hum', 'i-et0', 'i-vpd', 'i-viento', 'np-rad', 'np-prec', 'np-tmax', 'np-tmin', 'np-et0', 'np-rh', 'np-drd', 'np-bal', 'sg-ph', 'sg-soc', 'sg-n', 'sg-da', 'sg-cec', 'sg-mo', 'sg-textura'];
+    badgeIds.forEach(id => {
+      const el = document.getElementById(id);
+      if(el) lote.data[id] = el.textContent;
+    });
+    
+    amGuardarLotesEstado();
+  } catch(e) { console.warn('Cache write error:', e.message); }
+}
+
+function cacheCargar() {
+  try {
+    if(AM_LOTES.length === 0) amCargarLotesGlobales();
+    const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+    if (!lote || !lote.data) return false;
+    const datos = lote.data;
+    
+    if(!datos.ts) return false;
+
+    if (datos.coord   && document.getElementById('s-coord'))   document.getElementById('s-coord').value   = datos.coord;
+    if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
+    if (datos.fecha   && document.getElementById('s-fecha'))   document.getElementById('s-fecha').value   = datos.fecha;
+    if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
+    if (datos.precioDisp && document.getElementById('ec-precio-disp')) document.getElementById('ec-precio-disp').value = datos.precioDisp;
+    if (datos.precioFut  && document.getElementById('ec-precio-fut'))  document.getElementById('ec-precio-fut').value  = datos.precioFut;
+    if (datos.rendEc     && document.getElementById('ec-rend'))        document.getElementById('ec-rend').value         = datos.rendEc;
+    if (datos.supEc      && document.getElementById('ec-sup'))         document.getElementById('ec-sup').value          = datos.supEc;
+
+    if (datos.sgDatos) window._sgDatos = datos.sgDatos;
+    else window._sgDatos = null;
+
+    const campos = ['t6','t18','h1','h2','h3','et0','vpd','viento','gdd'];
+    const ids    = ['sv-t6','sv-t18','sv-h1','sv-h2','sv-h3','sv-et0','sv-vpd','sv-viento','i-gdd'];
+    campos.forEach((c,i) => {
+      if (datos[c] && datos[c] !== '—') {
+        const el = document.getElementById(ids[i]);
+        if (el) el.textContent = datos[c];
+      }
+    });
+
+    const badgeIds = ['i-ubi', 'i-suelo', 'i-temp', 'i-hum', 'i-et0', 'i-vpd', 'i-viento', 'np-rad', 'np-prec', 'np-tmax', 'np-tmin', 'np-et0', 'np-rh', 'np-drd', 'np-bal', 'sg-ph', 'sg-soc', 'sg-n', 'sg-da', 'sg-cec', 'sg-mo', 'sg-textura'];
+    badgeIds.forEach(id => {
+      if(datos[id] && datos[id] !== '—') {
+        const el = document.getElementById(id);
+        if(el) el.textContent = datos[id];
+      }
+    });
+
+    return true;
+  } catch(e) {
+    console.warn('Cache read error:', e.message);
+    return false;
+  }
+}
+
+
+// Inicializar global
+document.addEventListener('DOMContentLoaded', () => {
+  amCargarLotesGlobales();
+  setTimeout(cacheCargar, 500); // Dar un poco más de tiempo
+});

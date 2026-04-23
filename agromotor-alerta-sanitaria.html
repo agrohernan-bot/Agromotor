@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroMotor — Alerta Sanitaria</title>
+<style>
+:root {
+  --canopy: #1B4332;
+  --leaf: #2D6A4F;
+  --mint: #40916C;
+  --sage: #74C69D;
+  --mist: #B7E4C7;
+  --field: #52B788;
+  --ink: #1A2F1E;
+  --sand: #F8F4E8;
+  --paper: #FAFAF7;
+  --border: rgba(45,106,79,0.18);
+  --shadow: 0 2px 12px rgba(27,67,50,0.09);
+  --low: #166534; --low-bg: #DCFCE7; --low-bd: #BBF7D0;
+  --med: #92400E; --med-bg: #FEF3C7; --med-bd: #FDE68A;
+  --high: #991B1B; --high-bg: #FEE2E2; --high-bd: #FECACA;
+  --none: #6B7280; --none-bg: #F3F4F6; --none-bd: #E5E7EB;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Georgia', 'Times New Roman', serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, var(--canopy) 0%, #143D27 50%, #1A3A5C 100%);
+  padding: 1rem 1.3rem 1rem;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '🦠';
+  position: absolute; right: 1rem; top: 50%; transform: translateY(-50%);
+  font-size: 3.5rem; opacity: 0.12;
+}
+.header-badge {
+  font-size: 0.58rem; font-weight: bold; letter-spacing: 0.12em;
+  text-transform: uppercase; background: rgba(255,255,255,0.15);
+  padding: 0.18rem 0.55rem; border-radius: 20px; display: inline-block;
+  margin-bottom: 0.45rem;
+}
+.header-title { font-size: 1.2rem; font-weight: bold; letter-spacing: 0.02em; }
+.header-sub { font-size: 0.72rem; opacity: 0.65; margin-top: 0.2rem; font-style: italic; }
+
+/* INPUT PANEL */
+.input-panel {
+  background: white;
+  border-bottom: 2px solid var(--border);
+  padding: 1rem 1.3rem;
+}
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem; }
+.input-group label {
+  display: block; font-size: 0.62rem; font-weight: bold;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--leaf); margin-bottom: 0.22rem;
+}
+.input-group input, .input-group select {
+  width: 100%; padding: 0.48rem 0.7rem;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 0.82rem; color: var(--ink); background: var(--paper);
+  font-family: inherit;
+}
+.input-group input:focus, .input-group select:focus {
+  outline: none; border-color: var(--mint);
+  box-shadow: 0 0 0 3px rgba(64,145,108,0.12);
+}
+.full-col { grid-column: 1 / -1; }
+.btn-analizar {
+  width: 100%; margin-top: 0.5rem; padding: 0.68rem;
+  background: linear-gradient(135deg, var(--leaf), var(--mint));
+  color: white; border: none; border-radius: 10px;
+  font-size: 0.88rem; font-weight: bold; letter-spacing: 0.04em;
+  cursor: pointer; font-family: inherit; transition: opacity 0.2s;
+}
+.btn-analizar:hover { opacity: 0.9; }
+.btn-analizar:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* MAIN */
+.main { padding: 1rem 1.2rem 2rem; max-width: 620px; margin: 0 auto; }
+
+/* WEATHER STRIP */
+.weather-strip {
+  background: linear-gradient(135deg, var(--canopy), #1E4976);
+  border-radius: 14px; padding: 0.85rem 1rem;
+  color: white; margin-bottom: 0.9rem;
+  display: flex; gap: 0; flex-wrap: wrap;
+}
+.weather-item {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1; min-width: 55px; padding: 0.2rem 0;
+}
+.weather-item:not(:last-child) {
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+.w-val { font-size: 1.15rem; font-weight: bold; }
+.w-lbl { font-size: 0.58rem; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; }
+
+/* FENOLOGÍA */
+.feno-card {
+  background: white; border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 0.7rem 0.9rem;
+  margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.7rem;
+  box-shadow: var(--shadow);
+}
+.feno-icon { font-size: 1.5rem; flex-shrink: 0; }
+.feno-info { flex: 1; min-width: 0; }
+.feno-cultivo { font-size: 0.62rem; font-weight: bold; text-transform: uppercase; color: var(--leaf); letter-spacing: 0.08em; }
+.feno-estado { font-size: 0.95rem; font-weight: bold; color: var(--ink); margin-top: 0.1rem; }
+.feno-gdd { font-size: 0.68rem; color: #666; margin-top: 0.1rem; }
+.feno-progbar { margin-top: 0.4rem; height: 5px; background: var(--mist); border-radius: 3px; overflow: hidden; }
+.feno-progbar-fill { height: 100%; background: linear-gradient(90deg, var(--leaf), var(--sage)); border-radius: 3px; transition: width 0.5s; }
+
+/* SECTION TITLE */
+.section-title {
+  font-size: 0.65rem; font-weight: bold; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--mint);
+  margin: 1.2rem 0 0.6rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* DISEASE CARD */
+.disease-card {
+  background: white; border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 0.9rem 0.95rem;
+  margin-bottom: 0.65rem; position: relative; overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.disease-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 5px; border-radius: 4px 0 0 4px;
+}
+.dc-low::before { background: var(--low); }
+.dc-med::before { background: var(--med); }
+.dc-high::before { background: var(--high); }
+.dc-none::before { background: var(--none); }
+
+.dc-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+.dc-left { flex: 1; min-width: 0; }
+.dc-name { font-size: 0.88rem; font-weight: bold; color: var(--ink); }
+.dc-sci { font-size: 0.65rem; font-style: italic; color: #999; margin-top: 0.1rem; }
+
+.risk-badge {
+  font-size: 0.65rem; font-weight: bold; letter-spacing: 0.07em;
+  padding: 0.22rem 0.6rem; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0; border: 1px solid;
+}
+.rb-low { background: var(--low-bg); color: var(--low); border-color: var(--low-bd); }
+.rb-med { background: var(--med-bg); color: var(--med); border-color: var(--med-bd); }
+.rb-high { background: var(--high-bg); color: var(--high); border-color: var(--high-bd); }
+.rb-none { background: var(--none-bg); color: var(--none); border-color: var(--none-bd); }
+
+.dc-score-bar { margin-top: 0.6rem; height: 5px; background: #F0F0F0; border-radius: 3px; overflow: hidden; }
+.dc-score-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.dc-low .dc-score-fill { background: var(--low); }
+.dc-med .dc-score-fill { background: var(--med); }
+.dc-high .dc-score-fill { background: var(--high); }
+.dc-none .dc-score-fill { background: var(--none); }
+
+.dc-reason {
+  font-size: 0.73rem; color: #555; margin-top: 0.55rem; line-height: 1.55;
+}
+.dc-feno-warn {
+  font-size: 0.68rem; color: var(--none); margin-top: 0.3rem;
+  font-style: italic;
+}
+.dc-rec {
+  margin-top: 0.5rem; padding: 0.35rem 0.6rem;
+  border-radius: 7px; font-size: 0.73rem; font-weight: bold;
+  border: 1px solid;
+}
+.dc-low .dc-rec { background: var(--low-bg); color: var(--low); border-color: var(--low-bd); }
+.dc-med .dc-rec { background: var(--med-bg); color: var(--med); border-color: var(--med-bd); }
+.dc-high .dc-rec { background: var(--high-bg); color: var(--high); border-color: var(--high-bd); }
+.dc-none .dc-rec { background: var(--none-bg); color: var(--none); border-color: var(--none-bd); }
+
+/* FORECAST HEATMAP */
+.forecast-wrap {
+  background: white; border: 1.5px solid var(--border);
+  border-radius: 14px; overflow: hidden; margin-bottom: 0.65rem;
+  box-shadow: var(--shadow);
+}
+.forecast-header-row {
+  display: grid; background: var(--canopy); color: white;
+  font-size: 0.6rem; font-weight: bold; letter-spacing: 0.06em;
+  padding: 0.5rem 0.8rem;
+}
+.fh-inner {
+  display: grid;
+  grid-template-columns: 140px repeat(7, 1fr);
+  gap: 0;
+}
+.fh-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(255,255,255,0.7); }
+.fh-day { text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.9); }
+.fh-day span { display: block; font-size: 0.75rem; color: white; font-weight: bold; }
+
+.forecast-row {
+  display: grid;
+  grid-template-columns: 140px repeat(7, 1fr);
+  border-top: 1px solid var(--border);
+  padding: 0 0.8rem;
+  align-items: center;
+  min-height: 38px;
+}
+.forecast-row:hover { background: rgba(64,145,108,0.04); }
+.fr-disease { font-size: 0.72rem; font-weight: bold; color: var(--ink); padding: 0.4rem 0; }
+.fr-sci { font-size: 0.6rem; font-style: italic; color: #aaa; display: block; }
+.fr-cell { display: flex; justify-content: center; align-items: center; padding: 0.25rem 0.1rem; }
+.fr-dot {
+  width: 22px; height: 22px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: bold;
+}
+.fr-dot.risk-low { background: var(--low-bg); color: var(--low); }
+.fr-dot.risk-med { background: var(--med-bg); color: var(--med); }
+.fr-dot.risk-high { background: var(--high-bg); color: var(--high); }
+.fr-dot.risk-none { background: var(--none-bg); color: var(--none); }
+
+/* LEGEND */
+.legend {
+  display: flex; gap: 0.8rem; flex-wrap: wrap;
+  margin-top: 0.5rem; justify-content: center;
+}
+.legend-item { display: flex; align-items: center; gap: 0.3rem; font-size: 0.65rem; color: #666; }
+.legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* LOADING */
+.loading { text-align: center; padding: 2.5rem 1rem; }
+.loading-spinner { font-size: 2.2rem; animation: spin 0.9s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 0.8rem; color: var(--mint); margin-top: 0.8rem; font-style: italic; }
+
+/* PLACEHOLDER */
+.placeholder { text-align: center; padding: 3rem 1.5rem; }
+.ph-icon { font-size: 3.5rem; margin-bottom: 1rem; opacity: 0.4; }
+.ph-text { font-size: 0.85rem; color: #aaa; line-height: 1.7; }
+
+/* ERROR */
+.error-box {
+  background: var(--high-bg); border: 1.5px solid var(--high-bd);
+  border-radius: 10px; padding: 0.8rem 1rem;
+  color: var(--high); font-size: 0.78rem; margin: 1rem 0; line-height: 1.5;
+}
+
+/* SUMMARY BAR */
+.summary-strip {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem; margin-bottom: 0.9rem;
+}
+.summary-item {
+  border-radius: 10px; padding: 0.6rem 0.5rem; text-align: center;
+  border: 1.5px solid;
+}
+.si-count { font-size: 1.4rem; font-weight: bold; }
+.si-label { font-size: 0.6rem; letter-spacing: 0.07em; text-transform: uppercase; margin-top: 0.1rem; opacity: 0.8; }
+.si-high { background: var(--high-bg); color: var(--high); border-color: var(--high-bd); }
+.si-med  { background: var(--med-bg);  color: var(--med);  border-color: var(--med-bd); }
+.si-low  { background: var(--low-bg);  color: var(--low);  border-color: var(--low-bd); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">AgroMotor · Módulo 06</div>
+  <div class="header-title">🦠 Alerta Sanitaria</div>
+  <div class="header-sub">Riesgo de enfermedades · Condiciones actuales + 7 días</div>
+</div>
+
+<div class="input-panel">
+  <div class="input-grid">
+    <div class="input-group">
+      <label>Latitud</label>
+      <input type="number" id="inp-lat" placeholder="-33.0000" step="0.0001" value="-33.4567">
+    </div>
+    <div class="input-group">
+      <label>Longitud</label>
+      <input type="number" id="inp-lon" placeholder="-63.0000" step="0.0001" value="-63.2345">
+    </div>
+    <div class="input-group">
+      <label>Cultivo</label>
+      <select id="inp-cultivo">
+        <option value="soja">Soja</option>
+        <option value="maiz">Maíz</option>
+        <option value="trigo">Trigo</option>
+        <option value="girasol">Girasol</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>Fecha de siembra</label>
+      <input type="date" id="inp-siembra">
+    </div>
+    <div class="full-col">
+      <button class="btn-analizar" id="btn-analizar" onclick="analizar()">🔍 Analizar Riesgo Sanitario</button>
+    </div>
+  </div>
+</div>
+
+<div class="main" id="main-content">
+  <div class="placeholder">
+    <div class="ph-icon">🌿</div>
+    <div class="ph-text">Ingresá las coordenadas del lote, el cultivo<br>y la fecha de siembra para ver el análisis de riesgo.</div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTES ──────────────────────────────────────────────────────────────
+
+var PHENOLOGY = {
+  soja: {
+    base: 10,
+    icon: '🫘',
+    stages: [
+      {gdd:0,   code:'VE', name:'Emergencia'},
+      {gdd:120, code:'V2', name:'V2 – 2 nudos'},
+      {gdd:280, code:'V4', name:'V4 – 4 nudos'},
+      {gdd:450, code:'V6', name:'V6 – 6 nudos'},
+      {gdd:600, code:'R1', name:'R1 – Inicio floración'},
+      {gdd:720, code:'R2', name:'R2 – Floración plena'},
+      {gdd:870, code:'R3', name:'R3 – Inicio vainas'},
+      {gdd:1020,code:'R4', name:'R4 – Vainas llenas'},
+      {gdd:1180,code:'R5', name:'R5 – Inicio llenado'},
+      {gdd:1380,code:'R6', name:'R6 – Llenado pleno'},
+      {gdd:1600,code:'R7', name:'R7 – Madurez fisiológica'}
+    ]
+  },
+  maiz: {
+    base: 10,
+    icon: '🌽',
+    stages: [
+      {gdd:0,   code:'VE', name:'Emergencia'},
+      {gdd:180, code:'V4', name:'V4'},
+      {gdd:380, code:'V8', name:'V8'},
+      {gdd:620, code:'V12',name:'V12'},
+      {gdd:700, code:'VT', name:'VT – Emisión panoja'},
+      {gdd:760, code:'R1', name:'R1 – Estigmas (silking)'},
+      {gdd:900, code:'R2', name:'R2 – Ampolla'},
+      {gdd:1060,code:'R3', name:'R3 – Lechoso'},
+      {gdd:1260,code:'R4', name:'R4 – Pastoso'},
+      {gdd:1480,code:'R5', name:'R5 – Dentado'},
+      {gdd:1680,code:'R6', name:'R6 – Madurez fisiológica'}
+    ]
+  },
+  trigo: {
+    base: 0,
+    icon: '🌾',
+    stages: [
+      {gdd:0,   code:'Z10',name:'Z10 – Emergencia'},
+      {gdd:250, code:'Z21',name:'Z21 – Macollaje'},
+      {gdd:500, code:'Z30',name:'Z30 – Encañazón'},
+      {gdd:720, code:'Z45',name:'Z45 – Bota'},
+      {gdd:900, code:'Z65',name:'Z65 – Antesis (floración)'},
+      {gdd:1100,code:'Z75',name:'Z75 – Grano lechoso'},
+      {gdd:1300,code:'Z87',name:'Z87 – Grano pastoso'},
+      {gdd:1500,code:'Z92',name:'Z92 – Madurez fisiológica'}
+    ]
+  },
+  girasol: {
+    base: 6,
+    icon: '🌻',
+    stages: [
+      {gdd:0,   code:'VE', name:'Emergencia'},
+      {gdd:180, code:'V4', name:'V4'},
+      {gdd:380, code:'V8', name:'V8'},
+      {gdd:580, code:'R1', name:'R1 – Botón floral visible'},
+      {gdd:740, code:'R5', name:'R5 – Inicio floración'},
+      {gdd:900, code:'R6', name:'R6 – Floración plena'},
+      {gdd:1100,code:'R8', name:'R8 – Formación aquenios'},
+      {gdd:1350,code:'R9', name:'R9 – Madurez fisiológica'}
+    ]
+  }
+};
+
+var DISEASES = {
+  soja: [
+    {
+      id:'roya', name:'Roya Asiática', sci:'Phakopsora pachyrhizi', icon:'🍂',
+      vuln:['R1','R2','R3','R4','R5','R6'],
+      check: function(d) {
+        return d.tmean >= 15 && d.tmean <= 28 && d.hoursHR75 >= 6;
+      },
+      checkForecast: function(d) {
+        if (d.tmean >= 22 && d.tmean <= 28 && d.hoursHR75 >= 8) return 'high';
+        if (d.tmean >= 15 && d.tmean <= 28 && d.hoursHR75 >= 4) return 'med';
+        return 'none';
+      },
+      reasons: {
+        fav: 'Temperatura 15–28 °C con %h > 75 %% por ≥ 6 h/día',
+        unfav: 'Sin horas suficientes de alta humedad relativa'
+      },
+      rec: {
+        high: '⚠️ Aplicar fungicida preventivo de inmediato — cultivo en ventana crítica',
+        med: '👁 Monitorear cada 3–4 días y estar listo para aplicar',
+        low: '✅ Sin acción requerida — continuar monitoreo semanal',
+        none: '✅ Sin riesgo — condiciones desfavorables para el patógeno'
+      }
+    },
+    {
+      id:'cercospora', name:'Mancha Ojo de Rana', sci:'Cercospora sojina', icon:'🟤',
+      vuln:['R3','R4','R5','R6','R7'],
+      check: function(d) { return d.tmean >= 20 && d.tmean <= 30 && d.hoursHR80 >= 8; },
+      checkForecast: function(d) {
+        if (d.tmean >= 22 && d.tmean <= 30 && d.hoursHR80 >= 10) return 'high';
+        if (d.tmean >= 20 && d.tmean <= 30 && d.hoursHR80 >= 6) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'T° 20–30 °C con %h > 80 %% por ≥ 8 h/día', unfav:'Humedad insuficiente o temperatura fuera de rango' },
+      rec: { high:'⚠️ Aplicar fungicida — condiciones óptimas para infección', med:'👁 Monitorear manchas en hojas bajas', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'muerte_subita', name:'Muerte Súbita', sci:'Fusarium virguliforme', icon:'⚫',
+      vuln:['VE','V2','V4','V6'],
+      check: function(d) { return d.tmean >= 12 && d.tmean <= 20 && d.precip >= 5; },
+      checkForecast: function(d) {
+        if (d.tmean >= 14 && d.tmean <= 18 && d.precip >= 8) return 'high';
+        if (d.tmean >= 12 && d.tmean <= 20 && d.precip >= 3) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Suelo frío y húmedo — condición de infección en raíces', unfav:'Temperatura o humedad fuera del rango de infección' },
+      rec: { high:'⚠️ Evaluar semilla tratada; no hay control curativo disponible', med:'👁 Observar síntomas de clorosis intervenal', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'tizon_hoja', name:'Tizón de la Hoja', sci:'Septoria glycines', icon:'🟡',
+      vuln:['V4','V6','R1','R2','R3'],
+      check: function(d) { return d.tmean >= 20 && d.tmean <= 30 && d.precip >= 2; },
+      checkForecast: function(d) {
+        if (d.tmean >= 22 && d.precip >= 5 && d.hoursHR80 >= 8) return 'high';
+        if (d.tmean >= 20 && d.precip >= 2) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Lluvias frecuentes con temperatura cálida', unfav:'Sin precipitaciones relevantes' },
+      rec: { high:'⚠️ Considerar fungicida — especialmente si hay infección de roya simultánea', med:'👁 Monitorear follaje', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    }
+  ],
+  maiz: [
+    {
+      id:'tizon_norte', name:'Tizón del Norte', sci:'Exserohilum turcicum', icon:'🍃',
+      vuln:['V8','V12','VT','R1','R2'],
+      check: function(d) { return d.tmean >= 18 && d.tmean <= 27 && d.hoursHR90 >= 6; },
+      checkForecast: function(d) {
+        if (d.tmean >= 20 && d.tmean <= 27 && d.hoursHR90 >= 10) return 'high';
+        if (d.tmean >= 18 && d.tmean <= 27 && d.hoursHR90 >= 5) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'T° 18–27 °C con alta humedad ≥ 6 h/día', unfav:'Humedad insuficiente' },
+      rec: { high:'⚠️ Aplicar fungicida — ventana V8-R2 es crítica', med:'👁 Monitorear lesiones cigáricas en hojas medias', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'roya_comun', name:'Roya Común', sci:'Puccinia sorghi', icon:'🟠',
+      vuln:['V8','VT','R1','R2','R3'],
+      check: function(d) { return d.tmean >= 16 && d.tmean <= 23 && d.hoursHR90 >= 12; },
+      checkForecast: function(d) {
+        if (d.tmean >= 16 && d.tmean <= 23 && d.hoursHR90 >= 14) return 'high';
+        if (d.tmean >= 16 && d.tmean <= 25 && d.hoursHR90 >= 8) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Noches frescas y húmedas (T° 16–23 °C, HR > 90 %% ≥ 12 h)', unfav:'Temperatura alta o baja humedad nocturna' },
+      rec: { high:'⚠️ Aplicar fungicida — especialmente en híbridos susceptibles', med:'👁 Monitorear pústulas anaranjadas en hojas', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'mancha_gris', name:'Mancha Gris', sci:'Cercospora zeae-maydis', icon:'⚪',
+      vuln:['R1','R2','R3','R4'],
+      check: function(d) { return d.tmean >= 22 && d.tmean <= 30 && d.hoursHR90 >= 12; },
+      checkForecast: function(d) {
+        if (d.tmean >= 24 && d.hoursHR90 >= 14) return 'high';
+        if (d.tmean >= 22 && d.hoursHR90 >= 10) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Días cálidos con noches muy húmedas', unfav:'Condiciones no favorables' },
+      rec: { high:'⚠️ Aplicar fungicida — lote con antecedentes de la enfermedad', med:'👁 Observar lesiones rectangulares en hojas', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    }
+  ],
+  trigo: [
+    {
+      id:'fusarium', name:'Fusariosis de la Espiga', sci:'Fusarium graminearum', icon:'🌾',
+      vuln:['Z65','Z75'],
+      check: function(d) { return d.tmean >= 15 && d.tmean <= 30 && (d.precip >= 2 || d.hoursHR90 >= 8); },
+      checkForecast: function(d) {
+        if (d.tmean >= 20 && d.tmean <= 28 && (d.precip >= 5 || d.hoursHR90 >= 10)) return 'high';
+        if (d.tmean >= 15 && (d.precip >= 2 || d.hoursHR90 >= 6)) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Lluvia/humedad durante antesis — ventana de infección crítica de 72 h', unfav:'Sin lluvias durante floración' },
+      rec: { high:'⚠️ Aplicar fungicida en Z65 de manera urgente — sin segunda oportunidad', med:'👁 Estar listo para aplicar ante lluvia durante floración', low:'✅ Sin acción', none:'✅ Condiciones secas favorables' }
+    },
+    {
+      id:'roya_hoja', name:'Roya de la Hoja', sci:'Puccinia triticina', icon:'🟫',
+      vuln:['Z30','Z45','Z65','Z75'],
+      check: function(d) { return d.tmean >= 10 && d.tmean <= 30 && d.hoursHR90 >= 4; },
+      checkForecast: function(d) {
+        if (d.tmean >= 15 && d.tmean <= 25 && d.hoursHR90 >= 8) return 'high';
+        if (d.tmean >= 10 && d.tmean <= 30 && d.hoursHR90 >= 4) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Rocío frecuente con temperatura 10–30 °C', unfav:'Baja humedad foliar' },
+      rec: { high:'⚠️ Aplicar fungicida antes de Z65', med:'👁 Monitorear pústulas anaranjadas en hojas bandera', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'septoriosis', name:'Septoriosis', sci:'Zymoseptoria tritici', icon:'🟤',
+      vuln:['Z30','Z45','Z65'],
+      check: function(d) { return d.tmean >= 10 && d.tmean <= 25 && d.precip >= 0.5 && d.hoursHR80 >= 8; },
+      checkForecast: function(d) {
+        if (d.tmean >= 12 && d.tmean <= 22 && d.precip >= 2 && d.hoursHR80 >= 10) return 'high';
+        if (d.tmean >= 10 && d.precip >= 0.5 && d.hoursHR80 >= 6) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Lluvia con alta humedad foliar y T° moderada', unfav:'Condiciones poco favorables' },
+      rec: { high:'⚠️ Aplicar fungicida — ciclo de 20 días desde infección a síntomas', med:'👁 Monitorear manchas con halo clorótico', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    },
+    {
+      id:'oidio', name:'Oídio', sci:'Blumeria graminis', icon:'⬜',
+      vuln:['Z21','Z30','Z45'],
+      check: function(d) { return d.tmean >= 10 && d.tmean <= 25 && d.hrMean >= 70 && d.precip < 5; },
+      checkForecast: function(d) {
+        if (d.tmean >= 15 && d.tmean <= 22 && d.hrMean >= 75 && d.precip < 2) return 'high';
+        if (d.tmean >= 10 && d.tmean <= 25 && d.hrMean >= 70 && d.precip < 5) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Humedad moderada sin lluvias — condición ideal (no necesita mojadura foliar)', unfav:'Temperatura fuera de rango o sin humedad suficiente' },
+      rec: { high:'⚠️ Aplicar fungicida — observar polvo blanco en hojas y vainas', med:'👁 Monitorear en canopeo denso y horas de baja luminosidad', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    }
+  ],
+  girasol: [
+    {
+      id:'sclerotinia', name:'Sclerotinia', sci:'Sclerotinia sclerotiorum', icon:'🌻',
+      vuln:['R5','R6'],
+      check: function(d) { return d.tmean >= 10 && d.tmean <= 25 && d.hoursHR80 >= 8; },
+      checkForecast: function(d) {
+        if (d.tmean >= 12 && d.tmean <= 22 && d.hoursHR80 >= 12 && d.precip >= 2) return 'high';
+        if (d.tmean >= 10 && d.tmean <= 25 && d.hoursHR80 >= 8) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Alta humedad durante floración — infección vía pétalos caídos', unfav:'Condiciones secas durante floración' },
+      rec: { high:'⚠️ Aplicar fungicida apical en R5 — única ventana de control eficaz', med:'👁 Monitorear marchitamiento apical y lesiones acuosas', low:'✅ Sin acción', none:'✅ Condiciones no favorables' }
+    },
+    {
+      id:'mildiu', name:'Mildiu', sci:'Plasmopara halstedii', icon:'🟢',
+      vuln:['VE','V4'],
+      check: function(d) { return d.tmean >= 10 && d.tmean <= 20 && d.precip >= 3; },
+      checkForecast: function(d) {
+        if (d.tmean >= 12 && d.tmean <= 18 && d.precip >= 6) return 'high';
+        if (d.tmean >= 10 && d.tmean <= 20 && d.precip >= 3) return 'med';
+        return 'none';
+      },
+      reasons: { fav:'Lluvias con temperatura fresca en implantación', unfav:'Sin lluvias o temperatura alta' },
+      rec: { high:'⚠️ Evaluar semilla tratada con metalaxil; no hay control foliar curativo', med:'👁 Observar plántulas con hojas pálidas y envés blanquecino', low:'✅ Sin acción', none:'✅ Sin riesgo' }
+    }
+  ]
+};
+
+// ─── UTILIDADES ──────────────────────────────────────────────────────────────
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function daysAgo(n) {
+  var d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0,10);
+}
+
+function formatDate(dateStr) {
+  var parts = dateStr.split('-');
+  return parts[2] + '/' + parts[1];
+}
+
+function riskClass(score) {
+  if (score >= 65) return 'high';
+  if (score >= 35) return 'med';
+  if (score > 0)   return 'low';
+  return 'none';
+}
+
+function riskLabel(rc) {
+  var labels = { high:'RIESGO ALTO', med:'RIESGO MEDIO', low:'RIESGO BAJO', none:'SIN RIESGO' };
+  return labels[rc] || 'SIN DATOS';
+}
+
+function riskDot(rc) {
+  var dots = { high:'●', med:'●', low:'●', none:'·' };
+  return dots[rc] || '·';
+}
+
+function stageInVuln(stageCode, vulnArr) {
+  return vulnArr.indexOf(stageCode) !== -1;
+}
+
+// ─── API ─────────────────────────────────────────────────────────────────────
+
+function fetchClimateArchive(lat, lon, startDate, endDate) {
+  var url = 'https://archive-api.open-meteo.com/v1/archive'
+    + '?latitude=' + lat
+    + '&longitude=' + lon
+    + '&start_date=' + startDate
+    + '&end_date=' + endDate
+    + '&daily=temperature_2m_max,temperature_2m_min'
+    + '&timezone=America%2FArgentina%2FBuenos_Aires';
+  return fetch(url).then(function(r) { return r.json(); });
+}
+
+function fetchClimateForecast(lat, lon) {
+  var url = 'https://api.open-meteo.com/v1/forecast'
+    + '?latitude=' + lat
+    + '&longitude=' + lon
+    + '&hourly=temperature_2m,relative_humidity_2m,precipitation,dew_point_2m'
+    + '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,relative_humidity_2m_max'
+    + '&past_days=14'
+    + '&forecast_days=7'
+    + '&timezone=America%2FArgentina%2FBuenos_Aires';
+  return fetch(url).then(function(r) { return r.json(); });
+}
+
+// ─── PROCESAMIENTO ───────────────────────────────────────────────────────────
+
+function buildDailySummaries(hourlyData) {
+  var times   = hourlyData.hourly.time;
+  var temps   = hourlyData.hourly.temperature_2m;
+  var rhs     = hourlyData.hourly.relative_humidity_2m;
+  var precips = hourlyData.hourly.precipitation;
+  var todayStr = today();
+
+  var byDay = {};
+  for (var i = 0; i < times.length; i++) {
+    var day = times[i].slice(0,10);
+    if (!byDay[day]) byDay[day] = { temps:[], rhs:[], precip:0, isForecast: day > todayStr };
+    byDay[day].temps.push(temps[i]);
+    byDay[day].rhs.push(rhs[i]);
+    byDay[day].precip += (precips[i] || 0);
+  }
+
+  var days = [];
+  var sortedDays = Object.keys(byDay).sort();
+  for (var j = 0; j < sortedDays.length; j++) {
+    var d = sortedDays[j];
+    var entry = byDay[d];
+    var tArr = entry.temps;
+    var rArr = entry.rhs;
+    var tmax = Math.max.apply(null, tArr);
+    var tmin = Math.min.apply(null, tArr);
+    var tmean = tArr.reduce(function(a,b){return a+b;},0) / tArr.length;
+    var hrMean = rArr.reduce(function(a,b){return a+b;},0) / rArr.length;
+    var hrMax  = Math.max.apply(null, rArr);
+    var h75 = rArr.filter(function(v){return v>75;}).length;
+    var h80 = rArr.filter(function(v){return v>80;}).length;
+    var h90 = rArr.filter(function(v){return v>90;}).length;
+    days.push({
+      date: d,
+      tmax: tmax, tmin: tmin, tmean: tmean,
+      hrMean: hrMean, hrMax: hrMax,
+      hoursHR75: h75, hoursHR80: h80, hoursHR90: h90,
+      precip: entry.precip,
+      isForecast: entry.isForecast
+    });
+  }
+  return days;
+}
+
+function calcGDD(tmax, tmin, base) {
+  var tmean = (tmax + tmin) / 2;
+  return Math.max(0, tmean - base);
+}
+
+function calcCumGDD(archiveData, forecastDailySummaries, siembraDate, cultivo) {
+  var base = PHENOLOGY[cultivo].base;
+  var cumGDD = 0;
+  var todayStr = today();
+
+  // Archive period (sowing to 14 days ago)
+  if (archiveData && archiveData.daily) {
+    var aDates = archiveData.daily.time;
+    var aTmax  = archiveData.daily.temperature_2m_max;
+    var aTmin  = archiveData.daily.temperature_2m_min;
+    for (var i = 0; i < aDates.length; i++) {
+      if (aDates[i] >= siembraDate) {
+        cumGDD += calcGDD(aTmax[i], aTmin[i], base);
+      }
+    }
+  }
+
+  // Recent period (last 14 days of historical only)
+  for (var j = 0; j < forecastDailySummaries.length; j++) {
+    var ds = forecastDailySummaries[j];
+    if (!ds.isForecast && ds.date >= siembraDate) {
+      cumGDD += calcGDD(ds.tmax, ds.tmin, base);
+    }
+  }
+
+  return Math.round(cumGDD);
+}
+
+function getStage(cumGDD, cultivo) {
+  var stages = PHENOLOGY[cultivo].stages;
+  var stage = stages[0];
+  for (var i = stages.length - 1; i >= 0; i--) {
+    if (cumGDD >= stages[i].gdd) { stage = stages[i]; break; }
+  }
+  var maxGDD = stages[stages.length-1].gdd;
+  var pct = Math.min(100, Math.round((cumGDD / maxGDD) * 100));
+  return { stage: stage, pct: pct, maxGDD: maxGDD };
+}
+
+// Calcula días desde la última lluvia significativa (> umbral mm)
+function calcDaysSinceRain(historicalDays, threshold) {
+  threshold = threshold || 1.0; // mm mínimos para considerar lluvia significativa
+  var todayStr = today();
+  var sorted = historicalDays.slice().sort(function(a,b){ return a.date > b.date ? 1 : -1; });
+  var daysSince = null;
+  for (var i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i].precip >= threshold) {
+      // Calcular diferencia en días entre hoy y ese día
+      var rainDate = new Date(sorted[i].date + 'T12:00:00');
+      var nowDate  = new Date(todayStr + 'T12:00:00');
+      daysSince = Math.round((nowDate - rainDate) / (1000 * 60 * 60 * 24));
+      break;
+    }
+  }
+  return daysSince; // null si no llovió en los últimos 14 días
+}
+
+// Multiplicador de mojadura foliar según días desde última lluvia
+// Aplica sólo a enfermedades que dependen de humedad foliar prolongada
+function mojaduraMultiplier(daysSince) {
+  if (daysSince === null) return 0.8; // sin lluvia reciente registrada
+  if (daysSince <= 1)  return 1.35;
+  if (daysSince <= 3)  return 1.15;
+  if (daysSince <= 7)  return 1.0;
+  if (daysSince <= 14) return 0.85;
+  return 0.75;
+}
+
+// Enfermedades que dependen de mojadura foliar prolongada
+var MOJADURA_DEPENDENT = ['roya','cercospora','tizon_hoja','fusarium','roya_hoja','septoriosis','sclerotinia','tizon_norte'];
+
+function calcDiseaseRisks(historicalDays, stageCode, cultivo) {
+  var diseases = DISEASES[cultivo];
+  var results = [];
+  var recent7 = historicalDays.slice(-7);
+
+  var daysSince = calcDaysSinceRain(historicalDays, 1.0);
+
+  for (var i = 0; i < diseases.length; i++) {
+    var dis = diseases[i];
+    var favorableDays = 0;
+    for (var j = 0; j < recent7.length; j++) {
+      if (dis.check(recent7[j])) favorableDays++;
+    }
+    var rawScore = (favorableDays / 7) * 100;
+
+    // Aplicar multiplicador de mojadura foliar para enfermedades que lo requieren
+    var usesMojadura = MOJADURA_DEPENDENT.indexOf(dis.id) !== -1;
+    if (usesMojadura) {
+      rawScore = rawScore * mojaduraMultiplier(daysSince);
+    }
+    rawScore = Math.min(100, rawScore);
+
+    var inVuln = stageInVuln(stageCode, dis.vuln);
+    var score = inVuln ? rawScore : rawScore * 0.25;
+    var rc = riskClass(score);
+
+    var reason = favorableDays >= 3
+      ? dis.reasons.fav + ' (' + favorableDays + '/7 días favorables)'
+      : favorableDays >= 1
+        ? dis.reasons.fav + ' (' + favorableDays + '/7 días favorables — leve)'
+        : dis.reasons.unfav;
+
+    results.push({
+      id: dis.id, name: dis.name, sci: dis.sci, icon: dis.icon,
+      score: Math.round(score), riskClass: rc,
+      favorableDays: favorableDays, inVuln: inVuln,
+      usesMojadura: usesMojadura,
+      reason: reason,
+      rec: dis.rec[rc] || dis.rec['none'],
+      vulnStages: dis.vuln
+    });
+  }
+  return { risks: results, daysSinceRain: daysSince };
+}
+
+function calcForecastRisks(forecastDays, stageCode, cultivo) {
+  var diseases = DISEASES[cultivo];
+  var results = [];
+  var fDays = forecastDays.filter(function(d){ return d.isForecast; }).slice(0,7);
+
+  for (var i = 0; i < diseases.length; i++) {
+    var dis = diseases[i];
+    var dayRisks = [];
+    for (var j = 0; j < fDays.length; j++) {
+      var raw = dis.checkForecast(fDays[j]);
+      var inVuln = stageInVuln(stageCode, dis.vuln);
+      var rc = inVuln ? raw : (raw === 'high' ? 'med' : raw === 'med' ? 'low' : 'none');
+      dayRisks.push({ date: fDays[j].date, rc: rc });
+    }
+    results.push({ id: dis.id, name: dis.name, sci: dis.sci, dayRisks: dayRisks });
+  }
+  return { diseases: results, forecastDays: fDays };
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+function renderMain(stageInfo, weatherSummary, diseaseRisks, daysSinceRain, forecastData, cultivo) {
+  var stage = stageInfo.stage;
+  var icon = PHENOLOGY[cultivo].icon;
+
+  var countHigh = diseaseRisks.filter(function(d){return d.riskClass==='high';}).length;
+  var countMed  = diseaseRisks.filter(function(d){return d.riskClass==='med';}).length;
+  var countLow  = diseaseRisks.filter(function(d){return d.riskClass==='low'||d.riskClass==='none';}).length;
+
+  var html = '';
+
+  var rainLabel = daysSinceRain === null ? '>14d' : (daysSinceRain === 0 ? 'hoy' : daysSinceRain + 'd');
+  var rainNote  = daysSinceRain === null ? 'Sin lluvia significativa en 14 días'
+    : daysSinceRain === 0 ? 'Llovió hoy — follaje muy húmedo'
+    : daysSinceRain === 1 ? 'Llovió ayer — follaje todavía húmedo'
+    : 'Última lluvia hace ' + daysSinceRain + ' días';
+
+  // Weather strip
+  html += '<div class="weather-strip">';
+  html += '<div class="weather-item"><span class="w-val">' + Math.round(weatherSummary.tmean) + '°C</span><span class="w-lbl">T° Media</span></div>';
+  html += '<div class="weather-item"><span class="w-val">' + Math.round(weatherSummary.tmax) + '°C</span><span class="w-lbl">T° Máx</span></div>';
+  html += '<div class="weather-item"><span class="w-val">' + Math.round(weatherSummary.hrMean) + '%%</span><span class="w-lbl">HR Media</span></div>';
+  html += '<div class="weather-item"><span class="w-val">' + weatherSummary.precip.toFixed(0) + 'mm</span><span class="w-lbl">Lluvia 7d</span></div>';
+  html += '<div class="weather-item"><span class="w-val">💧 ' + rainLabel + '</span><span class="w-lbl">Últ. lluvia</span></div>';
+  html += '</div>';
+
+  // Nota de última lluvia
+  var multVal = mojaduraMultiplier(daysSinceRain);
+  var multColor = multVal > 1.1 ? 'var(--high)' : multVal > 1.0 ? 'var(--med)' : multVal < 0.9 ? '#888' : 'var(--leaf)';
+  var multDesc = multVal >= 1.35 ? 'riesgo de mojadura aumentado significativamente'
+    : multVal >= 1.15 ? 'riesgo de mojadura aumentado levemente'
+    : multVal <= 0.85 ? 'riesgo de mojadura reducido por canopeo seco'
+    : 'sin corrección por mojadura';
+  html += '<div style="font-size:0.68rem;color:' + multColor + ';margin-bottom:0.7rem;padding:0.35rem 0.7rem;background:rgba(0,0,0,0.03);border-radius:7px;border-left:3px solid ' + multColor + '">';
+  html += '💧 ' + rainNote + ' — ' + multDesc + '</div>';
+
+  // Fenología
+  html += '<div class="feno-card">';
+  html += '<div class="feno-icon">' + icon + '</div>';
+  html += '<div class="feno-info">';
+  html += '<div class="feno-cultivo">' + cultivo.toUpperCase() + '</div>';
+  html += '<div class="feno-estado">' + stage.code + ' — ' + stage.name + '</div>';
+  html += '<div class="feno-gdd">' + stageInfo.cumGDD + ' GDD acumulados (base ' + PHENOLOGY[cultivo].base + '°C)</div>';
+  html += '<div class="feno-progbar"><div class="feno-progbar-fill" style="width:' + stageInfo.pct + '%%"></div></div>';
+  html += '</div></div>';
+
+  // Summary strip
+  html += '<div class="summary-strip">';
+  html += '<div class="summary-item si-high"><div class="si-count">' + countHigh + '</div><div class="si-label">Riesgo Alto</div></div>';
+  html += '<div class="summary-item si-med"><div class="si-count">' + countMed + '</div><div class="si-label">Riesgo Medio</div></div>';
+  html += '<div class="summary-item si-low"><div class="si-count">' + countLow + '</div><div class="si-label">Sin riesgo</div></div>';
+  html += '</div>';
+
+  // Disease cards
+  html += '<div class="section-title">Estado actual — últimos 7 días</div>';
+  for (var i = 0; i < diseaseRisks.length; i++) {
+    var dis = diseaseRisks[i];
+    var dc = 'dc-' + dis.riskClass;
+    html += '<div class="disease-card ' + dc + '">';
+    html += '<div class="dc-header">';
+    html += '<div class="dc-left"><div class="dc-name">' + dis.icon + ' ' + dis.name + '</div>';
+    html += '<div class="dc-sci">' + dis.sci + '</div></div>';
+    html += '<div class="risk-badge rb-' + dis.riskClass + '">' + riskLabel(dis.riskClass) + '</div>';
+    html += '</div>';
+    html += '<div class="dc-score-bar"><div class="dc-score-fill" style="width:' + dis.score + '%%"></div></div>';
+    html += '<div class="dc-reason">' + dis.reason;
+    if (dis.usesMojadura && multVal !== 1.0) {
+      var mojTxt = multVal > 1.0
+        ? '💧 Corrección por mojadura foliar aplicada (+' + Math.round((multVal-1)*100) + '%%)'
+        : '💧 Canopeo seco — corrección a la baja aplicada (' + Math.round((multVal-1)*100) + '%%)';
+      html += '<br><span style="color:' + multColor + ';font-size:0.67rem;">' + mojTxt + '</span>';
+    }
+    if (!dis.inVuln) {
+      html += '<br><span class="dc-feno-warn">⏱ Cultivo fuera de la ventana fenológica vulnerable — riesgo reducido (' + dis.vulnStages.join(', ') + ')</span>';
+    }
+    html += '</div>';
+    html += '<div class="dc-rec">' + dis.rec + '</div>';
+    html += '</div>';
+  }
+
+  // Forecast heatmap
+  html += '<div class="section-title">Pronóstico de condiciones — próximos 7 días</div>';
+
+  var fDays = forecastData.forecastDays;
+  if (fDays.length > 0) {
+    html += '<div class="forecast-wrap">';
+    html += '<div class="forecast-header-row"><div class="fh-inner">';
+    html += '<div class="fh-label">Enfermedad</div>';
+    for (var d = 0; d < fDays.length; d++) {
+      var fd = fDays[d];
+      var parts = fd.date.split('-');
+      var dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      var diaSem = dias[new Date(fd.date + 'T12:00:00').getDay()];
+      html += '<div class="fh-day">' + diaSem + '<span>' + parts[2] + '/' + parts[1] + '</span></div>';
+    }
+    html += '</div></div>';
+
+    for (var fi = 0; fi < forecastData.diseases.length; fi++) {
+      var fd2 = forecastData.diseases[fi];
+      html += '<div class="forecast-row">';
+      html += '<div class="fr-disease">' + fd2.name + '<span class="fr-sci">' + fd2.sci + '</span></div>';
+      for (var fj = 0; fj < fd2.dayRisks.length; fj++) {
+        var dr = fd2.dayRisks[fj];
+        var dot = dr.rc === 'high' ? '▲' : dr.rc === 'med' ? '◆' : dr.rc === 'low' ? '●' : '·';
+        html += '<div class="fr-cell"><div class="fr-dot risk-' + dr.rc + '">' + dot + '</div></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Legend
+    html += '<div class="legend">';
+    html += '<div class="legend-item"><div class="legend-dot" style="background:var(--high-bg);border:1px solid var(--high-bd)"></div> Alto</div>';
+    html += '<div class="legend-item"><div class="legend-dot" style="background:var(--med-bg);border:1px solid var(--med-bd)"></div> Medio</div>';
+    html += '<div class="legend-item"><div class="legend-dot" style="background:var(--low-bg);border:1px solid var(--low-bd)"></div> Bajo</div>';
+    html += '<div class="legend-item"><div class="legend-dot" style="background:var(--none-bg);border:1px solid var(--none-bd)"></div> Sin riesgo</div>';
+    html += '</div>';
+  }
+
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function showLoading(msg) {
+  document.getElementById('main-content').innerHTML =
+    '<div class="loading"><div class="loading-spinner">🔬</div><div class="loading-text">' + (msg||'Analizando condiciones sanitarias...') + '</div></div>';
+}
+
+function showError(msg) {
+  document.getElementById('main-content').innerHTML =
+    '<div class="error-box">⚠️ ' + msg + '</div>';
+}
+
+// ─── MAIN ────────────────────────────────────────────────────────────────────
+
+function analizar() {
+  var lat     = parseFloat(document.getElementById('inp-lat').value);
+  var lon     = parseFloat(document.getElementById('inp-lon').value);
+  var cultivo = document.getElementById('inp-cultivo').value;
+  var siembra = document.getElementById('inp-siembra').value;
+
+  if (isNaN(lat) || isNaN(lon)) { showError('Ingresá coordenadas válidas.'); return; }
+  if (!siembra) { showError('Ingresá la fecha de siembra.'); return; }
+  if (siembra > today()) { showError('La fecha de siembra no puede ser futura.'); return; }
+
+  var btn = document.getElementById('btn-analizar');
+  btn.disabled = true;
+  showLoading('Consultando datos climáticos...');
+
+  // Determine if we need archive data (sowing > 14 days ago)
+  var archiveEndDate = daysAgo(15);
+  var needArchive = siembra < archiveEndDate;
+
+  var archivePromise = needArchive
+    ? fetchClimateArchive(lat, lon, siembra, archiveEndDate)
+    : Promise.resolve(null);
+
+  var forecastPromise = fetchClimateForecast(lat, lon);
+
+  Promise.all([archivePromise, forecastPromise])
+    .then(function(results) {
+      var archiveData  = results[0];
+      var forecastData = results[1];
+
+      showLoading('Calculando fenología y riesgo sanitario...');
+
+      // Build daily summaries from hourly
+      var dailySummaries = buildDailySummaries(forecastData);
+
+      // Calc cumulative GDD
+      var cumGDD = calcCumGDD(archiveData, dailySummaries, siembra, cultivo);
+      var stageResult = getStage(cumGDD, cultivo);
+      stageResult.cumGDD = cumGDD;
+
+      // Historical days only (for disease risk)
+      var histDays = dailySummaries.filter(function(d){ return !d.isForecast; });
+
+      // Weather summary (last 7 historical days)
+      var last7 = histDays.slice(-7);
+      var wSummary = {
+        tmean:    last7.reduce(function(a,d){return a+d.tmean;},0) / last7.length,
+        tmax:     Math.max.apply(null, last7.map(function(d){return d.tmax;})),
+        hrMean:   last7.reduce(function(a,d){return a+d.hrMean;},0) / last7.length,
+        precip:   last7.reduce(function(a,d){return a+d.precip;},0),
+        hoursHR80:last7.reduce(function(a,d){return a+d.hoursHR80;},0)
+      };
+
+      // Disease risks
+      var stageCode = stageResult.stage.code;
+      var diseaseResult = calcDiseaseRisks(histDays, stageCode, cultivo);
+      var forecast = calcForecastRisks(dailySummaries, stageCode, cultivo);
+
+      renderMain(stageResult, wSummary, diseaseResult.risks, diseaseResult.daysSinceRain, forecast, cultivo);
+    })
+    .catch(function(err) {
+      showError('Error al consultar datos climáticos: ' + err.message + '. Verificá la conexión o las coordenadas.');
+      console.error(err);
+    })
+    .finally(function() {
+      btn.disabled = false;
+    });
+}
+
+// Set default sowing date to ~90 days ago
+(function() {
+  var d = new Date();
+  d.setDate(d.getDate() - 90);
+  document.getElementById('inp-siembra').value = d.toISOString().slice(0,10);
+})();
+</script>
+</body>
+</html>

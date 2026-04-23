@@ -1,0 +1,299 @@
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — login.js
+// Auth real con Supabase · Planes Free / Asesor Pro / Empresa
+// Requiere: config.js cargado antes (define AM_SB y AM_CONFIG)
+// ════════════════════════════════════════════════════════
+
+const AM_PLANES = {
+  free: {
+    nombre: 'Free',
+    precio: 'Gratis',
+    lotes: 1,
+    modulos: ['siembra'],
+    color: '#3A7A4A',
+    icon: '🌱',
+    desc: 'Diagnóstico básico de siembra para un lote'
+  },
+  asesor: {
+    nombre: 'Asesor Pro',
+    precio: 'USD 79/mes',
+    lotes: 15,
+    modulos: [
+      'siembra','suelo','decision','economia','fertilizacion',
+      'maquinaria','hidrico','cultivares','asistente','mapa',
+      'seguimiento','balance'
+    ],
+    color: '#C8A255',
+    icon: '⚡',
+    desc: 'Acceso completo · 15 lotes · 50 consultas IA/mes · Cultivares RECSO'
+  },
+  empresa: {
+    nombre: 'Empresa',
+    precio: 'USD 299/mes',
+    lotes: 60,
+    modulos: [
+      'siembra','suelo','decision','economia','fertilizacion',
+      'maquinaria','hidrico','cultivares','asistente','mapa',
+      'plagas','pulverizacion','cosecha','seguimiento','balance',
+      'alerta-sanitaria'
+    ],
+    color: '#2A5A8C',
+    icon: '🏢',
+    desc: '60 lotes · IA ilimitada · White label · Soporte prioritario · API'
+  }
+};
+
+// ── ESTADO DE SESIÓN ──────────────────────────────────
+// { id, email, nombre, plan, planHasta, trialHasta, token }
+let AM_SESION = null;
+
+// ── LISTENER CENTRAL (única fuente de verdad) ─────────
+AM_SB.auth.onAuthStateChange(async (event, session) => {
+  if (session?.user) {
+    // Cargar plan desde la tabla profiles
+    const { data: profile } = await AM_SB
+      .from('profiles')
+      .select('nombre, plan, plan_hasta, trial_hasta')
+      .eq('id', session.user.id)
+      .single();
+
+    AM_SESION = {
+      id:        session.user.id,
+      email:     session.user.email,
+      nombre:    profile?.nombre
+                   || session.user.user_metadata?.nombre
+                   || session.user.email.split('@')[0],
+      plan:      profile?.plan ?? 'free',
+      planHasta: profile?.plan_hasta  ?? null,
+      trialHasta:profile?.trial_hasta ?? null,
+      token:     session.access_token
+    };
+  } else {
+    AM_SESION = null;
+  }
+  amActualizarUI();
+});
+
+// ── VERIFICAR ACCESO A MÓDULO ─────────────────────────
+function amTieneAcceso(modulo) {
+  if (AM_CONFIG.devMode) return true;
+  if (!AM_SESION) return modulo === 'siembra';
+
+  const plan = AM_PLANES[AM_SESION.plan];
+  if (!plan?.modulos?.includes(modulo)) return false;
+
+  // Plan gratuito: siempre activo
+  if (AM_SESION.plan === 'free') return true;
+
+  // Planes pagos: verificar que no estén vencidos
+  const ahora     = new Date();
+  const planVigente  = AM_SESION.planHasta  && new Date(AM_SESION.planHasta)  > ahora;
+  const trialVigente = AM_SESION.trialHasta && new Date(AM_SESION.trialHasta) > ahora;
+
+  if (!planVigente && !trialVigente) {
+    // Plan vencido: degradar silenciosamente a free
+    return modulo === 'siembra';
+  }
+
+  return true;
+}
+
+// ── ACTUALIZAR UI SEGÚN SESIÓN ────────────────────────
+function amActualizarUI() {
+  const btnLogin = $('am-btn-login');
+  const btnUser  = $('am-btn-user');
+  const userInfo = $('am-user-info');
+
+  if (AM_SESION) {
+    const plan = AM_PLANES[AM_SESION.plan];
+    btnLogin?.classList.add('hidden');
+    if (btnUser) {
+      btnUser.classList.remove('hidden');
+      btnUser.textContent = `${plan.icon} ${AM_SESION.nombre.split(' ')[0]}`;
+    }
+    if (userInfo) {
+      userInfo.textContent = `${plan.nombre} · ${AM_SESION.email}`;
+      userInfo.style.display = 'block';
+    }
+  } else {
+    btnLogin?.classList.remove('hidden');
+    btnUser?.classList.add('hidden');
+    if (userInfo) { userInfo.textContent = ''; userInfo.style.display = 'none'; }
+  }
+
+  // Marcar tabs bloqueados visualmente
+  document.querySelectorAll('.nav-tab[data-mod]').forEach(tab => {
+    tab.classList.toggle('am-locked', !amTieneAcceso(tab.dataset.mod));
+  });
+}
+
+// ── MODAL PRINCIPAL ───────────────────────────────────
+function amMostrarModal(vista = 'planes') {
+  const modal = $('am-modal');
+  modal.classList.remove('hidden');
+  modal.style.animation = 'amFadeIn .3s ease both';
+  amCambiarVista(vista);
+}
+
+function amCerrarModal() {
+  const modal = $('am-modal');
+  modal.style.animation = 'amFadeOut .25s ease both';
+  setTimeout(() => modal.classList.add('hidden'), 250);
+}
+
+function amCambiarVista(vista) {
+  ['am-vista-planes','am-vista-login','am-vista-registro'].forEach(id => {
+    $(id)?.classList.add('hidden');
+  });
+  $(`am-vista-${vista}`)?.classList.remove('hidden');
+}
+
+function amMostrarModalUpgrade(modulo) {
+  const nombres = {
+    suelo:'Análisis de Suelo', decision:'Motor de Decisión',
+    economia:'Economía de Campaña', fertilizacion:'Fertilización',
+    maquinaria:'Productividad Maquinaria', hidrico:'Balance Hídrico',
+    cultivares:'Cultivares RECSO/INTA', asistente:'Asistente IA',
+    mapa:'Mapa de Distribuidores', plagas:'Alertas de Plagas',
+    pulverizacion:'Ventanas de Pulverización', cosecha:'Cosecha Decide',
+    seguimiento:'Seguimiento Fenológico', balance:'Balance Nutricional'
+  };
+  const el = $('am-upgrade-modulo');
+  if (el) el.textContent = nombres[modulo] || modulo;
+  amMostrarModal('planes');
+}
+
+// ── LOGIN ─────────────────────────────────────────────
+async function amLogin() {
+  const email = $('am-email')?.value?.trim();
+  const pass  = $('am-pass')?.value?.trim();
+  const err   = $('am-login-err');
+  const btn   = $('am-btn-login-submit');
+
+  if (!email || !pass) {
+    amMostrarError(err, 'Completá email y contraseña.');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Ingresando...'; }
+
+  const { error } = await AM_SB.auth.signInWithPassword({ email, password: pass });
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Iniciar sesión'; }
+
+  if (error) {
+    const msgs = {
+      'Invalid login credentials': 'Email o contraseña incorrectos.',
+      'Email not confirmed': 'Confirmá tu email antes de ingresar. Revisá tu bandeja de entrada.',
+    };
+    amMostrarError(err, msgs[error.message] || `Error: ${error.message}`);
+    return;
+  }
+
+  // onAuthStateChange actualiza AM_SESION y la UI automáticamente
+  amCerrarModal();
+  setTimeout(() => {
+    if (AM_SESION) amToast(`Bienvenido ${AM_SESION.nombre.split(' ')[0]}! Plan ${AM_PLANES[AM_SESION.plan].nombre} activo.`, 'ok');
+  }, 500);
+}
+
+// ── REGISTRO ──────────────────────────────────────────
+async function amRegistrar() {
+  const nombre = $('am-reg-nombre')?.value?.trim();
+  const email  = $('am-reg-email')?.value?.trim();
+  const pass   = $('am-reg-pass')?.value?.trim();
+  const plan   = gv('am-reg-plan') || 'free';
+  const err    = $('am-reg-err');
+  const btn    = $('am-btn-reg-submit');
+
+  if (!nombre || !email || !pass) {
+    amMostrarError(err, 'Completá todos los campos.');
+    return;
+  }
+  if (pass.length < 8) {
+    amMostrarError(err, 'La contraseña debe tener al menos 8 caracteres.');
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta...'; }
+
+  const { error } = await AM_SB.auth.signUp({
+    email,
+    password: pass,
+    options: { data: { nombre, plan } }
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
+
+  if (error) {
+    const msgs = {
+      'User already registered': 'Ya existe una cuenta con ese email. Iniciá sesión.',
+      'Password should be at least 6 characters': 'La contraseña debe tener al menos 8 caracteres.',
+    };
+    amMostrarError(err, msgs[error.message] || `Error: ${error.message}`);
+    return;
+  }
+
+  amCerrarModal();
+  amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión.', 'ok');
+}
+
+// ── CERRAR SESIÓN ─────────────────────────────────────
+async function amCerrarSesion() {
+  await AM_SB.auth.signOut();
+  // onAuthStateChange pone AM_SESION = null y actualiza la UI
+  amToast('Sesión cerrada.', 'ok');
+}
+
+// ── PERFIL ────────────────────────────────────────────
+function amMostrarPerfil() {
+  if (!AM_SESION) { amMostrarModal('login'); return; }
+
+  const plan      = AM_PLANES[AM_SESION.plan];
+  const trialInfo = AM_SESION.trialHasta
+    ? `\n🕐 Trial hasta: ${new Date(AM_SESION.trialHasta).toLocaleDateString('es-AR')}`
+    : '';
+  const planInfo  = AM_SESION.planHasta
+    ? `\n📅 Plan hasta: ${new Date(AM_SESION.planHasta).toLocaleDateString('es-AR')}`
+    : '';
+
+  const confirmar = confirm(
+    `👤 ${AM_SESION.nombre}\n📧 ${AM_SESION.email}\n⭐ Plan: ${plan.nombre}${trialInfo}${planInfo}\n\n¿Cerrar sesión?`
+  );
+  if (confirmar) amCerrarSesion();
+}
+
+// ── HELPER: seleccionar plan desde modal ──────────────
+function amRegistrarPlan(plan) {
+  const sel = $('am-reg-plan');
+  if (sel) sel.value = plan;
+  amCambiarVista('registro');
+}
+
+// ── HELPERS INTERNOS ──────────────────────────────────
+function amMostrarError(el, msg) {
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  setTimeout(() => el.classList.add('hidden'), 6000);
+}
+
+function amToast(msg, tipo = 'ok') {
+  const t = document.createElement('div');
+  t.style.cssText = `
+    position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(20px);
+    background:${tipo === 'ok' ? 'var(--canopy)' : 'var(--warn)'};color:white;
+    padding:.75rem 1.5rem;border-radius:12px;font-size:.85rem;font-weight:600;
+    box-shadow:0 8px 32px rgba(0,0,0,.3);z-index:10000;
+    animation:amSlideUp .3s cubic-bezier(.22,.68,0,1.2) both;
+    white-space:nowrap;max-width:90vw;text-align:center`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'amFadeOut .3s ease both';
+    setTimeout(() => t.remove(), 300);
+  }, 4000);
+}
+
+// Compatibilidad: función vacía, onAuthStateChange maneja el init
+function amCargarSesion() {}
