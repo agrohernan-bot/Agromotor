@@ -34,7 +34,27 @@ function tickHora() {
 setInterval(tickHora, 1000); tickHora();
 
 // ─── GPS ──────────────────────────────────────────────────
+function _parsCoordDashboard() {
+  var raw = (document.getElementById('s-coord') || {}).value || '';
+  if (!raw.trim()) return null;
+  var parts = raw.split(',');
+  if (parts.length < 2) return null;
+  var lat = parseFloat(parts[0].trim());
+  var lon = parseFloat(parts[1].trim());
+  if (isNaN(lat) || isNaN(lon)) return null;
+  return { lat, lon };
+}
+
 function initGPS() {
+  // Primero intentar usar coordenadas del lote activo en el Dashboard
+  var dashCoord = _parsCoordDashboard();
+  if (dashCoord) {
+    STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
+    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
+    document.getElementById('btn-refresh').style.display = '';
+    fetchMeteo();
+    return;
+  }
   setGPSState('loading', 'Obteniendo ubicación GPS...');
   if (!navigator.geolocation) {
     setGPSState('error', 'GPS no disponible en este dispositivo');
@@ -58,11 +78,25 @@ function initGPS() {
 }
 
 function usarUbicacionDefault() {
-  STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba
-  setGPSState('ok', 'Ubicación de referencia: <strong>Córdoba capital</strong> — Activá el GPS para datos locales');
+  // Intentar coordenadas del Dashboard antes de usar Córdoba
+  var dashCoord = _parsCoordDashboard();
+  if (dashCoord) {
+    STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
+    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
+  } else {
+    STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
+    setGPSState('ok', 'Ubicación de referencia: <strong>Córdoba capital</strong> — Ingresá coordenadas en el Dashboard para datos locales');
+  }
   document.getElementById('btn-refresh').style.display = '';
   fetchMeteo();
 }
+
+// Llamada desde nav.js al activar el módulo
+window.pulvRefrescarMeteo = function() {
+  var dashCoord = _parsCoordDashboard();
+  if (dashCoord) { STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon; }
+  if (STATE.lat) fetchMeteo();
+};
 
 function setGPSState(st, txt) {
   const dot = document.getElementById('gps-dot');

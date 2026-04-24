@@ -93,8 +93,26 @@ function _activarModulo(mod) {
     var sc = document.getElementById('suelo-coord');
     if (coord && sc) sc.value = coord.value;
   }
-  if (mod === 'economia' && typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  // ── Sincronizar cultivo/fecha del Dashboard a todos los módulos ──
+  var _sc = document.getElementById('s-cultivo');
+  var _sf = document.getElementById('s-fecha');
+  var _syncCultivo = function(destId) { var d = document.getElementById(destId); if (_sc && d && _sc.value) d.value = _sc.value; };
+  var _syncFecha   = function(destId) { var d = document.getElementById(destId); if (_sf && d && _sf.value) d.value = _sf.value; };
+
+  if (mod === 'economia') {
+    _syncCultivo('ec-cultivo');
+    if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  }
+  if (mod === 'fertilizacion') {
+    _syncCultivo('f-cult');
+    if (typeof updRend === 'function') updRend();
+  }
+  if (mod === 'balancenut') {
+    _syncCultivo('bn-cultivo');
+  }
   if (mod === 'hidrico') {
+    _syncCultivo('bh-cultivo');
+    _syncFecha('bh-fecha');
     var bhs = document.getElementById('bh-suelo');
     var ss = document.getElementById('s-suelo');
     if (bhs && ss) bhs.value = ss.value || 'Molisol';
@@ -108,10 +126,8 @@ function _activarModulo(mod) {
     if (typeof bhActualizar === 'function') bhActualizar();
   }
   if (mod === 'cultivares') {
-    var sc2 = document.getElementById('s-cultivo'), cv = document.getElementById('cv-cultivo');
-    if (sc2 && cv) cv.value = sc2.value;
-    var sf = document.getElementById('s-fecha'), cf = document.getElementById('cv-fecha');
-    if (sf && cf) cf.value = sf.value;
+    _syncCultivo('cv-cultivo');
+    _syncFecha('cv-fecha');
     if (typeof cvActualizar === 'function') cvActualizar();
     setTimeout(function() { if (typeof dsRender === 'function') dsRender(); }, 300);
   }
@@ -119,17 +135,17 @@ function _activarModulo(mod) {
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
     setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);
-    if (typeof pulvRenderHistorial === 'function') pulvRenderHistorial();
-    if (typeof pulvRenderHRAC === 'function') pulvRenderHRAC();
-    if (typeof pulvCalcAgua === 'function') pulvCalcAgua();
+    if (typeof renderHistorial === 'function') renderHistorial();
+    if (typeof renderHRAC === 'function') renderHRAC();
+    if (typeof calcularAgua === 'function') calcularAgua();
   }
   if (mod === 'seguimiento' && typeof segInit === 'function') segInit();
   if (mod === 'cosecha' && typeof cosInit === 'function') cosInit();
   if (mod === 'siembra-variable'  && typeof svInit === 'function') svInit();
   if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') asInit();
   if (mod === 'plagas') {
-    var sf2 = document.getElementById('s-fecha'), pf = document.getElementById('plagas-siembra');
-    if (sf2 && pf && sf2.value) pf.value = sf2.value;
+    _syncCultivo('plagas-cultivo');
+    _syncFecha('plagas-siembra');
   }
 }
 

@@ -113,7 +113,7 @@ window.amCambiarLoteGlobalDesdeDash = function(val) {
 };
 
 function amLimpiarDOM() {
-  const camposLimpiar = ['s-coord', 's-cultivo', 's-fecha', 's-suelo', 'ec-precio-disp', 'ec-precio-fut', 'ec-rend', 'ec-sup'];
+  const camposLimpiar = ['s-coord', 's-cultivo', 's-fecha', 's-suelo', 'ec-precio-disp', 'ec-precio-fut', 'ec-rend', 'ec-sup', 'ec-cultivo', 'ec-rend-fut', 'f-cult', 'f-sup', 'bn-cultivo', 'bn-rend', 'bn-sup', 'bh-cultivo', 'bh-fecha', 'bh-rend-obj'];
   camposLimpiar.forEach(i => {
     const el = document.getElementById(i);
     if(el) el.value = '';
@@ -256,10 +256,20 @@ function cacheGuardar() {
       vpd:    document.getElementById('sv-vpd')?.textContent,
       viento: document.getElementById('sv-viento')?.textContent,
       gdd:    document.getElementById('i-gdd')?.textContent,
-      precioDisp: document.getElementById('ec-precio-disp')?.value,
-      precioFut:  document.getElementById('ec-precio-fut')?.value,
-      rendEc:     document.getElementById('ec-rend')?.value,
-      supEc:      document.getElementById('ec-sup')?.value,
+      precioDisp:  document.getElementById('ec-precio-disp')?.value,
+      precioFut:   document.getElementById('ec-precio-fut')?.value,
+      rendEc:      document.getElementById('ec-rend')?.value,
+      supEc:       document.getElementById('ec-sup')?.value,
+      ecCultivo:   document.getElementById('ec-cultivo')?.value,
+      ecRendFut:   document.getElementById('ec-rend-fut')?.value,
+      fCult:       document.getElementById('f-cult')?.value,
+      fSup:        document.getElementById('f-sup')?.value,
+      bnCultivo:   document.getElementById('bn-cultivo')?.value,
+      bnRend:      document.getElementById('bn-rend')?.value,
+      bnSup:       document.getElementById('bn-sup')?.value,
+      bhCultivo:   document.getElementById('bh-cultivo')?.value,
+      bhFecha:     document.getElementById('bh-fecha')?.value,
+      bhRendObj:   document.getElementById('bh-rend-obj')?.value,
       sgDatos: window._sgDatos || null,
     };
     
@@ -291,6 +301,16 @@ function cacheCargar() {
     if (datos.precioFut  && document.getElementById('ec-precio-fut'))  document.getElementById('ec-precio-fut').value  = datos.precioFut;
     if (datos.rendEc     && document.getElementById('ec-rend'))        document.getElementById('ec-rend').value         = datos.rendEc;
     if (datos.supEc      && document.getElementById('ec-sup'))         document.getElementById('ec-sup').value          = datos.supEc;
+    if (datos.ecCultivo  && document.getElementById('ec-cultivo'))     document.getElementById('ec-cultivo').value      = datos.ecCultivo;
+    if (datos.ecRendFut  && document.getElementById('ec-rend-fut'))    document.getElementById('ec-rend-fut').value     = datos.ecRendFut;
+    if (datos.fCult      && document.getElementById('f-cult'))         document.getElementById('f-cult').value          = datos.fCult;
+    if (datos.fSup       && document.getElementById('f-sup'))          document.getElementById('f-sup').value           = datos.fSup;
+    if (datos.bnCultivo  && document.getElementById('bn-cultivo'))     document.getElementById('bn-cultivo').value      = datos.bnCultivo;
+    if (datos.bnRend     && document.getElementById('bn-rend'))        document.getElementById('bn-rend').value         = datos.bnRend;
+    if (datos.bnSup      && document.getElementById('bn-sup'))         document.getElementById('bn-sup').value          = datos.bnSup;
+    if (datos.bhCultivo  && document.getElementById('bh-cultivo'))     document.getElementById('bh-cultivo').value      = datos.bhCultivo;
+    if (datos.bhFecha    && document.getElementById('bh-fecha'))       document.getElementById('bh-fecha').value        = datos.bhFecha;
+    if (datos.bhRendObj  && document.getElementById('bh-rend-obj'))    document.getElementById('bh-rend-obj').value     = datos.bhRendObj;
 
     if (datos.sgDatos) window._sgDatos = datos.sgDatos;
     else window._sgDatos = null;
