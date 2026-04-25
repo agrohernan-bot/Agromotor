@@ -41,31 +41,9 @@
     <div class="header-right">
       <div class="header-inta">Lógica agronómica INTA</div>
       <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
-      <button onclick="generarPDF()" id="btn-pdf" style="
-        background:linear-gradient(135deg,rgba(42,90,140,.25),rgba(42,90,140,.15));
-        border:1px solid rgba(42,90,140,.4);color:#7AAEF5;
-        font-size:.75rem;font-weight:600;letter-spacing:.06em;
-        padding:.38rem .9rem;border-radius:20px;cursor:pointer;
-        font-family:inherit;transition:all .2s;white-space:nowrap"
-        onmouseenter="this.style.background='rgba(42,90,140,.3)'"
-        onmouseleave="this.style.background='linear-gradient(135deg,rgba(42,90,140,.25),rgba(42,90,140,.15))'">
-        📄 Reporte PDF
-      </button>
-      <button onclick="amMostrarModal('login')" id="am-btn-login" style="
-        background:linear-gradient(135deg,rgba(200,162,85,.2),rgba(200,162,85,.1));
-        border:1px solid rgba(200,162,85,.4);color:var(--amber);
-        font-size:.75rem;font-weight:600;letter-spacing:.06em;
-        padding:.38rem .9rem;border-radius:20px;cursor:pointer;
-        font-family:inherit;transition:all .2s;white-space:nowrap"
-        onmouseenter="this.style.background='rgba(200,162,85,.25)'"
-        onmouseleave="this.style.background='linear-gradient(135deg,rgba(200,162,85,.2),rgba(200,162,85,.1))'">
-        🔑 Ingresar
-      </button>
-      <button id="am-btn-user" onclick="amMostrarPerfil()" class="hidden" style="
-        background:rgba(109,191,130,.15);border:1px solid rgba(109,191,130,.35);
-        color:var(--sprout);font-size:.75rem;font-weight:600;
-        padding:.38rem .9rem;border-radius:20px;cursor:pointer;
-        font-family:inherit;transition:all .2s;white-space:nowrap"></button>
+      <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
+      <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
+      <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
       <!-- GESTOR GLOBAL DE LOTES -->
       <div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.05);padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(255,255,255,.1);">
         <select id="am-global-lotes" onchange="amCambiarLoteGlobal()" style="background:url('data:image/svg+xml;utf8,<svg fill=%22%237AAEF5%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right .2rem center;border:none;color:#7AAEF5;font-size:.75rem;font-weight:600;padding-right:1.5rem;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;background-size:16px;">
@@ -80,25 +58,34 @@
 
 <nav class="module-nav">
   <div class="nav-inner">
-    <div class="nav-tab active" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard del Lote</div>
-    <div class="nav-tab" onclick="switchMod('siembra')"><span class="dot"></span>Diagnóstico de Siembra</div>
-    <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Análisis de Suelo</div>
-    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía de Campaña</div>
-    <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>Fertilización</div>
-    <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>Productividad Maquinaria</div>
-    <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Balance Hídrico</div>
-    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌱 Cultivares</div>
-    <div class="nav-tab" onclick="switchMod('asistente')" style="background:linear-gradient(135deg,rgba(74,140,92,.15),rgba(42,90,140,.1));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,var(--sprout),#7AAEF5)"></span>🤖 Asistente IA</div>
-    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Dónde Comprar</div>
-    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💧 Pulverización</div>
-    <div class="nav-tab" onclick="switchMod('decision')" style="background:linear-gradient(135deg,rgba(200,162,85,.12),rgba(42,90,140,.08));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,var(--grain),var(--sprout))"></span>⚖️ ¿Qué sembrar?</div>
-    <div class="nav-tab" onclick="switchMod('fertoptima')"><span class="dot"></span>🧪 Fertilización Óptima</div>
-    <div class="nav-tab" onclick="switchMod('balancenut')"><span class="dot"></span>🔄 Balance Nutricional</div>
-    <div class="nav-tab" onclick="switchMod('cosecha')" style="background:linear-gradient(135deg,rgba(200,162,85,.12),rgba(42,90,140,.08));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,var(--grain),var(--sprout))"></span>💰 Cosecha Decide</div>
-    <div class="nav-tab" onclick="switchMod('plagas')" style="background:linear-gradient(135deg,rgba(161,98,7,.12),rgba(153,27,27,.08));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,#D97706,#DC2626)"></span>🐛 Alertas de Plagas</div>
-    <div class="nav-tab" onclick="switchMod('siembra-variable')" style="background:linear-gradient(135deg,rgba(27,94,53,.12),rgba(27,94,53,.06));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,#1b5e35,#2d9e5e)"></span>🗺 Siembra Variable</div>
-    <div class="nav-tab" onclick="switchMod('alerta-sanitaria')" style="background:linear-gradient(135deg,rgba(153,27,27,.1),rgba(146,64,14,.08));border-bottom:2px solid transparent"><span class="dot" style="background:linear-gradient(135deg,#991B1B,#92400E)"></span>🦠 Alerta Sanitaria</div>
-    <div class="nav-tab locked" title="Próximamente">Fenología y GDD</div>
+    <!-- CORE -->
+    <div class="nav-tab active" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
+    <div class="nav-tab" onclick="switchMod('siembra')"><span class="dot"></span>🌱 Siembra</div>
+    <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Suelo</div>
+    <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
+    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
+    <div class="nav-sep"></div>
+    <!-- ECONOMÍA -->
+    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
+    <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>⚗️ Fertilización</div>
+    <div class="nav-tab" onclick="switchMod('fertoptima')"><span class="dot"></span>🧪 Dosis Óptima</div>
+    <div class="nav-tab" onclick="switchMod('balancenut')"><span class="dot"></span>🔄 Bal. Nutricional</div>
+    <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>🚜 Maquinaria</div>
+    <div class="nav-tab" onclick="switchMod('cosecha')"><span class="dot"></span>💰 Cosecha</div>
+    <div class="nav-sep"></div>
+    <!-- DECISIÓN -->
+    <div class="nav-tab" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
+    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
+    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
+    <div class="nav-sep"></div>
+    <!-- SANIDAD -->
+    <div class="nav-tab" onclick="switchMod('plagas')"><span class="dot"></span>🐛 Plagas</div>
+    <div class="nav-tab" onclick="switchMod('alerta-sanitaria')"><span class="dot"></span>🦠 Enfermedades</div>
+    <div class="nav-tab" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
+    <div class="nav-sep"></div>
+    <!-- IA -->
+    <div class="nav-tab nav-tab-ia" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
+    <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
   </div>
 </nav>
 
@@ -171,41 +158,18 @@
           <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin-bottom:.45rem">🛰️ Open-Meteo · Tiempo real</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem">
 
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">🌡️</span>
-              <div><div id="i-temp" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">T° Suelo</div></div>
-            </div>
-
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">💧</span>
-              <div><div id="i-hum" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">Hum. 3-9cm</div></div>
-            </div>
-
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">🌿</span>
-              <div><div id="i-et0" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">ET₀</div></div>
-            </div>
-
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">💨</span>
-              <div><div id="i-vpd" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">VPD</div></div>
-            </div>
-
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">🌬️</span>
-              <div><div id="i-viento" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">Viento</div></div>
-            </div>
-
-            <div style="background:#fff;border-radius:9px;padding:.6rem .7rem;border:1px solid rgba(74,140,92,.12);display:flex;align-items:center;gap:.5rem">
-              <span style="font-size:1.15rem">🌾</span>
-              <div><div id="i-gdd" style="font-size:.95rem;font-weight:700;color:#1b5e35;line-height:1">—</div><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;letter-spacing:.4px">GDD Acum.</div></div>
-            </div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌡️</span><div><div class="kpi-row-val" id="i-temp">—</div><div class="kpi-row-lbl">T° Suelo</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">💧</span><div><div class="kpi-row-val" id="i-hum">—</div><div class="kpi-row-lbl">Hum. 3-9cm</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌿</span><div><div class="kpi-row-val" id="i-et0">—</div><div class="kpi-row-lbl">ET₀</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">💨</span><div><div class="kpi-row-val" id="i-vpd">—</div><div class="kpi-row-lbl">VPD</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌬️</span><div><div class="kpi-row-val" id="i-viento">—</div><div class="kpi-row-lbl">Viento</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌾</span><div><div class="kpi-row-val" id="i-gdd">—</div><div class="kpi-row-lbl">GDD Acum.</div></div></div>
 
           </div>
         </div>
 
         <!-- NASA POWER -->
-        <div id="nasa-info" class="hidden" style="background:#f0f7ff;border-radius:9px;padding:.65rem .85rem;border:1px solid rgba(122,174,245,.25)">
+        <div id="nasa-info" class="dp dp-blue hidden">
           <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2A5A8C;margin-bottom:.5rem">🚀 NASA POWER · Histórico 30 años</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.74rem;color:#374151">
             <div>☀️ Rad: <b style="color:#2A5A8C" id="np-rad">—</b></div>
@@ -220,7 +184,7 @@
         </div>
 
         <!-- SoilGrids -->
-        <div id="sg-info" class="hidden" style="background:#fffbf0;border-radius:9px;padding:.65rem .85rem;border:1px solid rgba(200,162,85,.25)">
+        <div id="sg-info" class="dp dp-gold hidden">
           <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#92400e;margin-bottom:.5rem">🌍 SoilGrids ISRIC · 250 m</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.74rem;color:#374151">
             <div>⚗️ pH: <b style="color:#92400e" id="sg-ph">—</b></div>

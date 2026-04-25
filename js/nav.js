@@ -59,7 +59,7 @@ function switchMod(mod) {
       } else if (panel) {
         panel.classList.add('active');
       }
-      var idxMap = {dashboard:0,siembra:1,suelo:2,economia:3,fertilizacion:4,maquinaria:5,hidrico:6,cultivares:7,asistente:8,mapa:9,pulverizacion:10,decision:11,fertoptima:12,balancenut:13,cosecha:14,plagas:15,'siembra-variable':16,'alerta-sanitaria':17};
+      var idxMap = {dashboard:0,siembra:1,suelo:2,hidrico:3,cultivares:4,economia:5,fertilizacion:6,fertoptima:7,balancenut:8,maquinaria:9,cosecha:10,decision:11,pulverizacion:12,mapa:13,plagas:14,'alerta-sanitaria':15,'siembra-variable':16,asistente:17};
       document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
       var tabs = document.querySelectorAll('.nav-tab:not(.locked)');
       if (tabs[idxMap[mod]]) tabs[idxMap[mod]].classList.add('active');
