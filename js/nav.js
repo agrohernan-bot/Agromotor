@@ -135,9 +135,11 @@ function _activarModulo(mod) {
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
     setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);
-    if (typeof renderHistorial === 'function') renderHistorial();
-    if (typeof renderHRAC === 'function') renderHRAC();
-    if (typeof calcularAgua === 'function') calcularAgua();
+    setTimeout(function() {
+      if (typeof pulvRenderHistorial === 'function') pulvRenderHistorial();
+      if (typeof pulvRenderHRAC      === 'function') pulvRenderHRAC();
+      if (typeof pulvCalcAgua        === 'function') pulvCalcAgua();
+    }, 300);
   }
   if (mod === 'seguimiento' && typeof segInit === 'function') segInit();
   if (mod === 'cosecha' && typeof cosInit === 'function') cosInit();

@@ -4218,3 +4218,20 @@ function pulvInit() {
 
 // Iniciar de forma diferida si es importado o de inmediato si ya estábamos.
 setTimeout(() => { if(typeof pulvInit === 'function') pulvInit(); }, 100);
+
+// ── ALIASES GLOBALES — index.html usa estos nombres ────────
+window.pulvTab = function(id, btn) {
+  document.querySelectorAll('.pulv-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.pulv-tab').forEach(t => t.classList.remove('active'));
+  const panel = document.getElementById('pulv-' + id);
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+};
+window.pulvCalcAgua        = () => calcularAgua();
+window.pulvGuardarRegistro = () => guardarRegistro();
+window.pulvExportarPDF     = () => exportarPDF();
+window.pulvLimpiarHistorial= () => limpiarHistorial();
+window.pulvFuentePH        = (el, val) => setFuente(el, val);
+window.pulvSetProdAgua     = (el, prod) => setProductoAgua(el, prod);
+window.pulvRenderHistorial = () => renderHistorial();
+window.pulvRenderHRAC      = () => renderHRAC();

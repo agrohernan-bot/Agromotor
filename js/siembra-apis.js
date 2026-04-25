@@ -706,4 +706,58 @@ function ecToneladasAqq(cult) {
   return { Soja:10, Maíz:10, Trigo:10, Girasol:10, Cebada:10, Sorgo:10 }[cult] || 10;
 }
 
+// ── CONSULTAR SUELO (botón del módulo Suelo) ─────────────
+async function consultarSuelo() {
+  const coordEl = document.getElementById('suelo-coord');
+  const btnEl   = document.getElementById('btn-suelo');
+  const stEl    = document.getElementById('suelo-st');
+  const spEl    = document.getElementById('suelo-sp');
+  const msgEl   = document.getElementById('suelo-msg');
+
+  // Usar coordenadas del módulo Suelo; si vacío, tomar del Dashboard
+  let coordRaw = coordEl?.value?.trim();
+  if (!coordRaw) {
+    coordRaw = document.getElementById('s-coord')?.value?.trim() || '';
+    if (coordRaw && coordEl) coordEl.value = coordRaw;
+  }
+
+  const [lat, lon] = typeof parsCoord === 'function' ? parsCoord(coordRaw) : [null, null];
+  if (lat === null) {
+    alert('Formato no reconocido.\nEjemplo: -33.395, -60.192');
+    return;
+  }
+
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⟳ Consultando...'; }
+  if (stEl)  stEl.classList.remove('hidden');
+  if (spEl)  spEl.style.animation = 'spin 1s linear infinite';
+  if (msgEl) msgEl.textContent = 'Consultando SoilGrids ISRIC...';
+
+  try {
+    const datos = await buscarSoilGrids(lat, lon);
+    window._sgDatos = datos;
+
+    // Renderizar en el módulo Suelo
+    if (typeof renderSoilGrids === 'function') renderSoilGrids(datos);
+    // Renderizar badges resumen (sidebar / dashboard)
+    if (typeof renderSueloModulo === 'function') renderSueloModulo(datos);
+
+    // Sincronizar suelo auto al Dashboard si corresponde
+    if (datos.textura) {
+      const ss = document.getElementById('s-suelo');
+      if (ss && !ss.value) ss.value = datos.textura;
+    }
+
+    if (msgEl) msgEl.textContent = datos.esFallback
+      ? 'Datos de base regional pampeana (SoilGrids no disponible en este momento)'
+      : 'Datos SoilGrids cargados';
+    if (spEl) spEl.style.animation = 'none';
+  } catch(e) {
+    if (msgEl) msgEl.textContent = 'Error al consultar: ' + e.message;
+    if (spEl)  spEl.style.animation = 'none';
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🌍 Analizar suelo'; }
+  }
+}
+window.consultarSuelo = consultarSuelo;
+
 // Estado del dólar

@@ -232,8 +232,88 @@ function bhCalcularGDD() {
   gddEl.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-// Demo funcional con localStorage (sin backend)
-// En producción: reemplazar con Supabase/Firebase Auth
-// ════════════════════════════════════════════════════════
+// ── DENSIDAD DE SIEMBRA — dsRender() ─────────────────────
+// Parámetros de densidad por cultivo (plantas/ha objetivo)
+const DS_PARAMS = {
+  Soja:    { minPl: 250000, maxPl: 380000, optPl: 300000, gmNombre: 'semi-determinate' },
+  Maíz:    { minPl:  60000, maxPl:  95000, optPl:  75000, gmNombre: 'ciclo largo/medio' },
+  Trigo:   { minPl: 180,    maxPl: 350,    optPl: 250,    esPiePm2: true },  // plantas/m²
+  Girasol: { minPl:  40000, maxPl:  65000, optPl:  50000, gmNombre: 'std' },
+  Sorgo:   { minPl: 100000, maxPl: 200000, optPl: 150000, gmNombre: 'std' },
+  Cebada:  { minPl: 200,    maxPl: 350,    optPl: 270,    esPiePm2: true },
+};
+
+window.dsRender = function() {
+  const resEl  = document.getElementById('ds-res');
+  if (!resEl) return;
+
+  const surco  = parseFloat(document.getElementById('ds-surco')?.value) || 0.52;
+  const pms    = parseFloat(document.getElementById('ds-pms')?.value)   || 35;
+  const cultivo= document.getElementById('cv-cultivo')?.value || document.getElementById('s-cultivo')?.value || 'Soja';
+  const germ   = 0.92;  // germinación estándar 92%
+  const vigor  = 0.95;  // emergencia/implantación
+
+  const p = DS_PARAMS[cultivo];
+  if (!p) {
+    resEl.innerHTML = `<div style="text-align:center;padding:1.5rem;color:rgba(74,46,26,.4);font-size:.82rem">Cultivo no disponible para cálculo de densidad.</div>`;
+    return;
+  }
+
+  let html = '';
+
+  if (p.esPiePm2) {
+    // Trigo / Cebada: plantas/m²
+    const semM2 = p.optPl / (germ * vigor);
+    const kgHa  = (semM2 * pms) / 1000;
+    const semLineal = semM2 * surco;
+    html = `
+      <div style="background:rgba(74,140,92,.06);border-radius:10px;padding:1rem;border:1px solid rgba(74,140,92,.2)">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin-bottom:.7rem">📏 ${cultivo} — Densidad recomendada</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem">
+          <div style="text-align:center;background:#fff;border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(74,140,92,.15)">
+            <div style="font-size:1.2rem;font-weight:700;color:#1b5e35">${p.optPl} pl/m²</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Plantas objetivo</div>
+          </div>
+          <div style="text-align:center;background:#fff;border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(74,140,92,.15)">
+            <div style="font-size:1.2rem;font-weight:700;color:#1b5e35">${semLineal.toFixed(0)} sem/m</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Semillas/m lineal</div>
+          </div>
+          <div style="text-align:center;background:rgba(200,162,85,.1);border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(200,162,85,.3)">
+            <div style="font-size:1.2rem;font-weight:700;color:#92400E">${kgHa.toFixed(0)} kg/ha</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Semilla a sembrar</div>
+          </div>
+        </div>
+        <div style="margin-top:.6rem;font-size:.72rem;color:rgba(74,46,26,.5)">PMS ${pms}g · Surco ${surco}m · Germinación ${(germ*100).toFixed(0)}% · Implantación ${(vigor*100).toFixed(0)}%</div>
+        <div style="margin-top:.4rem;font-size:.7rem;color:rgba(74,46,26,.4)">Rango recomendado: ${p.minPl}–${p.maxPl} plantas/m²</div>
+      </div>`;
+  } else {
+    // Maíz / Soja / Girasol / Sorgo: plantas/ha
+    const semHa     = p.optPl / (germ * vigor);
+    const kgHa      = (semHa * pms) / 1e6;
+    const semLineal = (p.optPl * surco) / 10000;
+    html = `
+      <div style="background:rgba(74,140,92,.06);border-radius:10px;padding:1rem;border:1px solid rgba(74,140,92,.2)">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin-bottom:.7rem">📏 ${cultivo} — Densidad recomendada</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.6rem">
+          <div style="text-align:center;background:#fff;border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(74,140,92,.15)">
+            <div style="font-size:1.1rem;font-weight:700;color:#1b5e35">${(p.optPl/1000).toFixed(0)}k pl/ha</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Plantas objetivo</div>
+          </div>
+          <div style="text-align:center;background:#fff;border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(74,140,92,.15)">
+            <div style="font-size:1.1rem;font-weight:700;color:#1b5e35">${semLineal.toFixed(1)} sem/m</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Semillas/m lineal</div>
+          </div>
+          <div style="text-align:center;background:rgba(200,162,85,.1);border-radius:8px;padding:.6rem .4rem;border:1px solid rgba(200,162,85,.3)">
+            <div style="font-size:1.1rem;font-weight:700;color:#92400E">${kgHa.toFixed(1)} kg/ha</div>
+            <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Semilla a sembrar</div>
+          </div>
+        </div>
+        <div style="margin-top:.6rem;font-size:.72rem;color:rgba(74,46,26,.5)">PMS ${pms}g · Surco ${surco}m · Germinación ${(germ*100).toFixed(0)}% · Implantación ${(vigor*100).toFixed(0)}%</div>
+        <div style="margin-top:.4rem;font-size:.7rem;color:rgba(74,46,26,.4)">Rango: ${(p.minPl/1000).toFixed(0)}k–${(p.maxPl/1000).toFixed(0)}k plantas/ha · ${p.gmNombre}</div>
+      </div>`;
+  }
+
+  resEl.innerHTML = html;
+};
 
 // ── PLANES ───────────────────────────────────────────

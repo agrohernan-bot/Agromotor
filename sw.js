@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v3';
+const CACHE_NAME    = 'agromotor-v4';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -34,6 +34,7 @@ const ASSETS_LOCAL = [
   './js/pulverizacion.js',
   './js/cosecha.js',
   './js/seguimiento.js',
+  './js/fertilizacion-optima.js',
   './js/balance-nutricional.js',
   './js/mapa.js',
   './js/siembra-variable.js',
