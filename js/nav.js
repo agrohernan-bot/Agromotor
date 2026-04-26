@@ -4,6 +4,18 @@
 // renderSueloModulo · Control de navegación principal
 // ════════════════════════════════════════════════════════
 
+// ── ORDEN DE PESTAÑAS (única fuente de verdad) ───────────
+// Coincide con el orden visual del nav en index.html.
+var AM_TAB_ORDER = [
+  'dashboard','decision','cultivares',
+  'siembra','suelo','hidrico',
+  'fertilizacion','fertoptima','balancenut',
+  'economia','cosecha','maquinaria',
+  'plagas','alerta-sanitaria','pulverizacion',
+  'siembra-variable','mapa','asistente'
+];
+var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
+
 // ── LAZY LOADER ──────────────────────────────────────────
 var AM_MODULOS_CARGADOS = {};
 
@@ -59,10 +71,9 @@ function switchMod(mod) {
       } else if (panel) {
         panel.classList.add('active');
       }
-      var idxMap = {dashboard:0,siembra:1,suelo:2,hidrico:3,cultivares:4,economia:5,fertilizacion:6,fertoptima:7,balancenut:8,maquinaria:9,cosecha:10,decision:11,pulverizacion:12,mapa:13,plagas:14,'alerta-sanitaria':15,'siembra-variable':16,asistente:17};
       document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
       var tabs = document.querySelectorAll('.nav-tab:not(.locked)');
-      if (tabs[idxMap[mod]]) tabs[idxMap[mod]].classList.add('active');
+      if (tabs[AM_IDX_MAP[mod]]) tabs[AM_IDX_MAP[mod]].classList.add('active');
 
       var i = 0;
       function cargarSiguiente() {
@@ -81,11 +92,23 @@ function _activarModulo(mod) {
   document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.module-panel').forEach(function(p) { p.classList.remove('active'); });
 
-  var idxMap = {dashboard:0,siembra:1,suelo:2,economia:3,fertilizacion:4,maquinaria:5,hidrico:6,cultivares:7,asistente:8,mapa:9,pulverizacion:10,decision:11,fertoptima:12,balancenut:13,cosecha:14,plagas:15,'siembra-variable':16,'alerta-sanitaria':17};
   var tabs = document.querySelectorAll('.nav-tab:not(.locked)');
-  if (tabs[idxMap[mod]]) tabs[idxMap[mod]].classList.add('active');
+  if (tabs[AM_IDX_MAP[mod]]) tabs[AM_IDX_MAP[mod]].classList.add('active');
   var panel = document.getElementById('mod-' + mod);
   if (panel) panel.classList.add('active');
+
+  // Mostrar/ocultar botón "Volver al Dashboard"
+  var btnVolver = document.getElementById('btn-volver-dash');
+  if (btnVolver) {
+    if (mod === 'dashboard') btnVolver.classList.add('hidden');
+    else btnVolver.classList.remove('hidden');
+  }
+  // Refrescar estados de tarjetas al volver al Dashboard
+  if (mod === 'dashboard' && typeof dashRefreshCards === 'function') {
+    setTimeout(dashRefreshCards, 100);
+  }
+  // Scroll al inicio al cambiar de módulo
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0,0); }
 
   if (mod === 'suelo' && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
     if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
@@ -101,11 +124,37 @@ function _activarModulo(mod) {
 
   if (mod === 'economia') {
     _syncCultivo('ec-cultivo');
+    if (typeof ecActualizarDolar === 'function' && !window._ecDolarCargado) {
+      ecActualizarDolar(); window._ecDolarCargado = true;
+    }
+    if (typeof ecRenderDolar === 'function') ecRenderDolar();
     if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
   }
   if (mod === 'fertilizacion') {
     _syncCultivo('f-cult');
+    if (typeof loadMaq === 'function' && !window._fertMaqCargado) {
+      loadMaq(); window._fertMaqCargado = true;
+    }
     if (typeof updRend === 'function') updRend();
+  }
+  if (mod === 'maquinaria') {
+    if (typeof loadMaq === 'function' && !window._fertMaqCargado) {
+      loadMaq(); window._fertMaqCargado = true;
+    }
+  }
+  if (mod === 'decision') {
+    _syncCultivo('dec-cultivo');
+    _syncFecha('dec-fecha');
+  }
+  if (mod === 'fertoptima') {
+    _syncCultivo('fo-cultivo');
+  }
+  if (mod === 'cosecha') {
+    _syncCultivo('cos-cultivo');
+    _syncFecha('cos-fecha');
+  }
+  if (mod === 'siembra-variable') {
+    _syncCultivo('sv-cultivo');
   }
   if (mod === 'balancenut') {
     _syncCultivo('bn-cultivo');
@@ -134,6 +183,7 @@ function _activarModulo(mod) {
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
+    _syncCultivo('pulv-cultivo');
     setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);
     setTimeout(function() {
       if (typeof pulvRenderHistorial === 'function') pulvRenderHistorial();
@@ -158,13 +208,14 @@ document.addEventListener('DOMContentLoaded', function() {
     var el = document.getElementById(id);
     if (el) el.value = hoy;
   });
-  if (typeof loadMaq     === 'function') loadMaq();
-  if (typeof updRend     === 'function') updRend();
-  if (typeof ecActualizarDolar === 'function') ecActualizarDolar();
-  if (typeof ecRenderDolar     === 'function') ecRenderDolar();
-  if (typeof consultarENSO     === 'function') consultarENSO();
   if (typeof amCargarSesion    === 'function') amCargarSesion();
   if (typeof amActualizarUI    === 'function') amActualizarUI();
+  // ENSO se consulta una vez en background (datos compartidos por hidrico, siembra)
+  setTimeout(function() {
+    if (typeof consultarENSO === 'function' && !window._ensoCargado) {
+      consultarENSO(); window._ensoCargado = true;
+    }
+  }, 1500);
   
   setTimeout(function() { amCargarModulo('hidrico.js'); amCargarModulo('cultivares.js'); }, 2000);
   setTimeout(function() { amCargarModulo('cultivares-extra.js'); amCargarModulo('mapa.js'); amCargarModulo('pulverizacion.js'); }, 5000);

@@ -41,6 +41,7 @@
     <div class="header-right">
       <div class="header-inta">Lógica agronómica INTA</div>
       <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
+      <button onclick="amInstalarPWA()" id="am-btn-pwa" class="btn-hdr btn-hdr-green hidden" title="Instalar AgroMotor como app">📲 Instalar</button>
       <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
       <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
       <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
@@ -58,32 +59,34 @@
 
 <nav class="module-nav">
   <div class="nav-inner">
-    <!-- CORE -->
+    <!-- 1. PLANIFICACIÓN -->
     <div class="nav-tab active" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
+    <div class="nav-tab" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
+    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
+    <div class="nav-sep"></div>
+    <!-- 2. IMPLANTACIÓN -->
     <div class="nav-tab" onclick="switchMod('siembra')"><span class="dot"></span>🌱 Siembra</div>
     <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Suelo</div>
     <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
-    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
     <div class="nav-sep"></div>
-    <!-- ECONOMÍA -->
-    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
+    <!-- 3. NUTRICIÓN -->
     <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>⚗️ Fertilización</div>
     <div class="nav-tab" onclick="switchMod('fertoptima')"><span class="dot"></span>🧪 Dosis Óptima</div>
     <div class="nav-tab" onclick="switchMod('balancenut')"><span class="dot"></span>🔄 Bal. Nutricional</div>
+    <div class="nav-sep"></div>
+    <!-- 4. ECONOMÍA -->
+    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
+    <div class="nav-tab" onclick="switchMod('cosecha')"><span class="dot"></span>🌾 Cosecha</div>
     <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>🚜 Maquinaria</div>
-    <div class="nav-tab" onclick="switchMod('cosecha')"><span class="dot"></span>💰 Cosecha</div>
     <div class="nav-sep"></div>
-    <!-- DECISIÓN -->
-    <div class="nav-tab" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
-    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
-    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
-    <div class="nav-sep"></div>
-    <!-- SANIDAD -->
+    <!-- 5. SANIDAD -->
     <div class="nav-tab" onclick="switchMod('plagas')"><span class="dot"></span>🐛 Plagas</div>
     <div class="nav-tab" onclick="switchMod('alerta-sanitaria')"><span class="dot"></span>🦠 Enfermedades</div>
-    <div class="nav-tab" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
+    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
     <div class="nav-sep"></div>
-    <!-- IA -->
+    <!-- 6. AVANZADO -->
+    <div class="nav-tab" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
+    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
     <div class="nav-tab nav-tab-ia" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
     <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
   </div>
@@ -211,7 +214,59 @@
     <div id="am-lista-lotes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.7rem"></div>
   </div>
 
+  <!-- ── ACCESO A MÓDULOS ─────────────────────────────────── -->
+  <div style="margin-top:1.4rem">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">
+      <div class="card-title" style="margin-bottom:0">🚀 Módulos del flujo agronómico</div>
+      <span style="font-size:.7rem;color:rgba(74,46,26,.5)">Tocá una tarjeta para abrir el módulo</span>
+    </div>
+
+    <div class="mod-group-title">1 · Planificación</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-plan" onclick="switchMod('decision')"><div class="mc-ico">⚖️</div><div class="mc-name">¿Qué sembrar?</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Comparación económica entre cultivos</div></div>
+      <div class="mod-card mc-plan" onclick="switchMod('cultivares')"><div class="mc-ico">🌾</div><div class="mc-name">Cultivares</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Selección de variedades · GM · densidad</div></div>
+    </div>
+
+    <div class="mod-group-title">2 · Implantación</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-imp" onclick="switchMod('siembra')"><div class="mc-ico">🌱</div><div class="mc-name">Siembra</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Compactación · humedad · pronóstico</div></div>
+      <div class="mod-card mc-imp" onclick="switchMod('suelo')"><div class="mc-ico">🌍</div><div class="mc-name">Suelo</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">SoilGrids · pH · MO · CEC</div></div>
+      <div class="mod-card mc-imp" onclick="switchMod('hidrico')"><div class="mc-ico">💧</div><div class="mc-name">Hídrico</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico · ENSO · perfil</div></div>
+    </div>
+
+    <div class="mod-group-title">3 · Nutrición</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-nut" onclick="switchMod('fertilizacion')"><div class="mc-ico">⚗️</div><div class="mc-name">Fertilización</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">N · P · K · S · costo por ha</div></div>
+      <div class="mod-card mc-nut" onclick="switchMod('fertoptima')"><div class="mc-ico">🧪</div><div class="mc-name">Dosis Óptima</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Curvas INTA · óptimo económico</div></div>
+      <div class="mod-card mc-nut" onclick="switchMod('balancenut')"><div class="mc-ico">🔄</div><div class="mc-name">Bal. Nutricional</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Extracción vs reposición</div></div>
+    </div>
+
+    <div class="mod-group-title">4 · Economía</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-eco" onclick="switchMod('economia')"><div class="mc-ico">💰</div><div class="mc-name">Economía</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Margen bruto · dólar · precios</div></div>
+      <div class="mod-card mc-eco" onclick="switchMod('cosecha')"><div class="mc-ico">🌾</div><div class="mc-name">Cosecha</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Pérdidas · humedad de cosecha</div></div>
+      <div class="mod-card mc-eco" onclick="switchMod('maquinaria')"><div class="mc-ico">🚜</div><div class="mc-name">Maquinaria</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Costo operativo por hectárea</div></div>
+    </div>
+
+    <div class="mod-group-title">5 · Sanidad</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-san" onclick="switchMod('plagas')"><div class="mc-ico">🐛</div><div class="mc-name">Plagas</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Umbrales · monitoreo · control</div></div>
+      <div class="mod-card mc-san" onclick="switchMod('alerta-sanitaria')"><div class="mc-ico">🦠</div><div class="mc-name">Enfermedades</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Alertas según clima del lote</div></div>
+      <div class="mod-card mc-san" onclick="switchMod('pulverizacion')"><div class="mc-ico">💦</div><div class="mc-name">Pulverización</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Ventana de aplicación · pH · HRAC</div></div>
+    </div>
+
+    <div class="mod-group-title">6 · Avanzado</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
+      <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
+      <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
+    </div>
+  </div>
+
 </div>
+
+<!-- ══ BOTÓN GLOBAL: VOLVER AL DASHBOARD ══ -->
+<button id="btn-volver-dash" onclick="switchMod('dashboard')" class="btn-volver-dash hidden" title="Volver al Dashboard">← Dashboard</button>
 
 <!-- ══ MÓDULO SIEMBRA ══ -->
 <div id="mod-siembra" class="module-panel">
@@ -3118,6 +3173,7 @@ amCargarSesion();
 <script src="js/asistente.js"></script>
 <script src="js/pdf.js"></script>
 <script src="js/alerta-sanitaria.js"></script>
+<script src="js/dashboard-ux.js"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():

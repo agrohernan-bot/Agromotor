@@ -347,5 +347,3 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
   if (ph) ph.classList.add('hidden');
   container.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
-
-console.log('balance-nutricional.js cargado OK');

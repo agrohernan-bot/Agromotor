@@ -1065,7 +1065,6 @@ function segInit(){
   setInterval(segEvaluarAlertas,30*60*1000);
   // Render rendimiento inicial
   rendActualizar();
-  console.log('✅ AgroMotor · Seguimiento de Campaña v2.0 · Multi-lote · Alertas · Rendimiento Dinámico · Histórico');
 }
 
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',segInit);}else{segInit();}

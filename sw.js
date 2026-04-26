@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v4';
+const CACHE_NAME    = 'agromotor-v8';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -40,6 +40,7 @@ const ASSETS_LOCAL = [
   './js/siembra-variable.js',
   './css/siembra-variable.css',
   './js/alerta-sanitaria.js',
+  './js/dashboard-ux.js',
   './css/alerta-sanitaria.css',
   './manifest.json',
 ];

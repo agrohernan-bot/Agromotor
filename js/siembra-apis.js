@@ -268,7 +268,6 @@ async function buscarSoilGrids(lat, lon) {
     }
     r.fuente = '🛰️ SoilGrids REST API · ISRIC/Wageningen · 250 m · Datos reales';
     r.esFallback = false;
-    console.log('✅ SoilGrids REST API funcionando:', r);
     return r;
 
   } catch(e) {

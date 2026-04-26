@@ -381,5 +381,3 @@ function decElegir(cultivo) {
   if (typeof bhActualizar    === 'function') bhActualizar();
   if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
 }
-
-console.log('decision.js cargado OK');
