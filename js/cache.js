@@ -147,25 +147,64 @@ window.amCrearLoteGlobal = function() {
     else alert(msg);
     return;
   }
+
+  // ── Capturar estado actual del DOM ANTES de cualquier acción ──
+  const coordEnPantalla   = document.getElementById('s-coord')?.value?.trim()   || '';
+  const cultivoEnPantalla = document.getElementById('s-cultivo')?.value         || '';
+  const fechaEnPantalla   = document.getElementById('s-fecha')?.value           || '';
+  const sueloEnPantalla   = document.getElementById('s-suelo')?.value           || '';
+
+  // ── Detectar si la coord en pantalla pertenece al lote previo o es una nueva ubicación ──
+  const lotePrev   = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+  const coordPrev  = (lotePrev && lotePrev.data && lotePrev.data.coord) ? String(lotePrev.data.coord).trim() : '';
+  // Si la coord visible difiere de la guardada del lote previo → el usuario clickeó una nueva ubicación
+  // y la quiere asignar al nuevo lote, no al previo
+  const coordEsParaNuevoLote = coordEnPantalla && coordEnPantalla !== coordPrev;
+
   const nombre = prompt('Nombre del nuevo lote (ej. Lote Sur - Soja):');
   if(!nombre) return;
   const id = 'lote_' + Date.now();
 
-  cacheGuardar();
+  // ── Si la coord nueva era para el lote nuevo, restaurar la del previo antes de guardarlo ──
+  if (coordEsParaNuevoLote) {
+    const sCoord = document.getElementById('s-coord');
+    if (sCoord) sCoord.value = coordPrev; // restaurar coord original del lote previo
+  }
+  cacheGuardar(); // ahora cacheGuardar persiste el lote previo con SUS coordenadas, no la del clic
 
-  AM_LOTES.push({ id, nombre, data: {} });
+  // ── Crear nuevo lote, opcionalmente con las coords clickeadas ──
+  const nuevoLote = {
+    id, nombre,
+    data: coordEsParaNuevoLote ? {
+      ts: Date.now(),
+      coord:   coordEnPantalla,
+      cultivo: cultivoEnPantalla,
+      fecha:   fechaEnPantalla,
+      suelo:   sueloEnPantalla,
+    } : {}
+  };
+  AM_LOTES.push(nuevoLote);
   AM_LOTE_ACTIVO = id;
-  
+
   amLimpiarDOM();
-  
+
   amGuardarLotesEstado();
   amRenderSelectLotes();
-  
+
   if(typeof cacheCargar === 'function') cacheCargar();
   if(typeof amActualizarUI === 'function') amActualizarUI();
-  if(typeof amToast === 'function') amToast(`Lote "${nombre}" creado`, 'ok');
-  
+  if(typeof amToast === 'function') {
+    amToast(coordEsParaNuevoLote
+      ? `Lote "${nombre}" creado en la ubicación seleccionada`
+      : `Lote "${nombre}" creado`, 'ok');
+  }
+
   if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+
+  // Si el nuevo lote tiene coords, disparar consulta automática de APIs
+  if (coordEsParaNuevoLote && typeof buscarAPI === 'function') {
+    setTimeout(buscarAPI, 500);
+  }
 };
 
 window.amEliminarLoteGlobal = function() {
