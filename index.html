@@ -1213,9 +1213,9 @@
     <!-- CHAT PRINCIPAL -->
     <div>
       <!-- Contexto del lote activo -->
-      <div id="ia-contexto-banner" class="hidden" style="margin-bottom:1rem;padding:.75rem 1rem;background:rgba(74,140,92,.08);border-radius:10px;border:1px solid rgba(74,140,92,.2)">
-        <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--leaf);margin-bottom:.4rem">📍 Lote activo en el motor</div>
-        <div id="ia-contexto-resumen" style="font-size:.78rem;color:var(--field);display:flex;flex-wrap:wrap;gap:.8rem"></div>
+      <div id="ia-contexto-banner" class="hidden" style="margin-bottom:1rem;padding:.85rem 1rem;background:#f4faf6;border-radius:10px;border:1px solid rgba(74,140,92,.35);box-shadow:0 2px 8px rgba(0,0,0,.15)">
+        <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b5e35;margin-bottom:.45rem">📍 Lote activo en el motor</div>
+        <div id="ia-contexto-resumen" style="font-size:.78rem;color:#1c1208;display:flex;flex-wrap:wrap;gap:.5rem"></div>
       </div>
 
       <!-- Área de chat -->
@@ -1255,37 +1255,13 @@
     <!-- PANEL LATERAL: PREGUNTAS RÁPIDAS -->
     <div>
       <div class="card" style="padding:.9rem">
-        <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.7rem">⚡ Preguntas rápidas</div>
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.7rem">⚡ Preguntas rápidas</div>
 
-        <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin-bottom:.4rem;text-transform:uppercase;letter-spacing:.06em">🌾 Siembra</div>
-        ${['¿Puedo sembrar soja esta semana con las condiciones actuales?',
-           '¿Cuál es el riesgo de compactación si entro mañana con la sembradora?',
-           '¿Cuántos días de espera me recomendás antes de sembrar?',
-           '¿A qué profundidad conviene sembrar con esta humedad?'].map(p =>
-          `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(74,140,92,.06);border:1px solid rgba(74,140,92,.15);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
-        ).join('')}
+        <div id="ia-quick-questions">
+          <!-- Se popula dinámicamente desde asistente.js (iaRenderQuickQuestions) -->
+        </div>
 
-        <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">🌍 Suelo y agua</div>
-        ${['¿Cómo está la reserva hídrica del lote para este cultivo?',
-           '¿Necesito corregir el pH antes de sembrar?',
-           '¿Cuántos mm le falta al lote para alcanzar el rendimiento objetivo?'].map(p =>
-          `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(42,90,140,.06);border:1px solid rgba(42,90,140,.12);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
-        ).join('')}
-
-        <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">💰 Economía</div>
-        ${['¿Es rentable sembrar soja con el precio actual?',
-           '¿Cuál es el punto de equilibrio en qq/ha para este lote?',
-           '¿Conviene esperar el precio futuro o vender disponible?'].map(p =>
-          `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(200,162,85,.08);border:1px solid rgba(200,162,85,.2);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
-        ).join('')}
-
-        <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.5);margin:.6rem 0 .4rem;text-transform:uppercase;letter-spacing:.06em">🌊 Clima y ENSO</div>
-        ${['¿Qué impacto tiene el ENSO actual en este lote?',
-           '¿Cuál es la probabilidad de déficit hídrico en floración?'].map(p =>
-          `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(42,90,140,.06);border:1px solid rgba(42,90,140,.12);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
-        ).join('')}
-
-        <div style="margin-top:.8rem;padding:.5rem .7rem;background:#fbf6ec;border-radius:8px;font-size:.68rem;color:rgba(74,46,26,.45);line-height:1.5">
+        <div style="margin-top:.8rem;padding:.55rem .75rem;background:#fbf6ec;border:1px solid rgba(74,46,26,.12);border-radius:8px;font-size:.7rem;color:#5a4a32;line-height:1.5">
           🤖 Powered by <strong>Claude AI</strong> (Anthropic) · Las respuestas usan los datos reales de tu lote cuando están disponibles.
         </div>
       </div>
@@ -1363,14 +1339,14 @@
 
       <!-- Lista de resultados -->
       <div style="margin-top:.8rem">
-        <div id="mp-count" style="font-size:.75rem;color:rgba(74,46,26,.5);margin-bottom:.5rem;font-weight:600"></div>
+        <div id="mp-count" style="font-size:.78rem;color:rgba(237,224,196,.7);margin-bottom:.5rem;font-weight:600"></div>
         <div id="mp-lista" style="max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem"></div>
       </div>
 
       <!-- CTA para agronomías -->
-      <div style="margin-top:.8rem;padding:.8rem 1rem;background:linear-gradient(135deg,rgba(200,162,85,.08),rgba(74,140,92,.06));border-radius:10px;border:1px solid rgba(200,162,85,.25)">
-        <div style="font-size:.8rem;font-weight:700;color:var(--earth);margin-bottom:.3rem">🏪 ¿Tu agronomía no aparece?</div>
-        <div style="font-size:.75rem;color:rgba(74,46,26,.6);margin-bottom:.5rem">Sumá tu negocio al directorio de AgroMotor y llegá a asesores y productores de tu zona.</div>
+      <div style="margin-top:.8rem;padding:.85rem 1rem;background:#fbf6e9;border-radius:10px;border:1px solid rgba(200,162,85,.4);box-shadow:0 2px 6px rgba(0,0,0,.15)">
+        <div style="font-size:.82rem;font-weight:700;color:var(--earth);margin-bottom:.3rem">🏪 ¿Tu agronomía no aparece?</div>
+        <div style="font-size:.76rem;color:#5a4a32;margin-bottom:.5rem">Sumá tu negocio al directorio de AgroMotor y llegá a asesores y productores de tu zona.</div>
         <a href="/cdn-cgi/l/email-protection#0f6e687d60676a7d616e614f68626e6663216c6062307c7a6d656a6c7b325e7a666a7d602f6e7f6e7d6a6c6a7d2f6a612f4e687d6042607b607d296d606b76324160626d7d6a2f6b6a632f616a68606c6660352f2a3f4e5b667f602f276e687d60616062cca26e206c60607f6a7d6e7b66796e206b667c7b7d666d7a666b607d26352f2a3f4e43606c6e63666b6e6b2f762f7f7d607966616c666e352f2a3f4e4a627f7d6a7c6e7c2f7e7a6a2f6b667c7b7d666d7a7660352f2a3f4e5b6a63cca669606160352f2a3f4e4a626e66632f6b6a2f6c60617b6e6c7b60352f2a3f4e586a6d2f277c662f7b6a61cca67c26352f" style="display:inline-block;background:var(--grain);color:var(--ink);padding:.4rem .9rem;border-radius:8px;font-size:.75rem;font-weight:700;text-decoration:none">
           📩 Quiero aparecer aquí →
         </a>
@@ -1380,7 +1356,7 @@
     <!-- COLUMNA DERECHA: MAPA -->
     <div>
       <!-- Banner coordenadas -->
-      <div id="mp-lote-banner" class="hidden" style="margin-bottom:.8rem;padding:.65rem .9rem;background:rgba(74,140,92,.08);border-radius:8px;border:1px solid rgba(74,140,92,.2);font-size:.78rem;color:var(--field)">
+      <div id="mp-lote-banner" class="hidden" style="margin-bottom:.8rem;padding:.7rem .95rem;background:#f4faf6;border-radius:8px;border:1px solid rgba(74,140,92,.4);font-size:.78rem;color:#1c1208;font-weight:500">
         <strong>📍 Lote activo:</strong> <span id="mp-lote-coord"></span> · mostrando distribuidores más cercanos
       </div>
 
@@ -1821,7 +1797,7 @@
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
       <div id="dec-resultado" class="hidden"></div>
-      <div id="dec-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.3)">
+      <div id="dec-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
         <div style="font-size:4rem;margin-bottom:1rem">⚖️</div>
         <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Análisis de selección de cultivo</div>
         <div style="font-size:.82rem;max-width:300px;margin:0 auto;line-height:1.6">
@@ -1905,7 +1881,7 @@
 
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
-      <div id="fo-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.3)">
+      <div id="fo-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
         <div style="font-size:4rem;margin-bottom:1rem">🧪</div>
         <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Calculadora de fertilización óptima</div>
         <div style="font-size:.82rem;max-width:300px;margin:0 auto;line-height:1.6">
@@ -1994,7 +1970,7 @@
 
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
-      <div id="bn-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.3)">
+      <div id="bn-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
         <div style="font-size:4rem;margin-bottom:1rem">🔄</div>
         <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Balance nutricional post-cosecha</div>
         <div style="font-size:.82rem;max-width:320px;margin:0 auto;line-height:1.6">

@@ -281,6 +281,43 @@ function iaPreguntar(texto) {
   if (input) { input.value = texto; iaEnviar(); }
 }
 
+// ── PREGUNTAS RÁPIDAS (panel lateral) ─────────────────
+function iaRenderQuickQuestions() {
+  var container = document.getElementById('ia-quick-questions');
+  if (!container) return;
+  var grupos = [
+    { titulo: '🌾 Siembra', acc: '#4A8C5C', bg: '#f4faf6', preguntas: [
+        '¿Puedo sembrar soja esta semana con las condiciones actuales?',
+        '¿Cuál es el riesgo de compactación si entro mañana con la sembradora?',
+        '¿Cuántos días de espera me recomendás antes de sembrar?',
+        '¿A qué profundidad conviene sembrar con esta humedad?'
+    ]},
+    { titulo: '🌍 Suelo y agua', acc: '#2A5A8C', bg: '#f3f7fd', preguntas: [
+        '¿Cómo está la reserva hídrica del lote para este cultivo?',
+        '¿Necesito corregir el pH antes de sembrar?',
+        '¿Cuántos mm le falta al lote para alcanzar el rendimiento objetivo?'
+    ]},
+    { titulo: '💰 Economía', acc: '#C8A255', bg: '#fbf6e9', preguntas: [
+        '¿Es rentable sembrar soja con el precio actual?',
+        '¿Cuál es el punto de equilibrio en qq/ha para este lote?',
+        '¿Conviene esperar el precio futuro o vender disponible?'
+    ]},
+    { titulo: '🌊 Clima y ENSO', acc: '#2A5A8C', bg: '#f3f7fd', preguntas: [
+        '¿Qué impacto tiene el ENSO actual en este lote?',
+        '¿Cuál es la probabilidad de déficit hídrico en floración?'
+    ]}
+  ];
+  var html = '';
+  grupos.forEach(function(g, idx) {
+    html += '<div style="font-size:.7rem;font-weight:700;color:#5a4a32;margin:' + (idx === 0 ? '0' : '.7rem') + ' 0 .4rem;text-transform:uppercase;letter-spacing:.06em">' + g.titulo + '</div>';
+    g.preguntas.forEach(function(p) {
+      var pEsc = p.replace(/'/g, "\\'");
+      html += '<button onclick="iaPreguntar(\'' + pEsc + '\')" style="display:block;width:100%;text-align:left;background:' + g.bg + ';border:1px solid ' + g.acc + '40;border-left:3px solid ' + g.acc + ';border-radius:7px;padding:.5rem .7rem;margin-bottom:.35rem;font-size:.74rem;color:#1c1208;cursor:pointer;font-family:\'DM Sans\',sans-serif;line-height:1.4;transition:background .15s" onmouseover="this.style.background=\'#fff\'" onmouseout="this.style.background=\'' + g.bg + '\'">' + p + '</button>';
+    });
+  });
+  container.innerHTML = html;
+}
+
 // ── ACTUALIZAR BANNER DE CONTEXTO ─────────────────────
 function iaActualizarContextoBanner() {
   const coord = $('s-coord')?.value;
@@ -557,3 +594,8 @@ function mapaSeleccionar(d) {
 }
 
 // ── NAV ──
+// ── INIT preguntas rápidas al cargar ──
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof iaRenderQuickQuestions === 'function') iaRenderQuickQuestions();
+});
+

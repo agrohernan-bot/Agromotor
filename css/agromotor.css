@@ -293,7 +293,7 @@ main {
 }
 
 .module-subtitle {
-  color: rgba(237,224,196,.48);
+  color: rgba(237,224,196,.72);
   font-size: .84rem;
   margin-bottom: 1.8rem;
   letter-spacing: .01em;
@@ -1095,11 +1095,14 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 
 /* SECTION TITLE */
 .section-title {
-  font-size: 0.65rem; font-weight: bold; letter-spacing: 0.12em;
-  text-transform: uppercase; color: #92400E;
+  font-size: 0.7rem; font-weight: bold; letter-spacing: 0.12em;
+  text-transform: uppercase; color: #E8B84B;
   margin: 1.2rem 0 0.6rem; display: flex; align-items: center; gap: 0.5rem;
 }
-.section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.section-title::after { content: ''; flex: 1; height: 1px; background: rgba(232,184,75,.25); }
+/* Cuando .section-title está dentro de un .card claro, usar color tierra */
+.card .section-title { color: #92400E; }
+.card .section-title::after { background: var(--border); }
 
 /* SUMMARY STRIP */
 .summary-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.5rem; margin-bottom: 0.9rem; }
