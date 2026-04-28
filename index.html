@@ -3165,17 +3165,34 @@ amCargarSesion();
 ══ -->
 
 <script>
-// ── Service Worker — PWA offline ──────────────────────
+// ── Service Worker — PWA offline · auto-update ────────
 if ('serviceWorker' in navigator) {
+  let _amReloading = false;
+  // Cuando el nuevo SW toma control, recargar la página una vez
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_amReloading) return;
+    _amReloading = true;
+    window.location.reload();
+  });
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => {
-        // Notificar al usuario si hay una nueva versión disponible
+        // Buscar updates inmediatamente al cargar
+        reg.update();
+        // Verificar updates cada 60s mientras la pestaña está abierta
+        setInterval(() => reg.update(), 60000);
+
         reg.addEventListener('updatefound', () => {
           const newSW = reg.installing;
+          if (!newSW) return;
           newSW.addEventListener('statechange', () => {
             if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              amToast('Nueva versión de AgroMotor disponible. Recargá para actualizar.', 'ok');
+              // Hay un SW viejo activo y uno nuevo esperando → forzar el cambio
+              if (typeof amToast === 'function') {
+                amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
+              }
+              newSW.postMessage('skipWaiting');
             }
           });
         });
