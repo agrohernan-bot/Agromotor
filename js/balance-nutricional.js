@@ -281,7 +281,7 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
   html += '</div>';
 
   // ── RECOMENDACIONES ──
-  html += '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.6rem">💊 Recomendaciones para la próxima campaña</div>';
+  html += '<div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#C8A255;margin-bottom:.6rem">💊 Recomendaciones para la próxima campaña</div>';
 
   if (recs.length === 0) {
     html += '<div class="alert ok"><span class="ai">✅</span><div class="ac"><strong>Balance equilibrado</strong> — La fertilización realizada repuso adecuadamente los nutrientes extraídos. El suelo quedó en buenas condiciones para la próxima campaña.</div></div>';
@@ -293,7 +293,7 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
       html += '<span class="ai">' + ico + '</span>';
       html += '<div class="ac"><strong>' + r.titulo + '</strong><br>' + r.texto;
       if (r.dosis > 0 && r.fertNombre) {
-        html += '<div style="margin-top:.5rem;padding:.5rem .7rem;background:rgba(255,255,255,.08);border-radius:7px;font-size:.77rem">';
+        html += '<div style="margin-top:.5rem;padding:.5rem .7rem;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:7px;font-size:.77rem">';
         html += '📦 <strong>Fertilizante sugerido:</strong> ' + r.fertNombre;
         html += ' · Dosis: <strong>' + r.cantFert + ' kg/ha</strong>';
         html += ' · Costo estimado: <strong>USD ' + r.costoEstim + '/ha</strong>';
@@ -320,7 +320,7 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
     ];
 
     estadoItems.forEach(function(item) {
-      html += '<div style="background:rgba(74,46,26,.04);border-radius:10px;padding:.7rem;border:1px solid var(--border)">';
+      html += '<div style="background:#fbf6ec;border-radius:10px;padding:.7rem;border:1px solid var(--border)">';
       html += '<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.4);margin-bottom:.2rem">' + item.label + '</div>';
       html += '<div style="font-size:1.1rem;font-weight:600;color:var(--earth)">' + item.valor + '</div>';
       html += '<div style="font-size:.68rem;color:rgba(74,46,26,.4);margin-top:.15rem">' + item.nota + '</div>';
@@ -334,7 +334,7 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
   html += '</div></div>';
 
   // ── NOTA METODOLÓGICA ──
-  html += '<div style="margin-top:.8rem;font-size:.7rem;color:rgba(74,46,26,.4);padding:.5rem .8rem;background:rgba(74,46,26,.03);border-radius:8px;line-height:1.5">';
+  html += '<div style="margin-top:.8rem;font-size:.72rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.15);border-radius:8px;line-height:1.5">';
   html += '📊 Tablas de extracción: INTA Balcarce · Echeverría & García · FAO (2006) · ';
   html += 'Aporte natural N: ~20 kg/% MO/año (mineralización base pampa húmeda) · ';
   html += 'Eficiencia fertilizantes: N=65%, P=25%, K=40%, S=50% (promedios pampa) · ';

@@ -139,18 +139,18 @@ window.foAnalizar = function() {
   };
 
   const html = `
-    <div style="margin-bottom:.8rem;padding:.65rem 1rem;background:rgba(74,140,92,.06);border-radius:9px;border:1px solid rgba(74,140,92,.2)">
-      <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin-bottom:.35rem">
+    <div style="margin-bottom:.8rem;padding:.8rem 1rem;background:#fff;border-radius:11px;border:1.5px solid rgba(74,140,92,.35);box-shadow:0 2px 8px rgba(0,0,0,.15)">
+      <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b5e35;margin-bottom:.5rem">
         ${cultivo.toUpperCase()} · Precio grano USD ${precioGrano}/t · Rendimiento objetivo ${rendObj} t/ha
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
-        <div style="text-align:center">
+        <div style="text-align:center;background:#f4faf6;padding:.55rem;border-radius:9px">
           <div style="font-size:1.25rem;font-weight:700;color:#1b5e35">USD ${totalCosto.toFixed(0)}/ha</div>
-          <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Costo total fertilización</div>
+          <div style="font-size:.64rem;color:#374151;text-transform:uppercase;font-weight:600">Costo total fertilización</div>
         </div>
-        <div style="text-align:center">
+        <div style="text-align:center;background:${totalMargen>=0?'#f4faf6':'#fce6dc'};padding:.55rem;border-radius:9px">
           <div style="font-size:1.25rem;font-weight:700;color:${totalMargen>=0?'#1b5e35':'#C0392B'}">USD ${totalMargen.toFixed(0)}/ha</div>
-          <div style="font-size:.62rem;color:#6b7280;text-transform:uppercase">Margen neto total</div>
+          <div style="font-size:.64rem;color:#374151;text-transform:uppercase;font-weight:600">Margen neto total</div>
         </div>
       </div>
     </div>
@@ -159,7 +159,7 @@ window.foAnalizar = function() {
       ${cardNut('P')}
       ${cardNut('S')}
     </div>
-    <div style="margin-top:.8rem;font-size:.68rem;color:rgba(74,46,26,.38);line-height:1.6;padding:.5rem;background:rgba(74,46,26,.03);border-radius:6px">
+    <div style="margin-top:.8rem;font-size:.7rem;color:#6b5b45;line-height:1.6;padding:.6rem .8rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.15);border-radius:8px">
       Modelo curva respuesta cuadrática · Parámetros INTA Marcos Juárez / Balcarce · Calibrar con análisis de suelo local.
       Dosis óptima económica = punto donde el valor del grano extra cubre el costo del fertilizante.
     </div>`;

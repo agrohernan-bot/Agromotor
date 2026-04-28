@@ -581,10 +581,10 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 .ai { font-size: 1.1rem; flex-shrink: 0; margin-top: .05rem; }
 .ac strong { display: block; font-weight: 600; margin-bottom: .15rem; }
 
-.alert.ok     { background: rgba(42,122,74,.1); border-color: var(--ok); color: #1A4A28; }
-.alert.warn   { background: rgba(184,122,32,.1); border-color: var(--caution); color: #5A3A10; }
-.alert.danger { background: rgba(212,82,42,.1); border-color: var(--warn); color: #5A1A0A; }
-.alert.info   { background: rgba(30,77,43,.08); border-color: var(--canopy); color: #1A3A28; }
+.alert.ok     { background: #e8f5ec; border-color: var(--ok); color: #1A4A28; }
+.alert.warn   { background: #faf0d8; border-color: var(--caution); color: #5A3A10; }
+.alert.danger { background: #fce6dc; border-color: var(--warn); color: #5A1A0A; }
+.alert.info   { background: #e6efe9; border-color: var(--canopy); color: #1A3A28; }
 
 /* ── DATA TABLE ── */
 .dt {

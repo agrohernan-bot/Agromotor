@@ -127,7 +127,7 @@ main {
 .api-dot.ok      { background: var(--sprout); box-shadow: 0 0 6px var(--sprout); }
 .api-dot.loading { background: var(--amber); animation: pulse 1.2s infinite; box-shadow: 0 0 6px var(--amber); }
 .api-dot.error   { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
-.api-label { color: rgba(237,224,196,.5); }
+.api-label { color: rgba(237,224,196,.78); font-weight: 500; }
 .api-value { font-family: 'DM Mono', monospace; font-weight: 600; color: var(--straw); }
 @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
 .ribbon-refresh {
@@ -268,9 +268,9 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, rgba(200,162,85,.35), transparent);
 }
-.kl { font-size: .6rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(237,224,196,.45); margin-bottom: .3rem; }
+.kl { font-size: .62rem; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(237,224,196,.7); margin-bottom: .3rem; }
 .kv { font-family: 'DM Mono', monospace; font-size: 1.4rem; font-weight: 500; line-height: 1; color: var(--amber); }
-.ku { font-size: .65rem; color: rgba(237,224,196,.35); margin-top: .2rem; }
+.ku { font-size: .67rem; color: rgba(237,224,196,.55); margin-top: .2rem; }
 
 .kc.ok-card  { border-color: rgba(42,122,74,.3); }
 .kc.ok-card .kv { color: var(--sprout); }

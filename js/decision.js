@@ -305,9 +305,10 @@ function decRender(resultados, aguaTotal, ensoFase) {
   veredictoHtml += '</div>';
 
   // ── TABLA COMPARATIVA ──
-  var tablaHtml = '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.6rem">Comparación completa de cultivos</div>';
+  var tablaHtml = '<div style="background:#fff;border-radius:14px;padding:1rem 1.1rem;border:1px solid rgba(74,46,26,.12);box-shadow:0 2px 10px rgba(0,0,0,.15)">';
+  tablaHtml += '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.6rem">Comparación completa de cultivos</div>';
   tablaHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
-  tablaHtml += '<thead><tr style="background:rgba(74,46,26,.05)">';
+  tablaHtml += '<thead><tr style="background:#f3ede0">';
   tablaHtml += '<th style="padding:.6rem .8rem;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Cultivo</th>';
   tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(42,122,74,.7)">Score<br>Agronómico</th>';
   tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Rend.<br>estimado</th>';
@@ -319,10 +320,10 @@ function decRender(resultados, aguaTotal, ensoFase) {
   rankAgro.forEach(function(r, i) {
     var esMejorAgro = i === 0;
     var esMejorEco  = r.posEco === 1;
-    var bg = i % 2 === 0 ? 'rgba(74,46,26,.02)' : 'white';
-    if (esMejorAgro && esMejorEco) bg = 'rgba(42,122,74,.06)';
-    else if (esMejorAgro) bg = 'rgba(42,122,74,.04)';
-    else if (esMejorEco) bg = 'rgba(200,162,85,.05)';
+    var bg = i % 2 === 0 ? '#fbf8f1' : '#ffffff';
+    if (esMejorAgro && esMejorEco) bg = '#e0f0e6';
+    else if (esMejorAgro) bg = '#ecf6ef';
+    else if (esMejorEco) bg = '#f7eed4';
 
     var scoreColor = r.scoreAgro >= 70 ? 'var(--ok)' : r.scoreAgro >= 50 ? 'var(--caution)' : 'var(--warn)';
     var margenColor = r.margenBruto > 200 ? 'var(--ok)' : r.margenBruto > 0 ? 'var(--caution)' : 'var(--warn)';
@@ -339,10 +340,10 @@ function decRender(resultados, aguaTotal, ensoFase) {
     tablaHtml += '</tr>';
   });
 
-  tablaHtml += '</tbody></table></div>';
+  tablaHtml += '</tbody></table></div></div>';
 
   // ── NOTA METODOLÓGICA ──
-  var notaHtml = '<div style="margin-top:.8rem;font-size:.7rem;color:rgba(74,46,26,.4);padding:.5rem .8rem;background:rgba(74,46,26,.03);border-radius:8px;line-height:1.5">';
+  var notaHtml = '<div style="margin-top:.8rem;font-size:.72rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.15);border-radius:8px;line-height:1.5">';
   notaHtml += '📊 Score agronómico: agua disponible (' + Math.round(aguaTotal) + ' mm) · temperatura · ENSO (' + ensoFase + ') · pH y MO del suelo · rotación · ';
   notaHtml += 'Margen bruto estimado con costos de referencia campaña 2024/25 · Precios base desde módulo Economía · ';
   notaHtml += 'Rendimiento estimado con función respuesta FAO. Validar con asesor antes de decidir.</div>';
