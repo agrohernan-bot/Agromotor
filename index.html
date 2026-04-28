@@ -142,7 +142,7 @@
     <div style="display:flex;flex-direction:column;gap:.75rem">
 
       <!-- Placeholder -->
-      <div id="api-info-placeholder" style="padding:3rem 1.5rem;text-align:center;background:rgba(74,140,92,.03);border-radius:12px;border:1.5px dashed rgba(74,140,92,.2)">
+      <div id="api-info-placeholder" style="padding:3rem 1.5rem;text-align:center;background:#f4faf6;border-radius:12px;border:1.5px dashed rgba(74,140,92,.2)">
         <div style="font-size:2.8rem;margin-bottom:.8rem">🌤️</div>
         <div style="font-size:.8rem;color:rgba(74,46,26,.45);line-height:1.7">Hacé clic en el mapa<br>o ingresá coordenadas<br>para cargar los datos del lote</div>
       </div>
@@ -151,7 +151,7 @@
       <div id="api-info" class="hidden" style="display:flex;flex-direction:column;gap:.7rem">
 
         <!-- Ubicación + suelo -->
-        <div style="background:rgba(74,140,92,.07);border-radius:9px;padding:.6rem .85rem;border:1px solid rgba(74,140,92,.18);font-size:.78rem;line-height:1.6">
+        <div style="background:#fff;border-radius:9px;padding:.65rem .85rem;border:1px solid rgba(74,140,92,.3);font-size:.78rem;line-height:1.6;box-shadow:0 2px 6px rgba(0,0,0,.18)">
           <div style="font-weight:700;color:#1b5e35;margin-bottom:.1rem" id="i-ubi">—</div>
           <div style="color:#4a5568">🗺️ Suelo: <span id="i-suelo" style="font-weight:600;color:#2d6a4f">—</span></div>
         </div>
@@ -215,10 +215,10 @@
   </div>
 
   <!-- ── ACCESO A MÓDULOS ─────────────────────────────────── -->
-  <div style="margin-top:1.4rem">
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem">
-      <div class="card-title" style="margin-bottom:0">🚀 Módulos del flujo agronómico</div>
-      <span style="font-size:.7rem;color:rgba(74,46,26,.5)">Tocá una tarjeta para abrir el módulo</span>
+  <div class="card" style="margin-top:1rem;border:1.5px solid rgba(74,140,92,.22)">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;flex-wrap:wrap">
+      <div class="card-title" style="margin-bottom:0;padding-bottom:0;border:none">🚀 Módulos del flujo agronómico</div>
+      <span style="font-size:.72rem;color:rgba(74,46,26,.6)">Tocá una tarjeta para abrir el módulo</span>
     </div>
 
     <div class="mod-group-title">1 · Planificación</div>
@@ -430,7 +430,7 @@
   <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
 
   <!-- Ingreso de coordenadas -->
-  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:rgba(74,46,26,.04)">
+  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:#fbf6ec">
     <div class="card-title" style="color:#7A4A10">
       🌍 Consulta de propiedades del suelo
       <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">SoilGrids ISRIC · 250 m · CC BY 4.0 · Sin API key</span>
@@ -483,7 +483,7 @@
       <div id="suelo-alertas"></div>
 
       <!-- Nota de fuente -->
-      <div style="margin-top:1rem;padding:.6rem .9rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.45);border:1px solid var(--border)">
+      <div style="margin-top:1rem;padding:.6rem .9rem;background:#fbf6ec;border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.45);border:1px solid var(--border)">
         📡 <strong>Fuente:</strong> SoilGrids 2.0 — ISRIC/Wageningen · Modelo de machine learning entrenado con 230.000 perfiles de suelo · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis local para decisiones críticas.
       </div>
     </div>
@@ -739,7 +739,7 @@
     <!-- COLUMNA DERECHA: RESULTADOS -->
     <div>
       <!-- DÓLAR EN TIEMPO REAL -->
-      <div class="card" style="background:rgba(26,51,32,.04);border:1px solid rgba(74,140,92,.2)">
+      <div class="card" style="background:#f0f5f1;border:1px solid rgba(74,140,92,.2)">
         <div class="card-title">💱 Tipo de cambio — tiempo real</div>
         <div id="ec-dolar-panel">
           <div style="text-align:center;padding:1rem;color:rgba(74,46,26,.4);font-size:.85rem">Cargando...</div>
@@ -803,7 +803,7 @@
           <div id="ec-breakeven" style="margin-top:.8rem"></div>
 
           <!-- NOTA METODOLÓGICA -->
-          <div style="margin-top:.8rem;padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
+          <div style="margin-top:.8rem;padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
             <strong>Etapa 2:</strong> precios en tiempo real desde API Matba-Rofex.
           </div>
@@ -823,7 +823,7 @@
     <div>
 
       <!-- PANEL ENSO -->
-      <div class="card" style="border:1.5px solid rgba(42,90,140,.3);background:rgba(42,90,140,.04)">
+      <div class="card" style="border:1.5px solid rgba(42,90,140,.3);background:#f3f7fd">
         <div class="card-title" style="color:#2A5A8C">
           🌊 Estado ENSO — NOAA/CPC
           <span id="enso-ts" style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)">cargando...</span>
@@ -907,7 +907,7 @@
             <input type="number" id="bh-enso-var" readonly style="background:rgba(42,90,140,.06);font-weight:600">
           </div>
         </div>
-        <div id="bh-enso-info" style="margin-top:.5rem;font-size:.75rem;padding:.5rem .7rem;border-radius:6px;background:rgba(74,46,26,.04)"></div>
+        <div id="bh-enso-info" style="margin-top:.5rem;font-size:.75rem;padding:.5rem .7rem;border-radius:6px;background:#fbf6ec"></div>
 
         <div class="divider"></div>
         <div class="sl">Precipitación histórica del lote (NASA POWER)</div>
@@ -978,7 +978,7 @@
           <div id="bh-fertilizacion" style="margin-bottom:1rem"></div>
 
           <!-- Nota -->
-          <div style="padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
+          <div style="padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Metodología:</strong> FAO-56 Penman-Monteith (Kc × ET₀) · Función respuesta rendimiento/agua FAO (Doorenbos & Kassam) ·
             ENSO: NOAA/CPC · ET₀ histórica: NASA POWER · Datos de suelo: SoilGrids ISRIC
           </div>
@@ -1108,7 +1108,7 @@
       </div>
 
       <!-- Info metodológica -->
-      <div class="card" style="margin-top:1rem;background:rgba(74,46,26,.03);border:1px solid var(--border)">
+      <div class="card" style="margin-top:1rem;background:#fbfaf6;border:1px solid var(--border)">
         <div class="card-title" style="font-size:.82rem">📚 Fuentes de datos</div>
         <div style="font-size:.74rem;color:rgba(74,46,26,.6);line-height:1.7">
           <div>🌾 <strong>RECSO (INTA Oliveros)</strong> — Red de Ensayos Comparativos de Soja · 370 ensayos · 62 localidades · Campaña 2024/25</div>
@@ -1285,7 +1285,7 @@
           `<button onclick="iaPreguntar('${p}')" style="display:block;width:100%;text-align:left;background:rgba(42,90,140,.06);border:1px solid rgba(42,90,140,.12);border-radius:8px;padding:.45rem .65rem;margin-bottom:.35rem;font-size:.74rem;color:var(--field);cursor:pointer;font-family:'DM Sans',sans-serif;line-height:1.4">${p}</button>`
         ).join('')}
 
-        <div style="margin-top:.8rem;padding:.5rem .7rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.68rem;color:rgba(74,46,26,.45);line-height:1.5">
+        <div style="margin-top:.8rem;padding:.5rem .7rem;background:#fbf6ec;border-radius:8px;font-size:.68rem;color:rgba(74,46,26,.45);line-height:1.5">
           🤖 Powered by <strong>Claude AI</strong> (Anthropic) · Las respuestas usan los datos reales de tu lote cuando están disponibles.
         </div>
       </div>
@@ -1580,7 +1580,7 @@
               <div style="font-family:'DM Mono',monospace;font-size:3rem;font-weight:500;color:var(--warn)" id="pd-buffer-val">—</div>
               <div style="font-size:.8rem;color:rgba(74,46,26,.5)">metros</div>
             </div>
-            <div style="margin-top:.7rem;font-size:.78rem;color:rgba(74,46,26,.6);padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px" id="pd-buffer-nota"></div>
+            <div style="margin-top:.7rem;font-size:.78rem;color:rgba(74,46,26,.6);padding:.55rem .8rem;background:#fbf6ec;border-radius:8px" id="pd-buffer-nota"></div>
           </div>
           <div style="margin-top:1rem;font-size:.72rem;color:rgba(74,46,26,.4);line-height:1.5">
             📋 Buffer calculado según tipo de lindero, boquilla y viento actual. Verificar legislación provincial vigente y restricciones del marbete.
@@ -1807,9 +1807,9 @@
       <div id="dec-cult-elegido-banner" class="hidden" style="margin-top:1rem;padding:.8rem 1rem;background:rgba(42,122,74,.12);border-radius:12px;border:1px solid rgba(42,122,74,.25);font-size:.82rem;font-weight:600;color:var(--ok)"></div>
 
       <!-- Nota aclaratoria -->
-      <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.3)">
         <div class="card-title" style="color:#2A5A8C;font-size:.88rem">📋 Cómo interpretar el análisis</div>
-        <div style="font-size:.78rem;color:rgba(74,46,26,.65);line-height:1.7">
+        <div style="font-size:.78rem;color:#374151;line-height:1.7">
           <div style="margin-bottom:.4rem">🌱 <strong>Score agronómico</strong> — evalúa qué cultivo se adapta mejor a las condiciones del lote: agua disponible, temperatura, tipo de suelo, escenario climático y rotación.</div>
           <div style="margin-bottom:.4rem">💰 <strong>Margen bruto estimado</strong> — calcula la rentabilidad esperada considerando el rendimiento alcanzable, el precio del grano con retenciones y los costos de producción de referencia.</div>
           <div style="margin-bottom:.4rem">⚖️ <strong>Relación insumo/producto</strong> — cuántos quintales del cultivo necesitás para pagar los insumos. Menor es mejor.</div>
@@ -1893,7 +1893,7 @@
         </button>
       </div>
 
-      <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.15)">
         <div class="card-title" style="color:#2A5A8C;font-size:.88rem">📋 ¿Qué es la dosis óptima económica?</div>
         <div style="font-size:.78rem;color:rgba(74,46,26,.65);line-height:1.7">
           <div style="margin-bottom:.4rem">Es la dosis donde el <strong>costo del kg adicional de fertilizante</strong> iguala el <strong>valor del grano adicional</strong> que ese kg produce.</div>
@@ -1980,7 +1980,7 @@
         </button>
       </div>
 
-      <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.15)">
         <div class="card-title" style="color:#2A5A8C;font-size:.88rem">🔄 El ciclo de nutrientes</div>
         <div style="font-size:.78rem;color:rgba(74,46,26,.65);line-height:1.8">
           <div>📥 <strong>El cultivo extrae</strong> nutrientes del suelo a través del grano y el rastrojo</div>
@@ -2833,7 +2833,7 @@
         </div>
 
         <!-- EMPRESA -->
-        <div style="border:1.5px solid rgba(42,90,140,.3);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(42,90,140,.04)">
+        <div style="border:1.5px solid rgba(42,90,140,.3);border-radius:16px;padding:1.2rem;text-align:center;background:#f3f7fd">
           <div style="font-size:1.8rem;margin-bottom:.4rem">🏢</div>
           <div style="font-weight:700;font-size:.95rem;color:var(--earth);margin-bottom:.2rem">Empresa</div>
           <div style="font-size:1.4rem;font-weight:700;color:#1A4A7A;margin-bottom:.1rem">USD 299</div>

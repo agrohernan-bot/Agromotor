@@ -769,10 +769,10 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   font-size: .78rem;
   line-height: 1.6;
 }
-.dp-green { background: rgba(74,140,92,.07); border-color: rgba(74,140,92,.2); }
-.dp-blue  { background: rgba(122,174,245,.08); border-color: rgba(122,174,245,.22); }
-.dp-gold  { background: rgba(200,162,85,.07); border-color: rgba(200,162,85,.2); }
-.dp-muted { background: rgba(74,140,92,.03); border-color: rgba(74,140,92,.2); border-style: dashed; }
+.dp-green { background: #f4faf6; border-color: rgba(74,140,92,.35); box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.dp-blue  { background: #f3f7fd; border-color: rgba(122,174,245,.4);  box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.dp-gold  { background: #fbf6e9; border-color: rgba(200,162,85,.4);   box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+.dp-muted { background: #fbfaf6; border-color: rgba(74,140,92,.3); border-style: dashed; }
 
 /* ── KPI ROW (fila icono + valor + label) ── */
 .kpi-row {
@@ -1392,14 +1392,14 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
    DASHBOARD · TARJETAS DE MÓDULOS
    ════════════════════════════════════════════════════════ */
 .mod-group-title {
-  font-size: .68rem;
+  font-size: .7rem;
   font-weight: 700;
   letter-spacing: .14em;
   text-transform: uppercase;
-  color: rgba(74,46,26,.55);
-  margin: 1.1rem 0 .55rem;
-  padding-bottom: .3rem;
-  border-bottom: 1px dashed rgba(74,140,92,.18);
+  color: #2d6a4f;
+  margin: 1.1rem 0 .6rem;
+  padding-bottom: .35rem;
+  border-bottom: 1px dashed rgba(74,140,92,.35);
 }
 .mod-card-grid {
   display: grid;
