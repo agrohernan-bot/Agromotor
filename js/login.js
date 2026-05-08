@@ -67,34 +67,53 @@ const AM_PLANES = {
 let AM_SESION = null;
 
 // ── LISTENER CENTRAL (única fuente de verdad) ─────────
-AM_SB.auth.onAuthStateChange(async (event, session) => {
+// IMPORTANTE: NUNCA usar `await` directo a Supabase dentro de onAuthStateChange
+// — causa deadlock con supabase-js v2. Usamos user_metadata (ya en el JWT)
+// como fuente primaria, y enrich desde profiles de forma deferred.
+AM_SB.auth.onAuthStateChange((event, session) => {
   if (session?.user) {
-    // Cargar plan + matrícula desde la tabla profiles
-    const { data: profile } = await AM_SB
-      .from('profiles')
-      .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
-      .eq('id', session.user.id)
-      .single();
-
+    var meta = session.user.user_metadata || {};
+    // Estado inmediato basado en el JWT (no requiere DB query)
     AM_SESION = {
       id:        session.user.id,
       email:     session.user.email,
-      nombre:    profile?.nombre
-                   || session.user.user_metadata?.nombre
-                   || session.user.email.split('@')[0],
-      plan:      profile?.plan ?? 'free',
-      planHasta: profile?.plan_hasta  ?? null,
-      trialHasta:profile?.trial_hasta ?? null,
-      rol:       profile?.rol ?? 'agronomo',
-      cpia:      profile?.cpia ?? null,
-      matricula: profile?.matricula_numero ?? null,
-      matriculaVerificada: !!profile?.matricula_verificada,
+      nombre:    meta.nombre || session.user.email.split('@')[0],
+      plan:      meta.plan || 'free',
+      planHasta: null,
+      trialHasta:null,
+      rol:       meta.rol || 'agronomo',
+      cpia:      meta.cpia || null,
+      matricula: meta.matricula_numero || null,
+      matriculaVerificada: false,
       token:     session.access_token
     };
+    amActualizarUI();
+
+    // Enrich desde profiles en background (no bloquea el flow)
+    setTimeout(function() {
+      Promise.race([
+        AM_SB.from('profiles')
+          .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
+          .eq('id', session.user.id).maybeSingle(),
+        new Promise(function(resolve) { setTimeout(function() { resolve({ data: null, error: { message: 'timeout' } }); }, 5000); })
+      ]).then(function(res) {
+        if (!AM_SESION || !res?.data) return;
+        var p = res.data;
+        AM_SESION.nombre    = p.nombre    || AM_SESION.nombre;
+        AM_SESION.plan      = p.plan      || AM_SESION.plan;
+        AM_SESION.planHasta = p.plan_hasta;
+        AM_SESION.trialHasta= p.trial_hasta;
+        AM_SESION.rol       = p.rol       || AM_SESION.rol;
+        AM_SESION.cpia      = p.cpia      || AM_SESION.cpia;
+        AM_SESION.matricula = p.matricula_numero || AM_SESION.matricula;
+        AM_SESION.matriculaVerificada = !!p.matricula_verificada;
+        amActualizarUI();
+      }).catch(function() { /* noop — usamos lo que ya tenemos del JWT */ });
+    }, 0);
   } else {
     AM_SESION = null;
+    amActualizarUI();
   }
-  amActualizarUI();
 });
 
 // ── VERIFICAR ACCESO A MÓDULO ─────────────────────────
