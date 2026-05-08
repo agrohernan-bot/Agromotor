@@ -169,7 +169,7 @@ async function iaEnviar() {
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         system: iaSistemaPrompt(),
         messages: IA_HISTORIAL.slice(-10),

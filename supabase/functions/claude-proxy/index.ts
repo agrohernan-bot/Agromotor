@@ -96,7 +96,7 @@ serve(async (req: Request) => {
     const body = await req.json();
 
     const payload = {
-      model:      body.model      ?? 'claude-sonnet-4-20250514',
+      model:      body.model      ?? 'claude-sonnet-4-5',
       max_tokens: Math.min(body.max_tokens ?? 1000, 2000),
       system:     body.system,
       messages:   body.messages,
