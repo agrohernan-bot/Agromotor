@@ -1,0 +1,3311 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Siembra Variable: Chart.js · Turf.js · shpwrite (cargados globalmente, no duplicar) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+  <script src="https://unpkg.com/shpwrite@0.3.2/shpwrite.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+
+  <!-- Estilos propios -->
+  <link rel="stylesheet" href="css/agromotor.css">
+  <link rel="stylesheet" href="css/cosecha.css">
+  <link rel="stylesheet" href="css/siembra-variable.css">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css">
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1E4D2B">
+</head>
+<body>
+
+
+
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon">🌱</div>
+      <div>
+        <div class="logo-text">Agro<span>Motor</span></div>
+        <span class="logo-tagline">Motor Agronómico de Decisión · Argentina</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="header-inta">Lógica agronómica INTA</div>
+      <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
+      <button onclick="amInstalarPWA()" id="am-btn-pwa" class="btn-hdr btn-hdr-green hidden" title="Instalar AgroMotor como app">📲 Instalar</button>
+      <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
+      <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
+      <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
+      <!-- GESTOR GLOBAL DE LOTES -->
+      <div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.05);padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(255,255,255,.1);">
+        <select id="am-global-lotes" onchange="amCambiarLoteGlobal()" style="background:url('data:image/svg+xml;utf8,<svg fill=%22%237AAEF5%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right .2rem center;border:none;color:#7AAEF5;font-size:.75rem;font-weight:600;padding-right:1.5rem;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;background-size:16px;">
+          <option value="default" style="background:#1A2A20">Lote Principal</option>
+        </select>
+        <button onclick="amCrearLoteGlobal()" style="background:rgba(122,174,245,.15);border:none;color:#7AAEF5;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem;font-weight:bold;transition:all .2s;" title="Crear nuevo lote">+</button>
+      </div>
+      <div class="header-badge">v3.8 · Balance Nutricional</div>
+    </div>
+  </div>
+</header>
+
+<nav class="module-nav">
+  <div class="nav-inner">
+    <!-- 1. PLANIFICACIÓN -->
+    <div class="nav-tab active" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
+    <div class="nav-tab" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
+    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
+    <div class="nav-sep"></div>
+    <!-- 2. IMPLANTACIÓN -->
+    <div class="nav-tab" onclick="switchMod('siembra')"><span class="dot"></span>🌱 Siembra</div>
+    <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Suelo</div>
+    <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
+    <div class="nav-sep"></div>
+    <!-- 3. NUTRICIÓN -->
+    <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>⚗️ Fertilización</div>
+    <div class="nav-tab" onclick="switchMod('fertoptima')"><span class="dot"></span>🧪 Dosis Óptima</div>
+    <div class="nav-tab" onclick="switchMod('balancenut')"><span class="dot"></span>🔄 Bal. Nutricional</div>
+    <div class="nav-sep"></div>
+    <!-- 4. ECONOMÍA -->
+    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
+    <div class="nav-tab" onclick="switchMod('cosecha')"><span class="dot"></span>🌾 Cosecha</div>
+    <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>🚜 Maquinaria</div>
+    <div class="nav-sep"></div>
+    <!-- 5. SANIDAD -->
+    <div class="nav-tab" onclick="switchMod('plagas')"><span class="dot"></span>🐛 Plagas</div>
+    <div class="nav-tab" onclick="switchMod('alerta-sanitaria')"><span class="dot"></span>🦠 Enfermedades</div>
+    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
+    <div class="nav-sep"></div>
+    <!-- 6. AVANZADO -->
+    <div class="nav-tab" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
+    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
+    <div class="nav-tab nav-tab-ia" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
+    <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
+  </div>
+</nav>
+
+<main>
+
+<!-- ══ MÓDULO DASHBOARD ══ -->
+<div id="mod-dashboard" class="module-panel active">
+
+  <!-- ── HEADER ────────────────────────────────────────── -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;flex-wrap:wrap;gap:.8rem">
+    <div>
+      <div class="module-title" style="margin-bottom:.1rem">Dashboard del <em>Lote</em></div>
+      <div class="module-subtitle" style="margin-bottom:0">Mapa satelital · condiciones ambientales en tiempo real · gestión de lotes</div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      <select id="am-dash-lotes" onchange="amCambiarLoteGlobalDesdeDash(this.value)"
+        style="border:1.5px solid rgba(122,174,245,.35);color:#1A3A6C;font-size:.78rem;padding:.35rem .7rem;border-radius:8px;outline:none;cursor:pointer;background:#fff;font-weight:600;max-width:200px">
+      </select>
+      <button class="btn btn-p" onclick="amCrearLoteGlobal()"
+        style="height:36px;padding:0 .9rem;font-size:.8rem;background:linear-gradient(135deg,#1A3A6C,#2A5A8C);border:none;white-space:nowrap">
+        ➕ Nuevo lote
+      </button>
+      <button class="btn btn-s" onclick="amEliminarLoteGlobal()"
+        style="height:36px;padding:0 .75rem;font-size:.85rem;color:#C94A2A;border-color:rgba(201,74,42,.3);background:rgba(201,74,42,.04)"
+        title="Eliminar lote actual">🗑️</button>
+    </div>
+  </div>
+
+  <!-- ── CUERPO PRINCIPAL ───────────────────────────────── -->
+  <div style="display:grid;grid-template-columns:1fr 310px;gap:1.2rem;margin-bottom:1.2rem;align-items:start">
+
+    <!-- MAPA (hero) -->
+    <div class="card" style="padding:0;overflow:hidden;border:1.5px solid rgba(74,140,92,.25)">
+      <div id="am-inline-map" style="width:100%;height:440px;background:#1A2A20;position:relative"></div>
+      <div style="padding:.85rem 1rem;border-top:1px solid rgba(74,140,92,.12);background:#fafafa">
+        <div style="display:grid;grid-template-columns:1fr auto auto;gap:.7rem;align-items:flex-end">
+          <div class="fg" style="margin-bottom:0">
+            <label style="font-size:.68rem">Coordenadas del lote <span class="it" title="DMS: 33°23'42.55&quot;S 60°11'29.87&quot;W  ó  decimal: -33.395, -60.192">?</span></label>
+            <input type="text" id="s-coord" placeholder="Ej: -33.395, -60.192" style="font-family:'DM Mono',monospace;font-size:.82rem">
+          </div>
+          <div><button class="btn btn-s" id="btn-gps" onclick="usarGPS()" style="height:40px;padding:0 .8rem;font-size:.8rem" title="Usar GPS">📍 GPS</button></div>
+          <div><button class="btn btn-p" id="btn-api" onclick="buscarAPI()" style="height:40px;font-size:.8rem;white-space:nowrap">🌡️ Obtener datos</button></div>
+        </div>
+        <div id="api-st" class="hidden" style="margin-top:.55rem;font-size:.78rem;display:flex;align-items:center;gap:.5rem;color:var(--canopy)">
+          <span id="api-sp"></span><span id="api-msg"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- PANEL DE DATOS AMBIENTALES -->
+    <div style="display:flex;flex-direction:column;gap:.75rem">
+
+      <!-- Placeholder -->
+      <div id="api-info-placeholder" style="padding:3rem 1.5rem;text-align:center;background:#f4faf6;border-radius:12px;border:1.5px dashed rgba(74,140,92,.2)">
+        <div style="font-size:2.8rem;margin-bottom:.8rem">🌤️</div>
+        <div style="font-size:.8rem;color:rgba(74,46,26,.45);line-height:1.7">Hacé clic en el mapa<br>o ingresá coordenadas<br>para cargar los datos del lote</div>
+      </div>
+
+      <!-- Datos (se revela con buscarAPI) -->
+      <div id="api-info" class="hidden" style="display:flex;flex-direction:column;gap:.7rem">
+
+        <!-- Ubicación + suelo -->
+        <div style="background:#fff;border-radius:9px;padding:.65rem .85rem;border:1px solid rgba(74,140,92,.3);font-size:.78rem;line-height:1.6;box-shadow:0 2px 6px rgba(0,0,0,.18)">
+          <div style="font-weight:700;color:#1b5e35;margin-bottom:.1rem" id="i-ubi">—</div>
+          <div style="color:#4a5568">🗺️ Suelo: <span id="i-suelo" style="font-weight:600;color:#2d6a4f">—</span></div>
+        </div>
+
+        <!-- Open-Meteo KPIs -->
+        <div>
+          <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--canopy);margin-bottom:.45rem">🛰️ Open-Meteo · Tiempo real</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem">
+
+            <div class="kpi-row"><span class="kpi-row-ico">🌡️</span><div><div class="kpi-row-val" id="i-temp">—</div><div class="kpi-row-lbl">T° Suelo</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">💧</span><div><div class="kpi-row-val" id="i-hum">—</div><div class="kpi-row-lbl">Hum. 3-9cm</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌿</span><div><div class="kpi-row-val" id="i-et0">—</div><div class="kpi-row-lbl">ET₀</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">💨</span><div><div class="kpi-row-val" id="i-vpd">—</div><div class="kpi-row-lbl">VPD</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌬️</span><div><div class="kpi-row-val" id="i-viento">—</div><div class="kpi-row-lbl">Viento</div></div></div>
+            <div class="kpi-row"><span class="kpi-row-ico">🌾</span><div><div class="kpi-row-val" id="i-gdd">—</div><div class="kpi-row-lbl">GDD Acum.</div></div></div>
+
+          </div>
+        </div>
+
+        <!-- NASA POWER -->
+        <div id="nasa-info" class="dp dp-blue hidden">
+          <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#2A5A8C;margin-bottom:.5rem">🚀 NASA POWER · Histórico 30 años</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.74rem;color:#374151">
+            <div>☀️ Rad: <b style="color:#2A5A8C" id="np-rad">—</b></div>
+            <div>💧 Prec/mes: <b style="color:#2A5A8C" id="np-prec">—</b></div>
+            <div>🌡️ T°máx: <b style="color:#2A5A8C" id="np-tmax">—</b></div>
+            <div>🌡️ T°mín: <b style="color:#2A5A8C" id="np-tmin">—</b></div>
+            <div>🌿 ET₀/mes: <b style="color:#2A5A8C" id="np-et0">—</b></div>
+            <div>💦 HR: <b style="color:#2A5A8C" id="np-rh">—</b></div>
+            <div>📅 Días lluvia: <b style="color:#2A5A8C" id="np-drd">—</b></div>
+            <div>📊 Balance: <b style="color:#2A5A8C" id="np-bal">—</b></div>
+          </div>
+        </div>
+
+        <!-- SoilGrids -->
+        <div id="sg-info" class="dp dp-gold hidden">
+          <div style="font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#92400e;margin-bottom:.5rem">🌍 SoilGrids ISRIC · 250 m</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.74rem;color:#374151">
+            <div>⚗️ pH: <b style="color:#92400e" id="sg-ph">—</b></div>
+            <div>🏺 Arcilla: <b style="color:#92400e" id="sg-clay">—</b></div>
+            <div>🏖️ Arena: <b style="color:#92400e" id="sg-sand">—</b></div>
+            <div>🌱 C.org: <b style="color:#92400e" id="sg-soc">—</b></div>
+            <div>🔬 N total: <b style="color:#92400e" id="sg-n">—</b></div>
+            <div>⚖️ DA: <b style="color:#92400e" id="sg-da">—</b></div>
+            <div>🧲 CEC: <b style="color:#92400e" id="sg-cec">—</b></div>
+            <div>🗺️ Textura: <b style="color:#92400e" id="sg-textura">—</b></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MIS LOTES (full width) ─────────────────────────── -->
+  <div class="card" style="border:1.5px solid rgba(122,174,245,.2);background:#fff">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem">
+      <div class="card-title" style="color:#1A3A6C;margin-bottom:0">📂 Mis Lotes</div>
+      <span id="dash-lotes-counter" style="font-size:.72rem;font-weight:700;background:rgba(122,174,245,.1);color:#7AAEF5;padding:.2rem .75rem;border-radius:10px;border:1px solid rgba(122,174,245,.25)">—</span>
+    </div>
+    <div id="am-lista-lotes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.7rem"></div>
+  </div>
+
+  <!-- ── ACCESO A MÓDULOS ─────────────────────────────────── -->
+  <div id="dash-mod-section" class="card" style="margin-top:1rem;border:1.5px solid rgba(74,140,92,.22);background:#fdfaf5">
+    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;flex-wrap:wrap">
+      <div class="card-title" style="margin-bottom:0;padding-bottom:0;border:none;color:#3D2210">🚀 Módulos del flujo agronómico</div>
+      <span style="font-size:.74rem;color:#5a4a32;font-weight:500">Tocá una tarjeta para abrir el módulo</span>
+    </div>
+
+    <div class="mod-group-title">1 · Planificación</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-plan" onclick="switchMod('decision')"><div class="mc-ico">⚖️</div><div class="mc-name">¿Qué sembrar?</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Comparación económica entre cultivos</div></div>
+      <div class="mod-card mc-plan" onclick="switchMod('cultivares')"><div class="mc-ico">🌾</div><div class="mc-name">Cultivares</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Selección de variedades · GM · densidad</div></div>
+    </div>
+
+    <div class="mod-group-title">2 · Implantación</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-imp" onclick="switchMod('siembra')"><div class="mc-ico">🌱</div><div class="mc-name">Siembra</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Compactación · humedad · pronóstico</div></div>
+      <div class="mod-card mc-imp" onclick="switchMod('suelo')"><div class="mc-ico">🌍</div><div class="mc-name">Suelo</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">SoilGrids · pH · MO · CEC</div></div>
+      <div class="mod-card mc-imp" onclick="switchMod('hidrico')"><div class="mc-ico">💧</div><div class="mc-name">Hídrico</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico · ENSO · perfil</div></div>
+    </div>
+
+    <div class="mod-group-title">3 · Nutrición</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-nut" onclick="switchMod('fertilizacion')"><div class="mc-ico">⚗️</div><div class="mc-name">Fertilización</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">N · P · K · S · costo por ha</div></div>
+      <div class="mod-card mc-nut" onclick="switchMod('fertoptima')"><div class="mc-ico">🧪</div><div class="mc-name">Dosis Óptima</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Curvas INTA · óptimo económico</div></div>
+      <div class="mod-card mc-nut" onclick="switchMod('balancenut')"><div class="mc-ico">🔄</div><div class="mc-name">Bal. Nutricional</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Extracción vs reposición</div></div>
+    </div>
+
+    <div class="mod-group-title">4 · Economía</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-eco" onclick="switchMod('economia')"><div class="mc-ico">💰</div><div class="mc-name">Economía</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Margen bruto · dólar · precios</div></div>
+      <div class="mod-card mc-eco" onclick="switchMod('cosecha')"><div class="mc-ico">🌾</div><div class="mc-name">Cosecha</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Pérdidas · humedad de cosecha</div></div>
+      <div class="mod-card mc-eco" onclick="switchMod('maquinaria')"><div class="mc-ico">🚜</div><div class="mc-name">Maquinaria</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Costo operativo por hectárea</div></div>
+    </div>
+
+    <div class="mod-group-title">5 · Sanidad</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-san" onclick="switchMod('plagas')"><div class="mc-ico">🐛</div><div class="mc-name">Plagas</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Umbrales · monitoreo · control</div></div>
+      <div class="mod-card mc-san" onclick="switchMod('alerta-sanitaria')"><div class="mc-ico">🦠</div><div class="mc-name">Enfermedades</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Alertas según clima del lote</div></div>
+      <div class="mod-card mc-san" onclick="switchMod('pulverizacion')"><div class="mc-ico">💦</div><div class="mc-name">Pulverización</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Ventana de aplicación · pH · HRAC</div></div>
+    </div>
+
+    <div class="mod-group-title">6 · Avanzado</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
+      <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
+      <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ BOTÓN GLOBAL: VOLVER AL DASHBOARD ══ -->
+<button id="btn-volver-dash" onclick="switchMod('dashboard')" class="btn-volver-dash hidden" title="Volver al Dashboard">← Dashboard</button>
+
+<!-- ══ MÓDULO SIEMBRA ══ -->
+<div id="mod-siembra" class="module-panel">
+  <div class="module-title">Diagnóstico de <em>Siembra</em></div>
+  <div class="module-subtitle">Análisis de compactación, humedad y pronóstico del lote seleccionado</div>
+
+
+  <div class="grid-2">
+    <!-- INPUTS -->
+    <div>
+      <div class="card">
+        <div class="sl">Identificación del lote</div>
+        <div class="grid-3">
+          <div class="fg"><label>Cultivo</label>
+            <select id="s-cultivo">
+              <option>Maíz</option><option selected>Soja</option><option>Girasol</option>
+              <option>Trigo</option><option>Cebada</option><option>Sorgo</option><option>Colza</option>
+            </select>
+          </div>
+          <div class="fg"><label>Tipo de suelo <span id="s-sbadge" style="font-size:.63rem;color:var(--leaf);font-weight:600;text-transform:none;letter-spacing:0"></span></label>
+            <select id="s-suelo">
+              <option>Molisol</option><option>Vertisol</option><option>Alfisol</option><option>Entisol</option><option>Oxisol</option>
+            </select>
+          </div>
+          <div class="fg"><label>Fecha siembra</label>
+            <input type="date" id="s-fecha" style="font-size:.83rem">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Humedad del suelo por horizonte</div>
+        <div class="fg"><label>3–9 cm — zona superficial (%) <span class="it" title="Volumétrica. Autocompleta con Open-Meteo.">?</span></label>
+          <div class="sw"><input type="range" id="s-h1" min="0" max="50" value="22" oninput="sv('sv-h1',this.value+'%')"><span class="sv" id="sv-h1">22%</span></div>
+        </div>
+        <div class="fg"><label>9–27 cm — zona radicular activa (%) <span class="it" title="Mayor absorción de agua y nutrientes">?</span></label>
+          <div class="sw"><input type="range" id="s-h2" min="0" max="50" value="25" oninput="sv('sv-h2',this.value+'%')"><span class="sv" id="sv-h2">25%</span></div>
+        </div>
+        <div class="fg"><label>27–81 cm — reserva profunda (%)</label>
+          <div class="sw"><input type="range" id="s-h3" min="0" max="50" value="29" oninput="sv('sv-h3',this.value+'%')"><span class="sv" id="sv-h3">29%</span></div>
+        </div>
+        <div class="fg"><label>Prob. lluvia 72h (%)</label>
+          <div class="sw"><input type="range" id="s-lluv" min="0" max="100" value="40" oninput="sv('sv-lluv',this.value+'%')"><span class="sv" id="sv-lluv">40%</span></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Temperatura y rastrojo</div>
+        <div class="grid-2">
+          <div class="fg"><label>T° suelo 6 cm (°C)</label>
+            <div class="sw"><input type="range" id="s-t6" min="0" max="40" value="18" oninput="sv('sv-t6',this.value+'°')"><span class="sv" id="sv-t6">18°</span></div>
+          </div>
+          <div class="fg"><label>T° suelo 18 cm (°C)</label>
+            <div class="sw"><input type="range" id="s-t18" min="0" max="40" value="17" oninput="sv('sv-t18',this.value+'°')"><span class="sv" id="sv-t18">17°</span></div>
+          </div>
+        </div>
+        <div class="fg"><label>Rastrojo en superficie</label>
+          <select id="s-rast"><option value="no">Sin rastrojo</option><option value="si">Con rastrojo (~1.5°C menos)</option></select>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Estrés hídrico atmosférico</div>
+        <div class="grid-2">
+          <div class="fg"><label>ET₀ (mm/día) <span class="it" title="Evapotranspiración FAO-56. Open-Meteo lo calcula.">?</span></label>
+            <div class="sw"><input type="range" id="s-et0" min="0" max="12" step="0.1" value="4.0" oninput="sv('sv-et0',parseFloat(this.value).toFixed(1)+' mm')"><span class="sv" id="sv-et0">4.0 mm</span></div>
+          </div>
+          <div class="fg"><label>VPD (kPa) <span class="it" title="&lt;0.4 sin estrés · 0.4-1.6 normal · &gt;1.6 alto estrés">?</span></label>
+            <div class="sw"><input type="range" id="s-vpd" min="0" max="4" step="0.05" value="1.0" oninput="sv('sv-vpd',parseFloat(this.value).toFixed(2)+' kPa')"><span class="sv" id="sv-vpd">1.00 kPa</span></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Condiciones operativas</div>
+        <div class="grid-2">
+          <div class="fg"><label>Viento (km/h)</label>
+            <div class="sw"><input type="range" id="s-viento" min="0" max="60" value="12" oninput="sv('sv-viento',this.value+' km/h')"><span class="sv" id="sv-viento">12 km/h</span></div>
+          </div>
+          <div class="fg"><label>Tránsito reciente de maquinaria <span class="it" title="Afecta el riesgo de compactación calculado">?</span></label>
+            <select id="s-trafico">
+              <option value="0">Sin tránsito reciente</option>
+              <option value="1">Maquinaria liviana (cosechadora pequeña, tractor)</option>
+              <option value="2">Maquinaria pesada (cosechadora grande, camión)</option>
+              <option value="3">Tránsito intensivo o repetido</option>
+            </select>
+          </div>
+        </div>
+        <!-- Compactación: ahora calculada automáticamente, pero editable -->
+        <div style="background:rgba(74,140,92,.05);border-radius:10px;padding:.9rem;border:1px solid rgba(74,140,92,.15);margin-top:.5rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem">
+            <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--leaf)">🔬 Compactación</div>
+            <div id="compact-source" style="font-size:.65rem;color:rgba(74,46,26,.45)">ajuste manual</div>
+          </div>
+          <div class="fg" style="margin-bottom:.5rem">
+            <label>Resistencia penetrómetro (MPa) <span class="it" title="Se calcula automáticamente con datos de SoilGrids + Open-Meteo. Podés ajustarlo si tenés medición propia.">?</span></label>
+            <div class="sw"><input type="range" id="s-compact" min="0" max="5" step="0.1" value="1.5" oninput="sv('sv-compact',parseFloat(this.value).toFixed(1)+' MPa');$('compact-source').textContent='ajustado manualmente'"><span class="sv" id="sv-compact">1.5 MPa</span></div>
+          </div>
+          <div id="compact-calc-info" style="font-size:.75rem;color:rgba(74,46,26,.55);line-height:1.5">
+            Ingresá las coordenadas para calcular automáticamente con SoilGrids + Open-Meteo
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button class="btn btn-p btn-full btn-lg" onclick="if(typeof calcSiembra==='function')calcSiembra();else alert('Cargando... intentá de nuevo en un segundo')">🔍 Analizar condiciones de siembra</button>
+      </div>
+    </div>
+
+    <!-- RESULTADOS -->
+    <div>
+      <div class="card">
+        <div class="card-title">📊 Diagnóstico del lote</div>
+        <div id="s-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)">
+          <div style="font-size:3rem;margin-bottom:1rem">🌾</div>
+          <div style="font-size:.88rem">Ingresá coordenadas para datos reales<br>o ajustá los sliders manualmente y presioná<br><strong>Analizar condiciones</strong></div>
+        </div>
+        <div id="s-res" class="hidden">
+          <div id="s-banner"></div>
+          <div class="rg" id="s-kpis"></div>
+          <div style="margin-top:1.1rem"><div class="sl">Variables clave</div><div id="s-inds"></div></div>
+          <div style="margin-top:.8rem"><div class="sl">Recomendaciones técnicas</div><div id="s-recs"></div></div>
+        </div>
+      </div>
+
+      <div class="card gap-top hidden" id="pron-card">
+        <div class="card-title">📅 Pronóstico 7 días — datos reales Open-Meteo
+          <span style="font-size:.68rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">por coordenada del lote</span>
+        </div>
+        <div id="pron-tabla"></div>
+      </div>
+
+      <!-- NASA POWER: CONTEXTO CLIMÁTICO HISTÓRICO -->
+      <div class="card gap-top hidden" id="nasa-card">
+        <div class="card-title" style="color:#2A5A8C">
+          🚀 Contexto climático histórico — NASA POWER
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">30 años ERA5 · por coordenada</span>
+        </div>
+        <div id="nasa-contenido"></div>
+      </div>
+
+      <!-- SOILGRIDS: PROPIEDADES REALES DEL SUELO -->
+      <div class="card gap-top hidden" id="sg-card">
+        <div class="card-title" style="color:#7A4A10">
+          🌍 Propiedades reales del suelo — SoilGrids ISRIC
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">250 m · 6 profundidades · CC BY 4.0</span>
+        </div>
+        <div id="sg-contenido"></div>
+      </div>
+
+      <!-- RIESGO DE COMPACTACIÓN -->
+      <div class="card gap-top hidden" id="compact-card">
+        <div class="card-title" style="color:#7A1A0A">
+          🚜 Riesgo de Compactación — Modelo AgroMotor
+          <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">Índice S · PTF · SoilGrids + Open-Meteo</span>
+        </div>
+        <div id="compact-contenido"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO SUELO ══ -->
+<div id="mod-suelo" class="module-panel">
+  <div class="module-title">Análisis de <em>Suelo</em></div>
+  <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
+
+  <!-- Ingreso de coordenadas -->
+  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:#fbf6ec">
+    <div class="card-title" style="color:#7A4A10">
+      🌍 Consulta de propiedades del suelo
+      <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">SoilGrids ISRIC · 250 m · CC BY 4.0 · Sin API key</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:flex-end">
+      <div class="fg" style="margin-bottom:0">
+        <label>Coordenadas del lote</label>
+        <input type="text" id="suelo-coord" placeholder="33°23'42.55&quot;S 60°11'29.87&quot;W  ó  -33.395, -60.192"
+               style="font-family:'DM Mono',monospace;font-size:.84rem">
+      </div>
+      <div>
+        <button class="btn btn-primary" id="btn-suelo" onclick="consultarSuelo()" style="height:42px;background:linear-gradient(135deg,#5A3A10,#8A5A20)">
+          🌍 Analizar suelo
+        </button>
+      </div>
+    </div>
+    <div id="suelo-st" class="hidden" style="margin-top:.75rem;font-size:.8rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
+      <span id="suelo-sp" style="display:inline-block"></span>
+      <span id="suelo-msg"></span>
+    </div>
+    <p style="margin-top:.6rem;font-size:.75rem;color:rgba(74,46,26,.5)">
+      💡 Si ya consultaste el lote en el módulo de Siembra, los datos aparecen automáticamente aquí.
+    </p>
+  </div>
+
+  <!-- Resultados SoilGrids -->
+  <div id="suelo-resultado">
+    <div id="suelo-placeholder" style="text-align:center;padding:4rem 1rem;color:rgba(74,46,26,.35)">
+      <div style="font-size:4rem;margin-bottom:1rem">🌍</div>
+      <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Ingresá las coordenadas del lote</div>
+      <div style="font-size:.82rem">y tocá <strong>Analizar suelo</strong> para obtener pH, MO, C orgánico,<br>N total, densidad aparente, CEC y textura real del suelo</div>
+    </div>
+    <div id="suelo-kpis" class="hidden">
+      <!-- KPI cards principales -->
+      <div class="rg" id="suelo-kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:1.2rem"></div>
+
+      <!-- Barra granulométrica -->
+      <div class="card" style="margin-bottom:1.2rem" id="suelo-textura-card">
+        <div class="card-title">🏺 Composición granulométrica y textura</div>
+        <div id="suelo-textura-contenido"></div>
+      </div>
+
+      <!-- Tabla completa -->
+      <div class="card" style="margin-bottom:1.2rem">
+        <div class="card-title">📋 Propiedades del suelo — perfil completo</div>
+        <div id="suelo-tabla"></div>
+      </div>
+
+      <!-- Alertas e interpretaciones -->
+      <div id="suelo-alertas"></div>
+
+      <!-- Nota de fuente -->
+      <div style="margin-top:1rem;padding:.6rem .9rem;background:#fbf6ec;border-radius:8px;font-size:.72rem;color:rgba(74,46,26,.45);border:1px solid var(--border)">
+        📡 <strong>Fuente:</strong> SoilGrids 2.0 — ISRIC/Wageningen · Modelo de machine learning entrenado con 230.000 perfiles de suelo · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis local para decisiones críticas.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO 2 ══ -->
+<div id="mod-fertilizacion" class="module-panel">
+  <div class="module-title">Plan de <em>Fertilización</em></div>
+  <div class="module-subtitle">Cálculo NPK, selección de fertilizantes y costos USD por campaña</div>
+  <div class="grid-2">
+    <div><div class="card">
+      <div class="sl">Parámetros de campaña</div>
+      <div class="grid-2">
+        <div class="fg"><label>Cultivo</label>
+          <select id="f-cult" onchange="updRend()">
+            <option>Maíz</option><option selected>Soja</option><option>Girasol</option>
+            <option>Trigo</option><option>Cebada</option><option>Sorgo</option><option>Colza</option>
+          </select>
+        </div>
+        <div class="fg"><label>Superficie (ha)</label><input type="number" id="f-sup" value="100" min="1"></div>
+      </div>
+      <div class="fg"><label>Rendimiento objetivo (t/ha)</label>
+        <div class="sw"><input type="range" id="f-rend" min="1" max="15" step="0.5" value="3" oninput="sv('sv-rend',this.value+' t/ha')"><span class="sv" id="sv-rend">3 t/ha</span></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Análisis de suelo (kg/ha)</div>
+      <div class="grid-3">
+        <div class="fg"><label>N</label><input type="number" id="f-n" value="45" min="0"></div>
+        <div class="fg"><label>P</label><input type="number" id="f-p" value="18" min="0"></div>
+        <div class="fg"><label>K</label><input type="number" id="f-k" value="120" min="0"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Precios referencia (USD/tn)</div>
+      <div class="grid-2">
+        <div class="fg"><label>Urea</label><input type="number" id="f-p-u" value="550"></div>
+        <div class="fg"><label>MAP</label><input type="number" id="f-p-m" value="700"></div>
+        <div class="fg"><label>DAP</label><input type="number" id="f-p-d" value="750"></div>
+        <div class="fg"><label>KCl</label><input type="number" id="f-p-k" value="600"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="calcFert()">🧪 Calcular plan de fertilización</button>
+    </div></div>
+    <div><div class="card">
+      <div class="card-title">🧪 Plan de fertilización</div>
+      <div id="f-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)"><div style="font-size:3rem;margin-bottom:1rem">⚗️</div><div style="font-size:.88rem">Ingresá los datos del análisis<br>y el rendimiento objetivo</div></div>
+      <div id="f-res" class="hidden">
+        <div class="sl">Déficit calculado</div><div id="f-def"></div>
+        <div class="divider"></div>
+        <div class="sl">Fertilizantes recomendados</div><div id="f-ferts"></div>
+        <div class="divider"></div>
+        <div class="sl">Resumen económico</div><div id="f-costos"></div>
+        <div id="f-alertas" style="margin-top:.7rem"></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO 3 ══ -->
+<div id="mod-maquinaria" class="module-panel">
+  <div class="module-title">Productividad de <em>Maquinaria</em></div>
+  <div class="module-subtitle">Autonomía por tolva, jornada real, optimización de cargas y retorno de inversión</div>
+  <div class="grid-2">
+    <div><div class="card">
+      <div class="sl">Máquina y parámetros operativos</div>
+      <div class="fg"><label>Modelo de máquina</label>
+        <select id="m-maq" onchange="loadMaq()">
+          <option value="mixia">Crucianelli Mixia 13.5 m</option>
+          <option value="plantor">Crucianelli Plantor 9 m</option>
+          <option value="drilor">Crucianelli Drilor GF 7.5 m</option>
+          <option value="custom">Máquina personalizada</option>
+        </select>
+      </div>
+      <div class="grid-3">
+        <div class="fg"><label>Ancho (m)</label><input type="number" id="m-ancho" value="13.5" step="0.5" min="3" max="36"></div>
+        <div class="fg"><label>Velocidad (km/h)</label><input type="number" id="m-vel" value="7.5" step="0.1" min="3" max="15"></div>
+        <div class="fg"><label>Eficiencia</label>
+          <div class="sw"><input type="range" id="m-efic" min="0.5" max="1" step="0.01" value="0.85" oninput="sv('sv-efic',Math.round(this.value*100)+'%')"><span class="sv" id="sv-efic">85%</span></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="fg"><label>Horas/jornada</label><input type="number" id="m-hs" value="9.6" step="0.1" min="4" max="20"></div>
+        <div class="fg"><label>Recarga (min)</label><input type="number" id="m-rec" value="25" min="5" max="120"></div>
+      </div>
+      <div class="divider"></div>
+      <div class="sl">Configuración de tolvas</div>
+      <div id="m-tolvas"></div>
+      <div class="divider"></div>
+      <div class="sl">Análisis de inversión (opcional)</div>
+      <div class="grid-2">
+        <div class="fg"><label>Precio equipo (USD)</label><input type="number" id="m-precio" value="0" placeholder="0 = omitir"></div>
+        <div class="fg"><label>Margen neto (USD/ha)</label><input type="number" id="m-margen" value="0" placeholder="0 = omitir"></div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-p btn-full btn-lg" onclick="calcMaq()">🚜 Calcular productividad</button>
+    </div></div>
+    <div><div class="card">
+      <div class="card-title">🚜 Resultados operativos</div>
+      <div id="m-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)"><div style="font-size:3rem;margin-bottom:1rem">⚙️</div><div style="font-size:.88rem">Configurá la máquina y presioná<br><strong>Calcular productividad</strong></div></div>
+      <div id="m-res" class="hidden">
+        <div class="rg" id="m-kpis"></div>
+        <div style="margin-top:1.1rem"><div class="sl">Autonomía por tolva</div><div id="m-aut"></div></div>
+        <div style="margin-top:.9rem"><div class="sl">Resumen de jornada</div><div id="m-jorn"></div></div>
+        <div id="m-roi" class="hidden" style="margin-top:.9rem"><div class="sl">Retorno de inversión</div><div id="m-roi-c"></div></div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO ECONOMÍA ══ -->
+<div id="mod-economia" class="module-panel">
+  <div class="module-title">Economía de <em>Campaña</em></div>
+  <div class="module-subtitle">Margen bruto actual y a cosecha · Precios Rosario · Dólar en tiempo real · Insumos · Flete · Arrendamiento</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA: INPUTS -->
+    <div>
+
+      <!-- PRECIOS DE GRANOS -->
+      <div class="card">
+        <div class="card-title">🌾 Precios de granos
+          <span id="ec-dolar-badge" style="margin-left:auto;font-size:.68rem;font-weight:500;color:rgba(74,46,26,.4)">cargando dólar...</span>
+        </div>
+        <div class="sl" style="margin-bottom:.6rem">Cultivo principal</div>
+        <div class="fg">
+          <label>Cultivo</label>
+          <select id="ec-cultivo" onchange="ecActualizarCultivo()">
+            <option value="Soja">Soja</option>
+            <option value="Maíz">Maíz</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+            <option value="Cebada">Cebada</option>
+            <option value="Sorgo">Sorgo</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Precio disponible (hoy · Rosario)</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>USD/t <span class="it" title="Precio pizarra Rosario disponible hoy">?</span></label>
+            <input type="number" id="ec-precio-disp" value="290" min="50" max="800" oninput="ecCalc()">
+          </div>
+          <div class="fg">
+            <label>Convertido USD/qq</label>
+            <input type="number" id="ec-precio-qq" readonly style="background:rgba(74,140,92,.06);font-weight:600">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Precio a cosecha (futuro Matba-Rofex)
+          <span id="ec-futuro-label" style="font-size:.68rem;font-weight:400;color:var(--leaf)"> — Mayo 2026</span>
+        </div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>USD/t
+              <span class="it" title="Precio del contrato de futuro a cosecha. Etapa 2: se cargará automáticamente desde Matba-Rofex.">?</span>
+            </label>
+            <input type="number" id="ec-precio-fut" value="280" min="50" max="800" oninput="ecCalc()">
+          </div>
+          <div class="fg">
+            <label>Diferencia vs. disponible</label>
+            <input type="number" id="ec-spread" readonly style="background:rgba(74,46,26,.06);font-weight:600">
+          </div>
+        </div>
+        <div style="font-size:.72rem;color:rgba(74,46,26,.45);margin-top:.4rem;padding:.4rem .6rem;background:rgba(200,162,85,.08);border-radius:6px">
+          💡 <strong>Etapa 2:</strong> estos precios se cargarán automáticamente desde Matba-Rofex en tiempo real. Por ahora ingresalos manualmente consultando <a href="https://www.bcr.com.ar/es/mercados/mercado-de-granos/cotizaciones/cotizaciones-locales-0" target="_blank" style="color:var(--leaf)">BCR Rosario</a>.
+        </div>
+      </div>
+
+      <!-- PRODUCCIÓN -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-title">📊 Producción del lote</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Superficie (ha)</label>
+            <input type="number" id="ec-sup" value="100" min="1" max="10000" oninput="ecCalc()">
+          </div>
+          <div class="fg">
+            <label>Rendimiento esperado (t/ha)</label>
+            <input type="number" id="ec-rend" value="3.2" step="0.1" min="0.5" max="15" oninput="ecCalc()">
+          </div>
+        </div>
+        <div class="fg">
+          <label>Rendimiento a cosecha (t/ha) <span class="it" title="Puede ser diferente al esperado si ajustás por pronóstico o condiciones del lote">?</span></label>
+          <input type="number" id="ec-rend-fut" value="3.2" step="0.1" min="0.5" max="15" oninput="ecCalc()">
+        </div>
+      </div>
+
+      <!-- COSTOS -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-title">💸 Costos de producción (USD/ha)</div>
+        <div class="sl" style="margin-bottom:.5rem">Labores e insumos</div>
+        <div class="grid-2">
+          <div class="fg"><label>Semilla</label><input type="number" id="ec-semilla" value="65" min="0" oninput="ecCalc()"></div>
+          <div class="fg"><label>Fertilizantes</label><input type="number" id="ec-fertil" value="80" min="0" oninput="ecCalc()"></div>
+        </div>
+        <div class="grid-2">
+          <div class="fg"><label>Herbicidas / Fungicidas</label><input type="number" id="ec-agroquim" value="55" min="0" oninput="ecCalc()"></div>
+          <div class="fg"><label>Siembra (labor)</label><input type="number" id="ec-siembra" value="35" min="0" oninput="ecCalc()"></div>
+        </div>
+        <div class="grid-2">
+          <div class="fg"><label>Cosecha (labor)</label><input type="number" id="ec-cosecha" value="45" min="0" oninput="ecCalc()"></div>
+          <div class="fg"><label>Seguros y otros</label><input type="number" id="ec-otros" value="15" min="0" oninput="ecCalc()"></div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Comercialización</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Flete (km a acopio)</label>
+            <input type="number" id="ec-km" value="30" min="0" max="500" oninput="ecCalc()">
+          </div>
+          <div class="fg">
+            <label>Tarifa flete (USD/t/100km)</label>
+            <input type="number" id="ec-flete-tar" value="8.5" step="0.5" min="1" oninput="ecCalc()">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Paritaria / Comisión (%)</label>
+            <input type="number" id="ec-comision" value="2.5" step="0.5" min="0" max="10" oninput="ecCalc()">
+          </div>
+          <div class="fg">
+            <label>Secado / Acondicionamiento</label>
+            <input type="number" id="ec-secado" value="0" min="0" oninput="ecCalc()">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Tierra</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Tipo de tenencia</label>
+            <select id="ec-tenencia" onchange="ecCalc()">
+              <option value="propia">Campo propio</option>
+              <option value="arriendo">Arrendamiento</option>
+            </select>
+          </div>
+          <div class="fg" id="ec-arriendo-box">
+            <label>Arrendamiento (qq soja/ha)</label>
+            <input type="number" id="ec-arriendo-qq" value="10" step="0.5" min="0" max="30" oninput="ecCalc()">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <button class="btn btn-p btn-full btn-lg" onclick="ecActualizarDolar()">
+          💱 Actualizar dólar y recalcular
+        </button>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <!-- DÓLAR EN TIEMPO REAL -->
+      <div class="card" style="background:#f0f5f1;border:1px solid rgba(74,140,92,.2)">
+        <div class="card-title">💱 Tipo de cambio — tiempo real</div>
+        <div id="ec-dolar-panel">
+          <div style="text-align:center;padding:1rem;color:rgba(74,46,26,.4);font-size:.85rem">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- COMPARATIVO: HOY vs. COSECHA -->
+      <div class="card" style="margin-top:1rem" id="ec-res-card">
+        <div class="card-title">📈 Comparativo de márgenes</div>
+        <div id="ec-res-placeholder" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.35)">
+          <div style="font-size:3rem;margin-bottom:.8rem">💰</div>
+          <div style="font-size:.88rem">Completá los datos y el motor<br>calcula el margen actual y a cosecha</div>
+        </div>
+        <div id="ec-res" class="hidden">
+
+          <!-- Cards comparativas -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:1rem">
+
+            <!-- HOY -->
+            <div style="background:linear-gradient(135deg,#1A3320,#2D5A3D);border-radius:12px;padding:1rem;color:white">
+              <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:.6rem">📍 PRECIO HOY</div>
+              <div style="font-size:.75rem;opacity:.7;margin-bottom:.2rem">Precio disponible Rosario</div>
+              <div style="font-size:1.6rem;font-weight:700;font-family:'DM Serif Display',serif" id="ec-r-precio-disp">—</div>
+              <div style="font-size:.7rem;opacity:.6;margin-top:.8rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.15)">
+                Ingreso bruto: <strong id="ec-r-ing-disp">—</strong>
+              </div>
+            </div>
+
+            <!-- COSECHA -->
+            <div style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A);border-radius:12px;padding:1rem;color:white">
+              <div style="font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:.6rem">🎯 PRECIO COSECHA</div>
+              <div style="font-size:.75rem;opacity:.7;margin-bottom:.2rem" id="ec-r-futuro-mes">Futuro Rosario</div>
+              <div style="font-size:1.6rem;font-weight:700;font-family:'DM Serif Display',serif" id="ec-r-precio-fut">—</div>
+              <div style="font-size:.7rem;opacity:.6;margin-top:.8rem;padding-top:.6rem;border-top:1px solid rgba(255,255,255,.15)">
+                Ingreso bruto: <strong id="ec-r-ing-fut">—</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tabla de márgenes -->
+          <div style="overflow-x:auto">
+          <table class="dt">
+            <thead>
+              <tr>
+                <th>Concepto</th>
+                <th class="mn">Hoy (USD/ha)</th>
+                <th class="mn">Cosecha (USD/ha)</th>
+              </tr>
+            </thead>
+            <tbody id="ec-tabla-body"></tbody>
+          </table>
+          </div>
+
+          <!-- KPI PRINCIPALES -->
+          <div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-top:1rem" id="ec-kpis"></div>
+
+          <!-- RELACIÓN INSUMO/PRODUCTO -->
+          <div style="margin-top:1rem" id="ec-relaciones"></div>
+
+          <!-- PUNTO DE EQUILIBRIO -->
+          <div id="ec-breakeven" style="margin-top:.8rem"></div>
+
+          <!-- NOTA METODOLÓGICA -->
+          <div style="margin-top:.8rem;padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
+            📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
+            <strong>Etapa 2:</strong> precios en tiempo real desde API Matba-Rofex.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO BALANCE HÍDRICO ══ -->
+<div id="mod-hidrico" class="module-panel">
+  <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático</div>
+  <div class="module-subtitle">ENSO · Agua disponible · Requerimiento del cultivo · Rendimiento alcanzable · Riego suplementario</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA -->
+    <div>
+
+      <!-- PANEL ENSO -->
+      <div class="card" style="border:1.5px solid rgba(42,90,140,.3);background:#f3f7fd">
+        <div class="card-title" style="color:#2A5A8C">
+          🌊 Estado ENSO — NOAA/CPC
+          <span id="enso-ts" style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)">cargando...</span>
+        </div>
+        <div id="enso-panel">
+          <div style="text-align:center;padding:1.5rem;color:rgba(74,46,26,.35);font-size:.85rem">⟳ Consultando NOAA...</div>
+        </div>
+        <button class="btn btn-p" style="margin-top:.8rem;width:100%;background:linear-gradient(135deg,#1A3A6C,#2A5A8C)" onclick="consultarENSO()">
+          🌊 Actualizar estado ENSO
+        </button>
+      </div>
+
+      <!-- CONFIGURACIÓN CULTIVO Y ZONA -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-title">🌾 Configuración del lote</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Cultivo</label>
+            <select id="bh-cultivo" onchange="bhActualizar()">
+              <option value="Soja">Soja</option>
+              <option value="Maíz">Maíz</option>
+              <option value="Trigo">Trigo</option>
+              <option value="Girasol">Girasol</option>
+              <option value="Sorgo">Sorgo</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Fecha de siembra</label>
+            <input type="date" id="bh-fecha" onchange="bhActualizar()">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Rendimiento objetivo (t/ha)</label>
+            <input type="number" id="bh-rend-obj" value="3.5" step="0.1" min="0.5" max="15" oninput="bhActualizar()">
+          </div>
+          <div class="fg">
+            <label>Tipo de suelo</label>
+            <select id="bh-suelo" onchange="bhActualizar()">
+              <option value="Molisol">Molisol</option>
+              <option value="Vertisol">Vertisol</option>
+              <option value="Alfisol">Alfisol</option>
+              <option value="Entisol">Entisol</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Agua disponible inicial en el perfil</div>
+        <div class="grid-2">
+          <div class="fg">
+            <label>Agua útil actual (mm) <span class="it" title="Se puede autocompletar desde el módulo de Siembra si ya obtuviste datos de Open-Meteo">?</span></label>
+            <input type="number" id="bh-agua-perfil" value="120" min="0" max="400" oninput="bhActualizar()">
+          </div>
+          <div class="fg">
+            <label>Capacidad máx. perfil (mm)</label>
+            <input type="number" id="bh-cap-max" value="180" min="50" max="500" oninput="bhActualizar()">
+          </div>
+        </div>
+      </div>
+
+      <!-- ESCENARIO CLIMÁTICO ENSO -->
+      <div class="card" style="margin-top:1rem">
+        <div class="card-title">🌧️ Precipitación esperada en campaña</div>
+        <div class="sl" style="margin-bottom:.6rem">Escenario ENSO</div>
+        <div class="fg">
+          <label>Fase ENSO seleccionada</label>
+          <select id="bh-enso" onchange="bhActualizar()">
+            <option value="nino">El Niño — lluvias superiores al promedio</option>
+            <option value="neutro" selected>Neutro — lluvias en el promedio histórico</option>
+            <option value="nina">La Niña — lluvias inferiores al promedio</option>
+          </select>
+        </div>
+        <div class="grid-2" style="margin-top:.6rem">
+          <div class="fg">
+            <label>Precipitación ciclo (mm estimado)</label>
+            <input type="number" id="bh-precip" value="550" min="100" max="1200" oninput="bhActualizar()">
+          </div>
+          <div class="fg">
+            <label>Variación vs. promedio (%)</label>
+            <input type="number" id="bh-enso-var" readonly style="background:rgba(42,90,140,.06);font-weight:600">
+          </div>
+        </div>
+        <div id="bh-enso-info" style="margin-top:.5rem;font-size:.75rem;padding:.5rem .7rem;border-radius:6px;background:#fbf6ec"></div>
+
+        <div class="divider"></div>
+        <div class="sl">Precipitación histórica del lote (NASA POWER)</div>
+        <div class="fg">
+          <label>Precipitación media histórica ciclo (mm) <span class="it" title="Se completa automáticamente si obtuviste datos NASA POWER en el módulo de Siembra">?</span></label>
+          <input type="number" id="bh-precip-hist" value="580" min="100" max="1200" oninput="bhActualizar()">
+        </div>
+      </div>
+
+      <!-- RIEGO SUPLEMENTARIO -->
+      <div class="card" style="margin-top:1rem;border:1px solid rgba(42,90,140,.2)">
+        <div class="card-title" style="color:#2A5A8C">💧 Riego suplementario (opcional)</div>
+        <div class="fg">
+          <label>
+            <input type="checkbox" id="bh-riego-check" onchange="bhToggleRiego()">
+            &nbsp;El lote cuenta con sistema de riego
+          </label>
+        </div>
+        <div id="bh-riego-panel" class="hidden" style="margin-top:.8rem">
+          <div class="grid-2">
+            <div class="fg">
+              <label>Rendimiento objetivo con riego (t/ha)</label>
+              <input type="number" id="bh-rend-riego" value="5.0" step="0.1" min="1" max="15" oninput="bhActualizar()">
+            </div>
+            <div class="fg">
+              <label>Eficiencia del sistema (%)</label>
+              <input type="number" id="bh-efic-riego" value="85" min="50" max="100" oninput="bhActualizar()">
+            </div>
+          </div>
+          <div class="fg">
+            <label>Disponibilidad máx. de agua (m³/ha)</label>
+            <input type="number" id="bh-m3-disp" value="2000" min="100" oninput="bhActualizar()">
+          </div>
+        </div>
+        <button class="btn btn-p btn-full" style="margin-top:.8rem" onclick="bhActualizar()">
+          💧 Calcular balance hídrico
+        </button>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <div class="card" id="bh-res-card">
+        <div class="card-title">📊 Diagnóstico hídrico del lote</div>
+        <div id="bh-placeholder" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.35)">
+          <div style="font-size:3.5rem;margin-bottom:.8rem">💧</div>
+          <div style="font-size:.9rem;font-weight:600;margin-bottom:.4rem">Completá los datos del lote</div>
+          <div style="font-size:.8rem">El motor calculará el agua disponible,<br>el rendimiento alcanzable y si necesitás riego</div>
+        </div>
+        <div id="bh-res" class="hidden">
+
+          <!-- Gauge de agua disponible -->
+          <div id="bh-gauge" style="margin-bottom:1.2rem"></div>
+
+          <!-- KPIs -->
+          <div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr));margin-bottom:1.2rem" id="bh-kpis"></div>
+
+          <!-- Balance mensual -->
+          <div id="bh-balance-tabla" style="margin-bottom:1rem"></div>
+
+          <!-- Rendimiento alcanzable vs objetivo -->
+          <div id="bh-rendimiento" style="margin-bottom:1rem"></div>
+
+          <!-- Riego -->
+          <div id="bh-riego-res" class="hidden" style="margin-bottom:1rem"></div>
+
+          <!-- Fertilización ajustada -->
+          <div id="bh-fertilizacion" style="margin-bottom:1rem"></div>
+
+          <!-- Nota -->
+          <div style="padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
+            📊 <strong>Metodología:</strong> FAO-56 Penman-Monteith (Kc × ET₀) · Función respuesta rendimiento/agua FAO (Doorenbos & Kassam) ·
+            ENSO: NOAA/CPC · ET₀ histórica: NASA POWER · Datos de suelo: SoilGrids ISRIC
+          </div>
+
+          <!-- BOTONES ADICIONALES -->
+          <div style="display:flex;gap:.6rem;margin-top:.9rem;flex-wrap:wrap">
+            <button onclick="bhStressTest()" class="btn btn-s" style="flex:1;min-width:140px">
+              🧪 Stress Test hídrico
+            </button>
+            <button onclick="bhCalcularGDD()" class="btn btn-s" style="flex:1;min-width:140px">
+              📅 Estimar floración (GDD)
+            </button>
+          </div>
+
+          <!-- STRESS TEST RESULTADO -->
+          <div id="bh-stress" class="hidden" style="margin-top:.9rem"></div>
+
+          <!-- GDD FLORACIÓN RESULTADO -->
+          <div id="bh-gdd" class="hidden" style="margin-top:.9rem"></div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO CULTIVARES ══ -->
+<div id="mod-cultivares" class="module-panel">
+  <div class="module-title">Recomendador de <em>Cultivares</em></div>
+  <div class="module-subtitle">Grupos de madurez · Ventana óptima de siembra · Ranking RECSO/INTA 2024-25 · Filtros por zona, tecnología y empresa</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA: FILTROS -->
+    <div>
+      <div class="card">
+        <div class="card-title">🎯 Parámetros del lote</div>
+
+        <div class="fg">
+          <label>Cultivo</label>
+          <select id="cv-cultivo" onchange="cvActualizar()">
+            <option value="Soja">Soja</option>
+            <option value="Maíz">Maíz</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Fecha de siembra planificada</label>
+          <input type="date" id="cv-fecha" onchange="cvActualizar()">
+        </div>
+
+        <div class="fg">
+          <label>Zona agroecológica <span id="cv-zona-auto" style="font-size:.65rem;color:var(--leaf);font-weight:600"></span></label>
+          <select id="cv-zona" onchange="cvActualizar()">
+            <option value="pampeana_norte">Pampeana Norte (sur SF, este CBA, norte BA)</option>
+            <option value="pampeana_sur">Pampeana Sur (centro-sur BA, La Pampa)</option>
+            <option value="nea">NEA (Entre Ríos, Corrientes, Misiones)</option>
+            <option value="noa">NOA (Salta, Tucumán, Santiago del Estero, Chaco)</option>
+            <option value="semiarida">Semiárida pampeana (oeste BA, La Pampa sur)</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Tipo de siembra</label>
+          <select id="cv-tipo-siem" onchange="cvActualizar()">
+            <option value="primera">Soja/Maíz de primera</option>
+            <option value="segunda">Soja/Maíz de segunda (posición trigo)</option>
+            <option value="temprana">Siembra temprana (anticipada)</option>
+            <option value="tardia">Siembra tardía</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Calidad de ambiente</label>
+          <select id="cv-ambiente" onchange="cvActualizar()">
+            <option value="alto">Alto potencial (suelo excelente, buena agua)</option>
+            <option value="medio" selected>Medio potencial (condición típica)</option>
+            <option value="bajo">Bajo potencial (restricciones de suelo/agua)</option>
+          </select>
+        </div>
+
+        <div class="divider"></div>
+        <div class="sl">Filtros adicionales</div>
+
+        <div class="fg">
+          <label>Tecnología</label>
+          <select id="cv-tecnologia" onchange="cvActualizar()">
+            <option value="todas">Todas</option>
+            <option value="RR">RR (Roundup Ready)</option>
+            <option value="STS">STS (Sulfonylurea tolerant)</option>
+            <option value="Enlist">Enlist (2,4-D tolerante)</option>
+            <option value="IPRO">IPRO / Intacta</option>
+            <option value="HB4">HB4 (tolerancia a sequía)</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Empresa semillera</label>
+          <select id="cv-empresa" onchange="cvActualizar()">
+            <option value="todas">Todas las empresas</option>
+            <option value="Don Mario">Don Mario</option>
+            <option value="Nidera/BASF">Nidera / BASF</option>
+            <option value="ACA">ACA</option>
+            <option value="Brevant">Brevant / Pioneer</option>
+            <option value="Stine">Stine</option>
+            <option value="Syngenta">Syngenta / NK</option>
+            <option value="Buck">Buck (trigo)</option>
+            <option value="Klein">Klein (trigo)</option>
+            <option value="Baguette">Baguette (trigo)</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Prioridad de selección</label>
+          <select id="cv-prioridad" onchange="cvActualizar()">
+            <option value="rendimiento">Máximo rendimiento</option>
+            <option value="estabilidad">Estabilidad entre ambientes</option>
+            <option value="sanidad">Mejor comportamiento sanitario</option>
+            <option value="precoz">Mayor precocidad (escape a estreses)</option>
+          </select>
+        </div>
+
+        <button class="btn btn-p btn-full btn-lg" onclick="cvActualizar()" style="margin-top:.8rem">
+          🌱 Buscar cultivares recomendados
+        </button>
+      </div>
+
+      <!-- Info metodológica -->
+      <div class="card" style="margin-top:1rem;background:#fbfaf6;border:1px solid var(--border)">
+        <div class="card-title" style="font-size:.82rem">📚 Fuentes de datos</div>
+        <div style="font-size:.74rem;color:rgba(74,46,26,.6);line-height:1.7">
+          <div>🌾 <strong>RECSO (INTA Oliveros)</strong> — Red de Ensayos Comparativos de Soja · 370 ensayos · 62 localidades · Campaña 2024/25</div>
+          <div>🌾 <strong>RET-INASE</strong> — Red de Ensayos de Trigo · Todas las subregiones · Campaña 2024/25</div>
+          <div>🌽 <strong>INTA Marcos Juárez / Pergamino</strong> — Ensayos comparativos de maíz</div>
+          <div>🏛️ <strong>INASE RNC</strong> — Registro Nacional de Cultivares (variedades habilitadas)</div>
+          <div style="margin-top:.4rem;color:rgba(74,46,26,.4)">Datos actualizados campaña 2024/25 · Próxima actualización: campaña 2025/26</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <!-- Panel de zona y GM recomendados -->
+      <div class="card" id="cv-zona-card">
+        <div class="card-title">📍 Zona y Grupos de Madurez recomendados</div>
+        <div id="cv-zona-info">
+          <div style="text-align:center;padding:2rem;color:rgba(74,46,26,.35);font-size:.85rem">
+            Seleccioná el cultivo y la zona para ver los GMs recomendados
+          </div>
+        </div>
+      </div>
+
+      <!-- Ventana de siembra -->
+      <div class="card gap-top hidden" id="cv-ventana-card">
+        <div class="card-title">📅 Ventana óptima de siembra</div>
+        <div id="cv-ventana-info"></div>
+      </div>
+
+      <!-- Ranking de cultivares -->
+      <div class="card gap-top" id="cv-ranking-card">
+        <div class="card-title">🏆 Ranking de cultivares recomendados
+          <span id="cv-ranking-badge" style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)"></span>
+        </div>
+        <div id="cv-ranking-content">
+          <div style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.35)">
+            <div style="font-size:3rem;margin-bottom:.8rem">🌱</div>
+            <div style="font-size:.9rem;font-weight:600;margin-bottom:.3rem">Completá los parámetros del lote</div>
+            <div style="font-size:.8rem">El motor recomendará los cultivares más adecuados<br>según zona, fecha y datos RECSO/INTA</div>
+          </div>
+        </div>
+      </div>
+      <!-- DONDE COMPRAR -->
+      <div class="card gap-top hidden" id="cv-donde-card">
+        <div class="card-title" style="color:#1A5C2A">
+          🏪 ¿Dónde comprar?
+          <span id="cv-donde-badge" style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)"></span>
+        </div>
+        <div id="cv-donde-content"></div>
+      </div>
+
+      <!-- COMPARADOR DE CULTIVARES -->
+      <div class="card gap-top hidden" id="cv-comp-card">
+        <div class="card-title">⚖️ Comparador de cultivares
+          <button onclick="cvCerrarComparador()" style="margin-left:auto;background:rgba(74,46,26,.08);border:none;border-radius:6px;padding:.2rem .6rem;cursor:pointer;font-size:.75rem;color:rgba(74,46,26,.5)">✕ Cerrar</button>
+        </div>
+        <div id="cv-comp-content"></div>
+      </div>
+
+      <!-- DENSIDAD DE SIEMBRA -->
+      <div class="card gap-top" id="cv-densidad-card" style="border:1.5px solid rgba(74,140,92,.2)">
+        <div class="card-title" style="color:var(--canopy)">
+          📏 Densidad de Siembra Recomendada
+          <span style="margin-left:auto;font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4)">ajustada por agua · fecha · condiciones</span>
+        </div>
+
+        <div class="grid-2" style="margin-bottom:.9rem">
+          <div class="fg">
+            <label>Distancia entre surcos (m)</label>
+            <input type="number" id="ds-surco" value="0.52" step="0.01" min="0.15" max="1.00"
+              oninput="dsRender()" placeholder="0.52">
+          </div>
+          <div class="fg">
+            <label>Peso de mil semillas — PMS (g) <span class="it" title="Solo para cultivos de grano fino (trigo, cebada). Para maíz/soja usar valor del bolsón.">?</span></label>
+            <input type="number" id="ds-pms" value="35" step="1" min="5" max="80"
+              oninput="dsRender()" placeholder="35">
+          </div>
+        </div>
+
+        <button onclick="dsRender()" class="btn btn-p btn-full" style="margin-bottom:1rem">
+          📏 Calcular densidad recomendada
+        </button>
+
+        <div id="ds-res">
+          <div style="text-align:center;padding:1.5rem;color:rgba(74,46,26,.35);font-size:.82rem">
+            <div style="font-size:2rem;margin-bottom:.5rem">📏</div>
+            Cargá cultivo, fecha de siembra y balance hídrico<br>para obtener la recomendación de densidad.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO ASISTENTE IA ══ -->
+<div id="mod-asistente" class="module-panel">
+  <div class="module-title">Asistente <em>Agronómico IA</em></div>
+  <div class="module-subtitle">Consultá sobre tu lote en lenguaje natural · El motor usa todos los datos disponibles para responderte</div>
+
+  <div style="display:grid;grid-template-columns:1fr 320px;gap:1.2rem;align-items:start">
+
+    <!-- CHAT PRINCIPAL -->
+    <div>
+      <!-- Contexto del lote activo -->
+      <div id="ia-contexto-banner" class="hidden" style="margin-bottom:1rem;padding:.85rem 1rem;background:#f4faf6;border-radius:10px;border:1px solid rgba(74,140,92,.35);box-shadow:0 2px 8px rgba(0,0,0,.15)">
+        <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#1b5e35;margin-bottom:.45rem">📍 Lote activo en el motor</div>
+        <div id="ia-contexto-resumen" style="font-size:.78rem;color:#1c1208;display:flex;flex-wrap:wrap;gap:.5rem"></div>
+      </div>
+
+      <!-- Área de chat -->
+      <div id="ia-chat" style="background:rgba(26,51,32,.03);border:1px solid rgba(74,140,92,.2);border-radius:14px;min-height:420px;max-height:560px;overflow-y:auto;padding:1.2rem;display:flex;flex-direction:column;gap:.8rem">
+        <!-- Mensaje de bienvenida -->
+        <div style="display:flex;gap:.7rem;align-items:flex-start">
+          <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--canopy),#2A5A8C);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">🤖</div>
+          <div style="background:white;border-radius:0 12px 12px 12px;padding:.8rem 1rem;max-width:85%;box-shadow:0 1px 4px rgba(74,46,26,.08);border:1px solid var(--border)">
+            <div style="font-size:.85rem;line-height:1.6;color:var(--ink)">
+              Hola! Soy el asistente agronómico de AgroMotor. Puedo ayudarte a interpretar los datos de tu lote y responder preguntas sobre siembra, suelo, clima, cultivares y economía de campaña.<br><br>
+              <strong>Ingresá las coordenadas en el módulo de Siembra</strong> para que tenga datos reales de tu lote, o preguntame algo general sobre agronomía pampeana.
+            </div>
+            <div style="font-size:.68rem;color:rgba(74,46,26,.4);margin-top:.4rem">AgroMotor IA · powered by Claude</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input de pregunta -->
+      <div style="margin-top:.8rem;display:flex;gap:.6rem;align-items:flex-end">
+        <div style="flex:1">
+          <textarea id="ia-input"
+            placeholder="Ej: ¿Puedo sembrar soja esta semana? ¿Cuál es el riesgo de compactación si entro mañana? ¿Qué cultivar me recomendás para este ambiente?"
+            style="width:100%;border:1.5px solid rgba(74,140,92,.3);border-radius:10px;padding:.75rem 1rem;font-family:'DM Sans',sans-serif;font-size:.84rem;resize:none;height:72px;background:white;color:var(--ink);outline:none;line-height:1.5"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();iaEnviar()}"
+          ></textarea>
+          <div style="font-size:.68rem;color:rgba(74,46,26,.35);margin-top:.2rem">Enter para enviar · Shift+Enter para nueva línea</div>
+          <div id="ia-counter" style="display:none;font-size:.68rem;margin-top:.3rem;font-weight:600"></div>
+        </div>
+        <button id="ia-btn" onclick="iaEnviar()"
+          style="height:72px;padding:0 1.2rem;background:linear-gradient(135deg,var(--canopy),#2A5A8C);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;min-width:80px">
+          <span style="font-size:1.3rem">📤</span>
+          <span>Enviar</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PANEL LATERAL: PREGUNTAS RÁPIDAS -->
+    <div>
+      <div class="card" style="padding:.9rem">
+        <div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.7rem">⚡ Preguntas rápidas</div>
+
+        <div id="ia-quick-questions">
+          <!-- Se popula dinámicamente desde asistente.js (iaRenderQuickQuestions) -->
+        </div>
+
+        <div style="margin-top:.8rem;padding:.55rem .75rem;background:#fbf6ec;border:1px solid rgba(74,46,26,.12);border-radius:8px;font-size:.7rem;color:#5a4a32;line-height:1.5">
+          🤖 Powered by <strong>Claude AI</strong> (Anthropic) · Las respuestas usan los datos reales de tu lote cuando están disponibles.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO MAPA DISTRIBUIDORES ══ -->
+<div id="mod-mapa" class="module-panel">
+  <div class="module-title">🗺️ Dónde <em>Comprar</em></div>
+  <div class="module-subtitle">Mapa interactivo de distribuidores · Distancia desde tu lote · Contacto directo · Listing verificado</div>
+
+  <div class="grid-2" style="gap:1.2rem">
+
+    <!-- COLUMNA IZQUIERDA: FILTROS + LISTA -->
+    <div>
+      <!-- Filtros -->
+      <div class="card" style="padding:.9rem">
+        <div class="card-title">🔍 Buscar distribuidores</div>
+        <div class="fg">
+          <label>Cultivo / Especie</label>
+          <select id="mp-especie" onchange="mapaFiltrar()">
+            <option value="">Todos</option>
+            <option value="Soja">Soja</option>
+            <option value="Maíz">Maíz</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Empresa semillera</label>
+          <select id="mp-empresa" onchange="mapaFiltrar()">
+            <option value="">Todas</option>
+            <option value="Don Mario">Don Mario</option>
+            <option value="Nidera/BASF">Nidera / BASF</option>
+            <option value="ACA">ACA</option>
+            <option value="Brevant">Brevant / Pioneer</option>
+            <option value="Stine">Stine</option>
+            <option value="Syngenta">Syngenta / NK</option>
+            <option value="Buck">Buck</option>
+            <option value="Klein">Klein</option>
+            <option value="Baguette">Baguette</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Tipo</label>
+          <select id="mp-tipo" onchange="mapaFiltrar()">
+            <option value="">Todos</option>
+            <option value="Agronomía">Agronomía</option>
+            <option value="Cooperativa">Cooperativa</option>
+            <option value="Distribuidor">Distribuidor</option>
+            <option value="Semillero local">Semillero local</option>
+          </select>
+        </div>
+        <div class="fg">
+          <label>Radio de búsqueda</label>
+          <select id="mp-radio" onchange="mapaFiltrar()">
+            <option value="50">50 km</option>
+            <option value="100" selected>100 km</option>
+            <option value="200">200 km</option>
+            <option value="99999">Todo el país</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:.5rem;margin-top:.3rem">
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-solo-dest" onchange="mapaFiltrar()">
+            Solo destacados ⭐
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.8rem;cursor:pointer">
+            <input type="checkbox" id="mp-solo-ver" onchange="mapaFiltrar()">
+            Solo verificados ✓
+          </label>
+        </div>
+      </div>
+
+      <!-- Lista de resultados -->
+      <div style="margin-top:.8rem">
+        <div id="mp-count" style="font-size:.78rem;color:rgba(237,224,196,.7);margin-bottom:.5rem;font-weight:600"></div>
+        <div id="mp-lista" style="max-height:520px;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem"></div>
+      </div>
+
+      <!-- CTA para agronomías -->
+      <div style="margin-top:.8rem;padding:.85rem 1rem;background:#fbf6e9;border-radius:10px;border:1px solid rgba(200,162,85,.4);box-shadow:0 2px 6px rgba(0,0,0,.15)">
+        <div style="font-size:.82rem;font-weight:700;color:var(--earth);margin-bottom:.3rem">🏪 ¿Tu agronomía no aparece?</div>
+        <div style="font-size:.76rem;color:#5a4a32;margin-bottom:.5rem">Sumá tu negocio al directorio de AgroMotor y llegá a asesores y productores de tu zona.</div>
+        <a href="/cdn-cgi/l/email-protection#0f6e687d60676a7d616e614f68626e6663216c6062307c7a6d656a6c7b325e7a666a7d602f6e7f6e7d6a6c6a7d2f6a612f4e687d6042607b607d296d606b76324160626d7d6a2f6b6a632f616a68606c6660352f2a3f4e5b667f602f276e687d60616062cca26e206c60607f6a7d6e7b66796e206b667c7b7d666d7a666b607d26352f2a3f4e43606c6e63666b6e6b2f762f7f7d607966616c666e352f2a3f4e4a627f7d6a7c6e7c2f7e7a6a2f6b667c7b7d666d7a7660352f2a3f4e5b6a63cca669606160352f2a3f4e4a626e66632f6b6a2f6c60617b6e6c7b60352f2a3f4e586a6d2f277c662f7b6a61cca67c26352f" style="display:inline-block;background:var(--grain);color:var(--ink);padding:.4rem .9rem;border-radius:8px;font-size:.75rem;font-weight:700;text-decoration:none">
+          📩 Quiero aparecer aquí →
+        </a>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: MAPA -->
+    <div>
+      <!-- Banner coordenadas -->
+      <div id="mp-lote-banner" class="hidden" style="margin-bottom:.8rem;padding:.7rem .95rem;background:#f4faf6;border-radius:8px;border:1px solid rgba(74,140,92,.4);font-size:.78rem;color:#1c1208;font-weight:500">
+        <strong>📍 Lote activo:</strong> <span id="mp-lote-coord"></span> · mostrando distribuidores más cercanos
+      </div>
+
+      <!-- Mapa principal -->
+      <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid var(--border);box-shadow:0 2px 12px rgba(74,46,26,.1)">
+
+        <!-- Mapa OpenStreetMap via iframe Leaflet -->
+        <div id="mp-mapa-container" style="height:480px;background:#e8f0e8;display:flex;align-items:center;justify-content:center">
+          <div id="mp-mapa-placeholder" style="text-align:center;color:rgba(74,46,26,.4)">
+            <div style="font-size:3rem;margin-bottom:.8rem">🗺️</div>
+            <div style="font-size:.9rem;font-weight:600">Cargando mapa...</div>
+            <div style="font-size:.78rem;margin-top:.3rem">Usando OpenStreetMap + Leaflet</div>
+          </div>
+          <div id="mp-mapa" style="width:100%;height:100%;display:none"></div>
+        </div>
+
+        <!-- Leyenda sobre el mapa -->
+        <div style="position:absolute;bottom:12px;left:12px;background:white;border-radius:8px;padding:.5rem .75rem;font-size:.7rem;box-shadow:0 2px 8px rgba(0,0,0,.15);border:1px solid rgba(74,46,26,.1)">
+          <div style="display:flex;gap:.8rem;flex-wrap:wrap">
+            <span>⭐ Destacado</span>
+            <span>✓ Verificado</span>
+            <span>📍 Tu lote</span>
+            <span>🏪 Distribuidor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Distribuidor seleccionado -->
+      <div id="mp-seleccionado" class="hidden" style="margin-top:.8rem"></div>
+
+      <!-- Info fuente -->
+      <div style="margin-top:.7rem;font-size:.7rem;color:rgba(74,46,26,.4);text-align:center">
+        Mapa: OpenStreetMap · Datos: RNCyFS-INASE + relevamiento AgroMotor · Leaflet.js
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO PULVERIZACIÓN ══ -->
+<div id="mod-pulverizacion" class="module-panel">
+  <div class="module-title">Ventana de <em>Pulverización</em></div>
+  <div class="module-subtitle">Semáforo agronómico · Condiciones meteo en tiempo real · Delta T · Deriva · Caldo · Calidad de agua · Registro</div>
+
+  <!-- Sub-navegación interna -->
+  <div class="pulv-nav">
+    <div class="pulv-tab active" onclick="pulvTab('condiciones',this)">🌤 Condiciones</div>
+    <div class="pulv-tab" onclick="pulvTab('caldo',this)">🧪 Calculadora de Caldo</div>
+    <div class="pulv-tab" onclick="pulvTab('deriva',this)">💨 Riesgo de Deriva</div>
+    <div class="pulv-tab" onclick="pulvTab('registro',this)">📋 Registro</div>
+    <div class="pulv-tab" onclick="pulvTab('hrac',this)">🧬 Resistencias HRAC</div>
+    <div class="pulv-tab" onclick="pulvTab('agua',this)">🔬 Calidad de Agua</div>
+  </div>
+
+  <!-- GPS bar -->
+  <div class="gps-bar-pulv" id="pulv-gps-bar">
+    <div class="gps-dot-p loading" id="pulv-gps-dot"></div>
+    <div style="font-size:.8rem;color:rgba(237,224,196,.65);flex:1" id="pulv-gps-txt">Usando datos del módulo de Siembra...</div>
+    <button onclick="pulvRefrescarMeteo()" style="background:rgba(58,122,184,.2);border:1px solid rgba(58,122,184,.4);color:#7ABAEE;font-size:.74rem;font-weight:600;padding:.38rem .85rem;border-radius:8px;cursor:pointer;font-family:inherit">🔄 Actualizar</button>
+  </div>
+
+  <!-- ── TAB CONDICIONES ── -->
+  <div class="pulv-panel active" id="pulv-condiciones">
+    <div class="sem-card" id="pulv-sem-card">
+      <div id="pulv-sem-loading" style="padding:3rem;text-align:center;color:rgba(74,46,26,.4)">
+        <div style="font-size:2.5rem;margin-bottom:.8rem">🌤</div>
+        <div>Cargá coordenadas en el módulo de Siembra para obtener datos reales</div>
+      </div>
+      <div id="pulv-sem-content" style="display:none">
+        <div class="sem-top">
+          <div>
+            <div style="font-size:.7rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(28,18,8,.38);margin-bottom:.3rem">Estado de aplicación</div>
+            <div style="font-family:'DM Serif Display',serif;font-size:1.8rem;line-height:1.1" id="pulv-estado-txt">—</div>
+            <div style="font-size:.84rem;color:rgba(28,18,8,.58);margin-top:.3rem;max-width:480px;line-height:1.5" id="pulv-desc-txt"></div>
+          </div>
+          <div class="sem-badge" id="pulv-badge">
+            <span id="pulv-emoji" style="font-size:2rem">—</span>
+            <span style="font-size:.58rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-top:.1rem" id="pulv-badge-txt"></span>
+          </div>
+        </div>
+        <div class="meteo-grd" id="pulv-meteo-grid"></div>
+        <div class="alertas-l" id="pulv-alertas"></div>
+      </div>
+    </div>
+
+    <!-- Ventana horaria -->
+    <div class="card gap-top hidden" id="pulv-ventana-card">
+      <div class="card-title">📅 Ventana de aplicación — Próximas 24 hs
+        <span style="margin-left:auto;font-size:.7rem;font-weight:400;color:rgba(74,46,26,.4)" id="pulv-ventana-fecha"></span>
+      </div>
+      <div class="tl-wrap"><div class="tl" id="pulv-timeline"></div></div>
+      <div style="display:flex;gap:1rem;margin-top:.8rem;flex-wrap:wrap;font-size:.74rem">
+        <span><span style="display:inline-block;width:12px;height:12px;background:rgba(42,122,74,.5);border-radius:3px;margin-right:.3rem"></span>Apto</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:rgba(184,122,32,.5);border-radius:3px;margin-right:.3rem"></span>Precaución</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:rgba(192,57,43,.4);border-radius:3px;margin-right:.3rem"></span>No apto</span>
+      </div>
+      <div style="font-size:.73rem;color:rgba(74,46,26,.45);margin-top:.6rem">⚠️ Los bloques nocturnos (20-7 hs) pueden presentar riesgo de inversión térmica.</div>
+    </div>
+  </div>
+
+  <!-- ── TAB CALDO ── -->
+  <div class="pulv-panel" id="pulv-caldo">
+    <div class="calc-g">
+      <div class="panel-card">
+        <div class="card-hdr"><div><div class="card-ttl">Parámetros de Aplicación</div><div class="card-sub">Lote, producto y equipo</div></div></div>
+        <div class="card-bdy">
+          <div class="form-fld"><label class="form-lbl">Cultivo objetivo</label>
+            <select class="form-sel" id="pc-cultivo" onchange="pulvCalcCaldo()">
+              <option value="">— Seleccionar —</option>
+              <option>Soja</option><option>Maíz</option><option>Trigo / Cebada</option><option>Girasol</option><option>Barbecho</option><option>Pasturas</option>
+            </select>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Tipo de aplicación</label>
+            <select class="form-sel" id="pc-tipo" onchange="pulvActualizarProductos()">
+              <option value="">— Seleccionar —</option>
+              <option value="herbicida">Herbicida</option>
+              <option value="fungicida">Fungicida</option>
+              <option value="insecticida">Insecticida</option>
+              <option value="fertilizante_foliar">Fertilizante foliar</option>
+            </select>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Producto / Principio activo</label>
+            <select class="form-sel" id="pc-producto" onchange="pulvCalcCaldo()">
+              <option value="">— Seleccionar tipo primero —</option>
+            </select>
+          </div>
+          <div class="sec-div"><span>Equipo</span></div>
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">Volumen caldo (L/ha)</label><input class="form-inp" type="number" id="pc-volha" value="80" min="20" max="300" oninput="pulvCalcCaldo()"></div>
+            <div class="form-fld"><label class="form-lbl">Capacidad tanque (L)</label><input class="form-inp" type="number" id="pc-tanque" value="3000" min="200" oninput="pulvCalcCaldo()"></div>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Superficie del lote (ha)</label><input class="form-inp" type="number" id="pc-ha" min="1" oninput="pulvCalcCaldo()" placeholder="Ej: 150"></div>
+        </div>
+      </div>
+      <div>
+        <div class="caldo-res">
+          <div style="font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.4);margin-bottom:.8rem">Resultado</div>
+          <div class="caldo-res-grid">
+            <div><div class="caldo-sl">Dosis producto</div><div class="caldo-val" id="pr-dosis">—</div><div class="caldo-unit" id="pr-dosis-u">L o kg/ha</div></div>
+            <div><div class="caldo-sl">Producto total</div><div class="caldo-val" id="pr-total">—</div><div class="caldo-unit" id="pr-total-u">L o kg</div></div>
+            <div><div class="caldo-sl">Autonomía</div><div class="caldo-val" id="pr-aut">—</div><div class="caldo-unit">ha/tanque</div></div>
+            <div><div class="caldo-sl">Tanques</div><div class="caldo-val" id="pr-tanques">—</div><div class="caldo-unit">completos</div></div>
+            <div><div class="caldo-sl">Agua total</div><div class="caldo-val" id="pr-agua">—</div><div class="caldo-unit">litros</div></div>
+            <div><div class="caldo-sl">Concentración</div><div class="caldo-val" id="pr-conc">—</div><div class="caldo-unit">% v/v</div></div>
+          </div>
+          <div id="pr-alerta" class="caldo-al hidden"></div>
+        </div>
+        <div class="panel-card gap-top" id="pc-orden-card">
+          <div class="card-hdr"><div><div class="card-ttl">Orden de Agregado al Tanque</div><div class="card-sub">Buenas prácticas de mezcla</div></div></div>
+          <div class="card-bdy" id="pc-orden-body"><p class="txt-muted">Seleccioná un producto para ver las instrucciones.</p></div>
+        </div>
+        <div class="panel-card gap-top">
+          <div class="card-hdr"><div><div class="card-ttl">Pautas Agronómicas</div><div class="card-sub">Condiciones óptimas para este producto</div></div></div>
+          <div class="card-bdy" id="pc-pauta-body"><p class="txt-muted">Seleccioná el tipo de aplicación.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB DERIVA ── -->
+  <div class="pulv-panel" id="pulv-deriva">
+    <div class="two-col">
+      <div class="panel-card">
+        <div class="card-hdr"><div><div class="card-ttl">Índice de Riesgo Actual</div><div class="card-sub">Pasquill-Gifford simplificado · datos meteo en tiempo real</div></div></div>
+        <div class="deriva-gauge-wrap">
+          <div class="gauge-arc"><div class="gauge-bg"></div><div class="gauge-inner"></div></div>
+          <div class="gauge-needle" id="pulv-derive-needle" style="--needle-deg:-90deg"></div>
+          <div class="gauge-val" id="pulv-deriva-val">—</div>
+          <div class="gauge-lbl" id="pulv-deriva-lbl">Cargá coordenadas para datos reales</div>
+        </div>
+        <div class="drift-fctrs" id="pulv-deriva-fctrs"></div>
+      </div>
+      <div class="panel-card">
+        <div class="card-hdr"><div><div class="card-ttl">Cálculo de Buffer</div><div class="card-sub">Distancia de exclusión según lindero y boquilla</div></div></div>
+        <div class="card-bdy">
+          <div class="form-fld"><label class="form-lbl">Cultivo / área lindero</label>
+            <select class="form-sel" id="pd-lindero" onchange="pulvCalcBuffer()">
+              <option value="">— Seleccionar —</option>
+              <option value="soja">Soja en floración</option>
+              <option value="hortalizas">Hortalizas / cultivos sensibles</option>
+              <option value="apicultura">Apiario / apicultura</option>
+              <option value="agua">Cuerpo de agua</option>
+              <option value="urbano">Zona urbana / viviendas</option>
+              <option value="forestal">Área forestal / monte</option>
+            </select>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Tipo de boquilla</label>
+            <select class="form-sel" id="pd-boquilla" onchange="pulvCalcBuffer()">
+              <option value="abanico_estandar">Abanico estándar</option>
+              <option value="abanico_antideriva">Abanico antideriva (AI)</option>
+              <option value="doble_abanico">Doble abanico</option>
+              <option value="cono_hueco">Cono hueco</option>
+            </select>
+          </div>
+          <div id="pd-buffer-res" class="hidden" style="margin-top:1rem">
+            <div style="background:linear-gradient(135deg,rgba(212,82,42,.12),rgba(184,122,32,.08));border-radius:12px;padding:1rem;text-align:center;border:1px solid rgba(212,82,42,.25)">
+              <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(74,46,26,.5);margin-bottom:.3rem">Buffer mínimo recomendado</div>
+              <div style="font-family:'DM Mono',monospace;font-size:3rem;font-weight:500;color:var(--warn)" id="pd-buffer-val">—</div>
+              <div style="font-size:.8rem;color:rgba(74,46,26,.5)">metros</div>
+            </div>
+            <div style="margin-top:.7rem;font-size:.78rem;color:rgba(74,46,26,.6);padding:.55rem .8rem;background:#fbf6ec;border-radius:8px" id="pd-buffer-nota"></div>
+          </div>
+          <div style="margin-top:1rem;font-size:.72rem;color:rgba(74,46,26,.4);line-height:1.5">
+            📋 Buffer calculado según tipo de lindero, boquilla y viento actual. Verificar legislación provincial vigente y restricciones del marbete.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB REGISTRO ── -->
+  <div class="pulv-panel" id="pulv-registro">
+    <div class="reg-grid">
+      <div class="panel-card">
+        <div class="card-hdr"><div><div class="card-ttl">Nueva Ficha de Aplicación</div><div class="card-sub">Los datos meteo se completan automáticamente</div></div></div>
+        <div class="card-bdy">
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">Fecha</label><input class="form-inp" type="date" id="preg-fecha"></div>
+            <div class="form-fld"><label class="form-lbl">Hora inicio</label><input class="form-inp" type="time" id="preg-hora"></div>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Lote / Establecimiento</label><input class="form-inp" type="text" id="preg-lote" placeholder="Nombre del lote"></div>
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">Superficie (ha)</label><input class="form-inp" type="number" id="preg-ha" min="1"></div>
+            <div class="form-fld"><label class="form-lbl">Cultivo</label><input class="form-inp" type="text" id="preg-cultivo" placeholder="Soja, Maíz..."></div>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Operador</label><input class="form-inp" type="text" id="preg-operador"></div>
+          <div class="form-fld"><label class="form-lbl">Equipo / Pulverizadora</label><input class="form-inp" type="text" id="preg-equipo"></div>
+          <div class="sec-div"><span>Producto</span></div>
+          <div class="form-fld"><label class="form-lbl">Producto(s) aplicado(s)</label><input class="form-inp" type="text" id="preg-producto" placeholder="Glifosato 48% + Cletodim..."></div>
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">Dosis (L o kg/ha)</label><input class="form-inp" type="text" id="preg-dosis"></div>
+            <div class="form-fld"><label class="form-lbl">Vol. caldo (L/ha)</label><input class="form-inp" type="number" id="preg-volha"></div>
+          </div>
+          <div class="sec-div"><span>Condiciones</span></div>
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">T° (°C)</label><input class="form-inp" type="number" id="preg-temp" step="0.1"></div>
+            <div class="form-fld"><label class="form-lbl">Viento (km/h)</label><input class="form-inp" type="number" id="preg-viento" step="0.1"></div>
+          </div>
+          <div class="form-fld"><label class="form-lbl">HR (%)</label><input class="form-inp" type="number" id="preg-hr" min="0" max="100"></div>
+          <div class="form-fld"><label class="form-lbl">Estado de aplicación</label>
+            <select class="form-sel" id="preg-condicion">
+              <option value="verde">✅ Apto</option>
+              <option value="amarillo">⚠️ Precaución</option>
+              <option value="rojo">🚫 No apto</option>
+            </select>
+          </div>
+          <div class="form-fld"><label class="form-lbl">Observaciones</label><textarea class="form-inp" id="preg-obs" rows="2" style="resize:none"></textarea></div>
+          <div style="display:flex;gap:.6rem;margin-top:.5rem;flex-wrap:wrap">
+            <button onclick="pulvGuardarRegistro()" class="btn btn-p" style="flex:1">💾 Guardar ficha</button>
+            <button onclick="pulvExportarPDF()" class="btn btn-s">📄 PDF</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel-card">
+        <div class="card-hdr">
+          <div><div class="card-ttl">Historial de Aplicaciones</div><div class="card-sub" id="preg-stats">—</div></div>
+          <button onclick="pulvLimpiarHistorial()" style="background:rgba(212,82,42,.08);border:1px solid rgba(212,82,42,.2);color:var(--warn);font-size:.72rem;padding:.3rem .7rem;border-radius:7px;cursor:pointer;font-family:inherit">Limpiar</button>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="hist-tbl">
+            <thead><tr><th>Fecha / Hora</th><th>Lote</th><th>Producto</th><th>ha</th><th>Estado</th></tr></thead>
+            <tbody id="preg-historial"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB HRAC ── -->
+  <div class="pulv-panel" id="pulv-hrac">
+    <div style="margin-bottom:1rem">
+      <input style="width:100%;padding:.7rem 1rem;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:.87rem;background:var(--panel-bg)" type="text" id="pulv-hrac-search" placeholder="🔍 Buscar por grupo, mecanismo o ingrediente activo..." oninput="pulvFiltrarHRAC()">
+    </div>
+    <div class="hrac-grid" id="pulv-hrac-grid"></div>
+    <!-- Modal -->
+    <div class="hrac-modal-overlay hidden" id="pulv-hrac-modal" onclick="if(event.target===this)this.classList.add('hidden')">
+      <div class="hrac-modal">
+        <div class="hrac-modal-hdr">
+          <div>
+            <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:var(--earth)" id="pulv-hrac-modal-titulo">—</div>
+            <div style="font-size:.8rem;color:rgba(28,18,8,.5);margin-top:.2rem" id="pulv-hrac-modal-sub">—</div>
+          </div>
+          <button onclick="$('pulv-hrac-modal').classList.add('hidden')" style="width:30px;height:30px;border-radius:50%;border:none;background:rgba(60,34,16,.08);cursor:pointer;font-size:1rem">✕</button>
+        </div>
+        <div style="padding:1.3rem 1.6rem" id="pulv-hrac-modal-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB AGUA ── -->
+  <div class="pulv-panel" id="pulv-agua">
+    <div class="agua-g2">
+      <!-- pH -->
+      <div class="agua-med">
+        <div class="agua-med-hdr">
+          <div class="agua-med-ico" style="background:rgba(58,122,184,.1)">⚗️</div>
+          <div><div style="font-family:'DM Serif Display',serif;font-size:1rem;color:var(--earth)">pH del agua</div><div style="font-size:.7rem;color:rgba(28,18,8,.4)">Rango óptimo para fitosanitarios: 5.0–6.5</div></div>
+        </div>
+        <div class="agua-med-bdy">
+          <div style="display:flex;align-items:center;gap:.8rem;margin-bottom:.6rem">
+            <div style="font-family:'DM Mono',monospace;font-size:2.8rem;font-weight:500;color:var(--earth)" id="pa-ph-num">7.5</div>
+            <input type="number" class="form-inp" id="pa-ph" value="7.5" min="4" max="10" step="0.1" style="flex:1" oninput="pulvActualizarPH(this.value)">
+          </div>
+          <div class="ph-track"><div class="ph-thumb" id="pa-ph-thumb" style="left:50%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:.58rem;color:rgba(28,18,8,.35);font-family:'DM Mono',monospace;margin-top:.2rem"><span>4</span><span>6</span><span>7</span><span>8</span><span>10</span></div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.4rem;margin-top:.7rem">
+            <div class="fuente-btn active" onclick="pulvFuentePH(this,7.5)">Pozo<br>7-8</div>
+            <div class="fuente-btn" onclick="pulvFuentePH(this,6.5)">Laguna<br>6-7</div>
+            <div class="fuente-btn" onclick="pulvFuentePH(this,7.8)">Río<br>7-8.5</div>
+            <div class="fuente-btn" onclick="pulvFuentePH(this,8.2)">Tap<br>7.5-9</div>
+          </div>
+        </div>
+      </div>
+      <!-- TDS -->
+      <div class="agua-med">
+        <div class="agua-med-hdr">
+          <div class="agua-med-ico" style="background:rgba(200,162,85,.1)">💎</div>
+          <div><div style="font-family:'DM Serif Display',serif;font-size:1rem;color:var(--earth)">TDS y Dureza</div><div style="font-size:.7rem;color:rgba(28,18,8,.4)">Sólidos disueltos totales · Cationes antagonistas</div></div>
+        </div>
+        <div class="agua-med-bdy">
+          <div class="form-fld"><label class="form-lbl">TDS (ppm)</label><input class="form-inp" type="number" id="pa-tds" value="500" min="0" max="5000" oninput="pulvCalcAgua()"><div style="font-size:.68rem;color:rgba(28,18,8,.38);margin-top:.25rem">&lt;200 suave · 200-500 mod · 500-1000 dura · &gt;1000 muy dura</div></div>
+          <div class="form-fld"><label class="form-lbl">Dureza Ca²⁺+Mg²⁺ (ppm) <span style="font-weight:400;color:rgba(28,18,8,.35)">opcional</span></label><input class="form-inp" type="number" id="pa-dureza" oninput="pulvCalcAgua()" placeholder="Si tenés análisis"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delta T, Viento, HR -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.2rem">
+      <div class="agua-med">
+        <div class="agua-med-hdr"><div class="agua-med-ico" style="background:rgba(232,184,75,.1)">🌡</div><div><div style="font-family:'DM Serif Display',serif;font-size:.95rem;color:var(--earth)">Delta T</div><div style="font-size:.68rem;color:rgba(28,18,8,.4)">T° bulbo seco − bulbo húmedo</div></div></div>
+        <div class="agua-med-bdy">
+          <div class="deltat-big" id="pa-deltat-val">—</div>
+          <div style="font-size:.72rem;color:rgba(28,18,8,.5);text-align:center;margin-top:.2rem" id="pa-deltat-lbl">Sin datos meteo</div>
+          <div class="deltat-bar"><div class="deltat-cur" id="pa-deltat-cur" style="left:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:.58rem;color:rgba(28,18,8,.35)"><span>0 Óptimo</span><span style="text-align:center">8 Límite</span><span style="text-align:right">10+ No</span></div>
+        </div>
+      </div>
+      <div class="agua-med">
+        <div class="agua-med-hdr"><div class="agua-med-ico" style="background:rgba(58,122,184,.1)">💨</div><div><div style="font-family:'DM Serif Display',serif;font-size:.95rem;color:var(--earth)">Viento</div><div style="font-size:.68rem;color:rgba(28,18,8,.4)">Open-Meteo en tiempo real</div></div></div>
+        <div class="agua-med-bdy" style="text-align:center;padding:1rem">
+          <div style="font-family:'DM Mono',monospace;font-size:3rem;font-weight:500;color:#3A7AB8" id="pa-viento-val">—</div>
+          <div style="font-size:.72rem;color:rgba(28,18,8,.5);margin-top:.2rem" id="pa-viento-lbl">km/h</div>
+        </div>
+      </div>
+      <div class="agua-med">
+        <div class="agua-med-hdr"><div class="agua-med-ico" style="background:rgba(42,122,74,.1)">💧</div><div><div style="font-family:'DM Serif Display',serif;font-size:.95rem;color:var(--earth)">HR</div><div style="font-size:.68rem;color:rgba(28,18,8,.4)">Humedad relativa</div></div></div>
+        <div class="agua-med-bdy" style="text-align:center;padding:1rem">
+          <div style="font-family:'DM Mono',monospace;font-size:3rem;font-weight:500;color:var(--ok)" id="pa-hr-val">—</div>
+          <div style="font-size:.72rem;color:rgba(28,18,8,.5);margin-top:.2rem" id="pa-hr-lbl">%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selector producto + botón -->
+    <div class="card" style="margin-bottom:1.2rem">
+      <div class="card-title">🧴 Producto / Mezcla a aplicar</div>
+      <div id="pa-prod-chips" style="margin-bottom:.8rem">
+        <div class="prod-chip active" onclick="pulvSetProdAgua(this,'glifosato')">Glifosato solo</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'glifo_2bd')">Glifosato + 2,4-D</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'glifo_dicamba')">Glifosato + Dicamba</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'als')">ALS (sulfonilurea)</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'fungicida')">Fungicida</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'insecticida')">Insecticida</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'graminicida')">Graminicida</div>
+        <div class="prod-chip" onclick="pulvSetProdAgua(this,'foliar')">Fertilizante foliar</div>
+      </div>
+      <button onclick="pulvCalcAgua()" class="btn btn-p">🔬 Analizar y recomendar</button>
+    </div>
+
+    <div class="grid-2">
+      <div class="panel-card">
+        <div class="card-hdr"><div class="card-ttl">Calidad de Agua</div><div id="pa-agua-badge" style="font-size:1.2rem">❓</div></div>
+        <div class="card-bdy" id="pa-agua-recs"><p class="txt-muted">Completá los datos para ver el análisis.</p></div>
+      </div>
+      <div class="panel-card">
+        <div class="card-hdr"><div class="card-ttl">Adyuvantes Recomendados</div><div id="pa-ady-sem" style="font-size:.7rem;font-weight:700;color:rgba(28,18,8,.4)">—</div></div>
+        <div class="card-bdy" id="pa-ady-recs"><p class="txt-muted">Los adyuvantes se recomendarán según producto, pH y condiciones meteo.</p></div>
+      </div>
+    </div>
+    <div style="margin-top:.8rem;font-size:.7rem;color:rgba(237,224,196,.25);text-align:center">Recomendaciones basadas en INTA · CASAFE · Extensión INTA Marcos Juárez y Oliveros · Verificar marbete del producto</div>
+  </div>
+
+</div>
+
+
+<!-- ══ MÓDULO DECISIÓN ══ -->
+<div id="mod-decision" class="module-panel">
+  <div class="module-title">⚖️ ¿Qué <em>Sembrar</em>?</div>
+  <div class="module-subtitle">Ranking agronómico vs ranking económico · Agua disponible · ENSO · Precios · Rotación · La decisión final es tuya</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA: PARÁMETROS -->
+    <div>
+      <div class="card">
+        <div class="card-title">🎯 Parámetros del análisis</div>
+
+        <div class="fg">
+          <label>Cultivo del año anterior <span style="font-size:.7rem;font-weight:400;color:rgba(74,46,26,.4)">(para evaluar rotación)</span></label>
+          <select id="dec-cult-anterior" class="form-select">
+            <option value="">— No recuerdo / primera campaña —</option>
+            <option value="Soja">Soja</option>
+            <option value="Maiz">Maíz</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+            <option value="Sorgo">Sorgo</option>
+          </select>
+        </div>
+
+        <div class="alert info" style="margin:.8rem 0">
+          <span class="ai">💡</span>
+          <div class="ac" style="font-size:.78rem">
+            El motor usa automáticamente los datos ya cargados:
+            agua disponible del Balance Hídrico, escenario ENSO,
+            temperatura del suelo, pH y MO de SoilGrids,
+            y precio de referencia del módulo de Economía.
+          </div>
+        </div>
+
+        <button onclick="decAnalizar()" class="btn btn-p btn-full btn-lg">
+          ⚖️ Analizar y comparar cultivos
+        </button>
+      </div>
+
+      <!-- Banner cultivo elegido -->
+      <div id="dec-cult-elegido-banner" class="hidden" style="margin-top:1rem;padding:.8rem 1rem;background:rgba(42,122,74,.12);border-radius:12px;border:1px solid rgba(42,122,74,.25);font-size:.82rem;font-weight:600;color:var(--ok)"></div>
+
+      <!-- Nota aclaratoria -->
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.3)">
+        <div class="card-title" style="color:#2A5A8C;font-size:.88rem">📋 Cómo interpretar el análisis</div>
+        <div style="font-size:.78rem;color:#374151;line-height:1.7">
+          <div style="margin-bottom:.4rem">🌱 <strong>Score agronómico</strong> — evalúa qué cultivo se adapta mejor a las condiciones del lote: agua disponible, temperatura, tipo de suelo, escenario climático y rotación.</div>
+          <div style="margin-bottom:.4rem">💰 <strong>Margen bruto estimado</strong> — calcula la rentabilidad esperada considerando el rendimiento alcanzable, el precio del grano con retenciones y los costos de producción de referencia.</div>
+          <div style="margin-bottom:.4rem">⚖️ <strong>Relación insumo/producto</strong> — cuántos quintales del cultivo necesitás para pagar los insumos. Menor es mejor.</div>
+          <div>✓ <strong>La decisión final es tuya</strong> — el motor muestra la información, vos decidís.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <div id="dec-resultado" class="hidden"></div>
+      <div id="dec-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
+        <div style="font-size:4rem;margin-bottom:1rem">⚖️</div>
+        <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Análisis de selección de cultivo</div>
+        <div style="font-size:.82rem;max-width:300px;margin:0 auto;line-height:1.6">
+          Cargá los datos del lote en los módulos anteriores y apretá "Analizar" para ver qué cultivo conviene más esta campaña.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO FERTILIZACIÓN ÓPTIMA ══ -->
+<div id="mod-fertoptima" class="module-panel">
+  <div class="module-title">🧪 Fertilización <em>Óptima</em></div>
+  <div class="module-subtitle">Dosis económicamente óptima · Curva respuesta INTA · N · P · S · Sensibilidad al precio del grano</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA: PARÁMETROS -->
+    <div>
+      <div class="card">
+        <div class="card-title">⚙️ Parámetros del cálculo</div>
+
+        <div class="fg">
+          <label>Cultivo</label>
+          <select id="fo-cultivo">
+            <option value="Maiz">Maíz</option>
+            <option value="Soja">Soja</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+            <option value="Sorgo">Sorgo</option>
+          </select>
+        </div>
+
+        <div class="fg">
+          <label>Rendimiento objetivo (t/ha)</label>
+          <input type="number" id="fo-rend-obj" value="4.5" min="0.5" max="20" step="0.1" placeholder="Ej: 4.5">
+        </div>
+
+        <div class="fg">
+          <label>Precio del grano (USD/t)</label>
+          <input type="number" id="fo-precio-grano" value="300" min="50" max="1000" step="5" placeholder="USD/t">
+        </div>
+
+        <div class="section-divider"><span>Precios fertilizantes (USD/t producto)</span></div>
+
+        <div class="grid-2">
+          <div class="fg">
+            <label>Urea (46-0-0)</label>
+            <input type="number" id="fo-precio-n" value="380" min="100" max="1000" step="5">
+          </div>
+          <div class="fg">
+            <label>MAP (11-52-0)</label>
+            <input type="number" id="fo-precio-p" value="620" min="100" max="1500" step="5">
+          </div>
+        </div>
+        <div class="fg">
+          <label>SuMag / Azufre (USD/t)</label>
+          <input type="number" id="fo-precio-s" value="280" min="50" max="800" step="5">
+        </div>
+
+        <div class="alert info" style="margin:.8rem 0">
+          <span class="ai">💡</span>
+          <div class="ac" style="font-size:.78rem">
+            El motor usa automáticamente el rendimiento objetivo del Balance Hídrico y el precio del grano de Economía si ya los cargaste.
+          </div>
+        </div>
+
+        <button onclick="foAnalizar()" class="btn btn-p btn-full btn-lg">
+          🧮 Calcular dosis óptima
+        </button>
+      </div>
+
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.15)">
+        <div class="card-title" style="color:#2A5A8C;font-size:.88rem">📋 ¿Qué es la dosis óptima económica?</div>
+        <div style="font-size:.78rem;color:rgba(74,46,26,.65);line-height:1.7">
+          <div style="margin-bottom:.4rem">Es la dosis donde el <strong>costo del kg adicional de fertilizante</strong> iguala el <strong>valor del grano adicional</strong> que ese kg produce.</div>
+          <div style="margin-bottom:.4rem">Más allá de ese punto, cada kg extra de fertilizante cuesta más de lo que genera.</div>
+          <div>No es la dosis que maximiza el rendimiento — es la que maximiza la <strong>ganancia neta</strong>.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <div id="fo-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
+        <div style="font-size:4rem;margin-bottom:1rem">🧪</div>
+        <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Calculadora de fertilización óptima</div>
+        <div style="font-size:.82rem;max-width:300px;margin:0 auto;line-height:1.6">
+          Ingresá el cultivo, rendimiento objetivo y precios para calcular la dosis que maximiza tu ganancia neta.
+        </div>
+      </div>
+      <div id="fo-resultado" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO BALANCE NUTRICIONAL ══ -->
+<div id="mod-balancenut" class="module-panel">
+  <div class="module-title">🔄 Balance <em>Nutricional</em></div>
+  <div class="module-subtitle">Post-cosecha · N · P · K · S · Extracción real del cultivo · Recomendación próxima campaña · Cierra el ciclo</div>
+
+  <div class="grid-2">
+    <!-- COLUMNA IZQUIERDA: PARÁMETROS -->
+    <div>
+      <div class="card">
+        <div class="card-title">📋 Datos de la campaña cosechada</div>
+
+        <div class="fg">
+          <label>Cultivo cosechado</label>
+          <select id="bn-cultivo">
+            <option value="Soja">Soja</option>
+            <option value="Maiz">Maíz</option>
+            <option value="Trigo">Trigo</option>
+            <option value="Girasol">Girasol</option>
+            <option value="Sorgo">Sorgo</option>
+          </select>
+        </div>
+
+        <div class="grid-2">
+          <div class="fg">
+            <label>Rendimiento real (t/ha)</label>
+            <input type="number" id="bn-rend" value="3.5" min="0.1" max="20" step="0.1" placeholder="Ej: 3.5">
+          </div>
+          <div class="fg">
+            <label>Superficie (ha)</label>
+            <input type="number" id="bn-sup" value="100" min="1" max="10000" placeholder="Ej: 100">
+          </div>
+        </div>
+
+        <div class="fg">
+          <label>Manejo del rastrojo</label>
+          <select id="bn-rastrojo">
+            <option value="campo">Se dejó en el campo (se recicla)</option>
+            <option value="extraido">Se extrajo / rolló / quemó</option>
+          </select>
+        </div>
+
+        <div class="section-divider"><span>Fertilización aplicada esta campaña</span></div>
+
+        <div class="grid-2">
+          <div class="fg">
+            <label>Urea aplicada (kg/ha)</label>
+            <input type="number" id="bn-fert-n" value="0" min="0" max="500" placeholder="0 si no aplicó">
+          </div>
+          <div class="fg">
+            <label>MAP aplicado (kg/ha)</label>
+            <input type="number" id="bn-fert-p" value="0" min="0" max="300" placeholder="0 si no aplicó">
+          </div>
+        </div>
+        <div class="fg">
+          <label>SuMag / Azufre (kg/ha)</label>
+          <input type="number" id="bn-fert-s" value="0" min="0" max="200" placeholder="0 si no aplicó">
+        </div>
+
+        <button onclick="bnAnalizar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">
+          🔄 Calcular balance post-cosecha
+        </button>
+      </div>
+
+      <div class="card gap-top" style="background:#f3f7fd;border-color:rgba(42,90,140,.15)">
+        <div class="card-title" style="color:#2A5A8C;font-size:.88rem">🔄 El ciclo de nutrientes</div>
+        <div style="font-size:.78rem;color:rgba(74,46,26,.65);line-height:1.8">
+          <div>📥 <strong>El cultivo extrae</strong> nutrientes del suelo a través del grano y el rastrojo</div>
+          <div>📦 <strong>El fertilizante repone</strong> parte de lo extraído (con eficiencia parcial)</div>
+          <div>🌱 <strong>El suelo mineraliza</strong> naturalmente parte de la MO (aporte natural de N)</div>
+          <div>⚖️ <strong>El balance</strong> = lo que entró - lo que salió</div>
+          <div>📋 <strong>Si es negativo</strong>: el suelo se está empobreciendo y necesita reposición</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: RESULTADOS -->
+    <div>
+      <div id="bn-placeholder" style="text-align:center;padding:3rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
+        <div style="font-size:4rem;margin-bottom:1rem">🔄</div>
+        <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Balance nutricional post-cosecha</div>
+        <div style="font-size:.82rem;max-width:320px;margin:0 auto;line-height:1.6">
+          Ingresá los datos de la campaña que terminó para calcular en qué condiciones quedó el suelo y qué necesitás fertilizar la próxima campaña.
+        </div>
+      </div>
+      <div id="bn-resultado" class="hidden"></div>
+    </div>
+  </div>
+</div>
+
+<div id="mod-cosecha" class="module-panel">
+  <div class="api-ribbon" id="ribbon">
+    <div class="api-item">
+      <div class="api-dot loading" id="dot-fob"></div>
+      <span class="api-label">FOB Granos (magyp)</span>
+      <span class="api-value" id="val-fob">cargando…</span>
+    </div>
+    <div class="api-item">
+      <div class="api-dot loading" id="dot-usd"></div>
+      <span class="api-label">USD Oficial</span>
+      <span class="api-value" id="val-usd">cargando…</span>
+    </div>
+    <div class="api-item">
+      <div class="api-dot loading" id="dot-pf"></div>
+      <span class="api-label">Plazo Fijo 30d (BCRA)</span>
+      <span class="api-value" id="val-pf">cargando…</span>
+    </div>
+    <div class="api-item">
+      <div class="api-dot loading" id="dot-badlar"></div>
+      <span class="api-label">BADLAR</span>
+      <span class="api-value" id="val-badlar">cargando…</span>
+    </div>
+    <div class="ribbon-refresh" onclick="loadAllAPIs()">↺ Actualizar</div>
+  </div>
+
+  <!-- TOKEN CONFIG (BCRA) -->
+  <div class="token-wrap" id="token-wrap">
+    <div class="token-title">🔑 Token API estadisticasbcra.com <span style="font-weight:400;opacity:.6;font-size:.9em">(gratuito — <a href="https://estadisticasbcra.com/api/registracion" target="_blank" style="color:var(--grain)">registrarse aquí</a>)</span></div>
+    <div class="token-row">
+      <input type="text" class="dark-inp token-inp" id="bcra-token" placeholder="Pegá tu Bearer token aquí para activar tasas en tiempo real…" style="font-family:'DM Mono',monospace;font-size:.78rem">
+      <button class="btn btn-gold" onclick="saveBcraToken()">Guardar</button>
+    </div>
+    <div style="font-size:.7rem;color:rgba(237,224,196,.35);margin-top:.4rem">Sin token: tasas financieras en modo manual. Precios FOB granos funcionan sin token.</div>
+  </div>
+
+  <!-- MODULE TABS -->
+  <div class="mod-nav">
+    <div class="mod-tab active" data-tab="datos" onclick="showTab('datos')">
+      <div class="tab-num">1</div> Lote y Cosecha
+    </div>
+    <div class="mod-tab" data-tab="costos" onclick="showTab('costos')">
+      <div class="tab-num">2</div> Costos y Fletes
+    </div>
+    <div class="mod-tab" data-tab="almac" onclick="showTab('almac')">
+      <div class="tab-num">3</div> Almacenamiento
+    </div>
+    <div class="mod-tab" data-tab="decision" onclick="showTab('decision')">
+      <div class="tab-num">4</div> ⚖️ Decisión
+    </div>
+    <div class="mod-tab" data-tab="escenarios" onclick="showTab('escenarios')">
+      <div class="tab-num">5</div> 📊 Escenarios
+    </div>
+    <div class="mod-tab" data-tab="historial" onclick="showTab('historial')">
+      <div class="tab-num">6</div> 🗂️ Historial
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL 1: DATOS DEL LOTE ═══════════ -->
+  <div class="mod-panel active" id="panel-datos">
+    <div class="grid-2">
+
+      <!-- Columna izquierda: datos -->
+      <div>
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">🌱 Datos del Lote</div>
+              <div class="card-sub">Cultivo, superficie y rendimiento esperado</div>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div class="fg">
+              <label class="fl">Cultivo</label>
+              <select id="cultivo" onchange="onCultivoChange()">
+                <option value="soja">🟡 Soja</option>
+                <option value="maiz">🟠 Maíz</option>
+                <option value="trigo">🟤 Trigo</option>
+                <option value="girasol">🌻 Girasol</option>
+                <option value="sorgo">🔴 Sorgo granífero</option>
+              </select>
+            </div>
+
+            <div class="grid-2">
+              <div class="fg">
+                <label class="fl">Superficie (ha)</label>
+                <input type="number" id="superficie" value="100" min="1" step="1" oninput="calcLive()">
+              </div>
+              <div class="fg">
+                <label class="fl">Rendimiento (qq/ha)</label>
+                <input type="number" id="rendimiento" value="35" min="1" step="0.5" oninput="calcLive()">
+              </div>
+            </div>
+
+            <div class="fg">
+              <label class="fl">Humedad actual del grano (%)</label>
+              <div class="sw">
+                <input type="range" id="humedad-grano" min="10" max="30" value="14" step="0.5"
+                  oninput="sv('sv-humedad',this.value+'%');calcSecado();calcLive()">
+                <span class="sv" id="sv-humedad">14%</span>
+              </div>
+              <div id="humedad-info" style="font-size:.73rem;color:rgba(74,46,26,.55);margin-top:.3rem"></div>
+            </div>
+
+            <div class="div-line"></div>
+
+            <div class="fg">
+              <label class="fl">Precio disponible <span id="lbl-mercado">Soja — USD/ton</span></label>
+              <div style="display:flex;gap:.6rem">
+                <input type="number" id="precio-usd" style="flex:1" placeholder="USD/ton" oninput="calcLive()">
+                <button class="btn btn-s" onclick="fetchPrecioGrano()" title="Obtener precio FOB desde MAGYP">🔄 API</button>
+              </div>
+              <div id="precio-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.3rem"></div>
+            </div>
+
+            <div class="fg">
+              <label class="fl">Tipo de cambio USD/ARS</label>
+              <div style="display:flex;gap:.6rem">
+                <input type="number" id="tipo-cambio" placeholder="$/USD" oninput="calcLive()" style="flex:1">
+                <button class="btn btn-s" onclick="fetchTipoCambio()" title="Obtener TC oficial">🔄 API</button>
+              </div>
+              <div id="tc-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.3rem"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: resumen lote -->
+      <div>
+        <div class="card card-dark">
+          <div class="card-hdr">
+            <div class="card-title">📊 Resumen del Lote</div>
+          </div>
+          <div class="card-body">
+            <div class="kpi-grid" id="kpi-lote">
+              <div class="kc gold-card"><div class="kl">Producción total</div><div class="kv" id="kv-ton">—</div><div class="ku">toneladas</div></div>
+              <div class="kc gold-card"><div class="kl">Producción qq</div><div class="kv" id="kv-qq">—</div><div class="ku">quintales</div></div>
+              <div class="kc gold-card"><div class="kl">Ingreso bruto</div><div class="kv" id="kv-bruto-usd">—</div><div class="ku">USD totales</div></div>
+              <div class="kc gold-card"><div class="kl">Ingreso bruto ARS</div><div class="kv" id="kv-bruto-ars">—</div><div class="ku">pesos totales</div></div>
+            </div>
+
+            <div class="div-line"></div>
+
+            <div id="secado-info" class="hidden">
+              <div style="font-size:.75rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--amber);margin-bottom:.5rem">⚠️ Descuento por humedad</div>
+              <div class="kpi-grid" style="grid-template-columns:1fr 1fr">
+                <div class="kc warn-card"><div class="kl">Merma estimada</div><div class="kv" id="kv-merma">—</div><div class="ku">%</div></div>
+                <div class="kc warn-card"><div class="kl">Costo secado</div><div class="kv" id="kv-secado-costo">—</div><div class="ku">USD/ton</div></div>
+              </div>
+            </div>
+
+            <div class="info-box" style="margin-top:.8rem">
+              <div class="info-box-icon">ℹ️</div>
+              <div>Los quintales se expresan en <strong>base comercial estándar</strong>: Soja 13% — Maíz 14% — Trigo 14% — Girasol 11% — Sorgo 14%.</div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('costos');window.scrollTo(0,0)">
+          Continuar → Costos y Fletes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL 2: COSTOS Y FLETES ═══════════ -->
+  <div class="mod-panel" id="panel-costos">
+    <div class="grid-2">
+
+      <div>
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">🌾 Cosecha</div>
+              <div class="card-sub">Tarifa de cosechadora y gastos directos</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="fg">
+              <label class="fl">Modalidad de tarifa</label>
+              <select id="tarifa-modo" onchange="onTarifaChange()">
+                <option value="pct">% sobre precio (más común)</option>
+                <option value="usd-qq">USD por quintal</option>
+                <option value="usd-ha">USD por hectárea</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="fl" id="tarifa-lbl">Tarifa cosecha (%)</label>
+              <div class="sw">
+                <input type="range" id="tarifa-cosecha" min="0" max="15" step="0.5" value="9"
+                  oninput="sv('sv-tarifa',this.value+(tarModo()==='pct'?'%':tarModo()==='usd-qq'?' USD/qq':' USD/ha'));calcLive()">
+                <span class="sv" id="sv-tarifa">9%</span>
+              </div>
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem" id="tarifa-referencia">Referencia CAFMA/FACMA: 8-11% para cereales/oleaginosas</div>
+            </div>
+
+            <div class="div-line"></div>
+
+            <div class="fg">
+              <label class="fl">Gastos de comercialización (%)</label>
+              <div class="sw">
+                <input type="range" id="gcom" min="0" max="8" step="0.25" value="3.5"
+                  oninput="sv('sv-gcom',parseFloat(this.value).toFixed(2)+'%');calcLive()">
+                <span class="sv" id="sv-gcom">3.50%</span>
+              </div>
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">Incluye paritaria, sellado, comisión, IVA diferencial</div>
+            </div>
+
+            <div class="fg">
+              <label class="fl">Retenciones a la exportación (%)</label>
+              <div class="sw">
+                <input type="range" id="retenciones" min="0" max="35" step="1" value="33"
+                  oninput="sv('sv-ret',this.value+'%');calcLive()">
+                <span class="sv" id="sv-ret">33%</span>
+              </div>
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem" id="ret-referencia">Soja: 33% · Maíz/Trigo: 12% · Girasol: 7%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">🚛 Flete</div>
+              <div class="card-sub">Costos logísticos por destino</div>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div class="fg">
+              <label class="fl">Distancia al acopio local (km)</label>
+              <div class="sw">
+                <input type="range" id="dist-acopio" min="0" max="150" step="5" value="30"
+                  oninput="sv('sv-dacopio',this.value+' km');calcLive()">
+                <span class="sv" id="sv-dacopio">30 km</span>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Tarifa flete corto (USD/ton)</label>
+              <input type="number" id="flete-corto" value="8" step="0.5" oninput="calcLive()">
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">~0.25-0.35 USD/ton·km en zona pampeana</div>
+            </div>
+
+            <div class="div-line"></div>
+
+            <div class="fg">
+              <label class="fl">Distancia a puerto (km)</label>
+              <div class="sw">
+                <input type="range" id="dist-puerto" min="50" max="800" step="10" value="200"
+                  oninput="sv('sv-dpuerto',this.value+' km');calcLive()">
+                <span class="sv" id="sv-dpuerto">200 km</span>
+              </div>
+            </div>
+            <div class="fg">
+              <label class="fl">Tarifa flete largo a puerto (USD/ton)</label>
+              <input type="number" id="flete-largo" value="22" step="0.5" oninput="calcLive()">
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">~0.1-0.12 USD/ton·km largo recorrido</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen costos -->
+      <div>
+        <div class="card card-dark">
+          <div class="card-hdr">
+            <div class="card-title">💰 Estructura de Costos</div>
+          </div>
+          <div class="card-body">
+
+            <table class="tbl" id="tbl-costos">
+              <thead>
+                <tr><th>Concepto</th><th>USD/ton</th><th>% s/precio</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>Cosecha</td><td class="mono" id="tc-cosecha">—</td><td class="mono" id="pc-cosecha">—</td></tr>
+                <tr><td>Flete → Acopio</td><td class="mono" id="tc-flete-a">—</td><td class="mono" id="pc-flete-a">—</td></tr>
+                <tr><td>Flete → Puerto</td><td class="mono" id="tc-flete-p">—</td><td class="mono" id="pc-flete-p">—</td></tr>
+                <tr><td>Gs. Comercializ.</td><td class="mono" id="tc-gcom">—</td><td class="mono" id="pc-gcom">—</td></tr>
+                <tr><td>Retenciones</td><td class="mono" id="tc-ret">—</td><td class="mono" id="pc-ret">—</td></tr>
+                <tr><td>Secado (si aplica)</td><td class="mono" id="tc-secado">—</td><td class="mono" id="pc-secado">—</td></tr>
+                <tr style="border-top:2px solid var(--border)"><td><strong>Total costos (a puerto)</strong></td><td class="mono ok" id="tc-total"><strong>—</strong></td><td class="mono ok" id="pc-total"><strong>—</strong></td></tr>
+              </tbody>
+            </table>
+
+            <div class="div-line"></div>
+
+            <div class="kpi-grid">
+              <div class="kc ok-card"><div class="kl">Neto → Acopio</div><div class="kv" id="kv-neto-acopio">—</div><div class="ku">USD/ton</div></div>
+              <div class="kc ok-card"><div class="kl">Neto → Puerto</div><div class="kv" id="kv-neto-puerto">—</div><div class="ku">USD/ton</div></div>
+            </div>
+
+          </div>
+        </div>
+
+        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('almac');window.scrollTo(0,0)">
+          Continuar → Almacenamiento
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL 3: ALMACENAMIENTO ═══════════ -->
+  <div class="mod-panel" id="panel-almac">
+    <div class="grid-2">
+
+      <div>
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">📅 Período de Almacenamiento</div>
+              <div class="card-sub">Horizonte temporal y expectativa de precio</div>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <div class="fg">
+              <label class="fl">Meses a almacenar</label>
+              <div class="month-pills" id="month-pills"></div>
+            </div>
+
+            <div class="fg" style="margin-top:.8rem">
+              <label class="fl">Expectativa de precio al vencimiento (USD/ton)</label>
+              <input type="number" id="precio-futuro" placeholder="Precio esperado en X meses" oninput="calcLive()">
+              <div style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">Podés basarte en futuros Matba-Rofex o tu propia estimación</div>
+            </div>
+
+            <div class="div-line"></div>
+
+            <div class="fg">
+              <label class="fl">Tasa de referencia financiera (% mensual)</label>
+              <div style="display:flex;gap:.6rem;align-items:center">
+                <input type="number" id="tasa-ref" value="3.5" step="0.1" oninput="calcLive()" style="flex:1">
+                <button class="btn btn-s" onclick="usarTasaBCRA()" title="Usar tasa BCRA">🔄 API</button>
+              </div>
+              <div id="tasa-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">Plazo fijo 30 días promedio sistema</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opciones de almacenamiento -->
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">🏪 Opciones de Almacenamiento</div>
+              <div class="card-sub">Configurá cada alternativa</div>
+            </div>
+          </div>
+          <div class="card-body">
+
+            <!-- Silo bolsa -->
+            <details open>
+              <summary style="cursor:pointer;font-weight:600;color:var(--earth);padding:.5rem 0;list-style:none;display:flex;align-items:center;gap:.5rem">
+                <span>🟡 Silo Bolsa Propio</span>
+                <span class="chip chip-ok" style="margin-left:auto">disponible</span>
+              </summary>
+              <div style="padding:.8rem 0 0 .4rem">
+                <div class="grid-2">
+                  <div class="fg">
+                    <label class="fl">Costo bolsa (USD/ton)</label>
+                    <input type="number" id="sb-costo-bolsa" value="5.5" step="0.5" oninput="calcLive()">
+                  </div>
+                  <div class="fg">
+                    <label class="fl">Embolsado + extracción (USD/ton)</label>
+                    <input type="number" id="sb-mo" value="2.5" step="0.5" oninput="calcLive()">
+                  </div>
+                </div>
+                <div class="fg">
+                  <label class="fl">Merma almacenaje silo bolsa (% / mes)</label>
+                  <div class="sw">
+                    <input type="range" id="sb-merma" min="0" max="1" step="0.05" value="0.1"
+                      oninput="sv('sv-sbmerma',parseFloat(this.value).toFixed(2)+'%/mes');calcLive()">
+                    <span class="sv" id="sv-sbmerma">0.10%/mes</span>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <div class="div-line"></div>
+
+            <!-- Silo chapa -->
+            <details>
+              <summary style="cursor:pointer;font-weight:600;color:var(--earth);padding:.5rem 0;list-style:none;display:flex;align-items:center;gap:.5rem">
+                <span>🏚️ Silo Chapa Propio</span>
+                <span class="chip chip-gold" style="margin-left:auto">costo fijo</span>
+              </summary>
+              <div style="padding:.8rem 0 0 .4rem">
+                <div class="grid-2">
+                  <div class="fg">
+                    <label class="fl">Costo fijo amortiz. (USD/ton·mes)</label>
+                    <input type="number" id="sc-amort" value="1.2" step="0.1" oninput="calcLive()">
+                  </div>
+                  <div class="fg">
+                    <label class="fl">Seguro + mantenimiento (USD/ton·mes)</label>
+                    <input type="number" id="sc-seguro" value="0.5" step="0.1" oninput="calcLive()">
+                  </div>
+                </div>
+                <div class="fg">
+                  <label class="fl">Merma almacenaje silo (% / mes)</label>
+                  <div class="sw">
+                    <input type="range" id="sc-merma" min="0" max="0.5" step="0.02" value="0.05"
+                      oninput="sv('sv-scmerma',parseFloat(this.value).toFixed(2)+'%/mes');calcLive()">
+                    <span class="sv" id="sv-scmerma">0.05%/mes</span>
+                  </div>
+                </div>
+              </div>
+            </details>
+
+            <div class="div-line"></div>
+
+            <!-- Acopio -->
+            <details>
+              <summary style="cursor:pointer;font-weight:600;color:var(--earth);padding:.5rem 0;list-style:none;display:flex;align-items:center;gap:.5rem">
+                <span>🏢 Acopio Local</span>
+                <span class="chip chip-blue" style="margin-left:auto">servicio</span>
+              </summary>
+              <div style="padding:.8rem 0 0 .4rem">
+                <div class="grid-2">
+                  <div class="fg">
+                    <label class="fl">Almacenaje (USD/ton·mes)</label>
+                    <input type="number" id="ac-tarifa" value="2.0" step="0.1" oninput="calcLive()">
+                  </div>
+                  <div class="fg">
+                    <label class="fl">Acondicionamiento / zaranda (USD/ton)</label>
+                    <input type="number" id="ac-zar" value="3.0" step="0.5" oninput="calcLive()">
+                  </div>
+                </div>
+              </div>
+            </details>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen almacenamiento -->
+      <div>
+        <div class="card card-gold">
+          <div class="card-hdr">
+            <div class="card-title">📈 Costo total de almacenar</div>
+          </div>
+          <div class="card-body">
+            <div id="almac-resumen">
+              <div class="ph-state">
+                <span class="ph-icon">📦</span>
+                <p>Configurá las opciones y el período<br>para ver el costo comparado.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('decision');calcDecision();window.scrollTo(0,0)">
+          ⚖️ Ver Decisión →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL 4: DECISIÓN ═══════════ -->
+  <div class="mod-panel" id="panel-decision">
+
+    <!-- Semáforo principal -->
+    <div id="sem-container">
+      <div class="ph-state" style="padding:4rem 1rem">
+        <span class="ph-icon">⚖️</span>
+        <p>Completá los paneles 1–3 y presioná<br><strong>"Ver Decisión"</strong> para activar el motor.</p>
+      </div>
+    </div>
+
+    <!-- Comparador de destinos -->
+    <div id="dest-container" class="hidden">
+
+      <div class="card">
+        <div class="card-hdr">
+          <div>
+            <div class="card-title">🏁 Comparador de Destinos</div>
+            <div class="card-sub">Precio neto recibido por tonelada — ordenado de mejor a peor</div>
+          </div>
+        </div>
+        <div class="card-body" style="padding-top:.5rem">
+          <div class="dest-grid" id="dest-grid"></div>
+        </div>
+      </div>
+
+      <!-- Break-even y tasas -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">📐 Break-Even de Precio</div>
+              <div class="card-sub">¿Cuánto tiene que subir el grano para que convenga almacenar?</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="bep-wrap" id="bep-wrap"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hdr">
+            <div>
+              <div class="card-title">📊 Rentabilidad del Almacenamiento</div>
+              <div class="card-sub">Tasa implícita vs. alternativas financieras</div>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="kpi-grid" id="kpi-tasas"></div>
+            <div id="tasa-comment" style="font-size:.8rem;color:rgba(28,18,8,.6);line-height:1.55;margin-top:.9rem"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- IA Análisis -->
+      <div class="ia-wrap">
+        <div class="ia-header">
+          <div class="ia-dot"></div>
+          <div class="ia-title">Análisis Agronómico IA — AgroMotor</div>
+          <button class="btn btn-s" style="margin-left:auto;font-size:.75rem;padding:.4rem .9rem" onclick="runIA()">🤖 Analizar</button>
+        </div>
+        <div class="ia-body" id="ia-body">
+          <span style="color:rgba(237,224,196,.35);font-style:italic">Presioná "Analizar" para que el motor genere un análisis narrativo de la situación post-cosecha…</span>
+        </div>
+      </div>
+
+      <!-- Exportar -->
+      <div class="export-row">
+        <button class="btn btn-s" onclick="exportPDF()">📄 Exportar PDF</button>
+        <button class="btn btn-s" onclick="guardarLote()" title="Guardar este análisis en el historial">💾 Guardar lote</button>
+        <button class="btn btn-s" onclick="showTab('escenarios');buildEscenarios()">📊 Ver escenarios</button>
+        <button class="btn btn-gold" onclick="calcDecision()">🔄 Recalcular</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ PANEL 5: ESCENARIOS DE PRECIO ═══════════ -->
+  <div class="mod-panel" id="panel-escenarios">
+
+    <div class="card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">📊 Tabla de Escenarios de Precio</div>
+          <div class="card-sub">Sensibilidad del precio neto ante variaciones de mercado y tiempo</div>
+        </div>
+        <button class="btn btn-gold" onclick="buildEscenarios()" style="font-size:.8rem;padding:.55rem 1.1rem">⚡ Generar</button>
+      </div>
+      <div class="card-body">
+
+        <!-- Controles escenarios -->
+        <div class="grid-2" style="margin-bottom:1.2rem">
+          <div class="card" style="background:rgba(200,162,85,.05);border-color:rgba(200,162,85,.2);margin-bottom:0">
+            <div class="card-body" style="padding:1rem">
+              <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--grain);margin-bottom:.7rem">Eje X — Variación de Precio</div>
+              <div class="fg">
+                <label class="fl">Rango de variación (%)</label>
+                <div style="display:flex;gap:.5rem;align-items:center">
+                  <input type="number" id="esc-rango-min" value="-20" style="width:70px;text-align:center">
+                  <span style="color:rgba(28,18,8,.4);font-size:.8rem">a</span>
+                  <input type="number" id="esc-rango-max" value="30" style="width:70px;text-align:center">
+                  <span style="color:rgba(28,18,8,.4);font-size:.75rem">%</span>
+                </div>
+              </div>
+              <div class="fg" style="margin-top:.7rem">
+                <label class="fl">Pasos (columnas)</label>
+                <select id="esc-pasos">
+                  <option value="5">Cada 5%</option>
+                  <option value="10" selected>Cada 10%</option>
+                  <option value="15">Cada 15%</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="background:rgba(42,90,140,.05);border-color:rgba(42,90,140,.2);margin-bottom:0">
+            <div class="card-body" style="padding:1rem">
+              <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--sky);margin-bottom:.7rem">Eje Y — Período (meses)</div>
+              <div class="fg">
+                <label class="fl">Meses a evaluar</label>
+                <div style="display:flex;gap:.4rem;flex-wrap:wrap" id="esc-meses-wrap"></div>
+              </div>
+              <div class="fg" style="margin-top:.8rem">
+                <label class="fl">Destino de referencia</label>
+                <select id="esc-destino">
+                  <option value="sb">Silo bolsa + venta acopio</option>
+                  <option value="sc">Silo chapa + venta acopio</option>
+                  <option value="ac">Acopio local</option>
+                  <option value="hoy-puerto">Vender HOY a Puerto</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de escenarios generada dinámicamente -->
+        <div id="esc-table-wrap">
+          <div class="ph-state">
+            <span class="ph-icon">📊</span>
+            <p>Configurá los parámetros y presioná <strong>Generar</strong><br>para ver la tabla de sensibilidad.</p>
+          </div>
+        </div>
+
+        <!-- Leyenda -->
+        <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:1rem;font-size:.72rem;color:rgba(28,18,8,.55)">
+          <div style="display:flex;align-items:center;gap:.4rem"><div style="width:14px;height:14px;border-radius:3px;background:rgba(42,122,74,.25);border:1px solid rgba(42,122,74,.5)"></div> Supera venta hoy</div>
+          <div style="display:flex;align-items:center;gap:.4rem"><div style="width:14px;height:14px;border-radius:3px;background:rgba(184,122,32,.2);border:1px solid rgba(184,122,32,.4)"></div> Margen estrecho (±5%)</div>
+          <div style="display:flex;align-items:center;gap:.4rem"><div style="width:14px;height:14px;border-radius:3px;background:rgba(212,82,42,.15);border:1px solid rgba(212,82,42,.35)"></div> Inferior a venta hoy</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Análisis de devaluación -->
+    <div class="card card-gold">
+      <div class="card-hdr">
+        <div class="card-title">💱 Escenario de Devaluación</div>
+        <div style="font-size:.73rem;color:rgba(237,224,196,.45);margin-top:.1rem">Impacto de una suba del tipo de cambio sobre el neto en pesos</div>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" style="margin-bottom:1rem">
+          <div class="fg">
+            <label class="fl dark-label">Expectativa de devaluación mensual (%)</label>
+            <div class="sw">
+              <input type="range" id="deval-mensual" min="0" max="10" step="0.5" value="2"
+                oninput="sv('sv-deval',parseFloat(this.value).toFixed(1)+'%/mes');buildDevalTable()">
+              <span class="sv" id="sv-deval">2.0%/mes</span>
+            </div>
+          </div>
+          <div class="fg">
+            <label class="fl dark-label">Horizonte (meses)</label>
+            <div class="sw">
+              <input type="range" id="deval-meses" min="1" max="12" step="1" value="4"
+                oninput="sv('sv-deval-m',this.value+' meses');buildDevalTable()">
+              <span class="sv" id="sv-deval-m">4 meses</span>
+            </div>
+          </div>
+        </div>
+        <div id="deval-table-wrap"></div>
+        <div class="info-box" style="margin-top:.9rem">
+          <div class="info-box-icon">💡</div>
+          <div>Si el grano está valuado en USD y el TC sube, el productor que almacena "captura" la devaluación en pesos. Este cuadro muestra el neto en ARS/ton para cada escenario de TC.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════ PANEL 6: HISTORIAL DE LOTES ═══════════ -->
+  <div class="mod-panel" id="panel-historial">
+
+    <div class="card">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">🗂️ Historial de Lotes</div>
+          <div class="card-sub">Análisis guardados de la campaña — almacenamiento local</div>
+        </div>
+        <div style="display:flex;gap:.6rem">
+          <button class="btn btn-s" style="font-size:.78rem;padding:.45rem .9rem" onclick="exportHistorialCSV()">📥 CSV</button>
+          <button class="btn btn-s" style="font-size:.78rem;padding:.45rem .9rem;color:var(--warn)" onclick="limpiarHistorial()">🗑️ Limpiar</button>
+        </div>
+      </div>
+      <div class="card-body" style="padding:0">
+        <div id="historial-container">
+          <div class="ph-state" style="padding:3rem 1rem">
+            <span class="ph-icon">📋</span>
+            <p>Todavía no guardaste ningún lote.<br>Completá un análisis y presioná <strong>"💾 Guardar lote"</strong> en el panel Decisión.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen de campaña -->
+    <div class="card card-dark" id="resumen-campaña-card" style="display:none">
+      <div class="card-hdr">
+        <div class="card-title">🌾 Resumen de Campaña</div>
+      </div>
+      <div class="card-body">
+        <div class="kpi-grid" id="kpi-campaña"></div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ══ MÓDULO PLAGAS ══ -->
+<div id="mod-plagas" class="module-panel">
+  <div class="module-title">Módulo 07 · <em>Alertas de Plagas</em></div>
+  <div class="module-subtitle">Favorabilidad climática + red comunitaria + alertas INTA</div>
+
+  <div class="orientativa-banner" style="margin-top:1rem;border-radius:8px;">
+    <div class="ob-icon">⚠️</div>
+    <div class="ob-text">
+      <strong>Estimación orientativa</strong> — Los modelos evalúan condiciones climáticas favorables para el desarrollo poblacional. No reemplazan el monitoreo.
+    </div>
+  </div>
+
+  <!-- Panel de configuración rápida -->
+  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem 1.2rem;margin-top:1rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end">
+    <div style="flex:1;min-width:160px">
+      <label style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);display:block;margin-bottom:.3rem">Fecha de siembra</label>
+      <input type="date" id="plagas-siembra" style="background:#1A2A20;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:.45rem .7rem;color:var(--white);font-size:.82rem;width:100%">
+    </div>
+    <div style="flex:0 0 auto">
+      <button id="btn-analizar-plagas" onclick="amAnalizarPlagas()" style="background:linear-gradient(135deg,#78350F,#D97706);color:white;border:none;border-radius:10px;padding:.55rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        🔍 Analizar Presión de Plagas
+      </button>
+    </div>
+    <div style="flex:1;min-width:200px;font-size:.72rem;color:rgba(255,255,255,.45);line-height:1.5">
+      📍 Usa las coordenadas y cultivo del lote activo del Dashboard.<br>
+      Si no tenés lote seleccionado, ingresá las coords en el mapa primero.
+    </div>
+  </div>
+
+  <div class="main" id="plagas-content" style="max-width:820px;margin:0 auto;padding:2rem 0">
+    <div class="placeholder">
+      <div class="ph-icon">🐛</div>
+      <div class="ph-text">Seleccioná la fecha de siembra y hacé clic en<br><strong>"Analizar Presión de Plagas"</strong> para comenzar.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL SISTEMA DE PLANES ══ -->
+<div id="am-modal" class="hidden" style="
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(10,18,12,.85);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  padding:1rem">
+
+  <div style="
+    background:var(--panel-bg);
+    border-radius:24px;
+    max-width:680px;width:100%;
+    max-height:90vh;overflow-y:auto;
+    box-shadow:0 24px 80px rgba(0,0,0,.4);
+    border:1px solid var(--border);
+    position:relative">
+
+    <!-- Cerrar -->
+    <button onclick="amCerrarModal()" style="
+      position:absolute;top:1rem;right:1rem;
+      width:32px;height:32px;border-radius:50%;
+      border:none;background:rgba(61,34,16,.1);
+      cursor:pointer;font-size:1.1rem;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .2s;z-index:1"
+      onmouseenter="this.style.background='rgba(61,34,16,.2)'"
+      onmouseleave="this.style.background='rgba(61,34,16,.1)'">✕</button>
+
+    <!-- ── VISTA PLANES ── -->
+    <div id="am-vista-planes">
+      <!-- Header -->
+      <div style="padding:1.6rem 2rem 1rem;text-align:center;border-bottom:1px solid var(--border)">
+        <div style="display:inline-flex;align-items:center;gap:.45rem;background:#f4faf6;border:1px solid rgba(74,140,92,.35);color:#1b5e35;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .8rem;border-radius:20px;margin-bottom:.7rem">
+          🎓 Exclusivo para Ingenieros Agrónomos
+        </div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--earth);margin-bottom:.25rem">
+          Elegí tu plan
+        </div>
+        <div id="am-upgrade-modulo-msg" style="font-size:.78rem;color:rgba(61,34,16,.6);line-height:1.5">
+          Una herramienta diseñada por y para profesionales matriculados.<br>
+          Si sos productor o trabajás con un ingeniero, <strong>pediles que la evalúen</strong>.
+        </div>
+        <div style="font-size:.74rem;color:rgba(61,34,16,.4);margin-top:.3rem">
+          Módulo premium: <strong id="am-upgrade-modulo" style="color:var(--canopy)"></strong>
+        </div>
+      </div>
+
+      <!-- Banner ROI -->
+      <div style="margin:0 1.5rem 1rem;padding:.8rem 1.1rem;background:linear-gradient(135deg,#fbf8f1,#fbf6e9);border:1px solid rgba(200,162,85,.35);border-radius:10px;font-size:.78rem;color:#5a4a32;line-height:1.5">
+        💡 <strong>El cálculo simple:</strong> AgroMotor te ahorra 2 viajes al campo por mes (combustible + tiempo del asesor) — ya se paga solo con un viaje evitado.
+      </div>
+
+      <!-- Cards de planes -->
+      <div class="planes-grid" style="padding:0 1.5rem 1.5rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem">
+
+        <!-- DEMO -->
+        <div style="border:1.5px solid rgba(58,122,74,.3);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f4faf6;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🌱</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Demo</div>
+          <div style="font-size:1.3rem;font-weight:700;color:var(--canopy);margin-bottom:0">Gratis</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">para probar</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ 1 lote</li>
+            <li>✅ Diagnóstico siembra</li>
+            <li>✅ Open-Meteo 7 días</li>
+            <li style="color:rgba(61,34,16,.35)">❌ Otros módulos</li>
+            <li style="color:rgba(61,34,16,.35)">❌ Asistente IA</li>
+          </ul>
+          <button onclick="amRegistrarPlan('free')" style="
+            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid var(--canopy);
+            background:transparent;color:var(--canopy);font-weight:600;font-size:.78rem;
+            cursor:pointer;font-family:inherit;transition:all .2s"
+            onmouseenter="this.style.background='rgba(58,122,74,.08)'"
+            onmouseleave="this.style.background='transparent'">
+            Empezar
+          </button>
+        </div>
+
+        <!-- ASESOR -->
+        <div style="border:1.5px solid rgba(58,122,74,.4);border-radius:14px;padding:1rem .9rem;text-align:center;background:#fff;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🌾</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Asesor</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1b5e35;margin-bottom:0">USD 35</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 5 lotes</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ <strong>Todos los módulos</strong></li>
+            <li>✅ Soja, maíz, trigo, girasol, sorgo</li>
+            <li>✅ SoilGrids · NASA · ENSO</li>
+            <li>✅ Cultivares RECSO/INTA</li>
+            <li>✅ Asistente IA · 30 cons./mes</li>
+          </ul>
+          <button onclick="amRegistrarPlan('asesor')" style="
+            width:100%;padding:.55rem;border-radius:8px;border:none;
+            background:linear-gradient(135deg,#1b5e35,#3A7A4A);color:white;
+            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
+            box-shadow:0 3px 8px rgba(58,122,74,.3);transition:all .2s"
+            onmouseenter="this.style.transform='translateY(-1px)'"
+            onmouseleave="this.style.transform='translateY(0)'">
+            14 días gratis
+          </button>
+        </div>
+
+        <!-- PRO ⭐ -->
+        <div style="border:2px solid var(--grain);border-radius:14px;padding:1rem .9rem;text-align:center;background:linear-gradient(180deg,#fbf6e9,#fff);position:relative;display:flex;flex-direction:column;box-shadow:0 6px 20px rgba(200,162,85,.2)">
+          <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grain);color:var(--ink);font-size:.6rem;font-weight:700;padding:.22rem .65rem;border-radius:20px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 6px rgba(200,162,85,.35)">⭐ Más popular</div>
+          <div style="font-size:1.6rem;margin-bottom:.3rem">⚡</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Pro</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#8A6A20;margin-bottom:0">USD 90</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 25 lotes</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ Todo de Asesor +</li>
+            <li>✅ <strong>25 lotes</strong> simultáneos</li>
+            <li>✅ Asistente IA · 100 cons./mes</li>
+            <li>✅ PDF brandeable</li>
+            <li>✅ Historial extendido</li>
+          </ul>
+          <button onclick="amRegistrarPlan('pro')" style="
+            width:100%;padding:.55rem;border-radius:8px;border:none;
+            background:linear-gradient(135deg,#8A6A20,var(--grain));color:white;
+            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
+            box-shadow:0 4px 12px rgba(200,162,85,.4);transition:all .2s"
+            onmouseenter="this.style.transform='translateY(-1px)'"
+            onmouseleave="this.style.transform='translateY(0)'">
+            14 días gratis
+          </button>
+        </div>
+
+        <!-- EMPRESA -->
+        <div style="border:1.5px solid rgba(42,90,140,.35);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f3f7fd;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🏢</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Empresa</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1A4A7A;margin-bottom:0">USD 250</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 75 lotes</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ Todo de Pro +</li>
+            <li>✅ <strong>75 lotes</strong> simultáneos</li>
+            <li>✅ Asistente IA · 300 cons./mes</li>
+            <li>✅ NDVI satelital · API export</li>
+            <li>✅ Soporte directo</li>
+            <li style="color:rgba(26,74,122,.7);font-size:.66rem;margin-top:.3rem">¿Más volumen? Cotizamos a medida</li>
+          </ul>
+          <button onclick="amRegistrarPlan('empresa')" style="
+            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid #2A5A8C;
+            background:transparent;color:#2A5A8C;font-weight:600;font-size:.78rem;
+            cursor:pointer;font-family:inherit;transition:all .2s"
+            onmouseenter="this.style.background='rgba(42,90,140,.08)'"
+            onmouseleave="this.style.background='transparent'">
+            Contactar ventas
+          </button>
+        </div>
+      </div>
+
+      <!-- Founders deal -->
+      <div style="margin:0 1.5rem 1rem;padding:.7rem 1rem;background:#0e2016;border:1px solid rgba(200,162,85,.3);border-radius:10px;font-size:.74rem;color:rgba(237,224,196,.85);text-align:center">
+        🚀 <strong style="color:var(--amber)">Oferta Fundadores:</strong> los primeros 100 usuarios bloquean su precio actual <strong>de por vida</strong>. Cuando subamos los precios, vos seguís pagando lo mismo.
+      </div>
+
+      <!-- Footer del modal -->
+      <div style="padding:0 1.5rem 1.5rem;text-align:center">
+        <button onclick="amCambiarVista('login')" style="
+          background:none;border:none;color:var(--canopy);font-size:.82rem;
+          cursor:pointer;font-family:inherit;text-decoration:underline;font-weight:500">
+          Ya tengo cuenta → Iniciar sesión
+        </button>
+      </div>
+    </div>
+
+    <!-- ── VISTA LOGIN ── -->
+    <div id="am-vista-login" class="hidden">
+      <div style="padding:2rem">
+        <div style="text-align:center;margin-bottom:1.5rem">
+          <div style="font-size:2rem;margin-bottom:.4rem">👤</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Iniciar sesión</div>
+          <div style="font-size:.78rem;color:rgba(61,34,16,.45);margin-top:.2rem">Ingresá con tu cuenta de AgroMotor</div>
+        </div>
+        <div id="am-login-err" class="hidden alert danger" style="margin-bottom:1rem"></div>
+        <div class="fg">
+          <label>Email</label>
+          <input type="email" id="am-email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')amLogin()">
+        </div>
+        <div class="fg">
+          <label>Contraseña</label>
+          <input type="password" id="am-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')amLogin()">
+        </div>
+        <button id="am-btn-login-submit" onclick="amLogin()" class="btn btn-p btn-full btn-lg">Iniciar sesión</button>
+        <div style="text-align:center;margin-top:1rem;display:flex;gap:1rem;justify-content:center">
+          <button onclick="amCambiarVista('planes')" style="background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
+          <button onclick="amCambiarVista('registro')" style="background:none;border:none;color:var(--canopy);font-size:.78rem;cursor:pointer;font-family:inherit;text-decoration:underline">Crear cuenta nueva</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VISTA REGISTRO ── -->
+    <div id="am-vista-registro" class="hidden">
+      <div style="padding:1.6rem 1.8rem">
+        <div style="text-align:center;margin-bottom:1.2rem">
+          <div style="font-size:1.8rem;margin-bottom:.3rem">🎓</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Crear cuenta profesional</div>
+          <div style="font-size:.74rem;color:rgba(61,34,16,.55);margin-top:.3rem;line-height:1.5">
+            AgroMotor es exclusivo para Ingenieros Agrónomos matriculados<br>y estudiantes avanzados de Agronomía
+          </div>
+        </div>
+        <div id="am-reg-err" class="hidden alert danger" style="margin-bottom:1rem"></div>
+
+        <div class="fg">
+          <label>Nombre completo (como figura en la matrícula)</label>
+          <input type="text" id="am-reg-nombre" placeholder="Ing. Agr. Juan Pérez">
+        </div>
+        <div class="fg">
+          <label>Email profesional</label>
+          <input type="email" id="am-reg-email" placeholder="juan@agronomia.com">
+        </div>
+        <div class="fg">
+          <label>Contraseña</label>
+          <input type="password" id="am-reg-pass" placeholder="Mínimo 8 caracteres">
+        </div>
+
+        <!-- ── BLOQUE PROFESIONAL ── -->
+        <div style="background:#f4faf6;border:1px solid rgba(74,140,92,.3);border-radius:10px;padding:.9rem 1rem;margin:.9rem 0;font-size:.78rem">
+          <div style="font-weight:700;color:#1b5e35;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem">
+            🎯 Acreditación profesional
+          </div>
+
+          <div class="fg" style="margin-bottom:.7rem">
+            <label style="font-size:.7rem">Categoría</label>
+            <select id="am-reg-rol" onchange="amRegToggleRol()">
+              <option value="agronomo" selected>Ingeniero Agrónomo matriculado</option>
+              <option value="estudiante">Estudiante de Agronomía (últimos 2 años)</option>
+            </select>
+          </div>
+
+          <div id="am-reg-block-agronomo">
+            <div class="fg" style="margin-bottom:.7rem">
+              <label style="font-size:.7rem">Consejo Profesional (CPIA)</label>
+              <select id="am-reg-cpia">
+                <option value="">Seleccioná tu jurisdicción…</option>
+                <option value="CPIA-BA">CPIA Buenos Aires (Provincia + CABA)</option>
+                <option value="CIAGRO-CBA">CIAGRO — Córdoba</option>
+                <option value="CIASFE-SF">CIASFE — Santa Fe</option>
+                <option value="CIAER-ER">CIAER — Entre Ríos</option>
+                <option value="CARPA-LP">CARPA — La Pampa</option>
+                <option value="CPIA-MZA">CPIA — Mendoza</option>
+                <option value="CIAS-NOA">CIAS — Salta y Jujuy</option>
+                <option value="CIANOA-TUC">CIANOA — Tucumán</option>
+                <option value="CIA-CHACO">CIA — Chaco</option>
+                <option value="CIA-MIS">CIA — Misiones</option>
+                <option value="CIAR-PAT">CIAR — Río Negro y Neuquén</option>
+                <option value="CIA-CHU">CIA — Chubut</option>
+                <option value="CIA-CTM">CIA — Catamarca</option>
+                <option value="CIA-LRJ">CIA — La Rioja</option>
+                <option value="CIA-SJN">CIA — San Juan</option>
+                <option value="CIA-SLU">CIA — San Luis</option>
+                <option value="CIA-SC">CIA — Santa Cruz</option>
+                <option value="CIA-FOR">CIA — Formosa</option>
+                <option value="CIA-STG">CIA — Santiago del Estero</option>
+                <option value="CIA-CRR">CIA — Corrientes</option>
+                <option value="OTRO">Otro / Internacional</option>
+              </select>
+            </div>
+            <div class="fg" style="margin-bottom:.4rem">
+              <label style="font-size:.7rem">Número de matrícula</label>
+              <input type="text" id="am-reg-matricula" placeholder="Ej: 12345" inputmode="numeric">
+            </div>
+          </div>
+
+          <div id="am-reg-block-estudiante" class="hidden">
+            <div class="fg" style="margin-bottom:.7rem">
+              <label style="font-size:.7rem">Universidad</label>
+              <input type="text" id="am-reg-universidad" placeholder="Ej: UBA — Facultad de Agronomía">
+            </div>
+            <div class="fg" style="margin-bottom:.4rem">
+              <label style="font-size:.7rem">Año cursando</label>
+              <select id="am-reg-anio">
+                <option value="">Seleccioná…</option>
+                <option value="4">4° año</option>
+                <option value="5">5° año</option>
+                <option value="tesis">Tesis / últimos exámenes</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="display:flex;gap:.5rem;align-items:flex-start;margin-top:.7rem;font-size:.7rem;color:rgba(61,34,16,.7);line-height:1.5;cursor:pointer">
+            <input type="checkbox" id="am-reg-jura" style="margin-top:.15rem;flex-shrink:0;cursor:pointer">
+            <span>Declaro bajo juramento que los datos profesionales son verdaderos y vigentes. AgroMotor puede auditar esta información y suspender la cuenta si los datos son falsos.</span>
+          </label>
+        </div>
+        <div class="fg">
+          <label>Plan seleccionado</label>
+          <select id="am-reg-plan">
+            <option value="free">Demo — Gratis (1 lote)</option>
+            <option value="asesor">Asesor — USD 35/mes · 5 lotes (14 días gratis)</option>
+            <option value="pro" selected>Pro — USD 90/mes · 25 lotes (14 días gratis)</option>
+            <option value="empresa">Empresa — USD 250/mes · 75 lotes · 300 IA</option>
+          </select>
+        </div>
+        <button id="am-btn-reg-submit" onclick="amRegistrar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Crear cuenta</button>
+        <div style="text-align:center;margin-top:.8rem">
+          <button onclick="amCambiarVista('login')" style="background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">Ya tengo cuenta → Iniciar sesión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MÓDULO: SIEMBRA VARIABLE ══════════════════════════ -->
+<div id="mod-siembra-variable" class="module-panel">
+<div class="sv-wrap">
+
+  <aside class="sv-sidebar">
+
+    <div class="sv-panel">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>⚙️ API Agromonitoring</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <span class="sv-flabel">API Key</span>
+        <div class="sv-igrp">
+          <input type="password" id="sv-api-key" placeholder="Pegá tu key aquí..."/>
+          <button class="sv-btn sv-btn-sec" onclick="svConectarAPI()">→</button>
+        </div>
+        <div class="sv-api-status" id="sv-api-status">
+          <span class="sv-dot sv-dot-demo"></span><span>Modo demo · datos simulados</span>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:2px">
+          <span class="sv-badge sv-badge-demo" id="sv-bdemo">DEMO</span>
+          <span class="sv-badge sv-badge-api" id="sv-bapi">API REAL</span>
+        </div>
+        <p class="sv-hint"><a href="https://agromonitoring.com" target="_blank">Obtener API key gratuita →</a></p>
+      </div>
+    </div>
+
+    <div class="sv-panel">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>📍 Lote</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-dibujar" onclick="svActivarDibujo()">✏️ Dibujar lote en el mapa</button>
+        <div id="sv-draw-hint" class="sv-draw-hint" style="display:none">
+          <strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar
+        </div>
+        <div id="sv-lote-empty" class="sv-empty-msg" style="padding:6px 0">o importá un GeoJSON ↓</div>
+        <div id="sv-lote-info" style="display:none;flex-direction:column;gap:0">
+          <div class="sv-srow"><span>Superficie</span><span class="sv-sval" id="sv-l-area">—</span></div>
+          <div class="sv-srow"><span>Perímetro</span><span class="sv-sval" id="sv-l-peri">—</span></div>
+          <div class="sv-srow"><span>Centroide</span><span class="sv-sval" id="sv-l-cent" style="font-size:10px">—</span></div>
+        </div>
+        <div class="sv-arow">
+          <label class="sv-btn sv-btn-sec sv-btn-sm" style="cursor:pointer">
+            📂 GeoJSON<input type="file" accept=".geojson,.json" onchange="svImportarGeoJSON(event)" style="display:none"/>
+          </label>
+          <button class="sv-btn sv-btn-danger sv-btn-sm" onclick="svLimpiarLote()">✕ Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="sv-panel">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>📊 Rendimientos históricos</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <p class="sv-hint">CSV del monitor de cosecha (John Deere, Ag Leader, CNH)</p>
+        <label class="sv-btn sv-btn-sec sv-btn-full" style="cursor:pointer">
+          📂 Importar CSV del monitor
+          <input type="file" accept=".csv,.txt" onchange="svImportarCSV(event)" style="display:none"/>
+        </label>
+        <div id="sv-csv-ok" style="display:none"></div>
+        <div id="sv-csv-cols" class="sv-col-sel" style="display:none">
+          <div class="sv-col-row"><label>Latitud</label><select id="sv-col-lat"></select></div>
+          <div class="sv-col-row"><label>Longitud</label><select id="sv-col-lng"></select></div>
+          <div class="sv-col-row"><label>Rendim.</label><select id="sv-col-rend"></select></div>
+          <button class="sv-btn sv-btn-primary sv-btn-full" onclick="svConfirmarCSV()" style="margin-top:2px">✓ Confirmar columnas</button>
+        </div>
+        <div id="sv-yield-status" style="display:none" class="sv-hint"></div>
+      </div>
+    </div>
+
+    <div class="sv-panel">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>🛰 Variabilidad NDVI</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <span class="sv-flabel">Período de análisis</span>
+        <select id="sv-periodo">
+          <option value="6">Últimos 6 meses</option>
+          <option value="12" selected>Campaña actual · 12 meses</option>
+          <option value="24">Últimos 2 años</option>
+          <option value="60">Histórico 5 años</option>
+        </select>
+        <label class="sv-tog-row">
+          <input type="checkbox" id="sv-use-elev" onchange="svToggleElevUI()"/>
+          Incluir topografía SRTM 30m
+        </label>
+        <div id="sv-elev-config" style="display:none;flex-direction:column;gap:4px">
+          <div class="sv-weight-row">
+            <span>NDVI</span>
+            <input type="range" id="sv-w-ndvi" min="30" max="80" step="10" value="60" oninput="svSyncWeights()"/>
+            <span class="sv-weight-val" id="sv-w-ndvi-v">60%</span>
+          </div>
+          <div class="sv-weight-row">
+            <span>Topog.</span>
+            <input type="range" id="sv-w-elev" min="20" max="70" step="10" value="40" oninput="svSyncWeights2()"/>
+            <span class="sv-weight-val" id="sv-w-elev-v">40%</span>
+          </div>
+          <p class="sv-hint" style="font-style:italic">Zonas bajas = mayor potencial (Pampa húmeda)</p>
+        </div>
+        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-analizar" onclick="svAnalizarNDVI()" disabled>
+          🛰 Analizar variabilidad del lote
+        </button>
+        <div id="sv-ndvi-result" style="display:none;flex-direction:column;gap:0">
+          <div class="sv-srow"><span>NDVI promedio</span><span class="sv-sval" id="sv-r-avg">—</span></div>
+          <div class="sv-srow"><span>NDVI máximo</span><span class="sv-sval" id="sv-r-max">—</span></div>
+          <div class="sv-srow"><span>NDVI mínimo</span><span class="sv-sval" id="sv-r-min">—</span></div>
+          <div class="sv-srow"><span>Variabilidad (CV)</span><span class="sv-sval" id="sv-r-cv">—</span></div>
+          <div class="sv-srow"><span>Fuente</span><span class="sv-sval" id="sv-r-src" style="font-size:10px">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sv-panel">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>🗺 Zonificación</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <span class="sv-flabel">Número de ambientes</span>
+        <div style="display:flex;gap:6px">
+          <button class="sv-btn-zona" id="sv-z2" onclick="svSelZonas(2)">2</button>
+          <button class="sv-btn-zona active" id="sv-z3" onclick="svSelZonas(3)">3</button>
+          <button class="sv-btn-zona" id="sv-z4" onclick="svSelZonas(4)">4</button>
+        </div>
+        <span class="sv-flabel">Suavizado de bordes</span>
+        <select id="sv-smoothing">
+          <option value="0">Sin suavizar</option>
+          <option value="2" selected>Suave (2 pasadas)</option>
+          <option value="4">Fuerte (4 pasadas)</option>
+        </select>
+        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-zonificar" onclick="svZonificar()" disabled>
+          🗺 Generar zonas de manejo
+        </button>
+        <div id="sv-zona-result" style="display:none;flex-direction:column;gap:0"></div>
+      </div>
+    </div>
+
+    <div class="sv-panel" id="sv-panel-prescripcion" style="display:none">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>💊 Prescripción por zona</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb" id="sv-pb-prescripcion"></div>
+    </div>
+
+    <div class="sv-panel" id="sv-panel-exportar" style="display:none">
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>📤 Exportar al monitor</span><span class="sv-arr">▾</span></div>
+      <div class="sv-pb">
+        <button class="sv-btn sv-btn-primary sv-btn-full" onclick="svExportarShapefile()">📦 Shapefile (.zip)</button>
+        <button class="sv-btn sv-btn-sec sv-btn-full" onclick="svExportarGeoJSON()" style="margin-top:5px">🌐 GeoJSON</button>
+        <button class="sv-btn sv-btn-sec sv-btn-full" onclick="svExportarCSVPresc()" style="margin-top:5px">📊 CSV prescripción</button>
+        <p class="sv-hint" style="margin-top:4px">Compatible con QGIS · John Deere Ops Center · Ag Leader · mapshaper.org</p>
+      </div>
+    </div>
+
+  </aside>
+
+  <div class="sv-map-area">
+    <div id="sv-demo-badge" class="sv-map-demo-badge">MODO DEMO · datos simulados</div>
+    <div id="sv-map"></div>
+    <div class="sv-legend-box" id="sv-legend" style="display:none"></div>
+    <div class="sv-chart-panel" id="sv-chart-panel" style="display:none">
+      <div class="sv-chart-hdr">
+        <span>NDVI histórico del lote</span>
+        <span class="sv-chart-tag" id="sv-chart-tag">SIMULADO</span>
+      </div>
+      <canvas id="sv-ndvi-chart" height="80" style="height:80px;width:100%"></canvas>
+    </div>
+  </div>
+
+</div>
+</div>
+<!-- ══ FIN MÓDULO SIEMBRA VARIABLE ══════════════════════ -->
+
+<!-- ══ MÓDULO ALERTA SANITARIA ══════════════════════════ -->
+<div id="mod-alerta-sanitaria" class="module-panel">
+  <div class="module-title">Alerta <em>Sanitaria</em></div>
+  <div class="module-subtitle">Riesgo de enfermedades en tiempo real · 14 patógenos · Soja / Maíz / Trigo / Girasol · Condiciones actuales + pronóstico 7 días</div>
+
+  <div class="as-wrap">
+    <!-- Input bar -->
+    <div class="as-input-bar">
+      <div class="as-fg">
+        <label>Latitud</label>
+        <input type="number" id="as-lat" placeholder="-33.0000" step="0.0001">
+      </div>
+      <div class="as-fg">
+        <label>Longitud</label>
+        <input type="number" id="as-lon" placeholder="-63.0000" step="0.0001">
+      </div>
+      <div class="as-fg">
+        <label>Cultivo</label>
+        <select id="as-cultivo">
+          <option value="soja">Soja</option>
+          <option value="maiz">Maíz</option>
+          <option value="trigo">Trigo</option>
+          <option value="girasol">Girasol</option>
+        </select>
+      </div>
+      <div class="as-fg">
+        <label>Fecha de siembra</label>
+        <input type="date" id="as-siembra">
+      </div>
+      <button class="as-btn-analizar" id="as-btn-analizar" onclick="asAnalizar()">🔍 Analizar</button>
+    </div>
+
+    <!-- Contenido dinámico -->
+    <div id="as-main-content">
+      <div class="as-placeholder">
+        <div class="as-ph-icon">🌿</div>
+        <div class="as-ph-text">Los campos se completan automáticamente desde el módulo de Siembra.<br>Revisá los datos y hacé clic en <strong>Analizar</strong> para ver el riesgo sanitario.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ══ FIN MÓDULO ALERTA SANITARIA ══════════════════════ -->
+
+  <div class="footer-note" style="margin-top:4rem">AgroMotor v3.8 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
+
+</main>
+
+<style>
+@keyframes amFadeIn  { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+@keyframes amFadeOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.96)} }
+@keyframes amSlideUp { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+.am-locked::after { content:'🔒' !important; opacity:1 !important; }
+.nav-tab.am-locked { opacity:.45; }
+</style>
+
+<script>
+// Auth manejado por onAuthStateChange en login.js
+amCargarSesion();
+</script>
+
+
+<!-- ══ LIBRERÍAS EXTERNAS ══ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<!-- ══ CAPA 1: CORE — primero siempre ══ -->
+<script src="js/core.js"></script>
+<script src="js/config.js"></script>
+<script src="js/login.js"></script>
+<script src="js/cache.js"></script>
+
+<!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
+<script src="js/nav.js"></script>
+
+
+
+<!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
+<script src="js/siembra.js"></script>
+<script src="js/siembra-apis.js"></script>
+<script src="js/economia.js"></script>
+<script src="js/fertilizacion.js"></script>
+<script src="js/maquinaria.js"></script>
+<script src="js/asistente.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/alerta-sanitaria.js"></script>
+<script src="js/dashboard-ux.js"></script>
+
+<!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
+  Gestionados por nav.js con amCargarModulo():
+  • hidrico.js            → Balance hídrico FAO-56 + ENSO
+  • cultivares.js         → DB RECSO/INTA + ranking + zonas
+  • cultivares-extra.js   → Comparador + Stress test + GDD + Densidad
+  • mapa.js               → OpenStreetMap + distribuidores
+  • pulverizacion.js      → Semáforo + Delta T + HRAC + Caldo
+  • seguimiento.js        → Campaña + NDVI + GDD en tiempo real
+  • cosecha.js            → Decisión cosecha + BCRA + escenarios
+  • plagas.js             → Alertas Plagas + Red Comunitaria INTA
+  • alerta-sanitaria.js  → Riesgo enfermedades · 14 patógenos · heatmap 7 días
+══ -->
+
+<script>
+// ── Service Worker — PWA offline · auto-update ────────
+if ('serviceWorker' in navigator) {
+  let _amReloading = false;
+  // Cuando el nuevo SW toma control, recargar la página una vez
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_amReloading) return;
+    _amReloading = true;
+    window.location.reload();
+  });
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => {
+        // Buscar updates inmediatamente al cargar
+        reg.update();
+        // Verificar updates cada 60s mientras la pestaña está abierta
+        setInterval(() => reg.update(), 60000);
+
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              // Hay un SW viejo activo y uno nuevo esperando → forzar el cambio
+              if (typeof amToast === 'function') {
+                amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
+              }
+              newSW.postMessage('skipWaiting');
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[AgroMotor] SW no registrado:', err));
+  });
+}
+</script>
+
+</body>
+</html>

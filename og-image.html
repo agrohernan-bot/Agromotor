@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>OG Image — AgroMotor</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 1200px; height: 630px;
+      font-family: 'DM Sans', sans-serif;
+      background: #0F1F14;
+      overflow: hidden;
+      color: #EDE0C4;
+    }
+    body::before {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 12% 0%, rgba(61,115,74,.3) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 50% at 90% 100%, rgba(200,162,85,.18) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 50% 50%, rgba(109,191,130,.06) 0%, transparent 60%);
+    }
+    .frame {
+      position: absolute; inset: 0;
+      padding: 64px 72px;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .top {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 16px;
+    }
+    .logo-icon {
+      width: 64px; height: 64px; border-radius: 16px;
+      background: linear-gradient(135deg, #1E4D2B, #C8A255);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; box-shadow: 0 8px 28px rgba(200,162,85,.3);
+    }
+    .logo-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 40px; color: #EDE0C4; line-height: 1; letter-spacing: -.02em;
+    }
+    .logo-text span { color: #C8A255; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(74,140,92,.18); border: 1.5px solid rgba(109,191,130,.5);
+      color: #6DBF82;
+      font-size: 14px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: 10px 18px; border-radius: 22px;
+    }
+    .center {
+      flex: 1; display: flex; align-items: center;
+      padding: 30px 0;
+    }
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 78px; line-height: 1.0;
+      color: #EDE0C4; letter-spacing: -.025em;
+      max-width: 900px;
+    }
+    h1 em {
+      font-style: italic; color: #6DBF82;
+    }
+    .subtitle {
+      font-size: 22px; color: rgba(237,224,196,.78);
+      margin-top: 22px; line-height: 1.4;
+      max-width: 760px;
+    }
+    .bottom {
+      display: flex; justify-content: space-between; align-items: flex-end;
+    }
+    .features {
+      display: flex; gap: 28px;
+      font-size: 17px; color: rgba(237,224,196,.65);
+      font-weight: 500;
+    }
+    .features span {
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .url {
+      font-family: 'DM Mono', monospace;
+      font-size: 16px; color: #C8A255;
+      font-weight: 500; letter-spacing: .02em;
+    }
+    /* decorative side panel */
+    .panel {
+      position: absolute; right: 72px; top: 130px;
+      width: 320px;
+      background: linear-gradient(145deg, #0E2016, #173325);
+      border: 1.5px solid rgba(200,162,85,.25);
+      border-radius: 18px; padding: 22px;
+      box-shadow: 0 14px 48px rgba(0,0,0,.4);
+    }
+    .panel::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(200,162,85,.6), transparent);
+    }
+    .panel-title {
+      font-size: 14px; color: #6DBF82; font-weight: 600;
+      margin-bottom: 14px; padding-bottom: 12px;
+      border-bottom: 1px solid rgba(237,224,196,.1);
+    }
+    .panel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .kpi {
+      background: rgba(15,31,20,.55);
+      border: 1px solid rgba(200,162,85,.22);
+      border-radius: 9px; padding: 12px 14px;
+    }
+    .kpi-label {
+      font-size: 9px; text-transform: uppercase; letter-spacing: .12em;
+      color: rgba(237,224,196,.6); margin-bottom: 4px;
+    }
+    .kpi-value {
+      font-family: 'DM Mono', monospace; font-size: 22px;
+      color: #E8B84B; font-weight: 500; line-height: 1;
+    }
+    .panel-alert {
+      margin-top: 12px;
+      background: rgba(58,122,74,.2);
+      border: 1px solid rgba(109,191,130,.35);
+      border-radius: 7px; padding: 9px 12px;
+      font-size: 12px; color: #6DBF82; font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="top">
+      <div class="logo">
+        <div class="logo-icon">🌱</div>
+        <div class="logo-text">Agro<span>Motor</span></div>
+      </div>
+      <div class="badge">🎓 Exclusivo profesional</div>
+    </div>
+
+    <div class="center">
+      <div>
+        <h1>El motor agronómico de <em>decisión</em><br>para Ingenieros Agrónomos.</h1>
+        <div class="subtitle">17 módulos · datos satelitales en tiempo real · IA con criterio INTA · Argentina</div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="features">
+        <span>🛰️ Open-Meteo · NASA · SoilGrids</span>
+        <span>🤖 Asistente IA</span>
+        <span>🌾 Lógica INTA</span>
+      </div>
+      <div class="url">agrohernan-bot.github.io/Agromotor</div>
+    </div>
+  </div>
+
+  <!-- Decorative panel -->
+  <div class="panel">
+    <div class="panel-title">📍 Lote · Vertisol · Soja</div>
+    <div class="panel-grid">
+      <div class="kpi">
+        <div class="kpi-label">🌡️ T° suelo</div>
+        <div class="kpi-value">17.2°</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">💧 Humedad</div>
+        <div class="kpi-value">27.3%</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">🌿 ET₀</div>
+        <div class="kpi-value">2.1</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">🌾 GDD</div>
+        <div class="kpi-value">73</div>
+      </div>
+    </div>
+    <div class="panel-alert">✅ Apto para siembra · Condiciones óptimas</div>
+  </div>
+</body>
+</html>
