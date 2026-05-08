@@ -350,6 +350,9 @@ function decRender(resultados, aguaTotal, ensoFase) {
 
   container.innerHTML = veredictoHtml + tablaHtml + notaHtml;
   container.classList.remove('hidden');
+  // Ocultar placeholder cuando hay resultado
+  var ph = document.getElementById('dec-placeholder');
+  if (ph) ph.classList.add('hidden');
   container.scrollIntoView({behavior: 'smooth', block: 'nearest'});
 }
 
