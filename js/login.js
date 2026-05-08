@@ -48,8 +48,8 @@ const AM_PLANES = {
   empresa: {
     nombre: 'Empresa',
     precio: 'USD 250/mes',
-    lotes: -1,
-    iaCallsMes: -1,
+    lotes: 75,
+    iaCallsMes: 300,
     modulos: [
       'siembra','suelo','decision','economia','fertilizacion','fertoptima',
       'maquinaria','hidrico','cultivares','asistente','mapa',
@@ -58,7 +58,7 @@ const AM_PLANES = {
     ],
     color: '#2A5A8C',
     icon: '🏢',
-    desc: 'Para cooperativas y empresas · Lotes ilimitados · IA ilimitada · NDVI satelital · API export · Soporte directo'
+    desc: 'Para cooperativas y empresas · 75 lotes · IA 300 consultas/mes · NDVI satelital · API export · Soporte directo'
   }
 };
 

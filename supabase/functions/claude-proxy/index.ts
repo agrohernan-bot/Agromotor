@@ -15,11 +15,11 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Límites mensuales por plan (-1 = ilimitado)
+// Límites mensuales por plan
 const IA_LIMITES: Record<string, number> = {
   asesor:  30,
   pro:     100,
-  empresa: -1,
+  empresa: 300,
 };
 
 serve(async (req: Request) => {
