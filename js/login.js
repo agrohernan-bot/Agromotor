@@ -69,10 +69,10 @@ let AM_SESION = null;
 // ── LISTENER CENTRAL (única fuente de verdad) ─────────
 AM_SB.auth.onAuthStateChange(async (event, session) => {
   if (session?.user) {
-    // Cargar plan desde la tabla profiles
+    // Cargar plan + matrícula desde la tabla profiles
     const { data: profile } = await AM_SB
       .from('profiles')
-      .select('nombre, plan, plan_hasta, trial_hasta')
+      .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
       .eq('id', session.user.id)
       .single();
 
@@ -85,6 +85,10 @@ AM_SB.auth.onAuthStateChange(async (event, session) => {
       plan:      profile?.plan ?? 'free',
       planHasta: profile?.plan_hasta  ?? null,
       trialHasta:profile?.trial_hasta ?? null,
+      rol:       profile?.rol ?? 'agronomo',
+      cpia:      profile?.cpia ?? null,
+      matricula: profile?.matricula_numero ?? null,
+      matriculaVerificada: !!profile?.matricula_verificada,
       token:     session.access_token
     };
   } else {
@@ -128,10 +132,14 @@ function amActualizarUI() {
     btnLogin?.classList.add('hidden');
     if (btnUser) {
       btnUser.classList.remove('hidden');
-      btnUser.textContent = `${plan.icon} ${AM_SESION.nombre.split(' ')[0]}`;
+      const prefijo = AM_SESION.rol === 'agronomo' ? 'Ing. ' : '';
+      btnUser.textContent = `${plan.icon} ${prefijo}${AM_SESION.nombre.split(' ').slice(-1)[0]}`;
     }
     if (userInfo) {
-      userInfo.textContent = `${plan.nombre} · ${AM_SESION.email}`;
+      const matSuffix = AM_SESION.matricula
+        ? ` · Mat ${AM_SESION.matricula}${AM_SESION.cpia ? ' (' + AM_SESION.cpia + ')' : ''}${AM_SESION.matriculaVerificada ? ' ✓' : ''}`
+        : (AM_SESION.rol === 'estudiante' ? ' · Estudiante' : '');
+      userInfo.textContent = `${plan.nombre}${matSuffix}`;
       userInfo.style.display = 'block';
     }
   } else {
@@ -217,34 +225,75 @@ async function amLogin() {
 }
 
 // ── REGISTRO ──────────────────────────────────────────
+// Toggle bloques agronomo/estudiante en el form de registro
+function amRegToggleRol() {
+  const rol = gv('am-reg-rol') || 'agronomo';
+  const ag = $('am-reg-block-agronomo');
+  const es = $('am-reg-block-estudiante');
+  if (!ag || !es) return;
+  if (rol === 'estudiante') {
+    ag.classList.add('hidden');
+    es.classList.remove('hidden');
+  } else {
+    ag.classList.remove('hidden');
+    es.classList.add('hidden');
+  }
+}
+window.amRegToggleRol = amRegToggleRol;
+
 async function amRegistrar() {
   const nombre = $('am-reg-nombre')?.value?.trim();
   const email  = $('am-reg-email')?.value?.trim();
   const pass   = $('am-reg-pass')?.value?.trim();
   const plan   = gv('am-reg-plan') || 'free';
+  const rol    = gv('am-reg-rol') || 'agronomo';
+  const cpia        = gv('am-reg-cpia');
+  const matricula   = $('am-reg-matricula')?.value?.trim();
+  const universidad = $('am-reg-universidad')?.value?.trim();
+  const anio        = gv('am-reg-anio');
+  const jura        = $('am-reg-jura')?.checked;
   const err    = $('am-reg-err');
   const btn    = $('am-btn-reg-submit');
 
   if (!nombre || !email || !pass) {
-    amMostrarError(err, 'Completá todos los campos.');
+    amMostrarError(err, 'Completá nombre, email y contraseña.');
     return;
   }
   if (pass.length < 8) {
     amMostrarError(err, 'La contraseña debe tener al menos 8 caracteres.');
     return;
   }
+  if (rol === 'agronomo') {
+    if (!cpia)      { amMostrarError(err, 'Seleccioná tu Consejo Profesional.'); return; }
+    if (!matricula) { amMostrarError(err, 'Ingresá tu número de matrícula profesional.'); return; }
+  } else if (rol === 'estudiante') {
+    if (!universidad) { amMostrarError(err, 'Ingresá tu universidad.'); return; }
+    if (!anio)        { amMostrarError(err, 'Seleccioná el año que cursás.'); return; }
+  }
+  if (!jura) {
+    amMostrarError(err, 'Debés aceptar la declaración jurada de los datos profesionales.');
+    return;
+  }
 
   if (btn) { btn.disabled = true; btn.textContent = 'Creando cuenta...'; }
 
-  const { error } = await AM_SB.auth.signUp({
+  const metadata = { nombre, plan, rol };
+  if (rol === 'agronomo') {
+    metadata.cpia = cpia;
+    metadata.matricula_numero = matricula;
+  } else {
+    metadata.universidad = universidad;
+    metadata.anio_cursado = anio;
+  }
+
+  const { data, error } = await AM_SB.auth.signUp({
     email,
     password: pass,
-    options: { data: { nombre, plan } }
+    options: { data: metadata }
   });
 
-  if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
-
   if (error) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
     const msgs = {
       'User already registered': 'Ya existe una cuenta con ese email. Iniciá sesión.',
       'Password should be at least 6 characters': 'La contraseña debe tener al menos 8 caracteres.',
@@ -253,6 +302,14 @@ async function amRegistrar() {
     return;
   }
 
+  // Persistir matrícula en la tabla profiles (handle_new_user puede no copiar todos los metadata)
+  if (data?.user?.id) {
+    const updates = { rol, matricula_declarada_at: new Date().toISOString() };
+    if (rol === 'agronomo') { updates.cpia = cpia; updates.matricula_numero = matricula; }
+    await AM_SB.from('profiles').update(updates).eq('id', data.user.id);
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
   amCerrarModal();
   amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión.', 'ok');
 }

@@ -2733,15 +2733,18 @@
     <!-- ── VISTA PLANES ── -->
     <div id="am-vista-planes">
       <!-- Header -->
-      <div style="padding:2rem 2rem 1.2rem;text-align:center;border-bottom:1px solid var(--border)">
-        <div style="font-size:2rem;margin-bottom:.4rem">🌾</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:1.6rem;color:var(--earth);margin-bottom:.3rem">
+      <div style="padding:1.6rem 2rem 1rem;text-align:center;border-bottom:1px solid var(--border)">
+        <div style="display:inline-flex;align-items:center;gap:.45rem;background:#f4faf6;border:1px solid rgba(74,140,92,.35);color:#1b5e35;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .8rem;border-radius:20px;margin-bottom:.7rem">
+          🎓 Exclusivo para Ingenieros Agrónomos
+        </div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--earth);margin-bottom:.25rem">
           Elegí tu plan
         </div>
-        <div id="am-upgrade-modulo-msg" style="font-size:.84rem;color:rgba(61,34,16,.55)">
-          Accedé a todo el poder agronómico de AgroMotor
+        <div id="am-upgrade-modulo-msg" style="font-size:.78rem;color:rgba(61,34,16,.6);line-height:1.5">
+          Una herramienta diseñada por y para profesionales matriculados.<br>
+          Si sos productor o trabajás con un ingeniero, <strong>pediles que la evalúen</strong>.
         </div>
-        <div style="font-size:.78rem;color:rgba(61,34,16,.4);margin-top:.3rem">
+        <div style="font-size:.74rem;color:rgba(61,34,16,.4);margin-top:.3rem">
           Módulo premium: <strong id="am-upgrade-modulo" style="color:var(--canopy)"></strong>
         </div>
       </div>
@@ -2893,23 +2896,97 @@
 
     <!-- ── VISTA REGISTRO ── -->
     <div id="am-vista-registro" class="hidden">
-      <div style="padding:2rem">
-        <div style="text-align:center;margin-bottom:1.5rem">
-          <div style="font-size:2rem;margin-bottom:.4rem">🎉</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Crear cuenta</div>
+      <div style="padding:1.6rem 1.8rem">
+        <div style="text-align:center;margin-bottom:1.2rem">
+          <div style="font-size:1.8rem;margin-bottom:.3rem">🎓</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Crear cuenta profesional</div>
+          <div style="font-size:.74rem;color:rgba(61,34,16,.55);margin-top:.3rem;line-height:1.5">
+            AgroMotor es exclusivo para Ingenieros Agrónomos matriculados<br>y estudiantes avanzados de Agronomía
+          </div>
         </div>
         <div id="am-reg-err" class="hidden alert danger" style="margin-bottom:1rem"></div>
+
         <div class="fg">
-          <label>Nombre completo</label>
-          <input type="text" id="am-reg-nombre" placeholder="Juan Pérez">
+          <label>Nombre completo (como figura en la matrícula)</label>
+          <input type="text" id="am-reg-nombre" placeholder="Ing. Agr. Juan Pérez">
         </div>
         <div class="fg">
           <label>Email profesional</label>
-          <input type="text" id="am-reg-email" placeholder="juan@agronomia.com">
+          <input type="email" id="am-reg-email" placeholder="juan@agronomia.com">
         </div>
         <div class="fg">
           <label>Contraseña</label>
           <input type="password" id="am-reg-pass" placeholder="Mínimo 8 caracteres">
+        </div>
+
+        <!-- ── BLOQUE PROFESIONAL ── -->
+        <div style="background:#f4faf6;border:1px solid rgba(74,140,92,.3);border-radius:10px;padding:.9rem 1rem;margin:.9rem 0;font-size:.78rem">
+          <div style="font-weight:700;color:#1b5e35;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem">
+            🎯 Acreditación profesional
+          </div>
+
+          <div class="fg" style="margin-bottom:.7rem">
+            <label style="font-size:.7rem">Categoría</label>
+            <select id="am-reg-rol" onchange="amRegToggleRol()">
+              <option value="agronomo" selected>Ingeniero Agrónomo matriculado</option>
+              <option value="estudiante">Estudiante de Agronomía (últimos 2 años)</option>
+            </select>
+          </div>
+
+          <div id="am-reg-block-agronomo">
+            <div class="fg" style="margin-bottom:.7rem">
+              <label style="font-size:.7rem">Consejo Profesional (CPIA)</label>
+              <select id="am-reg-cpia">
+                <option value="">Seleccioná tu jurisdicción…</option>
+                <option value="CPIA-BA">CPIA Buenos Aires (Provincia + CABA)</option>
+                <option value="CIAGRO-CBA">CIAGRO — Córdoba</option>
+                <option value="CIASFE-SF">CIASFE — Santa Fe</option>
+                <option value="CIAER-ER">CIAER — Entre Ríos</option>
+                <option value="CARPA-LP">CARPA — La Pampa</option>
+                <option value="CPIA-MZA">CPIA — Mendoza</option>
+                <option value="CIAS-NOA">CIAS — Salta y Jujuy</option>
+                <option value="CIANOA-TUC">CIANOA — Tucumán</option>
+                <option value="CIA-CHACO">CIA — Chaco</option>
+                <option value="CIA-MIS">CIA — Misiones</option>
+                <option value="CIAR-PAT">CIAR — Río Negro y Neuquén</option>
+                <option value="CIA-CHU">CIA — Chubut</option>
+                <option value="CIA-CTM">CIA — Catamarca</option>
+                <option value="CIA-LRJ">CIA — La Rioja</option>
+                <option value="CIA-SJN">CIA — San Juan</option>
+                <option value="CIA-SLU">CIA — San Luis</option>
+                <option value="CIA-SC">CIA — Santa Cruz</option>
+                <option value="CIA-FOR">CIA — Formosa</option>
+                <option value="CIA-STG">CIA — Santiago del Estero</option>
+                <option value="CIA-CRR">CIA — Corrientes</option>
+                <option value="OTRO">Otro / Internacional</option>
+              </select>
+            </div>
+            <div class="fg" style="margin-bottom:.4rem">
+              <label style="font-size:.7rem">Número de matrícula</label>
+              <input type="text" id="am-reg-matricula" placeholder="Ej: 12345" inputmode="numeric">
+            </div>
+          </div>
+
+          <div id="am-reg-block-estudiante" class="hidden">
+            <div class="fg" style="margin-bottom:.7rem">
+              <label style="font-size:.7rem">Universidad</label>
+              <input type="text" id="am-reg-universidad" placeholder="Ej: UBA — Facultad de Agronomía">
+            </div>
+            <div class="fg" style="margin-bottom:.4rem">
+              <label style="font-size:.7rem">Año cursando</label>
+              <select id="am-reg-anio">
+                <option value="">Seleccioná…</option>
+                <option value="4">4° año</option>
+                <option value="5">5° año</option>
+                <option value="tesis">Tesis / últimos exámenes</option>
+              </select>
+            </div>
+          </div>
+
+          <label style="display:flex;gap:.5rem;align-items:flex-start;margin-top:.7rem;font-size:.7rem;color:rgba(61,34,16,.7);line-height:1.5;cursor:pointer">
+            <input type="checkbox" id="am-reg-jura" style="margin-top:.15rem;flex-shrink:0;cursor:pointer">
+            <span>Declaro bajo juramento que los datos profesionales son verdaderos y vigentes. AgroMotor puede auditar esta información y suspender la cuenta si los datos son falsos.</span>
+          </label>
         </div>
         <div class="fg">
           <label>Plan seleccionado</label>
