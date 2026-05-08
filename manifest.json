@@ -2,7 +2,7 @@
   "name": "AgroMotor — Motor Agronómico de Decisión",
   "short_name": "AgroMotor",
   "description": "Herramienta de decisión agronómica para Ingenieros Agrónomos · Argentina",
-  "start_url": "/index.html",
+  "start_url": "/app.html",
   "display": "standalone",
   "background_color": "#0F1F14",
   "theme_color": "#1E4D2B",
@@ -21,13 +21,13 @@
     {
       "name": "Diagnóstico Siembra",
       "short_name": "Siembra",
-      "url": "/index.html#siembra",
+      "url": "/app.html#siembra",
       "description": "Evaluar condiciones de siembra"
     },
     {
       "name": "Pulverización",
       "short_name": "Pulverizar",
-      "url": "/index.html#pulverizacion",
+      "url": "/app.html#pulverizacion",
       "description": "Ventanas de pulverización"
     }
   ]

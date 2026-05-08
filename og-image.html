@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>OG Image — AgroMotor</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -177,23 +176,5 @@
     </div>
     <div class="panel-alert">✅ Apto para siembra · Condiciones óptimas</div>
   </div>
-
-  <script>
-  // Auto-generar PNG cuando la página carga
-  window.addEventListener('load', () => {
-    setTimeout(() => {
-      html2canvas(document.body, {
-        width: 1200, height: 630,
-        backgroundColor: '#0F1F14',
-        scale: 1, useCORS: true,
-        windowWidth: 1200, windowHeight: 630,
-      }).then(canvas => {
-        const dataUrl = canvas.toDataURL('image/png');
-        window._ogImageData = dataUrl;
-        document.title = 'OG ready · ' + dataUrl.length + ' bytes';
-      }).catch(e => { document.title = 'OG error: ' + e.message; });
-    }, 1500);
-  });
-  </script>
 </body>
 </html>
