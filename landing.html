@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgroMotor — La herramienta del Ingeniero Agrónomo argentino</title>
+  <meta name="description" content="Motor agronómico de decisión: 17 módulos con datos satelitales en tiempo real, IA con criterio INTA, exclusivo para ingenieros agrónomos matriculados. Probá 14 días gratis.">
+
+  <!-- OG / Twitter -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="AgroMotor — La herramienta del Ingeniero Agrónomo argentino">
+  <meta property="og:description" content="17 módulos agronómicos · Datos NASA, Open-Meteo, SoilGrids · IA con criterio INTA · Para profesionales matriculados.">
+  <meta property="og:url" content="https://agrohernan-bot.github.io/Agromotor/landing.html">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="theme-color" content="#0F1F14">
+
+  <style>
+    /* ════════════════════════════════════════════════════════
+       LANDING — AgroMotor
+       Diseño dark-agronomic con acentos cremosos y dorados
+       ════════════════════════════════════════════════════════ */
+    :root {
+      --field:   #0F1F14;
+      --canopy:  #1E4D2B;
+      --leaf:    #3A7A4A;
+      --sprout:  #6DBF82;
+      --grain:   #C8A255;
+      --amber:   #E8B84B;
+      --straw:   #EDE0C4;
+      --mist:    #F5F1EA;
+      --ink:     #1C1208;
+      --earth:   #3D2210;
+      --warn:    #D4522A;
+      --blue:    #2A5A8C;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--field);
+      color: var(--straw);
+      line-height: 1.55;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 15% 0%, rgba(61,115,74,.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 100%, rgba(200,162,85,.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+    main, header, section, footer { position: relative; z-index: 1; }
+    a { color: inherit; text-decoration: none; }
+    img { max-width: 100%; display: block; }
+
+    /* ── HEADER ── */
+    header.nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(15,31,20,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(200,162,85,.15);
+      padding: .8rem 1.5rem;
+    }
+    .nav-inner {
+      max-width: 1200px; margin: 0 auto;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    }
+    .nav-logo { display: flex; align-items: center; gap: .65rem; }
+    .nav-logo-icon {
+      width: 36px; height: 36px; border-radius: 9px;
+      background: linear-gradient(135deg, var(--canopy), var(--grain));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; box-shadow: 0 4px 14px rgba(200,162,85,.25);
+    }
+    .nav-logo-text {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.25rem; color: var(--straw); letter-spacing: -.01em;
+    }
+    .nav-logo-text span { color: var(--grain); }
+    .nav-links { display: flex; gap: 1.6rem; align-items: center; }
+    .nav-links a {
+      font-size: .82rem; font-weight: 500;
+      color: rgba(237,224,196,.7); transition: color .15s;
+    }
+    .nav-links a:hover { color: var(--straw); }
+    .nav-cta {
+      background: linear-gradient(135deg, var(--canopy), var(--leaf));
+      color: white; padding: .55rem 1.1rem; border-radius: 10px;
+      font-size: .82rem; font-weight: 600;
+      box-shadow: 0 4px 12px rgba(58,122,74,.3);
+      transition: transform .15s ease;
+      border: none; cursor: pointer; font-family: inherit;
+    }
+    .nav-cta:hover { transform: translateY(-1px); }
+    @media (max-width: 720px) {
+      .nav-links a:not(.nav-cta) { display: none; }
+    }
+
+    /* ── HERO ── */
+    section.hero {
+      max-width: 1200px; margin: 0 auto;
+      padding: 4rem 1.5rem 3rem;
+      display: grid; grid-template-columns: 1.1fr 1fr; gap: 3rem;
+      align-items: center;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(74,140,92,.15); border: 1px solid rgba(109,191,130,.4);
+      color: var(--sprout);
+      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .4rem .85rem; border-radius: 20px;
+      margin-bottom: 1rem;
+    }
+    .hero h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 4.5vw, 3.4rem);
+      line-height: 1.05; color: var(--straw);
+      letter-spacing: -.02em; margin-bottom: 1.1rem;
+    }
+    .hero h1 em {
+      font-style: italic; color: var(--sprout);
+    }
+    .hero p.lead {
+      font-size: 1.05rem; color: rgba(237,224,196,.78);
+      margin-bottom: 1.8rem; max-width: 540px; line-height: 1.6;
+    }
+    .hero-ctas { display: flex; gap: .8rem; flex-wrap: wrap; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--canopy), var(--leaf));
+      color: white;
+      padding: .9rem 1.7rem; border-radius: 11px;
+      font-size: .92rem; font-weight: 700;
+      box-shadow: 0 6px 20px rgba(58,122,74,.35);
+      transition: transform .15s ease, box-shadow .2s ease;
+      border: none; cursor: pointer; font-family: inherit;
+      display: inline-flex; align-items: center; gap: .5rem;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(58,122,74,.45); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--straw);
+      padding: .9rem 1.5rem; border-radius: 11px;
+      font-size: .9rem; font-weight: 600;
+      border: 1.5px solid rgba(200,162,85,.4);
+      cursor: pointer; font-family: inherit;
+      transition: all .2s;
+    }
+    .btn-secondary:hover { background: rgba(200,162,85,.12); border-color: var(--grain); }
+    .hero-trust {
+      margin-top: 2rem; display: flex; gap: 1.4rem; flex-wrap: wrap;
+      font-size: .73rem; color: rgba(237,224,196,.55);
+    }
+    .hero-trust span { display: inline-flex; align-items: center; gap: .35rem; }
+
+    .hero-visual {
+      background: linear-gradient(145deg, #0E2016, #173325);
+      border: 1px solid rgba(200,162,85,.18);
+      border-radius: 18px; padding: 1.4rem;
+      box-shadow: 0 12px 48px rgba(0,0,0,.35);
+      position: relative; overflow: hidden;
+    }
+    .hero-visual::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(200,162,85,.5), transparent);
+    }
+    .hv-header {
+      display: flex; gap: .6rem; align-items: center;
+      padding-bottom: 1rem; border-bottom: 1px solid rgba(237,224,196,.08);
+      margin-bottom: 1rem;
+    }
+    .hv-dot { width: 10px; height: 10px; border-radius: 50%; background: rgba(237,224,196,.2); }
+    .hv-title { font-size: .78rem; color: var(--sprout); font-weight: 600; margin-left: auto; }
+    .hv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem; }
+    .hv-kpi {
+      background: rgba(15,31,20,.5);
+      border: 1px solid rgba(200,162,85,.2);
+      border-radius: 10px;
+      padding: .85rem .95rem;
+    }
+    .hv-kpi-label {
+      font-size: .58rem; text-transform: uppercase; letter-spacing: .12em;
+      color: rgba(237,224,196,.5); margin-bottom: .2rem;
+    }
+    .hv-kpi-value {
+      font-family: 'DM Mono', monospace; font-size: 1.35rem;
+      color: var(--amber); font-weight: 500; line-height: 1;
+    }
+    .hv-kpi-unit { font-size: .64rem; color: rgba(237,224,196,.4); margin-top: .15rem; }
+    .hv-alert {
+      margin-top: 1rem;
+      background: rgba(58,122,74,.18);
+      border: 1px solid rgba(109,191,130,.3);
+      border-radius: 9px;
+      padding: .65rem .9rem;
+      font-size: .76rem; color: var(--sprout);
+      display: flex; gap: .5rem; align-items: center;
+    }
+
+    @media (max-width: 900px) {
+      section.hero { grid-template-columns: 1fr; gap: 2rem; padding: 2.5rem 1.2rem; }
+    }
+
+    /* ── PILARES ── */
+    section.pillars {
+      max-width: 1200px; margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+    .pillars-title {
+      text-align: center; margin-bottom: 2.4rem;
+    }
+    .pillars-eyebrow {
+      font-size: .72rem; font-weight: 700; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--grain);
+      margin-bottom: .5rem;
+    }
+    .pillars-h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      color: var(--straw); line-height: 1.15;
+      max-width: 700px; margin: 0 auto;
+    }
+    .pillars-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+    .pillar-card {
+      background: rgba(15,31,20,.5);
+      border: 1px solid rgba(200,162,85,.18);
+      border-radius: 14px; padding: 1.4rem 1.2rem;
+      transition: transform .2s ease, border-color .2s ease;
+    }
+    .pillar-card:hover { transform: translateY(-3px); border-color: rgba(200,162,85,.4); }
+    .pillar-icon { font-size: 2rem; margin-bottom: .6rem; }
+    .pillar-h3 {
+      font-size: 1rem; color: var(--straw); font-weight: 700;
+      margin-bottom: .35rem;
+    }
+    .pillar-desc { font-size: .82rem; color: rgba(237,224,196,.65); line-height: 1.55; }
+    @media (max-width: 1024px) { .pillars-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .pillars-grid { grid-template-columns: 1fr; } }
+
+    /* ── ROI ── */
+    section.roi {
+      max-width: 1100px; margin: 2rem auto;
+      padding: 2.5rem 2rem;
+      background: linear-gradient(135deg, rgba(200,162,85,.08), rgba(74,140,92,.06));
+      border: 1px solid rgba(200,162,85,.25);
+      border-radius: 18px;
+      text-align: center;
+    }
+    .roi-eyebrow {
+      font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--amber);
+      margin-bottom: .6rem;
+    }
+    .roi-h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      color: var(--straw); line-height: 1.2;
+      max-width: 760px; margin: 0 auto 1rem;
+    }
+    .roi-h2 strong { color: var(--amber); }
+    .roi-desc {
+      max-width: 620px; margin: 0 auto 1.6rem;
+      font-size: .96rem; color: rgba(237,224,196,.75); line-height: 1.6;
+    }
+    .roi-calc {
+      max-width: 680px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
+    }
+    .roi-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.8rem; color: var(--sprout);
+      line-height: 1; margin-bottom: .25rem;
+    }
+    .roi-label {
+      font-size: .72rem; color: rgba(237,224,196,.6);
+    }
+    @media (max-width: 600px) {
+      .roi-calc { grid-template-columns: 1fr; gap: 1.2rem; }
+    }
+
+    /* ── MÓDULOS ── */
+    section.modulos {
+      max-width: 1200px; margin: 0 auto;
+      padding: 3rem 1.5rem;
+    }
+    .mods-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: .75rem; margin-top: 2rem;
+    }
+    .mod-tile {
+      background: rgba(15,31,20,.45);
+      border: 1px solid rgba(74,140,92,.2);
+      border-radius: 11px; padding: .85rem 1rem;
+      transition: all .2s;
+    }
+    .mod-tile:hover {
+      transform: translateY(-2px);
+      border-color: rgba(109,191,130,.4);
+      background: rgba(15,31,20,.7);
+    }
+    .mod-tile-ico { font-size: 1.4rem; margin-bottom: .3rem; }
+    .mod-tile-name {
+      font-size: .85rem; color: var(--straw); font-weight: 600;
+      margin-bottom: .15rem;
+    }
+    .mod-tile-desc {
+      font-size: .68rem; color: rgba(237,224,196,.55); line-height: 1.4;
+    }
+    .mod-stage {
+      grid-column: 1 / -1;
+      font-size: .68rem; font-weight: 700; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--grain);
+      margin-top: 1rem; padding-bottom: .35rem;
+      border-bottom: 1px dashed rgba(200,162,85,.3);
+    }
+    .mod-stage:first-child { margin-top: 0; }
+
+    /* ── PLANES ── */
+    section.planes {
+      max-width: 1200px; margin: 2rem auto;
+      padding: 3rem 1.5rem;
+    }
+    .planes-grid-l {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 1rem; margin-top: 2.4rem;
+    }
+    .plan-card {
+      background: rgba(15,31,20,.55);
+      border: 1.5px solid rgba(200,162,85,.18);
+      border-radius: 16px; padding: 1.5rem 1.3rem;
+      display: flex; flex-direction: column;
+      transition: all .25s ease;
+    }
+    .plan-card:hover { transform: translateY(-3px); border-color: rgba(200,162,85,.45); }
+    .plan-card.featured {
+      border: 2px solid var(--grain);
+      background: linear-gradient(180deg, rgba(200,162,85,.1), rgba(15,31,20,.55));
+      position: relative;
+      box-shadow: 0 10px 32px rgba(200,162,85,.15);
+    }
+    .plan-badge {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--grain); color: var(--ink);
+      font-size: .62rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .28rem .8rem; border-radius: 20px;
+      white-space: nowrap;
+      box-shadow: 0 3px 10px rgba(200,162,85,.4);
+    }
+    .plan-icon { font-size: 1.6rem; margin-bottom: .5rem; }
+    .plan-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.3rem; color: var(--straw);
+      margin-bottom: .15rem;
+    }
+    .plan-price {
+      font-size: 1.6rem; font-weight: 700; color: var(--amber);
+      line-height: 1; margin-bottom: .15rem;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .plan-price-unit { font-size: .72rem; color: rgba(237,224,196,.5); margin-bottom: 1rem; }
+    .plan-features {
+      list-style: none; flex: 1;
+      font-size: .82rem; color: rgba(237,224,196,.78);
+      line-height: 1.85; margin-bottom: 1.2rem;
+    }
+    .plan-features strong { color: var(--straw); }
+    .plan-features li.dim { color: rgba(237,224,196,.4); }
+    .plan-cta {
+      background: rgba(58,122,74,.25);
+      color: var(--sprout);
+      border: 1.5px solid rgba(109,191,130,.4);
+      padding: .7rem; border-radius: 9px;
+      font-size: .85rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: all .2s;
+    }
+    .plan-cta:hover { background: rgba(58,122,74,.4); }
+    .plan-card.featured .plan-cta {
+      background: linear-gradient(135deg, #8A6A20, var(--grain));
+      border: none; color: white;
+      box-shadow: 0 4px 14px rgba(200,162,85,.35);
+    }
+    .plan-card.featured .plan-cta:hover { transform: translateY(-1px); }
+    @media (max-width: 1024px) { .planes-grid-l { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .planes-grid-l { grid-template-columns: 1fr; } }
+
+    /* ── FUNDADORES ── */
+    section.fundadores {
+      max-width: 1100px; margin: 2rem auto;
+      padding: 2rem 2rem;
+      background: linear-gradient(135deg, #0e2016, #1a1004);
+      border: 1px solid rgba(200,162,85,.4);
+      border-radius: 16px;
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .fundadores::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amber), transparent);
+    }
+    .fundadores-h3 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.5rem; color: var(--amber);
+      margin-bottom: .5rem;
+    }
+    .fundadores-text {
+      font-size: .92rem; color: rgba(237,224,196,.85); max-width: 640px; margin: 0 auto 1.2rem;
+      line-height: 1.6;
+    }
+    .fundadores-counter {
+      display: inline-block;
+      background: rgba(232,184,75,.12);
+      border: 1px solid rgba(232,184,75,.4);
+      padding: .35rem 1rem; border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+      font-size: .8rem; color: var(--amber); font-weight: 600;
+    }
+
+    /* ── CONSEJOS ── */
+    section.consejos {
+      max-width: 1100px; margin: 2rem auto;
+      padding: 3rem 1.5rem;
+      text-align: center;
+    }
+    .consejos-h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      color: var(--straw); line-height: 1.2; margin-bottom: .8rem;
+    }
+    .consejos-h2 em { font-style: italic; color: var(--sprout); }
+    .consejos-text {
+      max-width: 700px; margin: 0 auto 1.6rem;
+      font-size: .96rem; color: rgba(237,224,196,.75); line-height: 1.65;
+    }
+    .consejos-cta {
+      display: inline-block;
+      background: rgba(74,140,92,.15);
+      border: 1.5px solid rgba(109,191,130,.4);
+      color: var(--sprout);
+      padding: .8rem 1.6rem; border-radius: 11px;
+      font-size: .9rem; font-weight: 600;
+      text-decoration: none; transition: all .2s;
+    }
+    .consejos-cta:hover { background: rgba(74,140,92,.25); }
+
+    /* ── FAQ ── */
+    section.faq {
+      max-width: 800px; margin: 2rem auto;
+      padding: 3rem 1.5rem;
+    }
+    .faq-h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      color: var(--straw); text-align: center;
+      margin-bottom: 2rem;
+    }
+    .faq-item {
+      background: rgba(15,31,20,.45);
+      border: 1px solid rgba(200,162,85,.15);
+      border-radius: 11px;
+      margin-bottom: .65rem;
+      overflow: hidden;
+    }
+    .faq-q {
+      padding: 1rem 1.2rem;
+      font-size: .92rem; color: var(--straw); font-weight: 600;
+      cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 1rem;
+    }
+    .faq-q::after {
+      content: '+';
+      font-size: 1.4rem; color: var(--grain);
+      transition: transform .2s ease;
+    }
+    .faq-item.open .faq-q::after { transform: rotate(45deg); }
+    .faq-a {
+      padding: 0 1.2rem;
+      max-height: 0; overflow: hidden;
+      font-size: .85rem; color: rgba(237,224,196,.7); line-height: 1.65;
+      transition: max-height .25s ease, padding .25s ease;
+    }
+    .faq-item.open .faq-a { padding: 0 1.2rem 1.1rem; max-height: 400px; }
+
+    /* ── CTA FINAL ── */
+    section.cta-final {
+      max-width: 900px; margin: 2rem auto;
+      padding: 3rem 2rem;
+      text-align: center;
+      background: linear-gradient(135deg, rgba(58,122,74,.15), rgba(15,31,20,.6));
+      border: 1.5px solid rgba(109,191,130,.3);
+      border-radius: 20px;
+    }
+    .cta-final h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      color: var(--straw); line-height: 1.1; margin-bottom: 1rem;
+    }
+    .cta-final h2 em { color: var(--sprout); font-style: italic; }
+    .cta-final p {
+      max-width: 580px; margin: 0 auto 1.8rem;
+      color: rgba(237,224,196,.78); font-size: 1rem;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      max-width: 1200px; margin: 3rem auto 0;
+      padding: 2.5rem 1.5rem 2rem;
+      border-top: 1px solid rgba(200,162,85,.15);
+      font-size: .78rem; color: rgba(237,224,196,.5);
+    }
+    .footer-grid {
+      display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr;
+      gap: 2rem; margin-bottom: 2rem;
+    }
+    .footer-grid h4 {
+      font-size: .72rem; font-weight: 700; letter-spacing: .1em;
+      text-transform: uppercase; color: rgba(237,224,196,.85);
+      margin-bottom: .8rem;
+    }
+    .footer-grid a {
+      display: block; padding: .25rem 0;
+      font-size: .82rem; color: rgba(237,224,196,.6);
+      transition: color .15s;
+    }
+    .footer-grid a:hover { color: var(--sprout); }
+    .footer-bottom {
+      padding-top: 1.4rem; border-top: 1px solid rgba(200,162,85,.1);
+      display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+    }
+    .footer-apis {
+      font-size: .7rem; color: rgba(237,224,196,.4);
+    }
+    @media (max-width: 720px) {
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════ HEADER STICKY ════════ -->
+<header class="nav">
+  <div class="nav-inner">
+    <a href="#top" class="nav-logo">
+      <div class="nav-logo-icon">🌱</div>
+      <div class="nav-logo-text">Agro<span>Motor</span></div>
+    </a>
+    <nav class="nav-links">
+      <a href="#pilares">Por qué</a>
+      <a href="#modulos">Módulos</a>
+      <a href="#planes">Planes</a>
+      <a href="#consejos">Consejos</a>
+      <a href="index.html?signup=1" class="nav-cta">Probar gratis →</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ════════ HERO ════════ -->
+<section class="hero">
+  <div>
+    <div class="hero-badge">🎓 Exclusivo para Ingenieros Agrónomos</div>
+    <h1>El motor agronómico de <em>decisión</em> para tu profesión.</h1>
+    <p class="lead">
+      17 módulos con datos satelitales en tiempo real, IA con criterio INTA y exclusividad profesional.
+      Diagnosticá compactación, balanceá nutrientes, evaluá ENSO y elegí cultivo desde tu oficina —
+      sin manejar 200 km al lote.
+    </p>
+    <div class="hero-ctas">
+      <a href="index.html?signup=1" class="btn-primary">🚀 Probar 14 días gratis</a>
+      <a href="#planes" class="btn-secondary">Ver planes</a>
+    </div>
+    <div class="hero-trust">
+      <span>🛰️ Open-Meteo · NASA POWER · SoilGrids</span>
+      <span>🤖 Asistente IA Claude</span>
+      <span>🌾 Lógica INTA Argentina</span>
+    </div>
+  </div>
+
+  <!-- Visual mock del dashboard -->
+  <div class="hero-visual">
+    <div class="hv-header">
+      <div class="hv-dot"></div>
+      <div class="hv-dot"></div>
+      <div class="hv-dot"></div>
+      <div class="hv-title">📍 Lote · Vertisol · Soja</div>
+    </div>
+    <div class="hv-grid">
+      <div class="hv-kpi">
+        <div class="hv-kpi-label">🌡️ T° suelo</div>
+        <div class="hv-kpi-value">17.2°</div>
+        <div class="hv-kpi-unit">6 cm de profundidad</div>
+      </div>
+      <div class="hv-kpi">
+        <div class="hv-kpi-label">💧 Humedad</div>
+        <div class="hv-kpi-value">27.3<span style="font-size:.8rem">%</span></div>
+        <div class="hv-kpi-unit">3-9 cm activo</div>
+      </div>
+      <div class="hv-kpi">
+        <div class="hv-kpi-label">🌿 ET₀</div>
+        <div class="hv-kpi-value">2.1</div>
+        <div class="hv-kpi-unit">mm/día</div>
+      </div>
+      <div class="hv-kpi">
+        <div class="hv-kpi-label">🌾 GDD acum.</div>
+        <div class="hv-kpi-value">73</div>
+        <div class="hv-kpi-unit">desde siembra</div>
+      </div>
+    </div>
+    <div class="hv-alert">
+      ✅ <span><strong>Apto para siembra</strong> — humedad y temperatura en rango óptimo, viento bajo control.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ PILARES ════════ -->
+<section class="pillars" id="pilares">
+  <div class="pillars-title">
+    <div class="pillars-eyebrow">Por qué AgroMotor</div>
+    <h2 class="pillars-h2">Hecho por agrónomos. Para agrónomos. Pensado en tu campaña.</h2>
+  </div>
+  <div class="pillars-grid">
+    <div class="pillar-card">
+      <div class="pillar-icon">🛰️</div>
+      <div class="pillar-h3">Datos en tiempo real</div>
+      <div class="pillar-desc">Open-Meteo, NASA POWER, SoilGrids ISRIC, ENSO/NOAA, dólar tiempo real BCRA. Sin tener que abrir 7 pestañas.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-icon">🧠</div>
+      <div class="pillar-h3">IA con criterio agronómico</div>
+      <div class="pillar-desc">Asistente IA conectado al contexto real de tu lote: clima, suelo, cultivo, ENSO. No te tira respuestas genéricas.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-icon">🌾</div>
+      <div class="pillar-h3">17 módulos del flujo</div>
+      <div class="pillar-desc">De "¿qué sembrar?" hasta balance nutricional post-cosecha. Lógica RECSO/INTA y curvas Echeverría/García.</div>
+    </div>
+    <div class="pillar-card">
+      <div class="pillar-icon">🎓</div>
+      <div class="pillar-h3">Solo para profesionales</div>
+      <div class="pillar-desc">Ingreso con matrícula obligatoria. La IA no te reemplaza — amplifica tu criterio profesional.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ ROI ════════ -->
+<section class="roi">
+  <div class="roi-eyebrow">💡 El cálculo simple</div>
+  <h2 class="roi-h2">AgroMotor te ahorra <strong>2 viajes al campo por mes</strong>. Hacé la cuenta.</h2>
+  <p class="roi-desc">
+    Antes manejabas 200 km para ver si el lote estaba en condición de sembrar.
+    Ahora abrís AgroMotor y en 30 segundos sabés si la humedad, temperatura y pronóstico te dan luz verde.
+    Si te equivocás, aprendés. Si acertás, sembraste con datos.
+  </p>
+  <div class="roi-calc">
+    <div>
+      <div class="roi-num">~USD 25</div>
+      <div class="roi-label">Costo de un viaje al campo<br>(combustible + tiempo + desgaste)</div>
+    </div>
+    <div>
+      <div class="roi-num">2 viajes</div>
+      <div class="roi-label">evitados por mes en promedio<br>= USD 50/mes de ahorro</div>
+    </div>
+    <div>
+      <div class="roi-num">USD 35</div>
+      <div class="roi-label">Plan Asesor desde<br>= ROI positivo desde el primer mes</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ MÓDULOS ════════ -->
+<section class="modulos" id="modulos">
+  <div class="pillars-title">
+    <div class="pillars-eyebrow">17 módulos del motor</div>
+    <h2 class="pillars-h2">El flujo agronómico completo · de planificación a post-cosecha</h2>
+  </div>
+  <div class="mods-grid">
+    <div class="mod-stage">1 · Planificación</div>
+    <div class="mod-tile"><div class="mod-tile-ico">⚖️</div><div class="mod-tile-name">¿Qué sembrar?</div><div class="mod-tile-desc">Comparación económica + agronómica entre cultivos</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🌾</div><div class="mod-tile-name">Cultivares</div><div class="mod-tile-desc">Ranking RECSO/INTA · GM · zonas agroecológicas</div></div>
+
+    <div class="mod-stage">2 · Implantación</div>
+    <div class="mod-tile"><div class="mod-tile-ico">🌱</div><div class="mod-tile-name">Siembra</div><div class="mod-tile-desc">Compactación · humedad · pronóstico 7 días</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🌍</div><div class="mod-tile-name">Suelo</div><div class="mod-tile-desc">SoilGrids ISRIC · pH · MO · CEC · textura</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">💧</div><div class="mod-tile-name">Hídrico</div><div class="mod-tile-desc">Balance hídrico · ENSO · perfil del lote</div></div>
+
+    <div class="mod-stage">3 · Nutrición</div>
+    <div class="mod-tile"><div class="mod-tile-ico">⚗️</div><div class="mod-tile-name">Fertilización</div><div class="mod-tile-desc">N · P · K · S · costo USD por hectárea</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🧪</div><div class="mod-tile-name">Dosis Óptima</div><div class="mod-tile-desc">Curvas respuesta INTA · óptimo económico</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🔄</div><div class="mod-tile-name">Bal. Nutricional</div><div class="mod-tile-desc">Extracción vs reposición post-cosecha</div></div>
+
+    <div class="mod-stage">4 · Economía</div>
+    <div class="mod-tile"><div class="mod-tile-ico">💰</div><div class="mod-tile-name">Economía</div><div class="mod-tile-desc">Margen bruto · dólar tiempo real · precios</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🌾</div><div class="mod-tile-name">Cosecha</div><div class="mod-tile-desc">Pérdidas · humedad de cosecha · costos</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🚜</div><div class="mod-tile-name">Maquinaria</div><div class="mod-tile-desc">Productividad · costo operativo por ha</div></div>
+
+    <div class="mod-stage">5 · Sanidad</div>
+    <div class="mod-tile"><div class="mod-tile-ico">🐛</div><div class="mod-tile-name">Plagas</div><div class="mod-tile-desc">Umbrales · monitoreo · alertas INTA</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🦠</div><div class="mod-tile-name">Enfermedades</div><div class="mod-tile-desc">14 patógenos · favorabilidad climática</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">💦</div><div class="mod-tile-name">Pulverización</div><div class="mod-tile-desc">Ventanas · pH agua · resistencias HRAC</div></div>
+
+    <div class="mod-stage">6 · Avanzado</div>
+    <div class="mod-tile"><div class="mod-tile-ico">🗺</div><div class="mod-tile-name">Siembra Variable</div><div class="mod-tile-desc">Mapas de prescripción · zonas · NDVI</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">📍</div><div class="mod-tile-name">Distribuidores</div><div class="mod-tile-desc">Insumos cercanos · contacto directo</div></div>
+    <div class="mod-tile"><div class="mod-tile-ico">🤖</div><div class="mod-tile-name">Asistente IA</div><div class="mod-tile-desc">Claude AI con contexto completo del lote</div></div>
+  </div>
+</section>
+
+<!-- ════════ PLANES ════════ -->
+<section class="planes" id="planes">
+  <div class="pillars-title">
+    <div class="pillars-eyebrow">Planes y precios</div>
+    <h2 class="pillars-h2">Pagás como profesional · cobrás como profesional</h2>
+  </div>
+
+  <div class="planes-grid-l">
+    <!-- DEMO -->
+    <div class="plan-card">
+      <div class="plan-icon">🌱</div>
+      <div class="plan-name">Demo</div>
+      <div class="plan-price">Gratis</div>
+      <div class="plan-price-unit">para evaluar</div>
+      <ul class="plan-features">
+        <li>✅ 1 lote</li>
+        <li>✅ Diagnóstico siembra</li>
+        <li>✅ Open-Meteo 7 días</li>
+        <li class="dim">— Otros módulos</li>
+        <li class="dim">— Asistente IA</li>
+      </ul>
+      <a href="index.html?signup=1&plan=free" class="plan-cta">Empezar</a>
+    </div>
+
+    <!-- ASESOR -->
+    <div class="plan-card">
+      <div class="plan-icon">🌾</div>
+      <div class="plan-name">Asesor</div>
+      <div class="plan-price">USD 35<span style="font-size:.85rem;color:rgba(237,224,196,.5);font-weight:400">/mes</span></div>
+      <div class="plan-price-unit">5 lotes · asesor independiente</div>
+      <ul class="plan-features">
+        <li>✅ <strong>Todos los módulos</strong></li>
+        <li>✅ Soja, maíz, trigo, girasol, sorgo</li>
+        <li>✅ SoilGrids · NASA · ENSO</li>
+        <li>✅ Cultivares RECSO/INTA</li>
+        <li>✅ Asistente IA · 30 cons./mes</li>
+      </ul>
+      <a href="index.html?signup=1&plan=asesor" class="plan-cta">14 días gratis</a>
+    </div>
+
+    <!-- PRO ⭐ -->
+    <div class="plan-card featured">
+      <div class="plan-badge">⭐ Más popular</div>
+      <div class="plan-icon">⚡</div>
+      <div class="plan-name">Pro</div>
+      <div class="plan-price">USD 90<span style="font-size:.85rem;color:rgba(237,224,196,.5);font-weight:400">/mes</span></div>
+      <div class="plan-price-unit">25 lotes · estudio agronómico</div>
+      <ul class="plan-features">
+        <li>✅ Todo de Asesor +</li>
+        <li>✅ <strong>25 lotes</strong> simultáneos</li>
+        <li>✅ Asistente IA · 100 cons./mes</li>
+        <li>✅ PDF brandeable con tu matrícula</li>
+        <li>✅ Historial extendido</li>
+      </ul>
+      <a href="index.html?signup=1&plan=pro" class="plan-cta">14 días gratis</a>
+    </div>
+
+    <!-- EMPRESA -->
+    <div class="plan-card">
+      <div class="plan-icon">🏢</div>
+      <div class="plan-name">Empresa</div>
+      <div class="plan-price">USD 250<span style="font-size:.85rem;color:rgba(237,224,196,.5);font-weight:400">/mes</span></div>
+      <div class="plan-price-unit">75 lotes · cooperativas y semilleras</div>
+      <ul class="plan-features">
+        <li>✅ Todo de Pro +</li>
+        <li>✅ <strong>75 lotes</strong> simultáneos</li>
+        <li>✅ Asistente IA · 300 cons./mes</li>
+        <li>✅ NDVI satelital · API export</li>
+        <li>✅ Soporte directo</li>
+      </ul>
+      <a href="mailto:hola@agromotor.com.ar?subject=Interés%20plan%20Empresa" class="plan-cta">Contactar ventas</a>
+    </div>
+  </div>
+</section>
+
+<!-- ════════ FUNDADORES ════════ -->
+<section class="fundadores">
+  <h3 class="fundadores-h3">🚀 Oferta Fundadores</h3>
+  <p class="fundadores-text">
+    Los <strong style="color:var(--amber)">primeros 100 ingenieros agrónomos</strong> que se sumen a AgroMotor
+    bloquean su precio actual <strong style="color:var(--amber)">de por vida</strong>.
+    Cuando los planes suban, vos seguís pagando lo mismo.
+  </p>
+  <div class="fundadores-counter">📊 87 lugares disponibles</div>
+</section>
+
+<!-- ════════ CONSEJOS ════════ -->
+<section class="consejos" id="consejos">
+  <h2 class="consejos-h2">¿Sos parte de un <em>Consejo Profesional</em>?</h2>
+  <p class="consejos-text">
+    Ofrecemos a los CPIA un <strong>plan institucional con 30% de descuento</strong> para sus matriculados.
+    AgroMotor figura como herramienta profesional reconocida y vos ofrecés un beneficio concreto a tus afiliados.
+    Sin costo para el Consejo. Verificación automática de matrícula al integrar tu base de datos.
+  </p>
+  <a href="mailto:hola@agromotor.com.ar?subject=Propuesta%20institucional%20Consejo%20Profesional" class="consejos-cta">
+    📧 Conversemos sobre la propuesta institucional →
+  </a>
+</section>
+
+<!-- ════════ FAQ ════════ -->
+<section class="faq">
+  <h2 class="faq-h2">Preguntas frecuentes</h2>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Necesito instalar algo?</div>
+    <div class="faq-a">No. AgroMotor corre 100% en el navegador (Chrome, Edge, Safari, Firefox). Si querés, podés instalarlo como app en tu celular o desktop con un toque desde el navegador (PWA).</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Qué pasa si no tengo matrícula profesional?</div>
+    <div class="faq-a">AgroMotor está diseñado exclusivamente para Ingenieros Agrónomos matriculados. Si sos productor, te recomendamos pedirle a tu ingeniero asesor que evalúe la herramienta. También aceptamos estudiantes de Agronomía de los últimos 2 años con plan especial de transición.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Funciona offline en el campo?</div>
+    <div class="faq-a">Sí, parcialmente. Los datos del lote ya consultados quedan disponibles offline. Para traer datos nuevos en tiempo real (clima, satélite) necesitás conexión. Está pensado para que puedas seguir trabajando con datos cargados aunque te quedes sin señal.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Cómo cancelo o cambio de plan?</div>
+    <div class="faq-a">Desde tu perfil en cualquier momento. Sin permanencia mínima ni penalidades. Si cancelás, la cuenta queda activa hasta el final del período pagado.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿Mis datos están seguros?</div>
+    <div class="faq-a">Sí. La autenticación es vía Supabase (Postgres en AWS) con Row Level Security activa. Tus lotes y datos solo son visibles por tu usuario. Las APIs de IA (Claude) procesan las consultas pero no almacenan datos persistentes.</div>
+  </div>
+
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentElement.classList.toggle('open')">¿La IA me va a reemplazar?</div>
+    <div class="faq-a">No. AgroMotor está diseñado bajo la premisa de que la IA <strong>amplifica</strong> el criterio profesional, no lo reemplaza. Los análisis son orientativos y deben validarse con tu juicio agronómico. La firma de las recomendaciones siempre es tuya, con tu matrícula.</div>
+  </div>
+</section>
+
+<!-- ════════ CTA FINAL ════════ -->
+<section class="cta-final">
+  <h2>Empezá a decidir con <em>datos reales</em>.</h2>
+  <p>14 días gratis del plan Pro. Sin tarjeta de crédito al registrarte. Cancelás cuando quieras.</p>
+  <a href="index.html?signup=1&plan=pro" class="btn-primary">🚀 Crear cuenta profesional →</a>
+</section>
+
+<!-- ════════ FOOTER ════════ -->
+<footer>
+  <div class="footer-grid">
+    <div>
+      <a href="#top" class="nav-logo" style="margin-bottom:.7rem">
+        <div class="nav-logo-icon">🌱</div>
+        <div class="nav-logo-text">Agro<span>Motor</span></div>
+      </a>
+      <div style="font-size:.8rem;color:rgba(237,224,196,.6);max-width:280px;line-height:1.6;margin-top:.7rem">
+        Motor agronómico de decisión para profesionales matriculados de Argentina. Lógica INTA · Datos en tiempo real · IA con criterio.
+      </div>
+    </div>
+    <div>
+      <h4>Producto</h4>
+      <a href="#pilares">Por qué AgroMotor</a>
+      <a href="#modulos">17 módulos</a>
+      <a href="#planes">Planes y precios</a>
+      <a href="index.html">Iniciar app</a>
+    </div>
+    <div>
+      <h4>Comunidad</h4>
+      <a href="#consejos">Para Consejos</a>
+      <a href="mailto:hola@agromotor.com.ar">Contacto</a>
+      <a href="mailto:soporte@agromotor.com.ar">Soporte</a>
+    </div>
+    <div>
+      <h4>Legal</h4>
+      <a href="#">Términos de servicio</a>
+      <a href="#">Política de privacidad</a>
+      <a href="#">Aviso profesional</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>© 2026 AgroMotor · Argentina · Todos los derechos reservados</div>
+    <div class="footer-apis">
+      Datos: Open-Meteo · NASA POWER · SoilGrids ISRIC · NOAA/CPC · DolarAPI · BCRA · Anthropic Claude
+    </div>
+  </div>
+</footer>
+
+</main>
+</body>
+</html>

@@ -225,6 +225,29 @@ async function amLogin() {
 }
 
 // ── REGISTRO ──────────────────────────────────────────
+// Auto-abrir modal desde URL params (?signup=1&plan=X)
+function amProcesarUrlParams() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('signup') === '1' || params.get('login') === '1') {
+      const planSel = params.get('plan');
+      const vista = params.get('login') === '1' ? 'login' : 'registro';
+      setTimeout(function() {
+        if (typeof amMostrarModal === 'function') amMostrarModal(vista);
+        if (planSel && vista === 'registro') {
+          var sel = document.getElementById('am-reg-plan');
+          if (sel) {
+            for (var i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value === planSel) { sel.selectedIndex = i; break; }
+            }
+          }
+        }
+      }, 800);
+    }
+  } catch(e) { /* noop */ }
+}
+window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
+
 // Toggle bloques agronomo/estudiante en el form de registro
 function amRegToggleRol() {
   const rol = gv('am-reg-rol') || 'agronomo';
