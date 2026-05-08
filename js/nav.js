@@ -286,4 +286,50 @@ function renderSueloModulo(d) {
     alertas.push('<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (' + d.cec.toFixed(1) + ' cmol/kg)</strong> — Fraccionar aplicaciones de K y Ca.</div></div>');
   var alertasEl = document.getElementById('suelo-alertas');
   if (alertasEl) alertasEl.innerHTML = alertas.join('');
+
+  // ── COMPOSICIÓN GRANULOMÉTRICA Y TEXTURA ─────────────────
+  var texEl = document.getElementById('suelo-textura-contenido');
+  if (texEl && (d.clay != null || d.sand != null || d.silt != null)) {
+    var clay = d.clay != null ? d.clay : (100 - (d.sand||0) - (d.silt||0));
+    var sand = d.sand != null ? d.sand : 0;
+    var silt = d.silt != null ? d.silt : Math.max(0, 100 - clay - sand);
+    var bar = function(label, val, color) {
+      var pct = Math.max(0, Math.min(100, val));
+      return '<div style="margin-bottom:.55rem"><div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.2rem"><span style="font-weight:600;color:#3D2210">' + label + '</span><span style="font-family:\'DM Mono\',monospace;font-weight:700;color:' + color + '">' + pct.toFixed(0) + '%</span></div><div style="background:#f1ebe0;height:10px;border-radius:5px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + color + ';transition:width .4s ease"></div></div></div>';
+    };
+    var html = '<div style="font-size:.74rem;color:#5a4a32;margin-bottom:.7rem">Análisis textural en los primeros 0–5 cm</div>';
+    html += bar('🏖️ Arena', sand, '#C8A255');
+    html += bar('🪨 Limo',  silt, '#8b6f47');
+    html += bar('🏺 Arcilla', clay, '#a3543b');
+    html += '<div style="margin-top:.9rem;padding:.6rem .85rem;background:#fbf6e9;border:1px solid rgba(200,162,85,.3);border-radius:8px;font-size:.78rem;color:#3D2210"><strong>Textura USDA:</strong> ' + (d.textura || '—') + (d.fuente ? '<div style="font-size:.7rem;color:#6b5b45;margin-top:.25rem">' + d.fuente + '</div>' : '') + '</div>';
+    texEl.innerHTML = html;
+  }
+
+  // ── PROPIEDADES DEL SUELO — TABLA ─────────────────────────
+  var tblEl = document.getElementById('suelo-tabla');
+  if (tblEl) {
+    var rows = [
+      ['⚗️ pH (H₂O)',          d.ph != null ? d.ph.toFixed(1) : '—',           'Acidez/alcalinidad del suelo · óptimo 6.0–7.5'],
+      ['🌱 C orgánico',         d.soc != null ? d.soc.toFixed(1) + ' g/kg' : '—', 'Carbono orgánico — base de la fertilidad biológica'],
+      ['🌿 Materia orgánica',   mo != null ? mo.toFixed(1) + ' %' : '—',           'MO = SOC × 1.724 — reservas y agregación'],
+      ['🔬 Nitrógeno total',    d.n != null ? d.n.toFixed(2) + ' g/kg' : '—',     'N total del suelo — mineralización potencial'],
+      ['⚖️ Densidad aparente',  d.da != null ? d.da.toFixed(2) + ' g/cm³' : '—',  'Compactación · normal 1.0–1.4 g/cm³'],
+      ['🧲 CEC',                d.cec != null ? d.cec.toFixed(1) + ' cmol/kg' : '—', 'Capacidad de intercambio catiónico'],
+      ['🏺 Arcilla',            d.clay != null ? d.clay + ' %' : '—',             'Fracción fina · retención de agua y cationes'],
+      ['🏖️ Arena',              d.sand != null ? d.sand + ' %' : '—',             'Fracción gruesa · drenaje'],
+      ['🪨 Limo',               d.silt != null ? d.silt + ' %' : '—',             'Fracción media · agua disponible'],
+      ['🗺️ Tipo de suelo',      d.textura || '—',                                 'Clasificación textural'],
+    ];
+    var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
+    html += '<thead><tr style="background:#f3ede0"><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Propiedad</th><th style="text-align:right;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Valor</th><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Interpretación</th></tr></thead><tbody>';
+    rows.forEach(function(r, i) {
+      var bg = i % 2 === 0 ? '#fbf8f1' : '#ffffff';
+      html += '<tr style="background:' + bg + ';border-bottom:1px solid rgba(74,46,26,.06)"><td style="padding:.55rem .8rem;font-weight:600;color:#3D2210">' + r[0] + '</td><td style="padding:.55rem .8rem;text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;color:#1b3d28">' + r[1] + '</td><td style="padding:.55rem .8rem;font-size:.73rem;color:#5a4a32">' + r[2] + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    if (d.fuente) {
+      html += '<div style="margin-top:.7rem;font-size:.7rem;color:#6b5b45;padding:.5rem .8rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:6px">' + (d.esFallback ? '⚠️ ' : '✅ ') + d.fuente + '</div>';
+    }
+    tblEl.innerHTML = html;
+  }
 }
