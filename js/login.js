@@ -6,40 +6,59 @@
 
 const AM_PLANES = {
   free: {
-    nombre: 'Free',
+    nombre: 'Demo',
     precio: 'Gratis',
     lotes: 1,
+    iaCallsMes: 0,
     modulos: ['siembra'],
     color: '#3A7A4A',
     icon: '🌱',
-    desc: 'Diagnóstico básico de siembra para un lote'
+    desc: 'Probá AgroMotor con un lote · Diagnóstico básico de siembra'
   },
   asesor: {
-    nombre: 'Asesor Pro',
-    precio: 'USD 79/mes',
-    lotes: 15,
+    nombre: 'Asesor',
+    precio: 'USD 35/mes',
+    lotes: 5,
+    iaCallsMes: 30,
     modulos: [
-      'siembra','suelo','decision','economia','fertilizacion',
+      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
       'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','balance'
+      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'cosecha','alerta-sanitaria','siembra-variable'
+    ],
+    color: '#3A7A4A',
+    icon: '🌾',
+    desc: 'Para asesor independiente · 5 lotes · IA 30 consultas/mes · Todo el motor agronómico'
+  },
+  pro: {
+    nombre: 'Pro',
+    precio: 'USD 90/mes',
+    lotes: 25,
+    iaCallsMes: 100,
+    modulos: [
+      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
+      'maquinaria','hidrico','cultivares','asistente','mapa',
+      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'cosecha','alerta-sanitaria','siembra-variable'
     ],
     color: '#C8A255',
     icon: '⚡',
-    desc: 'Acceso completo · 15 lotes · 50 consultas IA/mes · Cultivares RECSO'
+    desc: 'Para estudio chico · 25 lotes · IA 100 consultas/mes · PDF brandeable · Historial extendido'
   },
   empresa: {
     nombre: 'Empresa',
-    precio: 'USD 299/mes',
-    lotes: 60,
+    precio: 'USD 250/mes',
+    lotes: -1,
+    iaCallsMes: -1,
     modulos: [
-      'siembra','suelo','decision','economia','fertilizacion',
+      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
       'maquinaria','hidrico','cultivares','asistente','mapa',
-      'plagas','pulverizacion','cosecha','seguimiento','balance',
-      'alerta-sanitaria'
+      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'cosecha','alerta-sanitaria','siembra-variable'
     ],
     color: '#2A5A8C',
     icon: '🏢',
-    desc: '60 lotes · IA ilimitada · White label · Soporte prioritario · API'
+    desc: 'Para cooperativas y empresas · Lotes ilimitados · IA ilimitada · NDVI satelital · API export · Soporte directo'
   }
 };
 

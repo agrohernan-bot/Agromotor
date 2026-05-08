@@ -17,7 +17,8 @@ const CORS = {
 
 // Límites mensuales por plan (-1 = ilimitado)
 const IA_LIMITES: Record<string, number> = {
-  asesor:  50,
+  asesor:  30,
+  pro:     100,
   empresa: -1,
 };
 
@@ -85,8 +86,9 @@ serve(async (req: Request) => {
     }
 
     if (limite !== -1 && callsUsadas >= limite) {
+      const planLabels: Record<string, string> = { asesor: 'Asesor', pro: 'Pro', empresa: 'Empresa' };
       return json({
-        error: `Alcanzaste el límite de ${limite} consultas mensuales del plan ${planActivo === 'asesor' ? 'Asesor Pro' : 'Empresa'}. El contador se reinicia el próximo mes.`,
+        error: `Alcanzaste el límite de ${limite} consultas mensuales del plan ${planLabels[planActivo] || planActivo}. El contador se reinicia el próximo mes.`,
         ia_remaining: 0,
         ia_total: limite,
       }, 429);

@@ -2746,88 +2746,113 @@
         </div>
       </div>
 
-      <!-- Cards de planes -->
-      <div style="padding:1.5rem;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+      <!-- Banner ROI -->
+      <div style="margin:0 1.5rem 1rem;padding:.8rem 1.1rem;background:linear-gradient(135deg,#fbf8f1,#fbf6e9);border:1px solid rgba(200,162,85,.35);border-radius:10px;font-size:.78rem;color:#5a4a32;line-height:1.5">
+        💡 <strong>El cálculo simple:</strong> AgroMotor te ahorra 2 viajes al campo por mes (combustible + tiempo del asesor) — ya se paga solo con un viaje evitado.
+      </div>
 
-        <!-- FREE -->
-        <div style="border:1.5px solid rgba(58,122,74,.3);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(58,122,74,.04)">
-          <div style="font-size:1.8rem;margin-bottom:.4rem">🌱</div>
-          <div style="font-weight:700;font-size:.95rem;color:var(--earth);margin-bottom:.2rem">Free</div>
-          <div style="font-size:1.4rem;font-weight:700;color:var(--canopy);margin-bottom:.6rem">Gratis</div>
-          <div style="font-size:.72rem;color:rgba(61,34,16,.55);margin-bottom:.8rem;line-height:1.5">
-            1 lote · Diagnóstico de Siembra básico
-          </div>
-          <ul style="font-size:.72rem;color:rgba(61,34,16,.6);text-align:left;list-style:none;margin-bottom:1rem">
+      <!-- Cards de planes -->
+      <div class="planes-grid" style="padding:0 1.5rem 1.5rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem">
+
+        <!-- DEMO -->
+        <div style="border:1.5px solid rgba(58,122,74,.3);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f4faf6;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🌱</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Demo</div>
+          <div style="font-size:1.3rem;font-weight:700;color:var(--canopy);margin-bottom:0">Gratis</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">para probar</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ 1 lote</li>
             <li>✅ Diagnóstico siembra</li>
             <li>✅ Open-Meteo 7 días</li>
-            <li style="color:rgba(61,34,16,.3)">❌ Análisis suelo</li>
-            <li style="color:rgba(61,34,16,.3)">❌ Economía</li>
-            <li style="color:rgba(61,34,16,.3)">❌ Asistente IA</li>
+            <li style="color:rgba(61,34,16,.35)">❌ Otros módulos</li>
+            <li style="color:rgba(61,34,16,.35)">❌ Asistente IA</li>
           </ul>
           <button onclick="amRegistrarPlan('free')" style="
-            width:100%;padding:.6rem;border-radius:8px;border:1.5px solid var(--canopy);
-            background:transparent;color:var(--canopy);font-weight:600;font-size:.8rem;
+            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid var(--canopy);
+            background:transparent;color:var(--canopy);font-weight:600;font-size:.78rem;
             cursor:pointer;font-family:inherit;transition:all .2s"
             onmouseenter="this.style.background='rgba(58,122,74,.08)'"
             onmouseleave="this.style.background='transparent'">
-            Empezar gratis
+            Empezar
           </button>
         </div>
 
-        <!-- ASESOR PRO -->
-        <div style="border:2px solid var(--grain);border-radius:16px;padding:1.2rem;text-align:center;background:rgba(200,162,85,.06);position:relative">
-          <div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);
-            background:var(--grain);color:var(--ink);font-size:.65rem;font-weight:700;
-            padding:.25rem .75rem;border-radius:20px;letter-spacing:.08em;text-transform:uppercase;
-            white-space:nowrap">⭐ Más popular</div>
-          <div style="font-size:1.8rem;margin-bottom:.4rem">⚡</div>
-          <div style="font-weight:700;font-size:.95rem;color:var(--earth);margin-bottom:.2rem">Asesor Pro</div>
-          <div style="font-size:1.4rem;font-weight:700;color:#8A6A20;margin-bottom:.1rem">USD 79</div>
-          <div style="font-size:.72rem;color:rgba(61,34,16,.4);margin-bottom:.6rem">/mes · hasta 50 lotes</div>
-          <ul style="font-size:.72rem;color:rgba(61,34,16,.6);text-align:left;list-style:none;margin-bottom:1rem">
-            <li>✅ Todo Free +</li>
-            <li>✅ Análisis suelo SoilGrids</li>
-            <li>✅ Economía de campaña</li>
-            <li>✅ Balance hídrico + ENSO</li>
+        <!-- ASESOR -->
+        <div style="border:1.5px solid rgba(58,122,74,.4);border-radius:14px;padding:1rem .9rem;text-align:center;background:#fff;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🌾</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Asesor</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1b5e35;margin-bottom:0">USD 35</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 5 lotes</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ <strong>Todos los módulos</strong></li>
+            <li>✅ Soja, maíz, trigo, girasol, sorgo</li>
+            <li>✅ SoilGrids · NASA · ENSO</li>
             <li>✅ Cultivares RECSO/INTA</li>
-            <li>✅ Asistente IA Claude</li>
-            <li>✅ Mapa distribuidores</li>
+            <li>✅ Asistente IA · 30 cons./mes</li>
           </ul>
           <button onclick="amRegistrarPlan('asesor')" style="
-            width:100%;padding:.6rem;border-radius:8px;border:none;
-            background:linear-gradient(135deg,#8A6A20,var(--grain));
-            color:white;font-weight:700;font-size:.8rem;
-            cursor:pointer;font-family:inherit;
-            box-shadow:0 4px 12px rgba(200,162,85,.35);transition:all .2s"
+            width:100%;padding:.55rem;border-radius:8px;border:none;
+            background:linear-gradient(135deg,#1b5e35,#3A7A4A);color:white;
+            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
+            box-shadow:0 3px 8px rgba(58,122,74,.3);transition:all .2s"
             onmouseenter="this.style.transform='translateY(-1px)'"
             onmouseleave="this.style.transform='translateY(0)'">
-            Empezar 14 días gratis
+            14 días gratis
+          </button>
+        </div>
+
+        <!-- PRO ⭐ -->
+        <div style="border:2px solid var(--grain);border-radius:14px;padding:1rem .9rem;text-align:center;background:linear-gradient(180deg,#fbf6e9,#fff);position:relative;display:flex;flex-direction:column;box-shadow:0 6px 20px rgba(200,162,85,.2)">
+          <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grain);color:var(--ink);font-size:.6rem;font-weight:700;padding:.22rem .65rem;border-radius:20px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 6px rgba(200,162,85,.35)">⭐ Más popular</div>
+          <div style="font-size:1.6rem;margin-bottom:.3rem">⚡</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Pro</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#8A6A20;margin-bottom:0">USD 90</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 25 lotes</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ Todo de Asesor +</li>
+            <li>✅ <strong>25 lotes</strong> simultáneos</li>
+            <li>✅ Asistente IA · 100 cons./mes</li>
+            <li>✅ PDF brandeable</li>
+            <li>✅ Historial extendido</li>
+          </ul>
+          <button onclick="amRegistrarPlan('pro')" style="
+            width:100%;padding:.55rem;border-radius:8px;border:none;
+            background:linear-gradient(135deg,#8A6A20,var(--grain));color:white;
+            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
+            box-shadow:0 4px 12px rgba(200,162,85,.4);transition:all .2s"
+            onmouseenter="this.style.transform='translateY(-1px)'"
+            onmouseleave="this.style.transform='translateY(0)'">
+            14 días gratis
           </button>
         </div>
 
         <!-- EMPRESA -->
-        <div style="border:1.5px solid rgba(42,90,140,.3);border-radius:16px;padding:1.2rem;text-align:center;background:#f3f7fd">
-          <div style="font-size:1.8rem;margin-bottom:.4rem">🏢</div>
-          <div style="font-weight:700;font-size:.95rem;color:var(--earth);margin-bottom:.2rem">Empresa</div>
-          <div style="font-size:1.4rem;font-weight:700;color:#1A4A7A;margin-bottom:.1rem">USD 299</div>
-          <div style="font-size:.72rem;color:rgba(61,34,16,.4);margin-bottom:.6rem">/mes · lotes ilimitados</div>
-          <ul style="font-size:.72rem;color:rgba(61,34,16,.6);text-align:left;list-style:none;margin-bottom:1rem">
-            <li>✅ Todo Asesor Pro +</li>
-            <li>✅ Lotes ilimitados</li>
-            <li>✅ White label (tu marca)</li>
-            <li>✅ API acceso directo</li>
-            <li>✅ Soporte prioritario</li>
-            <li>✅ Dashboard analytics</li>
+        <div style="border:1.5px solid rgba(42,90,140,.35);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f3f7fd;display:flex;flex-direction:column">
+          <div style="font-size:1.6rem;margin-bottom:.3rem">🏢</div>
+          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Empresa</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1A4A7A;margin-bottom:0">USD 250</div>
+          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · ilimitado</div>
+          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
+            <li>✅ Todo de Pro +</li>
+            <li>✅ <strong>Lotes ilimitados</strong></li>
+            <li>✅ IA <strong>ilimitada</strong></li>
+            <li>✅ NDVI satelital · API export</li>
+            <li>✅ Soporte directo</li>
           </ul>
           <button onclick="amRegistrarPlan('empresa')" style="
-            width:100%;padding:.6rem;border-radius:8px;border:1.5px solid #2A5A8C;
-            background:transparent;color:#2A5A8C;font-weight:600;font-size:.8rem;
+            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid #2A5A8C;
+            background:transparent;color:#2A5A8C;font-weight:600;font-size:.78rem;
             cursor:pointer;font-family:inherit;transition:all .2s"
             onmouseenter="this.style.background='rgba(42,90,140,.08)'"
             onmouseleave="this.style.background='transparent'">
             Contactar ventas
           </button>
         </div>
+      </div>
+
+      <!-- Founders deal -->
+      <div style="margin:0 1.5rem 1rem;padding:.7rem 1rem;background:#0e2016;border:1px solid rgba(200,162,85,.3);border-radius:10px;font-size:.74rem;color:rgba(237,224,196,.85);text-align:center">
+        🚀 <strong style="color:var(--amber)">Oferta Fundadores:</strong> los primeros 100 usuarios bloquean su precio actual <strong>de por vida</strong>. Cuando subamos los precios, vos seguís pagando lo mismo.
       </div>
 
       <!-- Footer del modal -->
@@ -2888,9 +2913,10 @@
         <div class="fg">
           <label>Plan seleccionado</label>
           <select id="am-reg-plan">
-            <option value="free">Free — Gratis</option>
-            <option value="asesor" selected>Asesor Pro — USD 79/mes (14 días gratis)</option>
-            <option value="empresa">Empresa — USD 299/mes</option>
+            <option value="free">Demo — Gratis (1 lote)</option>
+            <option value="asesor">Asesor — USD 35/mes · 5 lotes (14 días gratis)</option>
+            <option value="pro" selected>Pro — USD 90/mes · 25 lotes (14 días gratis)</option>
+            <option value="empresa">Empresa — USD 250/mes · ilimitado</option>
           </select>
         </div>
         <button id="am-btn-reg-submit" onclick="amRegistrar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Crear cuenta</button>

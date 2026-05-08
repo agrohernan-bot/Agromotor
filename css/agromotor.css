@@ -1507,6 +1507,16 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 .btn-volver-dash.hidden { display: none !important; }
 
 /* ════════════════════════════════════════════════════════
+   PLANES — modal responsive
+   ════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .planes-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 600px) {
+  .planes-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ════════════════════════════════════════════════════════
    ESTADO DE LAS TARJETAS DEL DASHBOARD
    ════════════════════════════════════════════════════════ */
 .mod-card { padding-right: 2rem; }
