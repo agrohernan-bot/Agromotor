@@ -177,6 +177,9 @@
     </div>
     <div class="panel-alert">✅ Apto para siembra · Condiciones óptimas</div>
   </div>
+  <!-- Botón flotante de descarga (solo visible al pasar el mouse o en pantalla chica) -->
+  <button id="dl-btn" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#1E4D2B,#3A7A4A);color:white;border:none;padding:12px 22px;border-radius:11px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 6px 22px rgba(58,122,74,.5);z-index:9999;display:none">⬇️ Generar y descargar og-image.png</button>
+
   <script>
     window.addEventListener('load', () => {
       setTimeout(() => {
@@ -185,9 +188,20 @@
           backgroundColor: '#0F1F14',
           scale: 1, useCORS: true,
           windowWidth: 1200, windowHeight: 630,
+          ignoreElements: (el) => el.id === 'dl-btn'
         }).then(canvas => {
           window._ogImageData = canvas.toDataURL('image/png');
-          document.title = 'OG ready · ' + window._ogImageData.length;
+          document.title = 'OG image — listo para descargar';
+          var btn = document.getElementById('dl-btn');
+          btn.style.display = 'block';
+          btn.onclick = function() {
+            var a = document.createElement('a');
+            a.href = window._ogImageData;
+            a.download = 'og-image.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          };
         });
       }, 1500);
     });
