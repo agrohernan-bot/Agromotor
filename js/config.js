@@ -11,7 +11,7 @@ const AM_CONFIG = {
   },
   claudeProxy: 'https://xsbaqlqztppdpdcjgazz.supabase.co/functions/v1/claude-proxy',
   agromonitoringKey: 'b0fc7778f1bef4d4b5e2076f0c75845f',
-  devMode: true   // ← poner false antes de lanzar al público
+  devMode: false   // production mode
 };
 
 // ── Cliente Supabase compartido ───────────────────────
