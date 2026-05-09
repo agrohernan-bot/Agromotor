@@ -374,11 +374,21 @@ function amMostrarPerfil() {
   const planInfo  = AM_SESION.planHasta
     ? `\n📅 Plan hasta: ${new Date(AM_SESION.planHasta).toLocaleDateString('es-AR')}`
     : '';
+  const matLine = AM_SESION.matricula
+    ? `\n🎓 Matrícula ${AM_SESION.matricula}${AM_SESION.cpia ? ' · ' + AM_SESION.cpia : ''}${AM_SESION.matriculaVerificada ? ' (verificada ✓)' : ''}`
+    : '';
 
-  const confirmar = confirm(
-    `👤 ${AM_SESION.nombre}\n📧 ${AM_SESION.email}\n⭐ Plan: ${plan.nombre}${trialInfo}${planInfo}\n\n¿Cerrar sesión?`
+  const opciones = [
+    '1 — Cerrar sesión',
+    '2 — Ver tour de bienvenida nuevamente',
+    '3 — Cancelar',
+  ].join('\n');
+
+  const elegido = prompt(
+    `👤 ${AM_SESION.nombre}\n📧 ${AM_SESION.email}\n⭐ Plan: ${plan.nombre}${matLine}${trialInfo}${planInfo}\n\n${opciones}\n\nIngresá 1, 2 o 3:`
   );
-  if (confirmar) amCerrarSesion();
+  if (elegido === '1') amCerrarSesion();
+  else if (elegido === '2' && typeof amOnbStart === 'function') amOnbStart();
 }
 
 // ── HELPER: seleccionar plan desde modal ──────────────

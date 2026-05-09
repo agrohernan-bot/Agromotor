@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v27';
+const CACHE_NAME    = 'agromotor-v28';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -43,6 +43,7 @@ const ASSETS_LOCAL = [
   './js/alerta-sanitaria.js',
   './js/dashboard-ux.js',
   './js/pdf-modulo.js',
+  './js/onboarding.js',
   './css/alerta-sanitaria.css',
   './manifest.json',
 ];
