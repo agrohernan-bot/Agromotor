@@ -554,6 +554,284 @@
     }
   };
 
+  // ── COSECHA ──────────────────────────────────────────
+  window.pdfCosecha = function() {
+    try {
+      var ctx = crearPDFBase('Cosecha · Costos y márgenes', 'Tarifas · Fletes · Almacenamiento · Decisión venta');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      seccion(ctx, '🌾 RESUMEN DEL LOTE', ctx.COL.VERDE);
+      var datos = {
+        'Cultivo':              gv('cos-cultivo') || '—',
+        'Superficie (ha)':      gv('cos-sup') || '—',
+        'Rendimiento (qq/ha)':  gv('cos-rend') || '—',
+        'Humedad cosecha (%)':  gv('cos-hum') || '—',
+        'Producción total (t)': gtv('kv-ton') || '—',
+        'Producción quintales': gtv('kv-qq') || '—',
+        'Ingreso bruto USD':    gtv('kv-bruto-usd') || '—',
+        'Ingreso bruto ARS':    gtv('kv-bruto-ars') || '—',
+      };
+      var alt = false;
+      doc.setFontSize(8.5);
+      Object.entries(datos).forEach(function(kv) {
+        if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.text(kv[0], ctx.ML+3, ctx.y+4);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        doc.text(String(kv[1]), ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+        ctx.y += 6; alt = !alt;
+      });
+      ctx.y += 4;
+
+      // Si hay decisión IA renderizada (resumen narrativo)
+      var iaResumen = document.getElementById('cos-ia-output')?.textContent?.trim();
+      if (iaResumen && iaResumen.length > 50) {
+        seccion(ctx, '🤖 ANÁLISIS NARRATIVO', ctx.COL.AZUL);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var iaLines = doc.splitTextToSize(iaResumen.slice(0, 2500), ctx.W-6);
+        iaLines.forEach(function(l) { checkPage(ctx, 6); doc.text(l, ctx.ML+3, ctx.y); ctx.y += 4.5; });
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Cosecha'));
+      amToast('✅ Análisis de Cosecha exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfCosecha error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
+  // ── PLAGAS ───────────────────────────────────────────
+  window.pdfPlagas = function() {
+    try {
+      var cont = document.querySelector('#mod-plagas .resultado, #mod-plagas [id*="resultado"]') ||
+                 document.querySelector('#mod-plagas');
+      var ctx = crearPDFBase('Alertas de Plagas', 'Favorabilidad climática · Umbrales INTA · Monitoreo recomendado');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      // Banner orientativa
+      seccion(ctx, '⚠️ ESTIMACIÓN ORIENTATIVA', ctx.COL.AMBAR);
+      doc.setFontSize(8);
+      doc.setFont('helvetica','italic');
+      doc.setTextColor(...ctx.COL.GRIS);
+      var disclaimer = 'Los modelos evalúan condiciones climáticas favorables para el desarrollo poblacional de cada plaga. No reemplazan el monitoreo a campo. Las decisiones de control deben tomarse con observación directa.';
+      var dispLines = doc.splitTextToSize(disclaimer, ctx.W-6);
+      dispLines.forEach(function(l) { doc.text(l, ctx.ML+3, ctx.y); ctx.y += 4.5; });
+      ctx.y += 3;
+
+      // Riesgos por plaga (si hay tabla)
+      seccion(ctx, '🐛 RIESGO POR PLAGA', ctx.COL.WARN);
+      var tablaPlagas = cont?.querySelector('table');
+      if (tablaPlagas) {
+        var rows = tablaPlagas.querySelectorAll('tbody tr');
+        doc.setFontSize(8);
+        rows.forEach(function(tr) {
+          checkPage(ctx, 8);
+          var cells = tr.querySelectorAll('td');
+          if (cells.length < 2) return;
+          var plaga = cells[0]?.textContent.trim().slice(0, 40);
+          var riesgo = cells[1]?.textContent.trim().slice(0, 60);
+          doc.setFont('helvetica','bold');
+          doc.text(plaga, ctx.ML+3, ctx.y+4);
+          doc.setFont('helvetica','normal');
+          doc.text(riesgo, ctx.ML+70, ctx.y+4);
+          ctx.y += 6;
+        });
+      } else {
+        doc.setFontSize(9);
+        doc.setFont('helvetica','italic');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.text('Ejecutá el análisis de presión de plagas para incluir el detalle.', ctx.ML+3, ctx.y);
+        ctx.y += 8;
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Plagas'));
+      amToast('✅ Reporte de Plagas exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfPlagas error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
+  // ── PULVERIZACIÓN ────────────────────────────────────
+  window.pdfPulverizacion = function() {
+    try {
+      var ctx = crearPDFBase('Ventana de Pulverización', 'Semáforo agronómico · Delta T · Deriva · Calidad de agua');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      seccion(ctx, '💦 CONDICIONES METEOROLÓGICAS ACTUALES', ctx.COL.VERDE);
+      var datos = {
+        'Temperatura (°C)':       gtv('pa-temp-val') || '—',
+        'Humedad relativa (%)':   gtv('pa-hr-val') || '—',
+        'Viento (km/h)':          gtv('pa-viento-val') || '—',
+        'Delta T':                gtv('pa-deltat-val') || gtv('pa-dt-val') || '—',
+        'Buffer recomendado':     gtv('pd-buffer-val') || '—',
+      };
+      doc.setFontSize(9);
+      var alt = false;
+      Object.entries(datos).forEach(function(kv) {
+        if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.text(kv[0], ctx.ML+3, ctx.y+4);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        doc.text(String(kv[1]), ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+        ctx.y += 6; alt = !alt;
+      });
+      ctx.y += 4;
+
+      // Caldo
+      var caldoRes = document.getElementById('pulv-caldo-res');
+      if (caldoRes && caldoRes.textContent.trim().length > 20) {
+        seccion(ctx, '🧪 CALCULADORA DE CALDO', ctx.COL.AZUL);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var caldoLines = doc.splitTextToSize(caldoRes.textContent.replace(/\s+/g,' ').trim().slice(0, 2000), ctx.W-6);
+        caldoLines.forEach(function(l) { checkPage(ctx, 6); doc.text(l, ctx.ML+3, ctx.y); ctx.y += 4.5; });
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Pulverizacion'));
+      amToast('✅ Ventana de Pulverización exportada a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfPulverizacion error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
+  // ── CULTIVARES ───────────────────────────────────────
+  window.pdfCultivares = function() {
+    try {
+      var ctx = crearPDFBase('Recomendador de Cultivares', 'Grupos de Madurez · RECSO/INTA · Zona agroecológica');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      seccion(ctx, '📍 ZONA Y GRUPOS DE MADUREZ', ctx.COL.VERDE);
+      doc.setFontSize(9);
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(...ctx.COL.NEGRO);
+      var zona = gtv('cv-zona-nombre') || gtv('cv-zona') || gv('cv-zona') || '—';
+      var gms  = Array.from(document.querySelectorAll('.cv-gm-tag, [id*="gm-"]')).map(e => e.textContent.trim()).filter(Boolean).slice(0, 6).join(', ') || '—';
+      doc.text('Zona detectada:', ctx.ML+3, ctx.y+4);
+      doc.setFont('helvetica','bold');
+      doc.text(zona, ctx.ML+50, ctx.y+4);
+      ctx.y += 7;
+      doc.setFont('helvetica','normal');
+      doc.text('GMs recomendados:', ctx.ML+3, ctx.y+4);
+      doc.setFont('helvetica','bold');
+      doc.text(gms, ctx.ML+50, ctx.y+4);
+      ctx.y += 9;
+
+      // Ranking de cultivares
+      seccion(ctx, '🌾 RANKING DE CULTIVARES', ctx.COL.VERDE2);
+      var cards = document.querySelectorAll('#mod-cultivares [class*="cv-card"], #mod-cultivares .card[id*="cv-"]');
+      if (cards.length === 0) {
+        // Fallback: buscar por estructura
+        cards = document.querySelectorAll('#mod-cultivares > * > .card');
+      }
+      doc.setFontSize(8.5);
+      var n = 0;
+      cards.forEach(function(c) {
+        if (n >= 8) return;
+        checkPage(ctx, 16);
+        var txt = c.textContent.replace(/\s+/g,' ').trim();
+        if (txt.length < 30 || !txt.match(/\d/)) return;
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var head = txt.slice(0, 100);
+        doc.text(`#${n+1}  ${head}`, ctx.ML+3, ctx.y+4);
+        ctx.y += 5;
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.setFontSize(7.5);
+        var rest = txt.slice(100, 350);
+        var lines = doc.splitTextToSize(rest, ctx.W-6);
+        lines.slice(0, 2).forEach(function(l) { doc.text(l, ctx.ML+3, ctx.y+4); ctx.y += 4; });
+        doc.setFontSize(8.5);
+        ctx.y += 3;
+        n++;
+      });
+      if (n === 0) {
+        doc.setFont('helvetica','italic');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.text('Cargá el cultivo y ejecutá el análisis para incluir el ranking.', ctx.ML+3, ctx.y);
+        ctx.y += 8;
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Cultivares'));
+      amToast('✅ Cultivares exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfCultivares error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
+  // ── ECONOMÍA ─────────────────────────────────────────
+  window.pdfEconomia = function() {
+    try {
+      var ctx = crearPDFBase('Economía de Campaña', 'Margen bruto · Dólar tiempo real · Insumos · Flete');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      seccion(ctx, '💰 PRECIOS DE GRANO Y TIPO DE CAMBIO', ctx.COL.VERDE);
+      var datos = {
+        'Cultivo':                 gv('ec-cultivo') || '—',
+        'Precio disponible':       gv('ec-precio-disp') ? 'USD ' + gv('ec-precio-disp') + '/t' : '—',
+        'Precio futuro cosecha':   gv('ec-precio-fut') ? 'USD ' + gv('ec-precio-fut') + '/t' : '—',
+        'Convertido USD/qq':       gtv('ec-precio-qq') || '—',
+        'Spread fut-disp':         gtv('ec-spread') || '—',
+        'Dólar Oficial':           gtv('ec-dolar-oficial') || '—',
+        'Dólar Blue':              gtv('ec-dolar-blue') || '—',
+        'Dólar MEP':               gtv('ec-dolar-mep') || '—',
+        'Dólar CCL':               gtv('ec-dolar-ccl') || '—',
+        'Superficie (ha)':         gv('ec-sup') || '—',
+        'Rendimiento (t/ha)':      gv('ec-rend') || '—',
+      };
+      doc.setFontSize(8.5);
+      var alt = false;
+      Object.entries(datos).forEach(function(kv) {
+        if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.text(kv[0], ctx.ML+3, ctx.y+4);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        doc.text(String(kv[1]), ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+        ctx.y += 6; alt = !alt;
+      });
+      ctx.y += 4;
+
+      // Comparativo de márgenes (si está renderizado)
+      var compDiv = document.getElementById('ec-tabla-body') || document.getElementById('ec-comparativo');
+      if (compDiv && compDiv.textContent.trim().length > 30) {
+        seccion(ctx, '📊 COMPARATIVO DE MÁRGENES', ctx.COL.VERDE2);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var compLines = doc.splitTextToSize(compDiv.textContent.replace(/\s+/g,' ').trim().slice(0, 2500), ctx.W-6);
+        compLines.forEach(function(l) { checkPage(ctx, 6); doc.text(l, ctx.ML+3, ctx.y); ctx.y += 4.5; });
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Economia'));
+      amToast('✅ Economía exportada a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfEconomia error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
   // ── Botón flotante context-aware ─────────────────────
   // Detecta el módulo activo y dispara el generador correspondiente.
   window.amExportarPDFModulo = function() {
@@ -565,11 +843,16 @@
     var activePanel = document.querySelector('.module-panel.active');
     var modId = activePanel?.id?.replace('mod-','');
     var fns = {
-      'decision':     window.pdfDecision,
-      'fertilizacion':window.pdfFertilizacion,
-      'balancenut':   window.pdfBalanceNutricional,
-      'suelo':        window.pdfSuelo,
-      'hidrico':      window.pdfHidrico,
+      'decision':       window.pdfDecision,
+      'fertilizacion':  window.pdfFertilizacion,
+      'balancenut':     window.pdfBalanceNutricional,
+      'suelo':          window.pdfSuelo,
+      'hidrico':        window.pdfHidrico,
+      'cosecha':        window.pdfCosecha,
+      'plagas':         window.pdfPlagas,
+      'pulverizacion':  window.pdfPulverizacion,
+      'cultivares':     window.pdfCultivares,
+      'economia':       window.pdfEconomia,
     };
     var fn = fns[modId];
     if (typeof fn === 'function') fn();

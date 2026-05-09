@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /og-image.html
+Disallow: /supabase/
+
+Sitemap: https://agromotor.com.ar/sitemap.xml

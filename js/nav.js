@@ -107,7 +107,7 @@ function _activarModulo(mod) {
   // Mostrar botón "Exportar PDF" solo en módulos con generador disponible
   var btnPDFMod = document.getElementById('btn-pdf-modulo');
   if (btnPDFMod) {
-    var pdfModulos = ['decision','fertilizacion','balancenut','suelo','hidrico'];
+    var pdfModulos = ['decision','fertilizacion','balancenut','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
     if (pdfModulos.indexOf(mod) >= 0) btnPDFMod.classList.remove('hidden');
     else btnPDFMod.classList.add('hidden');
   }
