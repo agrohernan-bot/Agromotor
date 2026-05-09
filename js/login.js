@@ -382,11 +382,57 @@ function amMostrarPerfil() {
 }
 
 // ── HELPER: seleccionar plan desde modal ──────────────
+// Si el user ya está logueado y elige un plan pago → va directo a MP.
+// Si no, abre el form de registro con el plan preseleccionado.
 function amRegistrarPlan(plan) {
+  // User logueado eligiendo plan pago → suscribirse en MP
+  if (AM_SESION && plan !== 'free') {
+    amSuscribir(plan);
+    return;
+  }
+  // Sin sesión → registro
   const sel = $('am-reg-plan');
   if (sel) sel.value = plan;
   amCambiarVista('registro');
 }
+
+// ── INICIAR SUSCRIPCIÓN MERCADOPAGO ───────────────────
+// Si el user está logueado → llama a la edge function que crea el preapproval
+// y redirige al checkout de MP.
+async function amSuscribir(plan) {
+  if (!AM_SESION) {
+    amToast('Iniciá sesión primero para suscribirte.', 'error');
+    amMostrarModal('login');
+    return;
+  }
+  if (!['asesor','pro','empresa'].includes(plan)) {
+    amToast('Plan inválido.', 'error');
+    return;
+  }
+  try {
+    const { data: { session } } = await AM_SB.auth.getSession();
+    if (!session) { amToast('Sesión expirada.', 'error'); return; }
+
+    const url = AM_CONFIG.supabase.url + '/functions/v1/mp-crear-suscripcion';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ plan }),
+    });
+    const data = await r.json();
+    if (!r.ok || !data.init_point) {
+      amToast(data.error || 'No pudimos crear la suscripción. Intentá de nuevo.', 'error');
+      console.error('MP suscripcion error:', data);
+      return;
+    }
+    // Redirigir al checkout de Mercado Pago
+    window.location.href = data.init_point;
+  } catch (e) {
+    amToast('Error de conexión con Mercado Pago.', 'error');
+    console.error('amSuscribir:', e);
+  }
+}
+window.amSuscribir = amSuscribir;
 
 // ── HELPERS INTERNOS ──────────────────────────────────
 function amMostrarError(el, msg) {
