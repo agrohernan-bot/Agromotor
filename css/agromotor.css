@@ -1507,6 +1507,40 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 .btn-volver-dash.hidden { display: none !important; }
 
 /* ════════════════════════════════════════════════════════
+   BOTÓN FLOTANTE: EXPORTAR PDF DEL MÓDULO
+   ════════════════════════════════════════════════════════ */
+.btn-pdf-modulo {
+  position: fixed;
+  bottom: 22px;
+  right: 180px;       /* a la izquierda del botón "Volver al Dashboard" */
+  z-index: 949;
+  background: linear-gradient(135deg, #8A6A20, #C8A255);
+  color: #fff;
+  border: none;
+  padding: .75rem 1.15rem;
+  border-radius: 999px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200,162,85,.4);
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.btn-pdf-modulo:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(200,162,85,.5);
+}
+.btn-pdf-modulo.hidden { display: none !important; }
+@media (max-width: 768px) {
+  .btn-pdf-modulo {
+    right: 14px;
+    bottom: 70px;
+    padding: .55rem .85rem;
+    font-size: .74rem;
+  }
+}
+
+/* ════════════════════════════════════════════════════════
    PLANES — modal responsive
    ════════════════════════════════════════════════════════ */
 @media (max-width: 1024px) {

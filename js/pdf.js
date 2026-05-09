@@ -135,11 +135,26 @@ async function generarPDF() {
     doc.setFontSize(7.5);
     doc.text(`Generado: ${fechaStr} · ${horaStr}`, PW-ML, 30, { align:'right' });
 
-    // Plan del usuario
+    // ── MEMBRETE PROFESIONAL DEL ING. ─────────────────
     if (AM_SESION) {
       const planInfo = AM_PLANES[AM_SESION.plan];
       doc.setTextColor(...DORADO);
-      doc.text(`${planInfo.nombre} · ${AM_SESION.nombre}`, PW-ML, 18, { align:'right' });
+      doc.setFontSize(9);
+      doc.setFont('helvetica','bold');
+      const prefijo = AM_SESION.rol === 'agronomo' ? 'Ing. Agr. ' : '';
+      doc.text(`${prefijo}${AM_SESION.nombre}`, PW-ML, 14, { align:'right' });
+
+      doc.setFontSize(7);
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(220, 230, 200);
+      const matLine = AM_SESION.matricula
+        ? `Matrícula ${AM_SESION.matricula} · ${AM_SESION.cpia || ''}${AM_SESION.matriculaVerificada ? ' ✓' : ''}`
+        : (AM_SESION.rol === 'estudiante' ? 'Estudiante de Agronomía' : '');
+      if (matLine) doc.text(matLine, PW-ML, 19, { align:'right' });
+      doc.text(AM_SESION.email || '', PW-ML, 24, { align:'right' });
+      doc.setTextColor(...DORADO);
+      doc.setFontSize(6.5);
+      doc.text(`Plan ${planInfo.nombre}`, PW-ML, 30, { align:'right' });
     }
 
     y = 48;
@@ -387,10 +402,36 @@ async function generarPDF() {
     }
 
     // ── FOOTER ───────────────────────────────────────────
+    // ── FIRMA PROFESIONAL en última página (antes del footer común) ──
+    if (AM_SESION && AM_SESION.rol === 'agronomo' && AM_SESION.matricula) {
+      checkPage(45);
+      saltoLinea(8);
+      doc.setDrawColor(...DORADO);
+      doc.setLineWidth(0.4);
+      doc.line(ML+W*0.55, y+18, ML+W, y+18);
+      doc.setTextColor(...TIERRA);
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica','bold');
+      doc.text(`Ing. Agr. ${AM_SESION.nombre}`, ML+W*0.775, y+22, { align:'center' });
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica','normal');
+      doc.setTextColor(...GRIS);
+      const matSign = `Matrícula ${AM_SESION.matricula} · ${AM_SESION.cpia || ''}${AM_SESION.matriculaVerificada ? ' (verificada)' : ''}`;
+      doc.text(matSign, ML+W*0.775, y+27, { align:'center' });
+      // Disclaimer legal del análisis
+      doc.setTextColor(...GRIS);
+      doc.setFontSize(7);
+      doc.setFont('helvetica','italic');
+      const disclaimer = 'Este análisis ha sido generado por AgroMotor con datos satelitales y meteorológicos en tiempo real. Las recomendaciones son orientativas y deben validarse con el criterio profesional del firmante. Documento sin valor de receta agronómica oficial salvo firma manuscrita.';
+      const dispLines = doc.splitTextToSize(disclaimer, W*0.5);
+      doc.text(dispLines, ML, y+22);
+      saltoLinea(35);
+    }
+
+    // ── FOOTER común en todas las páginas ───────────────
     const totalPages = doc.internal.getNumberOfPages();
     for (let p = 1; p <= totalPages; p++) {
       doc.setPage(p);
-      // Línea footer
       doc.setFillColor(...VERDE);
       doc.rect(0, PH-14, PW, 14, 'F');
       doc.setFillColor(...DORADO);

@@ -280,6 +280,9 @@
 <!-- ══ BOTÓN GLOBAL: VOLVER AL DASHBOARD ══ -->
 <button id="btn-volver-dash" onclick="switchMod('dashboard')" class="btn-volver-dash hidden" title="Volver al Dashboard">← Dashboard</button>
 
+<!-- ══ BOTÓN GLOBAL: EXPORTAR PDF DEL MÓDULO ACTIVO ══ -->
+<button id="btn-pdf-modulo" onclick="amExportarPDFModulo()" class="btn-pdf-modulo hidden" title="Exportar análisis del módulo a PDF con tu membrete">📄 Exportar PDF</button>
+
 <!-- ══ MÓDULO SIEMBRA ══ -->
 <div id="mod-siembra" class="module-panel">
   <div class="module-title">Diagnóstico de <em>Siembra</em></div>
@@ -3265,6 +3268,7 @@ amCargarSesion();
 <script src="js/maquinaria.js"></script>
 <script src="js/asistente.js"></script>
 <script src="js/pdf.js"></script>
+<script src="js/pdf-modulo.js"></script>
 <script src="js/alerta-sanitaria.js"></script>
 <script src="js/dashboard-ux.js"></script>
 

@@ -103,6 +103,14 @@ function _activarModulo(mod) {
     if (mod === 'dashboard') btnVolver.classList.add('hidden');
     else btnVolver.classList.remove('hidden');
   }
+
+  // Mostrar botón "Exportar PDF" solo en módulos con generador disponible
+  var btnPDFMod = document.getElementById('btn-pdf-modulo');
+  if (btnPDFMod) {
+    var pdfModulos = ['decision','fertilizacion','balancenut','suelo','hidrico'];
+    if (pdfModulos.indexOf(mod) >= 0) btnPDFMod.classList.remove('hidden');
+    else btnPDFMod.classList.add('hidden');
+  }
   // Refrescar estados de tarjetas al volver al Dashboard
   if (mod === 'dashboard' && typeof dashRefreshCards === 'function') {
     setTimeout(dashRefreshCards, 100);
