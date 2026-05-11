@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin · AgroMotor</title>
+  <meta name="robots" content="noindex, nofollow">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/agromotor.css">
+  <script src="js/config.js"></script>
+  <style>
+    body{padding:1.5rem 1rem;color:#1c1208}
+    .admin-wrap{max-width:1280px;margin:0 auto}
+    .admin-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;padding-bottom:1.2rem;border-bottom:1.5px solid rgba(200,162,85,.25)}
+    .admin-title{font-family:'DM Serif Display',serif;font-size:1.7rem;color:#EDE0C4;line-height:1.1}
+    .admin-title span{color:#C8A255}
+    .admin-sub{font-size:.82rem;color:rgba(237,224,196,.6);margin-top:.2rem}
+    .admin-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.7rem;margin-bottom:1.5rem}
+    .stat{background:rgba(15,31,20,.55);border:1px solid rgba(200,162,85,.25);border-radius:11px;padding:.85rem 1rem}
+    .stat-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.55);margin-bottom:.25rem}
+    .stat-val{font-family:'DM Mono',monospace;font-size:1.6rem;font-weight:500;color:#E8B84B;line-height:1}
+    .stat.ok .stat-val{color:#6DBF82}
+    .stat.warn .stat-val{color:#E87A5A}
+    .filter-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+    .filter-bar button{background:rgba(15,31,20,.5);border:1px solid rgba(200,162,85,.25);color:rgba(237,224,196,.78);padding:.42rem .9rem;border-radius:7px;font-size:.78rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+    .filter-bar button:hover{border-color:rgba(200,162,85,.5);color:#EDE0C4}
+    .filter-bar button.active{background:rgba(200,162,85,.18);border-color:var(--grain);color:var(--amber);font-weight:700}
+    table.adm{width:100%;background:rgba(252,249,242,.97);border-radius:14px;overflow:hidden;border:1.5px solid rgba(74,140,92,.18);font-size:.85rem;border-collapse:separate;border-spacing:0}
+    table.adm thead{background:#f1ebe0}
+    table.adm th{padding:.7rem .8rem;text-align:left;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5a4a32;white-space:nowrap}
+    table.adm td{padding:.65rem .8rem;border-top:1px solid rgba(74,46,26,.08);color:#1c1208;vertical-align:middle}
+    table.adm tr:hover td{background:#fbf8f1}
+    .badge{display:inline-block;padding:.18rem .55rem;border-radius:12px;font-size:.66rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+    .b-verif{background:rgba(42,122,74,.18);color:#1b5e35}
+    .b-pend{background:rgba(184,122,32,.18);color:#8a5a20}
+    .b-pro{background:rgba(200,162,85,.2);color:#8A6A20}
+    .b-asesor{background:rgba(58,122,74,.18);color:#1b5e35}
+    .b-empresa{background:rgba(42,90,140,.18);color:#1A3A6C}
+    .b-free{background:rgba(74,46,26,.12);color:#5a4a32}
+    .b-trial{background:rgba(232,184,75,.2);color:#8A6A20}
+    button.act{border:none;background:linear-gradient(135deg,#1b5e35,#3A7A4A);color:white;padding:.32rem .75rem;border-radius:7px;font-size:.7rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+    button.act:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(58,122,74,.4)}
+    button.act:disabled{opacity:.4;cursor:not-allowed}
+    button.act-rev{background:linear-gradient(135deg,#C0392B,#a03020)}
+    .loading{text-align:center;padding:3rem;color:rgba(237,224,196,.6)}
+    .nologged{text-align:center;padding:4rem 1rem;color:#EDE0C4}
+    .nologged a{color:var(--amber);text-decoration:underline}
+    .legend{font-size:.7rem;color:rgba(237,224,196,.5);margin-top:1rem;text-align:center}
+  </style>
+</head>
+<body>
+<div class="admin-wrap">
+
+  <div class="admin-header">
+    <div>
+      <div class="admin-title">🛡️ Panel <span>Admin</span></div>
+      <div class="admin-sub">Verificación de matrículas profesionales · Gestión de usuarios</div>
+    </div>
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <a href="/app.html" style="font-size:.82rem;color:rgba(237,224,196,.7);text-decoration:none;border:1px solid rgba(200,162,85,.3);padding:.4rem .85rem;border-radius:7px">← App</a>
+      <button id="btn-logout" onclick="adminLogout()" style="font-size:.78rem;background:transparent;color:rgba(237,224,196,.6);border:1px solid rgba(212,82,42,.35);padding:.4rem .85rem;border-radius:7px;cursor:pointer;font-family:inherit">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="admin-content">
+    <div class="loading">Cargando…</div>
+  </div>
+
+</div>
+
+<script>
+const AM_SB = window.supabase.createClient(AM_CONFIG.supabase.url, AM_CONFIG.supabase.anonKey, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+let SESS = null;
+let USERS = [];
+let FILTER = 'pending';
+
+async function init() {
+  const { data: { session } } = await AM_SB.auth.getSession();
+  if (!session) {
+    showLogin();
+    return;
+  }
+  SESS = session;
+  // Verificar que es admin
+  const { data: prof } = await AM_SB.from('profiles').select('rol').eq('id', session.user.id).single();
+  if (prof?.rol !== 'admin') {
+    document.getElementById('admin-content').innerHTML = `
+      <div class="nologged">
+        <div style="font-size:3rem;margin-bottom:1rem">🚫</div>
+        <div style="font-size:1.2rem;margin-bottom:.5rem">Acceso denegado</div>
+        <div style="font-size:.9rem;color:rgba(237,224,196,.6)">Tu usuario no tiene permisos de administrador.</div>
+        <div style="margin-top:1.5rem"><a href="/app.html">← Volver a la app</a></div>
+      </div>`;
+    return;
+  }
+  await loadUsers();
+}
+
+function showLogin() {
+  document.getElementById('admin-content').innerHTML = `
+    <div class="nologged">
+      <div style="font-size:3rem;margin-bottom:1rem">🔐</div>
+      <div style="font-size:1.3rem;margin-bottom:.5rem">Iniciá sesión como admin</div>
+      <div style="max-width:340px;margin:1.5rem auto 0">
+        <input id="ad-email" type="email" placeholder="Email" style="width:100%;padding:.7rem 1rem;margin-bottom:.6rem;border-radius:9px;border:1.5px solid rgba(200,162,85,.3);background:rgba(15,31,20,.55);color:#EDE0C4;font-family:inherit">
+        <input id="ad-pass" type="password" placeholder="Contraseña" style="width:100%;padding:.7rem 1rem;margin-bottom:.8rem;border-radius:9px;border:1.5px solid rgba(200,162,85,.3);background:rgba(15,31,20,.55);color:#EDE0C4;font-family:inherit">
+        <button onclick="adminLogin()" style="width:100%;background:linear-gradient(135deg,#1E4D2B,#3A7A4A);color:white;border:none;padding:.7rem;border-radius:9px;font-weight:700;cursor:pointer;font-family:inherit">Ingresar</button>
+        <div id="ad-err" style="color:#E87A5A;font-size:.8rem;margin-top:.6rem;min-height:1rem"></div>
+      </div>
+    </div>`;
+}
+
+async function adminLogin() {
+  const email = document.getElementById('ad-email').value.trim();
+  const pass = document.getElementById('ad-pass').value.trim();
+  const err = document.getElementById('ad-err');
+  err.textContent = '';
+  if (!email || !pass) { err.textContent = 'Completá email y contraseña.'; return; }
+  const { error } = await AM_SB.auth.signInWithPassword({ email, password: pass });
+  if (error) { err.textContent = error.message; return; }
+  init();
+}
+
+async function adminLogout() {
+  await AM_SB.auth.signOut();
+  location.reload();
+}
+
+async function loadUsers() {
+  document.getElementById('admin-content').innerHTML = '<div class="loading">Cargando usuarios…</div>';
+  const { data, error } = await AM_SB.from('admin_matriculas').select('*');
+  if (error) {
+    document.getElementById('admin-content').innerHTML = `<div class="nologged" style="color:#E87A5A">Error: ${error.message}</div>`;
+    return;
+  }
+  USERS = data || [];
+  render();
+}
+
+function render() {
+  const total = USERS.length;
+  const pendientes = USERS.filter(u => u.rol === 'agronomo' && !u.matricula_verificada).length;
+  const verificados = USERS.filter(u => u.matricula_verificada).length;
+  const estudiantes = USERS.filter(u => u.rol === 'estudiante').length;
+  const admins = USERS.filter(u => u.rol === 'admin').length;
+
+  const filtered = USERS.filter(u => {
+    if (FILTER === 'all') return true;
+    if (FILTER === 'pending') return u.rol === 'agronomo' && !u.matricula_verificada;
+    if (FILTER === 'verified') return u.matricula_verificada;
+    if (FILTER === 'student') return u.rol === 'estudiante';
+    return true;
+  });
+
+  let html = `
+    <div class="admin-stats">
+      <div class="stat"><div class="stat-label">Total registrados</div><div class="stat-val">${total}</div></div>
+      <div class="stat warn"><div class="stat-label">⚠️ Pendientes verif.</div><div class="stat-val">${pendientes}</div></div>
+      <div class="stat ok"><div class="stat-label">✓ Verificados</div><div class="stat-val">${verificados}</div></div>
+      <div class="stat"><div class="stat-label">🎓 Estudiantes</div><div class="stat-val">${estudiantes}</div></div>
+      <div class="stat"><div class="stat-label">🛡️ Admins</div><div class="stat-val">${admins}</div></div>
+    </div>
+
+    <div class="filter-bar">
+      <button onclick="setFilter('pending')" class="${FILTER==='pending'?'active':''}">⚠️ Pendientes (${pendientes})</button>
+      <button onclick="setFilter('verified')" class="${FILTER==='verified'?'active':''}">✓ Verificados (${verificados})</button>
+      <button onclick="setFilter('student')" class="${FILTER==='student'?'active':''}">🎓 Estudiantes (${estudiantes})</button>
+      <button onclick="setFilter('all')" class="${FILTER==='all'?'active':''}">Todos (${total})</button>
+    </div>
+
+    <table class="adm">
+      <thead>
+        <tr>
+          <th>Nombre</th><th>Email</th><th>Rol</th><th>Matrícula</th><th>CPIA</th>
+          <th>Plan</th><th>Registrado</th><th>Estado</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  filtered.forEach(u => {
+    const fecha = u.registrado_en ? new Date(u.registrado_en).toLocaleDateString('es-AR') : '—';
+    const planBadge = u.plan === 'pro' ? 'b-pro' : u.plan === 'asesor' ? 'b-asesor' : u.plan === 'empresa' ? 'b-empresa' : 'b-free';
+    const matInfo = u.rol === 'agronomo'
+      ? (u.matricula_numero || '<i style="color:#aaa">sin declarar</i>')
+      : (u.rol === 'estudiante' ? '<i style="color:#aaa">estudiante</i>' : '—');
+    const cpiaInfo = u.cpia || '—';
+
+    const estado = u.rol === 'agronomo' && u.matricula_verificada
+      ? '<span class="badge b-verif">✓ Verif.</span>'
+      : u.rol === 'agronomo' && u.matricula_numero
+        ? '<span class="badge b-pend">⏳ Pend.</span>'
+        : u.rol === 'estudiante' ? '<span class="badge b-trial">Estud.</span>'
+        : u.rol === 'admin' ? '<span class="badge" style="background:#2A5A8C;color:white">Admin</span>'
+        : '<span class="badge b-free">Demo</span>';
+
+    const accion = (u.rol === 'agronomo' && !u.matricula_verificada && u.matricula_numero)
+      ? `<button class="act" onclick="verificarMatricula('${u.id}', true)">Verificar ✓</button>`
+      : u.matricula_verificada
+        ? `<button class="act act-rev" onclick="verificarMatricula('${u.id}', false)">Revocar</button>`
+        : '';
+
+    html += `
+      <tr>
+        <td><strong>${u.nombre || '—'}</strong></td>
+        <td style="font-size:.8rem">${u.email}</td>
+        <td><span class="badge b-${u.rol === 'admin' ? 'verif' : u.rol === 'estudiante' ? 'trial' : 'free'}">${u.rol}</span></td>
+        <td><code style="font-family:'DM Mono',monospace;font-size:.78rem">${matInfo}</code></td>
+        <td>${cpiaInfo}</td>
+        <td><span class="badge ${planBadge}">${u.plan}</span></td>
+        <td style="font-size:.78rem;color:#5a4a32">${fecha}</td>
+        <td>${estado}</td>
+        <td>${accion}</td>
+      </tr>
+    `;
+  });
+
+  if (filtered.length === 0) {
+    html += `<tr><td colspan="9" style="text-align:center;color:#888;padding:2rem">No hay usuarios en esta categoría.</td></tr>`;
+  }
+
+  html += '</tbody></table>';
+  html += `<div class="legend">⚠️ Verificá la matrícula contra el registro del CPIA correspondiente antes de aprobar.</div>`;
+
+  document.getElementById('admin-content').innerHTML = html;
+}
+
+function setFilter(f) { FILTER = f; render(); }
+
+async function verificarMatricula(userId, verificar) {
+  if (!confirm(verificar ? '¿Confirmás que la matrícula es válida?' : '¿Revocar la verificación?')) return;
+  const updates = {
+    matricula_verificada: verificar,
+    matricula_verificada_at: verificar ? new Date().toISOString() : null,
+  };
+  const { error } = await AM_SB.from('profiles').update(updates).eq('id', userId);
+  if (error) { alert('Error: ' + error.message); return; }
+  await loadUsers();
+}
+
+window.adminLogin = adminLogin;
+window.adminLogout = adminLogout;
+window.setFilter = setFilter;
+window.verificarMatricula = verificarMatricula;
+
+init();
+</script>
+
+</body>
+</html>
