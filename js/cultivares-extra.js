@@ -4,6 +4,10 @@
 // GDD y floración estimada · Densidad de siembra
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.cultivaresExtra = {};
+
 let CV_COMP_SELECCIONADOS = [];
 
 function cvAgregarComparador(nombre) {
@@ -316,4 +320,11 @@ window.dsRender = function() {
   resEl.innerHTML = html;
 };
 
-// ── PLANES ───────────────────────────────────────────
+  // Exposición a global
+  window.cvAgregarComparador = cvAgregarComparador;
+  window.cvCerrarComparador = cvCerrarComparador;
+  window.cvRenderComparador = cvRenderComparador;
+  window.bhStressTest = bhStressTest;
+  window.bhCalcularGDD = bhCalcularGDD;
+
+})();

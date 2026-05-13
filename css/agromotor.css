@@ -344,8 +344,22 @@ main {
 .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.2rem; }
 .gap-top { margin-top: 1.2rem; }
 
+/* ── DASHBOARD PHASE 3 REFACTOR ── */
+.dash-header-wrap { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1.2rem; flex-wrap:wrap; gap:.8rem; }
+.dash-header-actions { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.dash-lote-select { border:1.5px solid rgba(122,174,245,.35); color:#1A3A6C; font-size:.78rem; padding:.35rem .7rem; border-radius:8px; outline:none; cursor:pointer; background:#fff; font-weight:600; max-width:200px; }
+.dash-btn-add { height:36px; padding:0 .9rem; font-size:.8rem; background:linear-gradient(135deg,#1A3A6C,#2A5A8C); border:none; white-space:nowrap; }
+.dash-btn-del { height:36px; padding:0 .75rem; font-size:.85rem; color:#C94A2A; border-color:rgba(201,74,42,.3); background:rgba(201,74,42,.04); }
+.dash-main-grid { display:grid; grid-template-columns:1fr 310px; gap:1.2rem; margin-bottom:1.2rem; align-items:start; }
+.dash-hero-card { padding:0 !important; overflow:hidden; border:1.5px solid rgba(74,140,92,.25); }
+.dash-hero-map { width:100%; height:440px; background:#1A2A20; position:relative; }
+.dash-hero-footer { padding:.85rem 1rem; border-top:1px solid rgba(74,140,92,.12); background:#fafafa; }
+.dash-hero-controls { display:grid; grid-template-columns:1fr auto auto; gap:.7rem; align-items:flex-end; }
+
 @media(max-width: 768px) {
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .dash-main-grid { grid-template-columns: 1fr; }
+  .dash-hero-controls { grid-template-columns: 1fr; }
 }
 
 /* ── FORM ELEMENTS ── */
@@ -821,6 +835,120 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   align-items: center;
   gap: .35rem;
 }
+.btn.dash-lote-card {
+  background: var(--bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 1.25rem;
+  box-shadow: 0 4px 12px rgba(28, 18, 8, 0.04);
+}
+
+.dash-lote-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dash-lote-title {
+  font-family: 'Bricolage Grotesque', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--earth);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dash-ph-card {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  background: #f4faf6;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(74, 140, 92, 0.2);
+}
+
+.dash-ph-icon {
+  font-size: 2.8rem;
+  margin-bottom: 0.8rem;
+}
+
+.dash-ph-text {
+  font-size: 0.8rem;
+  color: rgba(74, 46, 26, 0.45);
+  line-height: 1.7;
+}
+
+.dash-ubi-card {
+  background: #fff;
+  border-radius: 9px;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(74, 140, 92, 0.3);
+  font-size: 0.78rem;
+  line-height: 1.6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+
+.dash-mis-lotes {
+  border: 1.5px solid rgba(122, 174, 245, 0.2);
+  background: #fff;
+}
+
+.dash-mis-lotes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.9rem;
+}
+
+.dash-mis-lotes-title {
+  color: #1A3A6C;
+  margin-bottom: 0;
+}
+
+.dash-mis-lotes-counter {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(122, 174, 245, 0.1);
+  color: #7AAEF5;
+  padding: 0.2rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(122, 174, 245, 0.25);
+}
+
+.dash-mis-lotes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 0.7rem;
+}
+
+.dash-mod-section {
+  margin-top: 1rem;
+  border: 1.5px solid rgba(74, 140, 92, 0.22);
+  background: #fdfaf5;
+}
+
+.dash-mod-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.dash-mod-title {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border: none;
+  color: #3D2210;
+}
+
+.dash-mod-subtitle {
+  font-size: 0.74rem;
+  color: #5a4a32;
+  font-weight: 500;
+}
+
 .btn-hdr-amber {
   background: linear-gradient(135deg,rgba(200,162,85,.18),rgba(200,162,85,.08));
   border-color: rgba(200,162,85,.4);

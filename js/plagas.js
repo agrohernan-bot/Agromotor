@@ -3,6 +3,10 @@
 // Módulo 07: Alertas de Plagas · Integrado con Lote Activo
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.plagas = {};
+
 // ═══════════════════════════════════════════════════════════════
 // CONFIGURACIÓN SUPABASE — completar con credenciales del proyecto
 // ═══════════════════════════════════════════════════════════════
@@ -805,3 +809,10 @@ window.amAnalizarPlagas = function() {
     if(btn) btn.disabled=false;
   });
 }
+
+  // Exposición a global
+  window.amAnalizarPlagas = amAnalizarPlagas;
+  window.selectSev = selectSev;
+  window.enviarReporte = enviarReporte;
+
+})();

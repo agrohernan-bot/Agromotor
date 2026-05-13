@@ -1,6 +1,9 @@
 // AGROMOTOR — siembra-apis.js
 // NASA POWER · SoilGrids ISRIC · Compactación Índice S Dexter
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.siembraApis = {};
 async function buscarNASAPower(lat, lon, mes) {
   // NASA POWER: climatología mensual — promedio histórico por mes del año
   // Community AG, parámetros agrícolas clave
@@ -707,18 +710,15 @@ function ecToneladasAqq(cult) {
 
 // ── CONSULTAR SUELO (botón del módulo Suelo) ─────────────
 async function consultarSuelo() {
-  const coordEl = document.getElementById('suelo-coord');
+  const lblCoord = document.getElementById('suelo-lbl-coord');
   const btnEl   = document.getElementById('btn-suelo');
   const stEl    = document.getElementById('suelo-st');
   const spEl    = document.getElementById('suelo-sp');
   const msgEl   = document.getElementById('suelo-msg');
 
-  // Usar coordenadas del módulo Suelo; si vacío, tomar del Dashboard
-  let coordRaw = coordEl?.value?.trim();
-  if (!coordRaw) {
-    coordRaw = document.getElementById('s-coord')?.value?.trim() || '';
-    if (coordRaw && coordEl) coordEl.value = coordRaw;
-  }
+  // Usar coordenadas globales del Dashboard/Siembra
+  const coordRaw = document.getElementById('s-coord')?.value?.trim() || '';
+  if (lblCoord) lblCoord.textContent = coordRaw || 'Sin coordenadas';
 
   const [lat, lon] = typeof parsCoord === 'function' ? parsCoord(coordRaw) : [null, null];
   if (lat === null) {
@@ -759,4 +759,14 @@ async function consultarSuelo() {
 }
 window.consultarSuelo = consultarSuelo;
 
+  // Exposición a global
+  window.buscarNASAPower = buscarNASAPower;
+  window.renderNASAPower = renderNASAPower;
+  window.buscarSoilGrids = buscarSoilGrids;
+  window.renderSoilGrids = renderSoilGrids;
+  window.calcularCompactacion = calcularCompactacion;
+  window.renderCompactacion = renderCompactacion;
+  window.ecToneladasAqq = ecToneladasAqq;
+
 // Estado del dólar
+})();

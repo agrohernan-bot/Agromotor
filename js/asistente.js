@@ -4,6 +4,10 @@
 // 12 preguntas rápidas · Historial 10 turnos
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.asistente = {};
+
 function iaConstruirContexto() {
   const ctx = [];
 
@@ -598,4 +602,16 @@ function mapaSeleccionar(d) {
 document.addEventListener('DOMContentLoaded', function() {
   if (typeof iaRenderQuickQuestions === 'function') iaRenderQuickQuestions();
 });
+
+  // Exposición a global
+  window.iaEnviar = iaEnviar;
+  window.iaPreguntar = iaPreguntar;
+  window.iaRenderQuickQuestions = iaRenderQuickQuestions;
+  window.iaActualizarContextoBanner = iaActualizarContextoBanner;
+  
+  window.mapaInicializar = mapaInicializar;
+  window.mapaFiltrar = mapaFiltrar;
+  window.mapaSeleccionar = mapaSeleccionar;
+
+})();
 

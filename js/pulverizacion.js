@@ -1,5 +1,8 @@
 // Módulo Pulverización - Integrado
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.pulverizacion = {};
 
 // ─── ESTADO GLOBAL ────────────────────────────────────────
 let STATE = {
@@ -4234,4 +4237,17 @@ window.pulvLimpiarHistorial= () => limpiarHistorial();
 window.pulvFuentePH        = (el, val) => setFuente(el, val);
 window.pulvSetProdAgua     = (el, prod) => setProductoAgua(el, prod);
 window.pulvRenderHistorial = () => renderHistorial();
-window.pulvRenderHRAC      = () => renderHRAC();
+if(typeof renderHRAC === 'function') window.pulvRenderHRAC      = () => renderHRAC();
+
+  // Otras funciones globales que pueden ser necesarias
+  window.showTab = showTab;
+  window.initGPS = initGPS;
+  window.calcBuffer = calcBuffer;
+  window.actualizarProductos = actualizarProductos;
+  window.calcCaldo = calcCaldo;
+  window.guardarRegistro = guardarRegistro;
+  window.limpiarHistorial = limpiarHistorial;
+  window.exportarPDF = exportarPDF;
+  window.enviarMensaje = enviarMensaje;
+
+})();

@@ -4,6 +4,10 @@
 // Modelo INTA adaptado zona pampeana (N, P, S por cultivo)
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.fertilizacionOptima = {};
+
 // Parámetros curva respuesta Y = Yb + b*X + c*X² (Y en kg/ha, X en kg/ha nutriente)
 // Donde la dosis óptima es X* = (b - Pf/Pg/EFF) / (-2c)
 // Fuente: INTA Marcos Juárez / Balcarce / Oliveros · series históricas
@@ -182,5 +186,6 @@ document.addEventListener('DOMContentLoaded', function() {
   if (foPrecioEl) {
     var ecPrecio = document.getElementById('ec-precio-disp');
     if (ecPrecio && ecPrecio.value) foPrecioEl.value = ecPrecio.value;
-  }
 });
+
+})();

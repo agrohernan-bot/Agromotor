@@ -2,36 +2,46 @@
 // Calculadora NPK · Fertilizantes comerciales · Costos USD
 
 // ── FERTILIZACIÓN ──
-function updRend(){
-  const c=gv('f-cult'),r=DB.rendR[c];
-  const sl=$('f-rend');sl.min=r[0];sl.max=r[1];sl.value=((r[0]+r[1])/2).toFixed(1);sv('sv-rend',sl.value+' t/ha');
-}
-function calcFert(){
-  const cult=gv('f-cult'),rend=+gv('f-rend'),sup=gi('f-sup')||1;
-  const nS=gi('f-n'),pS=gi('f-p'),kS=gi('f-k');
-  const pr={'Urea':gi('f-p-u')||550,'MAP (Fosfato Monoamónico)':gi('f-p-m')||700,'DAP (Fosfato Diamónico)':gi('f-p-d')||750,'KCl (Cloruro de Potasio)':gi('f-p-k')||600};
-  const req=DB.npk[cult];
-  const nD=Math.max(0,req.N*rend-nS),pD=Math.max(0,req.P*rend-pS),kD=Math.max(0,req.K*rend-kS);
-  let cant={},nC=0;
-  if(pD>0){const k=Math.min(500,pD/(DB.ferts['MAP (Fosfato Monoamónico)'].P/100));cant['MAP (Fosfato Monoamónico)']=k;nC+=k*(DB.ferts['MAP (Fosfato Monoamónico)'].N/100)}
-  if(kD>0)cant['KCl (Cloruro de Potasio)']=Math.min(300,kD/(DB.ferts['KCl (Cloruro de Potasio)'].K/100));
-  const nR=Math.max(0,nD-nC);
-  if(nR>0&&cult!=='Soja')cant['Urea']=Math.min(500,nR/(DB.ferts['Urea'].N/100));
-  let cTot=0,fil='';
-  for(const[f,k] of Object.entries(cant)){const c=(k/1000)*(pr[f]||500);cTot+=c;fil+=`<div class="fr"><div class="fn">🧪 ${f}</div><div class="fk">${k.toFixed(1)} kg/ha</div><div style="font-family:'DM Mono',monospace;font-size:.77rem;color:rgba(74,46,26,.5);min-width:68px;text-align:right">${(k*sup).toFixed(0)} kg tot</div><div class="fc">USD ${c.toFixed(2)}/ha</div></div>`}
-  if(!fil)fil='<div class="alert ok"><span class="ai">✅</span><div class="ac">El suelo cubre todos los nutrientes para el rendimiento objetivo. No se requiere fertilización adicional.</div></div>';
-  const defH=`<table class="dt"><thead><tr><th>Nut.</th><th>Requerido</th><th>Suelo</th><th>Déficit</th><th>Estado</th></tr></thead><tbody>`+
-    [['N',req.N*rend,nS,nD],['P',req.P*rend,pS,pD],['K',req.K*rend,kS,kD]].map(([n,t,s,d])=>
-      `<tr><td><b>${n}</b></td><td class="mn">${t.toFixed(1)} kg/ha</td><td class="mn">${s} kg/ha</td><td class="mn">${d.toFixed(1)} kg/ha</td><td>${d>0?'<span class="sema r"><div class="sema-dot"></div>Déficit</span>':'<span class="sema v"><div class="sema-dot"></div>OK</span>'}</td></tr>`).join('')+'</tbody></table>';
-  $('f-ph').classList.add('hidden');$('f-res').classList.remove('hidden');
-  $('f-def').innerHTML=defH;$('f-ferts').innerHTML=fil;
-  $('f-costos').innerHTML=`<div class="rg">
-    <div class="kc"><div class="kl">Costo/ha</div><div class="kv">USD ${cTot.toFixed(0)}</div></div>
-    <div class="kc neutral"><div class="kl">Campaña total</div><div class="kv">USD ${(cTot*sup/1000).toFixed(1)}k</div><div class="ku">${sup} ha</div></div>
-    <div class="kc"><div class="kl">Rendimiento obj.</div><div class="kv">${rend}</div><div class="ku">t/ha · ${cult}</div></div>
-  </div>`;
-  $('f-alertas').innerHTML=cult==='Soja'?'<div class="alert info"><span class="ai">💡</span><div class="ac"><strong>Soja — Fijación biológica de N:</strong> Inoculación con Bradyrhizobium reemplaza la fertilización nitrogenada directa. El N indicado es referencial.</div></div>':'';
-}
+(function() {
+  window.AM = window.AM || {};
+  window.AM.fertilizacion = {};
+
+  function updRend(){
+    const c=(gv('s-cultivo')||'Soja'),r=DB.rendR[c];
+    if($('f-lbl-cult')) $('f-lbl-cult').textContent = c;
+    const sl=$('f-rend');sl.min=r[0];sl.max=r[1];sl.value=((r[0]+r[1])/2).toFixed(1);sv('sv-rend',sl.value+' t/ha');
+  }
+  function calcFert(){
+    const cult=(gv('s-cultivo')||'Soja'),rend=+gv('f-rend'),sup=gi('f-sup')||1;
+    if($('f-lbl-cult')) $('f-lbl-cult').textContent = cult;
+    const nS=gi('f-n'),pS=gi('f-p'),kS=gi('f-k');
+    const pr={'Urea':gi('f-p-u')||550,'MAP (Fosfato Monoamónico)':gi('f-p-m')||700,'DAP (Fosfato Diamónico)':gi('f-p-d')||750,'KCl (Cloruro de Potasio)':gi('f-p-k')||600};
+    const req=DB.npk[cult];
+    const nD=Math.max(0,req.N*rend-nS),pD=Math.max(0,req.P*rend-pS),kD=Math.max(0,req.K*rend-kS);
+    let cant={},nC=0;
+    if(pD>0){const k=Math.min(500,pD/(DB.ferts['MAP (Fosfato Monoamónico)'].P/100));cant['MAP (Fosfato Monoamónico)']=k;nC+=k*(DB.ferts['MAP (Fosfato Monoamónico)'].N/100)}
+    if(kD>0)cant['KCl (Cloruro de Potasio)']=Math.min(300,kD/(DB.ferts['KCl (Cloruro de Potasio)'].K/100));
+    const nR=Math.max(0,nD-nC);
+    if(nR>0&&cult!=='Soja')cant['Urea']=Math.min(500,nR/(DB.ferts['Urea'].N/100));
+    let cTot=0,fil='';
+    for(const[f,k] of Object.entries(cant)){const c=(k/1000)*(pr[f]||500);cTot+=c;fil+=`<div class="fr"><div class="fn">🧪 ${f}</div><div class="fk">${k.toFixed(1)} kg/ha</div><div style="font-family:'DM Mono',monospace;font-size:.77rem;color:rgba(74,46,26,.5);min-width:68px;text-align:right">${(k*sup).toFixed(0)} kg tot</div><div class="fc">USD ${c.toFixed(2)}/ha</div></div>`}
+    if(!fil)fil='<div class="alert ok"><span class="ai">✅</span><div class="ac">El suelo cubre todos los nutrientes para el rendimiento objetivo. No se requiere fertilización adicional.</div></div>';
+    const defH=`<table class="dt"><thead><tr><th>Nut.</th><th>Requerido</th><th>Suelo</th><th>Déficit</th><th>Estado</th></tr></thead><tbody>`+
+      [['N',req.N*rend,nS,nD],['P',req.P*rend,pS,pD],['K',req.K*rend,kS,kD]].map(([n,t,s,d])=>
+        `<tr><td><b>${n}</b></td><td class="mn">${t.toFixed(1)} kg/ha</td><td class="mn">${s} kg/ha</td><td class="mn">${d.toFixed(1)} kg/ha</td><td>${d>0?'<span class="sema r"><div class="sema-dot"></div>Déficit</span>':'<span class="sema v"><div class="sema-dot"></div>OK</span>'}</td></tr>`).join('')+'</tbody></table>';
+    $('f-ph').classList.add('hidden');$('f-res').classList.remove('hidden');
+    $('f-def').innerHTML=defH;$('f-ferts').innerHTML=fil;
+    $('f-costos').innerHTML=`<div class="rg">
+      <div class="kc"><div class="kl">Costo/ha</div><div class="kv">USD ${cTot.toFixed(0)}</div></div>
+      <div class="kc neutral"><div class="kl">Campaña total</div><div class="kv">USD ${(cTot*sup/1000).toFixed(1)}k</div><div class="ku">${sup} ha</div></div>
+      <div class="kc"><div class="kl">Rendimiento obj.</div><div class="kv">${rend}</div><div class="ku">t/ha · ${cult}</div></div>
+    </div>`;
+    $('f-alertas').innerHTML=cult==='Soja'?'<div class="alert info"><span class="ai">💡</span><div class="ac"><strong>Soja — Fijación biológica de N:</strong> Inoculación con Bradyrhizobium reemplaza la fertilización nitrogenada directa. El N indicado es referencial.</div></div>':'';
+  }
+
+  // Exponer a global por retrocompatibilidad HTML
+  window.updRend = updRend;
+  window.calcFert = calcFert;
 
 // ── MAQUINARIA ──
 let TC=[];
@@ -57,3 +67,8 @@ function renderTC(){
   TC.forEach((t,i)=>t.dosis=DB.dosis[t.prod]||80);
 }
 function syncD(i){const e=$(`md-${i}`);if(e){e.value=DB.dosis[TC[i].prod]||80;TC[i].dosis=+e.value}}
+
+  window.loadMaq = loadMaq;
+  window.renderTC = renderTC;
+  window.syncD = syncD;
+})();

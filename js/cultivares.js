@@ -5,6 +5,10 @@
 // Ventana óptima · Filtros por empresa/tecnología
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.cultivares = {};
+
 const CV_ZONAS = {
   pampeana_norte: {
     label: 'Pampeana Norte',
@@ -417,3 +421,11 @@ function dcSeleccionarCultivar(cultivar, empresa, especie) {
 //         lat, lon, tel, email, whatsapp, web,
 //         empresas[], especies[], destacado, verified
 // ════════════════════════════════════════════════════════
+
+  // Exposición a global
+  window.cvActualizar = cvActualizar;
+  window.dcSeleccionarCultivar = dcSeleccionarCultivar;
+  window.CV_DB = CV_DB;
+  window.CV_ZONAS = CV_ZONAS;
+
+})();

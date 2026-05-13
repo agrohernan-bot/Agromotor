@@ -5,6 +5,10 @@
 // Filtros por distancia, especie y empresa
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.mapa = {};
+
 const DC_DB = [
   // ── SANTA FE ─────────────────────────────────────────
   { id:'sf01', nombre:'Agropecuaria La Unión', tipo:'Agronomía', prov:'Santa Fe', partido:'Rosario', loc:'Rosario', lat:-32.9468, lon:-60.6393, tel:'0341-4213400', wa:'5493414213400', email:'info@launionagro.com.ar', web:'launionagro.com.ar', empresas:['Don Mario','Nidera/BASF','ACA','Brevant'], especies:['Soja','Maíz','Trigo'], dest:true, ver:true },
@@ -174,13 +178,8 @@ function cvRenderDondeComprar(cultivarNombre, empresa, especie, lat, lon) {
 }
 
 // ════════════════════════════════════════════════════════
-// ASISTENTE AGRONÓMICO IA — AgroMotor v3.0
-// Powered by Claude API (Anthropic)
-// Contexto: usa todos los datos del lote disponibles
-// ════════════════════════════════════════════════════════
 
-let IA_HISTORIAL = []; // historial de la conversación
-let IA_PENSANDO  = false;
+  // Exposición a global
+  window.cvRenderDondeComprar = cvRenderDondeComprar;
 
-// ── CONSTRUIR CONTEXTO DEL LOTE ───────────────────────
-// Recopila todos los datos disponibles en el motor
+})();

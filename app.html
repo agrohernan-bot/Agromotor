@@ -2,6 +2,11 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <script>
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+      location.replace('https://' + location.hostname + location.pathname + location.search);
+    }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
   <meta name="description" content="Motor agronómico de decisión: 17 módulos con datos satelitales en tiempo real, IA con criterio INTA, exclusivo para ingenieros agrónomos matriculados.">
@@ -39,11 +44,24 @@
 </head>
 <body>
 
-
+<script>
+  // Tracking de 3 clics para God Mode
+  let amLogoClicks = 0;
+  let amLogoClickTimer;
+  function amLogoClick() {
+    amLogoClicks++;
+    clearTimeout(amLogoClickTimer);
+    amLogoClickTimer = setTimeout(() => amLogoClicks = 0, 1000);
+    if (amLogoClicks >= 3) {
+      if (window.amHabilitarGodMode) window.amHabilitarGodMode();
+      amLogoClicks = 0;
+    }
+  }
+</script>
 
 <header>
   <div class="header-inner">
-    <div class="logo">
+    <div class="logo" style="cursor:pointer" onclick="amLogoClick()" title="AgroMotor">
       <div class="logo-icon">🌱</div>
       <div>
         <div class="logo-text">Agro<span>Motor</span></div>
@@ -54,6 +72,7 @@
       <div class="header-inta">Lógica agronómica INTA</div>
       <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
       <button onclick="amInstalarPWA()" id="am-btn-pwa" class="btn-hdr btn-hdr-green hidden" title="Instalar AgroMotor como app">📲 Instalar</button>
+      <button onclick="amMostrarModalSugerencias()" id="btn-feedback" class="btn-hdr btn-hdr-green">💡 Sugerencias</button>
       <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
       <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
       <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
@@ -68,6 +87,11 @@
     </div>
   </div>
 </header>
+
+<!-- ══ BANNER PROMOCIÓN LANZAMIENTO ══ -->
+<div id="am-promo-banner" style="background: linear-gradient(90deg, #1E4D2B, #6DBF82); color: white; text-align: center; font-size: 0.8rem; padding: 0.4rem; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+  🎉 Lanzamiento Especial Conferencia: ¡Todos los módulos premium habilitados gratis hasta el 1º de Agosto!
+</div>
 
 <nav class="module-nav">
   <div class="nav-inner">
@@ -110,33 +134,29 @@
 <div id="mod-dashboard" class="module-panel active">
 
   <!-- ── HEADER ────────────────────────────────────────── -->
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.2rem;flex-wrap:wrap;gap:.8rem">
+  <div class="dash-header-wrap">
     <div>
       <div class="module-title" style="margin-bottom:.1rem">Dashboard del <em>Lote</em></div>
       <div class="module-subtitle" style="margin-bottom:0">Mapa satelital · condiciones ambientales en tiempo real · gestión de lotes</div>
     </div>
-    <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-      <select id="am-dash-lotes" onchange="amCambiarLoteGlobalDesdeDash(this.value)"
-        style="border:1.5px solid rgba(122,174,245,.35);color:#1A3A6C;font-size:.78rem;padding:.35rem .7rem;border-radius:8px;outline:none;cursor:pointer;background:#fff;font-weight:600;max-width:200px">
+    <div class="dash-header-actions">
+      <select id="am-dash-lotes" class="dash-lote-select" onchange="amCambiarLoteGlobalDesdeDash(this.value)">
       </select>
-      <button class="btn btn-p" onclick="amCrearLoteGlobal()"
-        style="height:36px;padding:0 .9rem;font-size:.8rem;background:linear-gradient(135deg,#1A3A6C,#2A5A8C);border:none;white-space:nowrap">
+      <button class="btn btn-p dash-btn-add" onclick="amCrearLoteGlobal()">
         ➕ Nuevo lote
       </button>
-      <button class="btn btn-s" onclick="amEliminarLoteGlobal()"
-        style="height:36px;padding:0 .75rem;font-size:.85rem;color:#C94A2A;border-color:rgba(201,74,42,.3);background:rgba(201,74,42,.04)"
-        title="Eliminar lote actual">🗑️</button>
+      <button class="btn btn-s dash-btn-del" onclick="amEliminarLoteGlobal()" title="Eliminar lote actual">🗑️</button>
     </div>
   </div>
 
   <!-- ── CUERPO PRINCIPAL ───────────────────────────────── -->
-  <div style="display:grid;grid-template-columns:1fr 310px;gap:1.2rem;margin-bottom:1.2rem;align-items:start">
+  <div class="dash-main-grid">
 
     <!-- MAPA (hero) -->
-    <div class="card" style="padding:0;overflow:hidden;border:1.5px solid rgba(74,140,92,.25)">
-      <div id="am-inline-map" style="width:100%;height:440px;background:#1A2A20;position:relative"></div>
-      <div style="padding:.85rem 1rem;border-top:1px solid rgba(74,140,92,.12);background:#fafafa">
-        <div style="display:grid;grid-template-columns:1fr auto auto;gap:.7rem;align-items:flex-end">
+    <div class="card dash-hero-card">
+      <div id="am-inline-map" class="dash-hero-map"></div>
+      <div class="dash-hero-footer">
+        <div class="dash-hero-controls">
           <div class="fg" style="margin-bottom:0">
             <label style="font-size:.68rem">Coordenadas del lote <span class="it" title="DMS: 33°23'42.55&quot;S 60°11'29.87&quot;W  ó  decimal: -33.395, -60.192">?</span></label>
             <input type="text" id="s-coord" placeholder="Ej: -33.395, -60.192" style="font-family:'DM Mono',monospace;font-size:.82rem">
@@ -154,16 +174,16 @@
     <div style="display:flex;flex-direction:column;gap:.75rem">
 
       <!-- Placeholder -->
-      <div id="api-info-placeholder" style="padding:3rem 1.5rem;text-align:center;background:#f4faf6;border-radius:12px;border:1.5px dashed rgba(74,140,92,.2)">
-        <div style="font-size:2.8rem;margin-bottom:.8rem">🌤️</div>
-        <div style="font-size:.8rem;color:rgba(74,46,26,.45);line-height:1.7">Hacé clic en el mapa<br>o ingresá coordenadas<br>para cargar los datos del lote</div>
+      <div id="api-info-placeholder" class="dash-ph-card">
+        <div class="dash-ph-icon">🌤️</div>
+        <div class="dash-ph-text">Hacé clic en el mapa<br>o ingresá coordenadas<br>para cargar los datos del lote</div>
       </div>
 
       <!-- Datos (se revela con buscarAPI) -->
       <div id="api-info" class="hidden" style="display:flex;flex-direction:column;gap:.7rem">
 
         <!-- Ubicación + suelo -->
-        <div style="background:#fff;border-radius:9px;padding:.65rem .85rem;border:1px solid rgba(74,140,92,.3);font-size:.78rem;line-height:1.6;box-shadow:0 2px 6px rgba(0,0,0,.18)">
+        <div class="dash-ubi-card">
           <div style="font-weight:700;color:#1b5e35;margin-bottom:.1rem" id="i-ubi">—</div>
           <div style="color:#4a5568">🗺️ Suelo: <span id="i-suelo" style="font-weight:600;color:#2d6a4f">—</span></div>
         </div>
@@ -218,19 +238,19 @@
   </div>
 
   <!-- ── MIS LOTES (full width) ─────────────────────────── -->
-  <div class="card" style="border:1.5px solid rgba(122,174,245,.2);background:#fff">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem">
-      <div class="card-title" style="color:#1A3A6C;margin-bottom:0">📂 Mis Lotes</div>
-      <span id="dash-lotes-counter" style="font-size:.72rem;font-weight:700;background:rgba(122,174,245,.1);color:#7AAEF5;padding:.2rem .75rem;border-radius:10px;border:1px solid rgba(122,174,245,.25)">—</span>
+  <div class="card dash-mis-lotes">
+    <div class="dash-mis-lotes-header">
+      <div class="card-title dash-mis-lotes-title">📂 Mis Lotes</div>
+      <span id="dash-lotes-counter" class="dash-mis-lotes-counter">—</span>
     </div>
-    <div id="am-lista-lotes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(175px,1fr));gap:.7rem"></div>
+    <div id="am-lista-lotes" class="dash-mis-lotes-grid"></div>
   </div>
 
   <!-- ── ACCESO A MÓDULOS ─────────────────────────────────── -->
-  <div id="dash-mod-section" class="card" style="margin-top:1rem;border:1.5px solid rgba(74,140,92,.22);background:#fdfaf5">
-    <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.9rem;flex-wrap:wrap">
-      <div class="card-title" style="margin-bottom:0;padding-bottom:0;border:none;color:#3D2210">🚀 Módulos del flujo agronómico</div>
-      <span style="font-size:.74rem;color:#5a4a32;font-weight:500">Tocá una tarjeta para abrir el módulo</span>
+  <div id="dash-mod-section" class="card dash-mod-section">
+    <div class="dash-mod-header">
+      <div class="card-title dash-mod-title">🚀 Módulos del flujo agronómico</div>
+      <span class="dash-mod-subtitle">Tocá una tarjeta para abrir el módulo</span>
     </div>
 
     <div class="mod-group-title">1 · Planificación</div>
@@ -450,17 +470,13 @@
       🌍 Consulta de propiedades del suelo
       <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">SoilGrids ISRIC · 250 m · CC BY 4.0 · Sin API key</span>
     </div>
-    <div style="display:grid;grid-template-columns:1fr auto;gap:.8rem;align-items:flex-end">
-      <div class="fg" style="margin-bottom:0">
-        <label>Coordenadas del lote</label>
-        <input type="text" id="suelo-coord" placeholder="33°23'42.55&quot;S 60°11'29.87&quot;W  ó  -33.395, -60.192"
-               style="font-family:'DM Mono',monospace;font-size:.84rem">
+    <div style="margin-top:.8rem;padding:.8rem;background:rgba(255,255,255,.5);border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(200,162,85,.3)">
+      <div style="font-size:.82rem;color:#5A3A10">
+        📍 <strong>Lote activo:</strong> <span id="suelo-lbl-coord" style="font-family:'DM Mono',monospace;color:#8A5A20">Sin coordenadas</span>
       </div>
-      <div>
-        <button class="btn btn-primary" id="btn-suelo" onclick="consultarSuelo()" style="height:42px;background:linear-gradient(135deg,#5A3A10,#8A5A20)">
-          🌍 Analizar suelo
-        </button>
-      </div>
+      <button class="btn btn-primary" id="btn-suelo" onclick="consultarSuelo()" style="height:38px;padding:0 1.2rem;background:linear-gradient(135deg,#5A3A10,#8A5A20);border-radius:8px;font-size:.85rem">
+        🌍 Analizar suelo
+      </button>
     </div>
     <div id="suelo-st" class="hidden" style="margin-top:.75rem;font-size:.8rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
       <span id="suelo-sp" style="display:inline-block"></span>
@@ -513,11 +529,10 @@
     <div><div class="card">
       <div class="sl">Parámetros de campaña</div>
       <div class="grid-2">
-        <div class="fg"><label>Cultivo</label>
-          <select id="f-cult" onchange="updRend()">
-            <option>Maíz</option><option selected>Soja</option><option>Girasol</option>
-            <option>Trigo</option><option>Cebada</option><option>Sorgo</option><option>Colza</option>
-          </select>
+        <div class="fg"><label>Cultivo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
+          <div style="background:rgba(255,255,255,.5);border:1px solid rgba(200,162,85,.3);border-radius:6px;padding:.5rem .8rem;font-size:.85rem;color:#5A3A10;font-weight:600" id="f-lbl-cult">
+            Calculando...
+          </div>
         </div>
         <div class="fg"><label>Superficie (ha)</label><input type="number" id="f-sup" value="100" min="1"></div>
       </div>
@@ -624,15 +639,10 @@
         </div>
         <div class="sl" style="margin-bottom:.6rem">Cultivo principal</div>
         <div class="fg">
-          <label>Cultivo</label>
-          <select id="ec-cultivo" onchange="ecActualizarCultivo()">
-            <option value="Soja">Soja</option>
-            <option value="Maíz">Maíz</option>
-            <option value="Trigo">Trigo</option>
-            <option value="Girasol">Girasol</option>
-            <option value="Cebada">Cebada</option>
-            <option value="Sorgo">Sorgo</option>
-          </select>
+          <label>Cultivo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
+          <div style="background:rgba(255,255,255,.5);border:1px solid rgba(200,162,85,.3);border-radius:6px;padding:.5rem .8rem;font-size:.85rem;color:#5A3A10;font-weight:600" id="ec-lbl-cult">
+            Calculando...
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -856,14 +866,10 @@
         <div class="card-title">🌾 Configuración del lote</div>
         <div class="grid-2">
           <div class="fg">
-            <label>Cultivo</label>
-            <select id="bh-cultivo" onchange="bhActualizar()">
-              <option value="Soja">Soja</option>
-              <option value="Maíz">Maíz</option>
-              <option value="Trigo">Trigo</option>
-              <option value="Girasol">Girasol</option>
-              <option value="Sorgo">Sorgo</option>
-            </select>
+            <label>Cultivo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
+            <div style="background:rgba(255,255,255,.5);border:1px solid rgba(42,90,140,.3);border-radius:6px;padding:.5rem .8rem;font-size:.85rem;color:#2A5A8C;font-weight:600" id="bh-lbl-cult">
+              Calculando...
+            </div>
           </div>
           <div class="fg">
             <label>Fecha de siembra</label>
@@ -876,13 +882,10 @@
             <input type="number" id="bh-rend-obj" value="3.5" step="0.1" min="0.5" max="15" oninput="bhActualizar()">
           </div>
           <div class="fg">
-            <label>Tipo de suelo</label>
-            <select id="bh-suelo" onchange="bhActualizar()">
-              <option value="Molisol">Molisol</option>
-              <option value="Vertisol">Vertisol</option>
-              <option value="Alfisol">Alfisol</option>
-              <option value="Entisol">Entisol</option>
-            </select>
+            <label>Tipo de suelo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
+            <div style="background:rgba(255,255,255,.5);border:1px solid rgba(42,90,140,.3);border-radius:6px;padding:.5rem .8rem;font-size:.85rem;color:#2A5A8C;font-weight:600" id="bh-lbl-suelo">
+              Calculando...
+            </div>
           </div>
         </div>
 
@@ -2717,6 +2720,107 @@
   </div>
 </div>
 
+<!-- ══ MODAL DE SUGERENCIAS (FEEDBACK) ══ -->
+<div id="am-modal-feedback" class="hidden" style="
+  position:fixed;inset:0;z-index:9999;
+  background:rgba(10,18,12,.85);
+  backdrop-filter:blur(12px);
+  display:flex;align-items:center;justify-content:center;
+  padding:1rem">
+
+  <div style="
+    background:var(--panel-bg);
+    border-radius:20px;
+    max-width:500px;width:100%;
+    box-shadow:0 24px 80px rgba(0,0,0,.4);
+    border:1px solid var(--border);
+    position:relative;
+    padding: 2rem;">
+
+    <button onclick="document.getElementById('am-modal-feedback').classList.add('hidden')" style="
+      position:absolute;top:1rem;right:1rem;
+      width:32px;height:32px;border-radius:50%;
+      border:none;background:rgba(61,34,16,.1);
+      cursor:pointer;font-size:1.1rem;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .2s;z-index:1">✕</button>
+
+    <div style="text-align:center;margin-bottom:1.5rem">
+      <div style="font-size:2rem;margin-bottom:.5rem">💡</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Buzón de Sugerencias</div>
+      <div style="font-size:.8rem;color:rgba(61,34,16,.6);margin-top:.3rem">Ayudanos a mejorar AgroMotor. Tu mensaje llegará directamente al equipo de desarrollo.</div>
+    </div>
+
+    <div id="am-feedback-ok" class="hidden alert" style="background:rgba(58,122,74,.15);color:var(--sprout);border:1px solid rgba(109,191,130,.4);margin-bottom:1rem">
+      ¡Gracias por tu sugerencia! Mensaje enviado.
+    </div>
+
+    <div id="am-feedback-err" class="hidden alert danger" style="margin-bottom:1rem"></div>
+
+    <div id="am-feedback-form">
+      <div class="fg">
+        <label>¿Qué te gustaría mejorar o reportar?</label>
+        <textarea id="am-feedback-texto" rows="5" placeholder="Escribe tu idea, sugerencia o problema aquí..." style="resize:vertical"></textarea>
+      </div>
+      <button onclick="amEnviarSugerencia()" id="am-btn-enviar-feedback" class="btn btn-p btn-full" style="margin-top:1rem">Enviar Sugerencia</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function amMostrarModalSugerencias() {
+    document.getElementById('am-feedback-ok').classList.add('hidden');
+    document.getElementById('am-feedback-err').classList.add('hidden');
+    document.getElementById('am-feedback-form').style.display = 'block';
+    document.getElementById('am-feedback-texto').value = '';
+    document.getElementById('am-modal-feedback').classList.remove('hidden');
+  }
+
+  async function amEnviarSugerencia() {
+    const texto = document.getElementById('am-feedback-texto').value.trim();
+    if (!texto) {
+      const err = document.getElementById('am-feedback-err');
+      err.textContent = 'Por favor, escribe un mensaje.';
+      err.classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('am-btn-enviar-feedback');
+    btn.textContent = 'Enviando...';
+    btn.disabled = true;
+
+    try {
+      // Usamos formsubmit.co para enviar directo al mail sin backend
+      const res = await fetch("https://formsubmit.co/ajax/agrohernan@gmail.com", {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          usuario: window.AM?.SESION?.user?.email || 'Usuario anónimo (No logueado)',
+          mensaje: texto,
+          _subject: "💡 Nueva Sugerencia en AgroMotor"
+        })
+      });
+
+      if (res.ok) {
+        document.getElementById('am-feedback-form').style.display = 'none';
+        document.getElementById('am-feedback-err').classList.add('hidden');
+        document.getElementById('am-feedback-ok').classList.remove('hidden');
+      } else {
+        throw new Error('Error al enviar');
+      }
+    } catch (e) {
+      document.getElementById('am-feedback-err').textContent = 'Error de conexión. Intenta de nuevo.';
+      document.getElementById('am-feedback-err').classList.remove('hidden');
+    } finally {
+      btn.textContent = 'Enviar Sugerencia';
+      btn.disabled = false;
+    }
+  }
+</script>
+
 <!-- ══ MODAL SISTEMA DE PLANES ══ -->
 <div id="am-modal" class="hidden" style="
   position:fixed;inset:0;z-index:9999;
@@ -2910,7 +3014,7 @@
     </div>
 
     <!-- ── VISTA REGISTRO ── -->
-    <div id="am-vista-registro" class="hidden">
+    <div id="am-vista-registro" class="hidden" style="padding-bottom: 2rem;">
       <div style="padding:1.6rem 1.8rem">
         <div style="text-align:center;margin-bottom:1.2rem">
           <div style="font-size:1.8rem;margin-bottom:.3rem">🎓</div>
@@ -3250,6 +3354,7 @@ amCargarSesion();
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
+<script src="js/store.js"></script>
 <script src="js/core.js"></script>
 <script src="js/config.js"></script>
 <script src="js/login.js"></script>

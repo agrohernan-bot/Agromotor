@@ -1,6 +1,10 @@
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ════════════════════════════════════════════════════════
 // ESTADO GLOBAL
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ════════════════════════════════════════════════════════
+(function() {
+  window.AM = window.AM || {};
+  window.AM.cosecha = {};
+
 const S = {
   cultivo: 'soja',
   superficie: 100, rendimiento: 35,
@@ -1062,3 +1066,24 @@ window.cosInit = function() {
   window._cosInitDone = true;
   init();
 };
+
+  // Exposición a global por retrocompatibilidad HTML
+  window.tarModo = tarModo;
+  window.calcLive = calcLive;
+  window.calcDecision = calcDecision;
+  window.showTab = showTab;
+  window.onCultivoChange = onCultivoChange;
+  window.onTarifaChange = onTarifaChange;
+  window.calcSecado = calcSecado;
+  window.usarTasaBCRA = usarTasaBCRA;
+  window.saveBcraToken = saveBcraToken;
+  window.runIA = runIA;
+  window.exportPDF = exportPDF;
+  window.buildEscenarios = buildEscenarios;
+  window.guardarLote = guardarLote;
+  window.eliminarLote = eliminarLote;
+  window.limpiarHistorial = limpiarHistorial;
+  window.exportHistorialCSV = exportHistorialCSV;
+  window.confirmarGuardarLote = confirmarGuardarLote;
+
+})();

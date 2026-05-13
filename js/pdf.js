@@ -4,6 +4,10 @@
 // jsPDF · Reporte completo del lote
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.pdf = {};
+
 async function generarPDF() {
   const btn = $('btn-pdf');
   const textoOriginal = btn.innerHTML;
@@ -466,3 +470,8 @@ async function generarPDF() {
 // ════════════════════════════════════════════════════════
 // CACHE localStorage — Persistencia de datos del lote
 // ════════════════════════════════════════════════════════
+
+  // Exposición a global
+  window.generarPDF = generarPDF;
+
+})();

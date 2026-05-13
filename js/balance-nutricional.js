@@ -5,6 +5,10 @@
 // Fuente: tablas extracción INTA / FAO / Echeverría & García
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.balanceNutricional = {};
+
 // ── EXTRACCIÓN POR CULTIVO (kg nutriente / t grano) ──
 var BN_EXTRACCION = {
   Soja: {
@@ -347,3 +351,8 @@ function bnRender(balance, recs, cultivo, rend, sup, rastrojoQueda) {
   if (ph) ph.classList.add('hidden');
   container.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+
+  // Exposición a global
+  window.bnAnalizar = bnAnalizar;
+
+})();

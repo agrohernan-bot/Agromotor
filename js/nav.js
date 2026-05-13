@@ -4,6 +4,10 @@
 // renderSueloModulo · Control de navegación principal
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.nav = {};
+
 // ── ORDEN DE PESTAÑAS (única fuente de verdad) ───────────
 // Coincide con el orden visual del nav en index.html.
 var AM_TAB_ORDER = [
@@ -124,11 +128,9 @@ function _activarModulo(mod) {
     var sc = document.getElementById('suelo-coord');
     if (coord && sc) sc.value = coord.value;
   }
-  // ── Sincronizar cultivo/fecha del Dashboard a todos los módulos ──
-  var _sc = document.getElementById('s-cultivo');
-  var _sf = document.getElementById('s-fecha');
-  var _syncCultivo = function(destId) { var d = document.getElementById(destId); if (_sc && d && _sc.value) d.value = _sc.value; };
-  var _syncFecha   = function(destId) { var d = document.getElementById(destId); if (_sf && d && _sf.value) d.value = _sf.value; };
+  // ── Sincronizar cultivo/fecha del Store a todos los módulos ──
+  var _syncCultivo = function(destId) { var d = document.getElementById(destId); if (d && typeof AM !== 'undefined' && AM.store) d.value = AM.store.getState().cultivo; };
+  var _syncFecha   = function(destId) { var d = document.getElementById(destId); if (d && typeof AM !== 'undefined' && AM.store) d.value = AM.store.getState().fecha; };
 
   if (mod === 'economia') {
     _syncCultivo('ec-cultivo');
@@ -216,6 +218,23 @@ document.addEventListener('DOMContentLoaded', function() {
     var el = document.getElementById(id);
     if (el) el.value = hoy;
   });
+
+  // Vincular inputs maestros con el Store
+  var sc = document.getElementById('s-cultivo');
+  var sf = document.getElementById('s-fecha');
+  var scoord = document.getElementById('s-coord');
+  
+  if (typeof AM !== 'undefined' && AM.store) {
+    // Escuchar DOM y actualizar Store
+    if (sc) sc.addEventListener('change', function() { AM.store.update({ cultivo: this.value }); });
+    if (sf) sf.addEventListener('change', function() { AM.store.update({ fecha: this.value }); });
+    if (scoord) scoord.addEventListener('input', function() { AM.store.update({ coordenadas: this.value }); });
+    
+    // Escuchar Store y actualizar DOM (bidi)
+    AM.store.subscribe('cultivo', function(val) { if(sc && sc.value !== val) sc.value = val; });
+    AM.store.subscribe('fecha', function(val) { if(sf && sf.value !== val) sf.value = val; });
+    AM.store.subscribe('coordenadas', function(val) { if(scoord && scoord.value !== val) scoord.value = val; });
+  }
   if (typeof amCargarSesion    === 'function') amCargarSesion();
   if (typeof amActualizarUI    === 'function') amActualizarUI();
   // ENSO se consulta una vez en background (datos compartidos por hidrico, siembra)
@@ -341,3 +360,14 @@ function renderSueloModulo(d) {
     tblEl.innerHTML = html;
   }
 }
+
+  // Exposición a global
+  window.AM_TAB_ORDER = AM_TAB_ORDER;
+  window.AM_IDX_MAP = AM_IDX_MAP;
+  window.AM_MODULOS_CARGADOS = AM_MODULOS_CARGADOS;
+  window.amCargarModulo = amCargarModulo;
+  window.switchMod = switchMod;
+  window._activarModulo = _activarModulo;
+  window.renderSueloModulo = renderSueloModulo;
+
+})();

@@ -1,7 +1,9 @@
-
 // ════════════════════════════════════════════════════════════════════
 // BASE DE DATOS AGRONÓMICA
 // ════════════════════════════════════════════════════════════════════
+(function() {
+  window.AM = window.AM || {};
+  window.AM.seguimiento = {};
 const SEG_CULTIVOS = {
   Soja:{nombre:'Soja',emoji:'🌱',base:10,ky:0.85,
     etcMin:450,etcMax:650,mmPorTon:140,
@@ -1069,3 +1071,25 @@ function segInit(){
 
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',segInit);}else{segInit();}
 if(typeof AM_PLANES!=='undefined'){['asesor','empresa'].forEach(plan=>{if(AM_PLANES[plan]?.modulos&&!AM_PLANES[plan].modulos.includes('seguimiento'))AM_PLANES[plan].modulos.push('seguimiento');});}
+
+  // Exposición a global
+  window.segAbrirModalNuevoLote = segAbrirModalNuevoLote;
+  window.segCerrarModalLote = segCerrarModalLote;
+  window.segCrearLote = segCrearLote;
+  window.segCargarLote = segCargarLote;
+  window.segMostrarProximaAlerta = segMostrarProximaAlerta;
+  window.segDismissAlerta = segDismissAlerta;
+  window.segActualizarCultivoInfo = segActualizarCultivoInfo;
+  window.segCalcularGDD = segCalcularGDD;
+  window.segCargarNDVI = segCargarNDVI;
+  window.segCalcularHidrico = segCalcularHidrico;
+  window.rendActualizar = rendActualizar;
+  window.histComparar = histComparar;
+  if(typeof bitActualizarFormulario !== 'undefined') window.bitActualizarFormulario = bitActualizarFormulario;
+  if(typeof bitRegistrarLabor !== 'undefined') window.bitRegistrarLabor = bitRegistrarLabor;
+  if(typeof bitEliminar !== 'undefined') window.bitEliminar = bitEliminar;
+  if(typeof segGenerarDashboard !== 'undefined') window.segGenerarDashboard = segGenerarDashboard;
+  if(typeof segExportarPDF !== 'undefined') window.segExportarPDF = segExportarPDF;
+  window.segCambiarTab = segCambiarTab;
+
+})();

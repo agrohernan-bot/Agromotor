@@ -6,6 +6,10 @@
 
 
 // ── HELPERS ──
+(function() {
+  window.AM = window.AM || {};
+  window.AM.core = {};
+
 const $=id=>document.getElementById(id);
 function sv(id,val){const e=$(id);if(e)e.textContent=val}
 function gv(id){return $(id)?.value}
@@ -158,3 +162,22 @@ function amRefrescarMapaDashboard() {
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(amInitMapaInline, 800);
 });
+
+  // Exponer a global
+  window.$ = $;
+  window.sv = sv;
+  window.gv = gv;
+  window.gi = gi;
+  window.setR = setR;
+  window.DB = DB;
+  window.SPOLY = SPOLY;
+  window.inPoly = inPoly;
+  window.detSuelo = detSuelo;
+  window.parsCoord = parsCoord;
+  window.usarGPS = usarGPS;
+  window.setStatus = setStatus;
+  window.amInitMapaInline = amInitMapaInline;
+  window.amActualizarMapaInline = amActualizarMapaInline;
+  window.amRefrescarMapaDashboard = amRefrescarMapaDashboard;
+
+})();

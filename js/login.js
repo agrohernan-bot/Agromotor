@@ -4,6 +4,9 @@
 // Requiere: config.js cargado antes (define AM_SB y AM_CONFIG)
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+
 const AM_PLANES = {
   free: {
     nombre: 'Demo',
@@ -118,8 +121,12 @@ AM_SB.auth.onAuthStateChange((event, session) => {
 
 // ── VERIFICAR ACCESO A MÓDULO ─────────────────────────
 function amTieneAcceso(modulo) {
+  if (localStorage.getItem('am_god') === 'true') return true;
   if (AM_CONFIG.devMode) return true;
   if (!AM_SESION) return modulo === 'siembra';
+
+  // Promoción lanzamiento (acceso total hasta el 01 Agosto 2026 inclusive)
+  if (new Date() < new Date('2026-08-02')) return true;
 
   const plan = AM_PLANES[AM_SESION.plan];
   if (!plan?.modulos?.includes(modulo)) return false;
@@ -471,3 +478,41 @@ function amToast(msg, tipo = 'ok') {
 
 // Compatibilidad: función vacía, onAuthStateChange maneja el init
 function amCargarSesion() {}
+
+  // Exponer a global
+  window.AM_PLANES = AM_PLANES;
+  window.amTieneAcceso = amTieneAcceso;
+  window.amActualizarUI = amActualizarUI;
+  window.amMostrarModal = amMostrarModal;
+  window.amCerrarModal = amCerrarModal;
+  window.amCambiarVista = amCambiarVista;
+  window.amMostrarModalUpgrade = amMostrarModalUpgrade;
+
+  window.amHabilitarGodMode = function() {
+    if (localStorage.getItem('am_god') === 'true') {
+      localStorage.removeItem('am_god');
+      alert('🔒 Modo Dios Desactivado.');
+    } else {
+      localStorage.setItem('am_god', 'true');
+      alert('🔓 ¡Modo Dios Activado! Tienes acceso ilimitado a todo.');
+    }
+    location.reload();
+  };
+
+  window.amLogin = amLogin;
+  window.amProcesarUrlParams = amProcesarUrlParams;
+  window.amRegistrar = amRegistrar;
+  window.amCerrarSesion = amCerrarSesion;
+  window.amMostrarPerfil = amMostrarPerfil;
+  window.amRegistrarPlan = amRegistrarPlan;
+  window.amMostrarError = amMostrarError;
+  window.amToast = amToast;
+  window.amCargarSesion = amCargarSesion;
+
+  // Propagar actualización de AM_SESION
+  Object.defineProperty(window, 'AM_SESION', {
+    get: function() { return AM_SESION; },
+    set: function(val) { AM_SESION = val; }
+  });
+
+})();

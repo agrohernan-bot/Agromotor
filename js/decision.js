@@ -5,6 +5,10 @@
 // para rankear cultivos antes de sembrar
 // ════════════════════════════════════════════════════════
 
+(function() {
+  window.AM = window.AM || {};
+  window.AM.decision = {};
+
 // ── BASE DE DATOS DE CULTIVOS ─────────────────────────
 var DEC_CULTIVOS = {
   Soja: {
@@ -358,15 +362,20 @@ function decRender(resultados, aguaTotal, ensoFase) {
 
 // ── ELEGIR CULTIVO ────────────────────────────────────
 function decElegir(cultivo) {
-  // Propagar al resto del motor
-  var selSiembra = document.getElementById('s-cultivo');
-  var selBH      = document.getElementById('bh-cultivo');
-  var selCV      = document.getElementById('cv-cultivo');
-  var selEC      = document.getElementById('ec-cultivo');
-  if (selSiembra) selSiembra.value = cultivo;
-  if (selBH)      selBH.value      = cultivo;
-  if (selCV)      selCV.value      = cultivo;
-  if (selEC)      selEC.value      = cultivo;
+  // Propagar al resto del motor vía Store
+  if (typeof AM !== 'undefined' && AM.store) {
+    AM.store.update({ cultivo: cultivo });
+  } else {
+    // Fallback si no está el store
+    var selSiembra = document.getElementById('s-cultivo');
+    var selBH      = document.getElementById('bh-cultivo');
+    var selCV      = document.getElementById('cv-cultivo');
+    var selEC      = document.getElementById('ec-cultivo');
+    if (selSiembra) selSiembra.value = cultivo;
+    if (selBH)      selBH.value      = cultivo;
+    if (selCV)      selCV.value      = cultivo;
+    if (selEC)      selEC.value      = cultivo;
+  }
 
   // Guardar elección
   document.getElementById('dec-cult-elegido') && (document.getElementById('dec-cult-elegido').textContent = cultivo);
@@ -380,8 +389,14 @@ function decElegir(cultivo) {
 
   if (typeof amToast === 'function') amToast('✅ ' + cultivo + ' seleccionado — motor actualizado', 'ok');
 
-  // Si ya están cargados, actualizar módulos
+  // Si ya están cargados, actualizar módulos (se ejecutará de todas formas vía store, pero forzamos porsia)
   if (typeof cvActualizar    === 'function') cvActualizar();
   if (typeof bhActualizar    === 'function') bhActualizar();
   if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
 }
+
+  // Exponer a window para onclick en HTML
+  window.decAnalizar = decAnalizar;
+  window.decElegir = decElegir;
+
+})();

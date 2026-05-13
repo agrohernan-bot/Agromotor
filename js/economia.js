@@ -5,7 +5,11 @@
 // Fertilización NPK · Maquinaria productividad
 // ════════════════════════════════════════════════════════
 
-let EC_DOLAR = { oficial:1080, blue:1085, mep:1090, ccl:1095, ts:null };
+(function() {
+  window.AM = window.AM || {};
+  window.AM.economia = {};
+
+  let EC_DOLAR = { oficial:1080, blue:1085, mep:1090, ccl:1095, ts:null };
 
 async function ecActualizarDolar() {
   const badge = $('ec-dolar-badge');
@@ -74,7 +78,8 @@ function ecRenderDolar() {
 }
 
 function ecActualizarCultivo() {
-  const cult = gv('ec-cultivo') || 'Soja';
+  const cult = gv('s-cultivo') || 'Soja';
+  if ($('ec-lbl-cult')) $('ec-lbl-cult').textContent = cult;
   const costos = EC_COSTOS_BASE[cult] || EC_COSTOS_BASE.Soja;
   const info   = EC_COSECHA_INFO[cult] || EC_COSECHA_INFO.Soja;
   const rend   = EC_REND_BASE[cult] || 3.2;
@@ -100,7 +105,8 @@ function ecActualizarCultivo() {
 }
 
 function ecCalc() {
-  const cult     = gv('ec-cultivo') || 'Soja';
+  const cult     = gv('s-cultivo') || 'Soja';
+  if ($('ec-lbl-cult')) $('ec-lbl-cult').textContent = cult;
   const sup      = gi('ec-sup')     || 100;
   const rendDisp = gi('ec-rend')    || 3.2;
   const rendFut  = gi('ec-rend-fut')|| 3.2;
@@ -263,3 +269,29 @@ function ecCalc() {
   $('ec-res-placeholder').classList.add('hidden');
   $('ec-res').classList.remove('hidden');
 }
+
+// ── Sincronización con Store Global ──
+// ── Sincronización con Store Global ──
+if (typeof AM !== 'undefined' && AM.store) {
+  AM.store.subscribe('cultivo', function(val) {
+    const ecCult = document.getElementById('ec-cultivo');
+    if (ecCult && ecCult.value !== val) {
+      ecCult.value = val;
+      if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+    }
+  });
+
+  const ecCult = document.getElementById('ec-cultivo');
+  if (ecCult) {
+    ecCult.addEventListener('change', function() {
+      AM.store.update({ cultivo: this.value });
+    });
+  }
+}
+
+  // Exposición a global por retrocompatibilidad HTML
+  window.ecActualizarDolar = ecActualizarDolar;
+  window.ecActualizarCultivo = ecActualizarCultivo;
+  window.ecCalc = ecCalc;
+
+})();

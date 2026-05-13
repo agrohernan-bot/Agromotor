@@ -3,9 +3,13 @@
 // Persistencia localStorage · Múltiples Lotes
 // ════════════════════════════════════════════════════════
 
-const LOTES_KEY = 'am_global_lotes_v2';
-let AM_LOTES = [];
-let AM_LOTE_ACTIVO = 'default';
+(function() {
+  window.AM = window.AM || {};
+  window.AM.cache = {};
+
+  const LOTES_KEY = 'am_global_lotes_v2';
+  window.AM_LOTES = [];
+  window.AM_LOTE_ACTIVO = 'default';
 
 function amCargarLotesGlobales() {
   try {
@@ -384,3 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
   amCargarLotesGlobales();
   setTimeout(cacheCargar, 500); // Dar un poco más de tiempo
 });
+
+  // Exposición global
+  window.cacheGuardar = cacheGuardar;
+  window.cacheCargar = cacheCargar;
+  window.amCargarLotesGlobales = amCargarLotesGlobales;
+  window.amRenderSelectLotes = amRenderSelectLotes;
+  window.amGuardarLotesEstado = amGuardarLotesEstado;
+
+})();
