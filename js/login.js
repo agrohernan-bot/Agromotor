@@ -254,6 +254,7 @@ async function amLogin() {
 // Auto-abrir modal desde URL params (?signup=1&plan=X)
 function amProcesarUrlParams() {
   try {
+    if (localStorage.getItem('am_god') === 'true') return; // Evitar modal si God Mode está activo
     const params = new URLSearchParams(window.location.search);
     if (params.get('signup') === '1' || params.get('login') === '1') {
       const planSel = params.get('plan');
