@@ -310,33 +310,44 @@ function cvActualizar() {
   const tec      = gv('cv-tecnologia') || 'todas';
   const empresa  = gv('cv-empresa')    || 'todas';
   const prior    = gv('cv-prioridad')  || 'rendimiento';
-  const fechaStr = gv('cv-fecha')      || new Date().toISOString().split('T')[0];
-  const fecha    = new Date(fechaStr + 'T12:00:00'); // evitar offset UTC
+  const fechaStr = gv('cv-fecha') || new Date().toISOString().split('T')[0];
+  const fecha    = new Date(fechaStr + 'T12:00:00'); // T12 evita desfase por UTC
+  // Si no había fecha en el campo, precargar hoy para que el usuario la vea
+  if (!gv('cv-fecha')) {
+    const fEl = document.getElementById('cv-fecha');
+    if (fEl) fEl.value = fechaStr;
+  }
 
   // ── Auto-detección desde lote activo ─────────────────
   let lat = null, lon = null, loteNombre = '', sgDatos = null;
 
-  // Obtener lote activo del sistema
+  // 1. Intentar desde el lote activo en cache (AM_LOTES)
   if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
     const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
     if (lote) {
       loteNombre = lote.nombre || '';
       const datos = lote.data || {};
-      // Coordenadas
-      const coordStr = datos.coord || '';
-      if (coordStr && typeof parsCoord === 'function') {
-        [lat, lon] = parsCoord(coordStr);
+      const coordCached = (datos.coord || '').trim();
+      if (coordCached && typeof parsCoord === 'function') {
+        const p = parsCoord(coordCached);
+        if (p[0] !== null) { lat = p[0]; lon = p[1]; }
       }
-      // SoilGrids guardado en cache
-      sgDatos = datos.sgDatos || window._sgDatos || null;
+      sgDatos = datos.sgDatos || null;
     }
   }
-  // Fallback: coordenadas del campo de siembra si no hay lote
+
+  // 2. Fallback directo: leer #s-coord del Dashboard (siempre tiene el valor actual,
+  //    aunque el lote no se haya guardado al cache todavía)
   if (lat === null) {
-    const coordStr = document.getElementById('s-coord')?.value?.trim() || '';
-    if (coordStr && typeof parsCoord === 'function') [lat, lon] = parsCoord(coordStr);
-    sgDatos = sgDatos || window._sgDatos || null;
+    const coordDash = (document.getElementById('s-coord')?.value || '').trim();
+    if (coordDash && typeof parsCoord === 'function') {
+      const p = parsCoord(coordDash);
+      if (p[0] !== null) { lat = p[0]; lon = p[1]; }
+    }
   }
+
+  // 3. SoilGrids: cache del lote → global en memoria → null
+  if (!sgDatos) sgDatos = window._sgDatos || null;
 
   // ── Zona agroecológica (auto-detectada) ──────────────
   const zonaDetectada = (lat !== null) ? cvDetectarZona(lat) : null;
@@ -378,7 +389,7 @@ function cvActualizar() {
 
   const ambiente = ambienteCalc.nivel;
 
-  const zonaInfo = CV_ZONAS[zona];
+  // zonaInfo ya declarado arriba — sólo verificar
   if (!zonaInfo) return;
 
   const cultivoCfg = zonaInfo.cultivos[cultivo];
