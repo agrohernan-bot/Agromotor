@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cosecha (lowercase, sin acentos)
     var cos = document.getElementById('cultivo');
     if (cos) cos.value = val.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-    // Nutrición balance
+    // Nutrición: sync select balance + re-render contexto lote
     if (typeof ncActualizar === 'function') {
       var nb = document.getElementById('nc-bn-cultivo');
       if (nb) {
@@ -272,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
                    'Girasol':'Girasol','Sorgo':'Sorgo','Cebada':'Cebada','Colza':'Colza'};
         nb.value = map[val] || val;
       }
+      ncActualizar();
     }
     // Actualizar ec-lbl-cult (Economía)
     if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();

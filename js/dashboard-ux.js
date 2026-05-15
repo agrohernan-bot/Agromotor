@@ -34,9 +34,7 @@
     'siembra':          function() { return _hasCoord() && _hasCultivo() ? 'ok' : 'warn'; },
     'suelo':            function() { return _hasSueloAPI() ? 'ok' : (_hasCoord() ? 'warn' : 'empty'); },
     'hidrico':          function() { return _hasNasaAPI() && _hasCultivo() ? 'ok' : 'warn'; },
-    'fertilizacion':    function() { return _hasCultivo() ? 'ok' : 'warn'; },
-    'fertoptima':       function() { return _hasCultivo() ? 'ok' : 'warn'; },
-    'balancenut':       function() { return _hasCultivo() ? 'ok' : 'warn'; },
+    'nutricion':        function() { return _hasCultivo() ? 'ok' : 'warn'; },
     'economia':         function() { return _hasCultivo() ? 'ok' : 'warn'; },
     'cosecha':          function() { return _hasCultivo() ? 'ok' : 'warn'; },
     'maquinaria':       function() { return 'ok'; }, // siempre disponible
