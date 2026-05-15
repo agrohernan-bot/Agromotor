@@ -306,7 +306,7 @@
 <!-- ══ MÓDULO SIEMBRA ══ -->
 <div id="mod-siembra" class="module-panel">
   <div class="module-title">Diagnóstico de <em>Siembra</em>
-    <span id="mod-lote-badge-siembra" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-siembra" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">Análisis de compactación, humedad y pronóstico del lote seleccionado</div>
 
@@ -464,31 +464,24 @@
 <!-- ══ MÓDULO SUELO ══ -->
 <div id="mod-suelo" class="module-panel">
   <div class="module-title">Análisis de <em>Suelo</em>
-    <span id="mod-lote-badge-suelo" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-suelo" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
 
-  <!-- Ingreso de coordenadas -->
-  <div class="card" style="margin-bottom:1.2rem;border:1.5px solid rgba(200,162,85,.4);background:#fbf6ec">
-    <div class="card-title" style="color:#7A4A10">
-      🌍 Consulta de propiedades del suelo
-      <span style="font-size:.67rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">SoilGrids ISRIC · 250 m · CC BY 4.0 · Sin API key</span>
-    </div>
-    <div style="margin-top:.8rem;padding:.8rem;background:rgba(255,255,255,.5);border-radius:10px;display:flex;justify-content:space-between;align-items:center;border:1px solid rgba(200,162,85,.3)">
-      <div style="font-size:.82rem;color:#5A3A10">
-        📍 <strong>Lote activo:</strong> <span id="suelo-lbl-coord" style="font-family:'DM Mono',monospace;color:#8A5A20">Sin coordenadas</span>
-      </div>
-      <button class="btn btn-primary" id="btn-suelo" onclick="consultarSuelo()" style="height:38px;padding:0 1.2rem;background:linear-gradient(135deg,#5A3A10,#8A5A20);border-radius:8px;font-size:.85rem">
-        🌍 Analizar suelo
-      </button>
-    </div>
-    <div id="suelo-st" class="hidden" style="margin-top:.75rem;font-size:.8rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
-      <span id="suelo-sp" style="display:inline-block"></span>
-      <span id="suelo-msg"></span>
-    </div>
-    <p style="margin-top:.6rem;font-size:.75rem;color:rgba(74,46,26,.5)">
-      💡 Si ya consultaste el lote en el módulo de Siembra, los datos aparecen automáticamente aquí.
-    </p>
+  <!-- Barra compacta de lote activo — se oculta automáticamente cuando los datos están cargados -->
+  <div id="suelo-lote-bar" style="background:rgba(200,162,85,.08);border:1px solid rgba(200,162,85,.25);border-radius:10px;padding:.55rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
+    <span style="font-size:.8rem;color:rgba(74,46,26,.75)">📍
+      <span id="suelo-lbl-coord" style="font-family:'DM Mono',monospace;color:#8A5A20;font-size:.78rem">Sin coordenadas — cargá un lote en el Dashboard</span>
+    </span>
+    <button id="btn-suelo" onclick="consultarSuelo()"
+      style="margin-left:auto;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#7A4A10;border-radius:7px;padding:.28rem .8rem;font-size:.73rem;font-weight:600;cursor:pointer;font-family:inherit">
+      🔄 Actualizar
+    </button>
+    <span style="font-size:.67rem;color:rgba(74,46,26,.35)">SoilGrids ISRIC · 250 m · CC BY 4.0</span>
+  </div>
+  <div id="suelo-st" class="hidden" style="margin-bottom:.8rem;font-size:.78rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
+    <span id="suelo-sp" style="display:inline-block"></span>
+    <span id="suelo-msg"></span>
   </div>
 
   <!-- Resultados SoilGrids -->
@@ -630,7 +623,7 @@
 <!-- ══ MÓDULO ECONOMÍA ══ -->
 <div id="mod-economia" class="module-panel">
   <div class="module-title">Economía de <em>Campaña</em>
-    <span id="mod-lote-badge-economia" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-economia" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">Margen bruto actual y a cosecha · Precios Rosario · Dólar en tiempo real · Insumos · Flete · Arrendamiento</div>
 
@@ -847,7 +840,7 @@
 <!-- ══ MÓDULO BALANCE HÍDRICO ══ -->
 <div id="mod-hidrico" class="module-panel">
   <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático
-    <span id="mod-lote-badge-hidrico" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-hidrico" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">ENSO · Agua disponible · Requerimiento del cultivo · Rendimiento alcanzable · Riego suplementario</div>
 
@@ -1034,7 +1027,7 @@
 <!-- ══ MÓDULO CULTIVARES ══ -->
 <div id="mod-cultivares" class="module-panel">
   <div class="module-title">Recomendador de <em>Cultivares</em>
-    <span id="cv-lote-badge" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="cv-lote-badge" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">Grupos de madurez · Ventana óptima de siembra · Ranking RECSO/INTA 2024-25 · Filtros por zona, tecnología y empresa</div>
 
@@ -1448,7 +1441,7 @@
 <!-- ══ MÓDULO PULVERIZACIÓN ══ -->
 <div id="mod-pulverizacion" class="module-panel">
   <div class="module-title">Ventana de <em>Pulverización</em>
-    <span id="mod-lote-badge-pulv" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-pulv" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">Semáforo agronómico · Condiciones meteo en tiempo real · Delta T · Deriva · Caldo · Calidad de agua · Registro</div>
 
@@ -2037,7 +2030,7 @@
 <div id="mod-cosecha" class="module-panel">
   <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">
     <span style="font-size:1.1rem;font-weight:700;color:var(--ink)">Economía de <em>Cosecha</em></span>
-    <span id="mod-lote-badge-cosecha" style="display:none;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px"></span>
+    <span id="mod-lote-badge-cosecha" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="api-ribbon" id="ribbon">
     <div class="api-item">
@@ -2724,7 +2717,7 @@
 <!-- ══ MÓDULO PLAGAS ══ -->
 <div id="mod-plagas" class="module-panel">
   <div class="module-title">Módulo 07 · <em>Alertas de Plagas</em>
-    <span id="mod-lote-badge-plagas" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+    <span id="mod-lote-badge-plagas" class="am-lote-badge" style="display:none"></span>
   </div>
   <div class="module-subtitle">Favorabilidad climática + red comunitaria + alertas INTA</div>
 

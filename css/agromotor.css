@@ -299,6 +299,25 @@ main {
   letter-spacing: .01em;
 }
 
+/* Badge de lote activo — visible sobre fondo oscuro del header */
+.am-lote-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin-left: .8rem;
+  font-size: .68rem;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  background: rgba(255,255,255,.1);
+  color: rgba(200,240,200,.9);
+  border: 1px solid rgba(255,255,255,.18);
+  padding: .18rem .65rem;
+  border-radius: 10px;
+  vertical-align: middle;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
 /* ── CARDS ── */
 .card {
   background: var(--panel-bg);

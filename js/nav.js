@@ -122,11 +122,19 @@ function _activarModulo(mod) {
   // Scroll al inicio al cambiar de módulo
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0,0); }
 
-  if (mod === 'suelo' && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
-    if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
+  if (mod === 'suelo') {
     var coord = document.getElementById('s-coord');
-    var sc = document.getElementById('suelo-coord');
-    if (coord && sc) sc.value = coord.value;
+    var coordVal = coord ? coord.value.trim() : '';
+    // Actualizar etiqueta del bar compacto
+    var lblCoord = document.getElementById('suelo-lbl-coord');
+    if (lblCoord && coordVal) lblCoord.textContent = coordVal;
+    if (window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+      // Datos ya cargados — renderizar directamente
+      if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
+    } else if (coordVal && typeof consultarSuelo === 'function') {
+      // Sin datos aún pero hay coordenadas — disparar consulta automática
+      setTimeout(consultarSuelo, 250);
+    }
   }
   // ── Sincronizar cultivo/fecha del Store a todos los módulos ──
   var _syncCultivo = function(destId) { var d = document.getElementById(destId); if (d && typeof AM !== 'undefined' && AM.store) d.value = AM.store.getState().cultivo; };
