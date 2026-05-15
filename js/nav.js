@@ -13,7 +13,7 @@
 var AM_TAB_ORDER = [
   'dashboard','decision','cultivares',
   'siembra','suelo','hidrico',
-  'fertilizacion','fertoptima','balancenut',
+  'nutricion',
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
   'siembra-variable','mapa','asistente'
@@ -54,8 +54,7 @@ function switchMod(mod) {
     'mapa':          ['mapa.js'],
     'pulverizacion': ['pulverizacion.js'],
     'decision':      ['decision.js'],
-    'fertoptima':    ['fertilizacion-optima.js'],
-    'balancenut':    ['balance-nutricional.js'],
+    'nutricion':     ['nutricion.js'],
     'seguimiento':   ['seguimiento.js'],
     'cosecha':       ['cosecha.js'],
     'plagas':           ['plagas.js'],
@@ -111,7 +110,7 @@ function _activarModulo(mod) {
   // Mostrar botón "Exportar PDF" solo en módulos con generador disponible
   var btnPDFMod = document.getElementById('btn-pdf-modulo');
   if (btnPDFMod) {
-    var pdfModulos = ['decision','fertilizacion','balancenut','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
+    var pdfModulos = ['decision','nutricion','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
     if (pdfModulos.indexOf(mod) >= 0) btnPDFMod.classList.remove('hidden');
     else btnPDFMod.classList.add('hidden');
   }
@@ -197,6 +196,9 @@ function _activarModulo(mod) {
     _syncFecha('cv-fecha');
     if (typeof cvActualizar === 'function') cvActualizar();
     setTimeout(function() { if (typeof dsRender === 'function') dsRender(); }, 300);
+  }
+  if (mod === 'nutricion') {
+    if (typeof ncActualizar === 'function') ncActualizar();
   }
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);

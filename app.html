@@ -106,9 +106,7 @@
     <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
     <div class="nav-sep"></div>
     <!-- 3. NUTRICIÓN -->
-    <div class="nav-tab" onclick="switchMod('fertilizacion')"><span class="dot"></span>⚗️ Fertilización</div>
-    <div class="nav-tab" onclick="switchMod('fertoptima')"><span class="dot"></span>🧪 Dosis Óptima</div>
-    <div class="nav-tab" onclick="switchMod('balancenut')"><span class="dot"></span>🔄 Bal. Nutricional</div>
+    <div class="nav-tab" onclick="switchMod('nutricion')"><span class="dot"></span>🌿 Nutrición</div>
     <div class="nav-sep"></div>
     <!-- 4. ECONOMÍA -->
     <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
@@ -586,56 +584,169 @@
   </div>
 </div>
 
-<!-- ══ MÓDULO 2 ══ -->
-<div id="mod-fertilizacion" class="module-panel">
-  <div class="module-title">Plan de <em>Fertilización</em></div>
-  <div class="module-subtitle">Cálculo NPK, selección de fertilizantes y costos USD por campaña</div>
-  <div class="grid-2">
-    <div><div class="card">
-      <div class="sl">Parámetros de campaña</div>
-      <div class="grid-2">
-        <div class="fg"><label>Cultivo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
-          <div style="background:rgba(255,255,255,.5);border:1px solid rgba(200,162,85,.3);border-radius:6px;padding:.5rem .8rem;font-size:.85rem;color:#5A3A10;font-weight:600" id="f-lbl-cult">
-            Calculando...
+<!-- ══ MÓDULO NUTRICIÓN DE CULTIVO ══ -->
+<div id="mod-nutricion" class="module-panel">
+  <div class="module-title">Nutrición de <em>Cultivo</em>
+    <span id="mod-lote-badge-nutricion" class="am-lote-badge" style="display:none"></span>
+  </div>
+  <div class="module-subtitle">Plan de fertilización · Dosis óptima económica · Balance post-cosecha · INTA + datos reales del lote</div>
+
+  <!-- ── Tabs ── -->
+  <div style="display:flex;gap:0;margin-bottom:1.4rem;border-bottom:2px solid rgba(74,46,26,.1)">
+    <button id="nc-tab-plan"    onclick="ncSwitchTab('plan')"
+      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:700;border:none;cursor:pointer;border-bottom:3px solid #4A8C4E;background:rgba(74,140,92,.06);color:#2D5A30;font-family:inherit;margin-bottom:-2px">
+      📋 Plan de campaña
+    </button>
+    <button id="nc-tab-balance" onclick="ncSwitchTab('balance')"
+      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid transparent;background:transparent;color:rgba(74,46,26,.5);font-family:inherit;margin-bottom:-2px">
+      ⚖️ Balance post-cosecha
+    </button>
+  </div>
+
+  <!-- ══ TAB A: PLAN DE CAMPAÑA ══ -->
+  <div id="nc-panel-plan">
+    <!-- Contexto del lote (auto) -->
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.55rem 1rem;background:rgba(200,162,85,.06);border:1px solid rgba(200,162,85,.2);border-radius:9px;margin-bottom:1.1rem;font-size:.78rem;color:#5A3A10">
+      <span>🌾 Cultivo: <strong id="nc-lbl-cultivo">—</strong></span>
+      <span>📍 <span id="nc-lbl-lote">Sin lote activo</span></span>
+      <span id="nc-lbl-fuente-badge" style="font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;background:rgba(74,46,26,.07);color:rgba(74,46,26,.4)">Sin datos de suelo</span>
+    </div>
+
+    <div class="grid-2">
+      <!-- Parámetros -->
+      <div>
+        <div class="card">
+          <div class="sl">Parámetros de campaña</div>
+          <div class="grid-2">
+            <div class="fg"><label>Rendimiento objetivo (t/ha)</label>
+              <input type="number" id="nc-rend-obj" value="4.5" min="0.5" max="20" step="0.1" placeholder="ej: 4.5"></div>
+            <div class="fg"><label>Precio del grano (USD/t)</label>
+              <input type="number" id="nc-precio-grano" value="300" min="50" max="1000" step="5" placeholder="USD/t"></div>
+          </div>
+          <div class="fg"><label>Superficie (ha)</label>
+            <input type="number" id="nc-sup" value="100" min="1" max="10000"></div>
+          <div class="divider"></div>
+          <div class="sl">Precios fertilizantes (USD/t producto)</div>
+          <div class="grid-2">
+            <div class="fg"><label>Urea (46-0-0)</label>
+              <input type="number" id="nc-precio-n" value="380" step="5"></div>
+            <div class="fg"><label>MAP (11-52-0)</label>
+              <input type="number" id="nc-precio-p" value="620" step="5"></div>
+            <div class="fg"><label>SuMag / Azufre</label>
+              <input type="number" id="nc-precio-s" value="280" step="5"></div>
+            <div class="fg"><label>KCl (60% K₂O) <span style="font-size:.63rem;color:rgba(74,46,26,.4)">si hay dato lab</span></label>
+              <input type="number" id="nc-precio-k" value="480" step="5"></div>
+          </div>
+          <div class="divider"></div>
+          <button onclick="ncPlanCalcular()" class="btn btn-p btn-full btn-lg">🧮 Calcular plan integrado</button>
+        </div>
+        <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
+          <div class="card-title" style="color:#2A5A8C;font-size:.85rem">ℹ️ Metodología</div>
+          <div style="font-size:.76rem;color:rgba(74,46,26,.6);line-height:1.75">
+            <div>📊 <strong>Déficit</strong>: requerimiento del cultivo − disponible en suelo</div>
+            <div>📈 <strong>Dosis óptima</strong>: curva respuesta cuadrática INTA · donde costo fert = valor grano extra</div>
+            <div>✅ <strong>Recomendación</strong>: integra ambos · pondera según disponibilidad de datos</div>
+            <div style="margin-top:.5rem;font-size:.7rem;color:rgba(74,46,26,.4)">P y K solo se calculan si cargaste un análisis de laboratorio en el módulo Suelo</div>
           </div>
         </div>
-        <div class="fg"><label>Superficie (ha)</label><input type="number" id="f-sup" value="100" min="1"></div>
       </div>
-      <div class="fg"><label>Rendimiento objetivo (t/ha)</label>
-        <div class="sw"><input type="range" id="f-rend" min="1" max="15" step="0.5" value="3" oninput="sv('sv-rend',this.value+' t/ha')"><span class="sv" id="sv-rend">3 t/ha</span></div>
+
+      <!-- Panel datos de suelo efectivos -->
+      <div>
+        <div class="card">
+          <div class="card-title">🌍 Suelo del lote — datos efectivos</div>
+          <div id="nc-suelo-panel">
+            <div style="text-align:center;padding:2.5rem 1rem;color:rgba(74,46,26,.35)">
+              <div style="font-size:2.8rem;margin-bottom:.6rem">🌱</div>
+              <div style="font-size:.8rem">Sin datos de suelo<br>Analizá el lote en el módulo Suelo o ingresá un análisis de laboratorio</div>
+            </div>
+          </div>
+          <div id="nc-suelo-aviso-p" style="display:none;margin-top:.8rem;padding:.5rem .8rem;background:rgba(200,162,85,.08);border:1px solid rgba(200,162,85,.25);border-radius:8px;font-size:.72rem;color:#7A4A10">
+            💡 <strong>P y K sin análisis de laboratorio</strong> — la recomendación de P se basa en curva óptima (INTA). Para incluir disponibilidad real, cargá un análisis de lab en el módulo Suelo.
+          </div>
+        </div>
       </div>
-      <div class="divider"></div>
-      <div class="sl">Análisis de suelo (kg/ha)</div>
-      <div class="grid-3">
-        <div class="fg"><label>N</label><input type="number" id="f-n" value="45" min="0"></div>
-        <div class="fg"><label>P</label><input type="number" id="f-p" value="18" min="0"></div>
-        <div class="fg"><label>K</label><input type="number" id="f-k" value="120" min="0"></div>
+    </div>
+
+    <!-- Resultado del plan -->
+    <div id="nc-plan-placeholder" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.35);margin-top:1rem">
+      <div style="font-size:4rem;margin-bottom:1rem">🧮</div>
+      <div style="font-size:.92rem;font-weight:600;margin-bottom:.4rem">Plan de fertilización integrado</div>
+      <div style="font-size:.8rem">Completá los parámetros y hacé clic en Calcular</div>
+    </div>
+    <div id="nc-plan-resultado" style="display:none;margin-top:1rem"></div>
+  </div>
+
+  <!-- ══ TAB B: BALANCE POST-COSECHA ══ -->
+  <div id="nc-panel-balance" style="display:none">
+    <div class="grid-2">
+      <div>
+        <div class="card">
+          <div class="card-title">📋 Datos de la campaña cosechada</div>
+          <div class="fg">
+            <label>Cultivo cosechado <span style="font-size:.67rem;color:rgba(74,46,26,.4)">(auto desde lote activo)</span></label>
+            <select id="nc-bn-cultivo">
+              <option value="Soja">Soja</option>
+              <option value="Maiz">Maíz</option>
+              <option value="Trigo">Trigo</option>
+              <option value="Girasol">Girasol</option>
+              <option value="Sorgo">Sorgo</option>
+              <option value="Cebada">Cebada</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="fg"><label>Rendimiento real (t/ha)</label>
+              <input type="number" id="nc-bn-rend" value="3.5" min="0.1" max="20" step="0.1"></div>
+            <div class="fg"><label>Superficie (ha)</label>
+              <input type="number" id="nc-bn-sup" value="100" min="1" max="10000"></div>
+          </div>
+          <div class="fg">
+            <label>Manejo del rastrojo</label>
+            <select id="nc-bn-rastrojo">
+              <option value="campo">Se dejó en el campo (se recicla)</option>
+              <option value="extraido">Se extrajo / rolló / quemó</option>
+            </select>
+          </div>
+          <div class="divider"></div>
+          <div class="sl">Fertilización aplicada esta campaña</div>
+          <div class="grid-3">
+            <div class="fg"><label>Urea (kg/ha)</label>
+              <input type="number" id="nc-bn-fert-n" value="0" min="0" max="500"></div>
+            <div class="fg"><label>MAP (kg/ha)</label>
+              <input type="number" id="nc-bn-fert-p" value="0" min="0" max="300"></div>
+            <div class="fg"><label>SuMag (kg/ha)</label>
+              <input type="number" id="nc-bn-fert-s" value="0" min="0" max="200"></div>
+          </div>
+          <div style="margin-top:.6rem">
+            <button onclick="ncBalanceCalcular()" class="btn btn-p btn-full btn-lg">⚖️ Calcular balance post-cosecha</button>
+          </div>
+        </div>
+        <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
+          <div class="card-title" style="color:#2A5A8C;font-size:.85rem">🔄 El ciclo de nutrientes</div>
+          <div style="font-size:.76rem;color:rgba(74,46,26,.6);line-height:1.8">
+            <div>📥 <strong>Extracción</strong>: grano + rastrojo (según manejo)</div>
+            <div>📦 <strong>Reposición</strong>: fertilizantes con eficiencia real</div>
+            <div>🌱 <strong>Mineralización</strong>: aporte natural N y S del suelo</div>
+            <div>⚖️ <strong>Balance</strong> = reposición − extracción</div>
+          </div>
+        </div>
       </div>
-      <div class="divider"></div>
-      <div class="sl">Precios referencia (USD/tn)</div>
-      <div class="grid-2">
-        <div class="fg"><label>Urea</label><input type="number" id="f-p-u" value="550"></div>
-        <div class="fg"><label>MAP</label><input type="number" id="f-p-m" value="700"></div>
-        <div class="fg"><label>DAP</label><input type="number" id="f-p-d" value="750"></div>
-        <div class="fg"><label>KCl</label><input type="number" id="f-p-k" value="600"></div>
+      <div>
+        <div id="nc-balance-placeholder" style="text-align:center;padding:3.5rem 1.2rem;color:rgba(237,224,196,.6);background:rgba(15,31,20,.45);border:1.5px dashed rgba(109,191,130,.25);border-radius:14px">
+          <div style="font-size:4rem;margin-bottom:1rem">⚖️</div>
+          <div style="font-size:.95rem;font-weight:600;margin-bottom:.4rem">Balance post-cosecha</div>
+          <div style="font-size:.82rem;max-width:300px;margin:0 auto;line-height:1.6">
+            Ingresá los datos del cultivo cosechado para cerrar el ciclo de nutrientes del suelo
+          </div>
+        </div>
+        <div id="nc-balance-resultado" class="hidden"></div>
       </div>
-      <div class="divider"></div>
-      <button class="btn btn-p btn-full btn-lg" onclick="calcFert()">🧪 Calcular plan de fertilización</button>
-    </div></div>
-    <div><div class="card">
-      <div class="card-title">🧪 Plan de fertilización</div>
-      <div id="f-ph" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.4)"><div style="font-size:3rem;margin-bottom:1rem">⚗️</div><div style="font-size:.88rem">Ingresá los datos del análisis<br>y el rendimiento objetivo</div></div>
-      <div id="f-res" class="hidden">
-        <div class="sl">Déficit calculado</div><div id="f-def"></div>
-        <div class="divider"></div>
-        <div class="sl">Fertilizantes recomendados</div><div id="f-ferts"></div>
-        <div class="divider"></div>
-        <div class="sl">Resumen económico</div><div id="f-costos"></div>
-        <div id="f-alertas" style="margin-top:.7rem"></div>
-      </div>
-    </div></div>
+    </div>
   </div>
 </div>
+
+<!-- (mod-fertilizacion, mod-fertoptima, mod-balancenut migrados a mod-nutricion) -->
+<div id="mod-fertilizacion" style="display:none"></div>
 
 <!-- ══ MÓDULO 3 ══ -->
 <div id="mod-maquinaria" class="module-panel">
@@ -1922,9 +2033,7 @@
 </div>
 
 <!-- ══ MÓDULO FERTILIZACIÓN ÓPTIMA ══ -->
-<div id="mod-fertoptima" class="module-panel">
-  <div class="module-title">🧪 Fertilización <em>Óptima</em></div>
-  <div class="module-subtitle">Dosis económicamente óptima · Curva respuesta INTA · N · P · S · Sensibilidad al precio del grano</div>
+<div id="mod-fertoptima" style="display:none"><!-- migrado a mod-nutricion -->
 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA: PARÁMETROS -->
@@ -2006,10 +2115,7 @@
   </div>
 </div>
 
-<!-- ══ MÓDULO BALANCE NUTRICIONAL ══ -->
-<div id="mod-balancenut" class="module-panel">
-  <div class="module-title">🔄 Balance <em>Nutricional</em></div>
-  <div class="module-subtitle">Post-cosecha · N · P · K · S · Extracción real del cultivo · Recomendación próxima campaña · Cierra el ciclo</div>
+<div id="mod-balancenut" style="display:none"><!-- migrado a mod-nutricion Tab B -->
 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA: PARÁMETROS -->

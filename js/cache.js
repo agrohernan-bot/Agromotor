@@ -412,6 +412,7 @@ window.amActualizarBadgesLote = function() {
     'mod-lote-badge-pulv',
     'mod-lote-badge-economia',
     'mod-lote-badge-hidrico',
+    'mod-lote-badge-nutricion',
   ];
   badges.forEach(id => {
     const el = document.getElementById(id);
