@@ -185,13 +185,19 @@ window.ncSwitchTab = function(tab) {
     var panel = document.getElementById('nc-panel-' + t);
     var activo = t === tab;
     if (btn) {
-      btn.style.color         = activo ? '#2D5A30'  : 'rgba(74,46,26,.5)';
+      btn.style.color         = activo ? '#2D5A30'  : 'rgba(74,46,26,.55)';
       btn.style.borderBottom  = activo ? '3px solid #4A8C4E' : '3px solid transparent';
       btn.style.background    = activo ? 'rgba(74,140,92,.06)' : 'transparent';
       btn.style.fontWeight    = activo ? '700' : '600';
     }
     if (panel) panel.style.display = activo ? '' : 'none';
   });
+  // Re-sincronizar cultivo al entrar en la pestaña balance
+  if (tab === 'balance') {
+    var cultivo = ncCultStr();
+    var selBal  = document.getElementById('nc-bn-cultivo');
+    if (selBal) selBal.value = ncCultivoKey(cultivo);
+  }
 };
 
 // ── CONTEXTO LOTE Y PANEL SUELO ───────────────────────────
@@ -269,9 +275,9 @@ function ncRenderSueloPanel() {
     var bdr   = esLab ? 'rgba(74,140,92,.22)' : 'rgba(42,90,140,.12)';
     var val   = typeof v.valor === 'number'
       ? (v.valor < 10 ? v.valor.toFixed(2) : v.valor.toFixed(1)) : v.valor;
-    html += '<div style="background:' + bg + ';border:1px solid ' + bdr + ';border-radius:8px;padding:.4rem .55rem">'
-          + '<div style="font-size:.58rem;color:' + color + ';font-weight:700;white-space:nowrap;overflow:hidden">' + (labels[k] || k) + '</div>'
-          + '<div style="font-size:.88rem;font-weight:700;color:#1A2A1A;font-family:\'DM Mono\',monospace">' + val + '</div>'
+    html += '<div style="background:' + bg + ';border:1px solid ' + bdr + ';border-radius:8px;padding:.45rem .6rem">'
+          + '<div style="font-size:.63rem;color:' + color + ';font-weight:700;white-space:nowrap;overflow:hidden;margin-bottom:.1rem">' + (labels[k] || k) + '</div>'
+          + '<div style="font-size:.9rem;font-weight:700;color:#1A2A1A;font-family:\'DM Mono\',monospace">' + val + '</div>'
           + '</div>';
   });
   html += '</div>';
@@ -388,12 +394,12 @@ function ncRenderPlan(res, ctx) {
   var nutEmoji = { N:'🌿', P:'⚗️', S:'🟡', K:'🧲' };
 
   // Encabezado
-  var html = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:14px;padding:1.1rem 1.4rem;margin-bottom:1.1rem;border:1px solid rgba(109,191,130,.15)">';
-  html += '<div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.35);margin-bottom:.7rem">';
+  var html = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:14px;padding:1.1rem 1.4rem;margin-bottom:1.1rem;border:1px solid rgba(109,191,130,.2)">';
+  html += '<div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(237,224,196,.75);margin-bottom:.7rem">';
   html += '📋 PLAN · ' + ctx.cultStr.toUpperCase() + ' · ' + ctx.rendObj + ' t/ha · USD ' + Math.round(ctx.precioG) + '/t grano</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem">';
-  html += '<div style="text-align:center;background:rgba(255,255,255,.06);padding:.6rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#6DBF82">USD ' + Math.round(ctx.costoTotal) + '/ha</div><div style="font-size:.6rem;color:rgba(237,224,196,.4);text-transform:uppercase">Costo total fertilización</div></div>';
-  html += '<div style="text-align:center;background:rgba(255,255,255,.06);padding:.6rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#E8B84B">USD ' + Math.round(ctx.costoTotal * ctx.sup / 1000) + 'k</div><div style="font-size:.6rem;color:rgba(237,224,196,.4);text-transform:uppercase">Campaña total (' + ctx.sup + ' ha)</div></div>';
+  html += '<div style="text-align:center;background:rgba(255,255,255,.09);padding:.7rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#6DBF82">USD ' + Math.round(ctx.costoTotal) + '/ha</div><div style="font-size:.62rem;color:rgba(237,224,196,.65);text-transform:uppercase;margin-top:.15rem">Costo total fertilización</div></div>';
+  html += '<div style="text-align:center;background:rgba(255,255,255,.09);padding:.7rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#E8B84B">USD ' + Math.round(ctx.costoTotal * ctx.sup / 1000) + 'k</div><div style="font-size:.62rem;color:rgba(237,224,196,.65);text-transform:uppercase;margin-top:.15rem">Campaña total (' + ctx.sup + ' ha)</div></div>';
   html += '</div></div>';
 
   if (ctx.esFBN) {
@@ -439,9 +445,9 @@ function ncRenderPlan(res, ctx) {
       { lbl:'Costo',              val: 'USD ' + r.costo.toFixed(0) + '/ha' },
     ];
     kpis.forEach(function(kpi) {
-      html += '<div style="background:#f9f7f2;border-radius:7px;padding:.38rem .55rem;border:1px solid rgba(74,46,26,.07)">';
-      html += '<div style="font-size:.59rem;text-transform:uppercase;letter-spacing:.05em;color:rgba(74,46,26,.4);margin-bottom:.1rem">' + kpi.lbl + (kpi.xtra || '') + '</div>';
-      html += '<div style="font-size:.85rem;font-weight:' + (kpi.bold ? '700' : '600') + ';color:' + (kpi.clr || '#1A2A1A') + ';font-family:\'DM Mono\',monospace">' + kpi.val + '</div>';
+      html += '<div style="background:#f9f7f2;border-radius:7px;padding:.42rem .6rem;border:1px solid rgba(74,46,26,.09)">';
+      html += '<div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(74,46,26,.52);margin-bottom:.12rem">' + kpi.lbl + (kpi.xtra || '') + '</div>';
+      html += '<div style="font-size:.86rem;font-weight:' + (kpi.bold ? '700' : '600') + ';color:' + (kpi.clr || '#1A2A1A') + ';font-family:\'DM Mono\',monospace">' + kpi.val + '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -574,12 +580,12 @@ function ncRenderBalance(balance, recs, ctx) {
   var nutLabels = { N:'Nitrógeno (N)', P2O5:'Fósforo (P₂O₅)', K2O:'Potasio (K₂O)', S:'Azufre (S)' };
   var nutColors = { N:'#6DBF82', P2O5:'#E8B84B', K2O:'#7ABAEE', S:'#C8A255' };
 
-  var html = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:16px;padding:1.2rem 1.4rem;margin-bottom:1.2rem;border:1px solid rgba(109,191,130,.15)">';
-  html += '<div style="font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.35);margin-bottom:.8rem">⚖️ BALANCE POST-COSECHA — ' + ctx.cultStr.toUpperCase() + ' · ' + ctx.rend + ' t/ha · ' + ctx.sup + ' ha · Rastrojo: ' + (ctx.rastrojoQueda ? 'en campo' : 'extraído') + '</div>';
+  var html = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:16px;padding:1.2rem 1.4rem;margin-bottom:1.2rem;border:1px solid rgba(109,191,130,.2)">';
+  html += '<div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(237,224,196,.8);margin-bottom:.8rem">⚖️ BALANCE POST-COSECHA — ' + ctx.cultStr.toUpperCase() + ' · ' + ctx.rend + ' t/ha · ' + ctx.sup + ' ha · Rastrojo: ' + (ctx.rastrojoQueda ? 'en campo' : 'extraído') + '</div>';
   html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">';
   html += '<thead><tr>';
   ['Nutriente','Extr. grano','Extr. rastrojo','Aporte ferti.','Aporte natural','Balance neto','Balance lote'].forEach(function(th) {
-    html += '<th style="padding:.45rem .6rem;font-size:.58rem;text-transform:uppercase;letter-spacing:.07em;color:rgba(237,224,196,.38);text-align:center;white-space:nowrap">' + th + '</th>';
+    html += '<th style="padding:.45rem .6rem;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em;color:rgba(237,224,196,.65);text-align:center;white-space:nowrap">' + th + '</th>';
   });
   html += '</tr></thead><tbody>';
 
@@ -588,20 +594,20 @@ function ncRenderBalance(balance, recs, ctx) {
     var clr  = nutColors[nut] || '#fff';
     var bClr = b.balNeto >= 0 ? '#6DBF82' : b.balNeto > -30 ? '#E8B84B' : '#D4522A';
     var td   = function(v, c, fam) {
-      return '<td style="padding:.52rem .6rem;text-align:center;font-family:' + (fam || '\'DM Mono\',monospace') + ';font-size:.8rem;color:' + (c || 'rgba(237,224,196,.72)') + '">' + v + '</td>';
+      return '<td style="padding:.52rem .6rem;text-align:center;font-family:' + (fam || '\'DM Mono\',monospace') + ';font-size:.82rem;color:' + (c || 'rgba(237,224,196,.88)') + '">' + v + '</td>';
     };
     html += '<tr style="border-bottom:1px solid rgba(237,224,196,.06)">';
     html += '<td style="padding:.52rem .7rem;font-weight:600;color:' + clr + ';white-space:nowrap;font-size:.8rem">' + (nutLabels[nut]||nut) + '</td>';
     html += td('-' + b.extrGrano + ' kg/ha');
-    html += td('-' + b.extrRastrojo + ' kg/ha', 'rgba(237,224,196,.42)');
+    html += td('-' + b.extrRastrojo + ' kg/ha', 'rgba(237,224,196,.62)');
     html += td('+' + b.aporteFert + ' kg/ha', '#6DBF82');
-    html += td('+' + b.aporteNat + ' kg/ha', 'rgba(237,224,196,.42)');
+    html += td('+' + b.aporteNat + ' kg/ha', 'rgba(237,224,196,.62)');
     html += td((b.balNeto >= 0 ? '+' : '') + b.balNeto + ' kg/ha', bClr);
-    html += td((b.balLote >= 0 ? '+' : '') + b.balLote + ' kg', 'rgba(237,224,196,.35)');
+    html += td((b.balLote >= 0 ? '+' : '') + b.balLote + ' kg', 'rgba(237,224,196,.58)');
     html += '</tr>';
   });
   html += '</tbody></table></div>';
-  html += '<div style="font-size:.66rem;color:rgba(237,224,196,.22);margin-top:.4rem">Rastrojo ' + (ctx.rastrojoQueda ? 'retenido — nutrientes reciclados gradualmente' : 'extraído — extracción total incluida') + '</div>';
+  html += '<div style="font-size:.67rem;color:rgba(237,224,196,.55);margin-top:.5rem">Rastrojo ' + (ctx.rastrojoQueda ? 'retenido — nutrientes reciclados gradualmente' : 'extraído — extracción total incluida') + '</div>';
   html += '</div>';
 
   html += '<div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#C8A255;margin-bottom:.6rem">💊 Recomendaciones próxima campaña</div>';
