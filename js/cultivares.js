@@ -324,6 +324,8 @@ function cvCalcularAmbiente(sgDatos) {
 
 function cvActualizar() {
   const cultivo  = gv('cv-cultivo')    || 'Soja';
+  // Sincronizar densidad de siembra con el cultivo activo
+  if (typeof dsActualizarCultivo === 'function') dsActualizarCultivo(cultivo);
   const tec      = gv('cv-tecnologia') || 'todas';
   const empresa  = gv('cv-empresa')    || 'todas';
   const prior    = gv('cv-prioridad')  || 'rendimiento';

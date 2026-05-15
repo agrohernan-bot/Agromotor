@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v38';
+const CACHE_NAME    = 'agromotor-v39';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -67,6 +67,8 @@ const API_HOSTS = [
   'api.bcra.gob.ar',
   'supabase.co',
   'api.anthropic.com',
+  'monitorsiogranos.magyp.gob.ar',  // cosecha: precio FOB granos
+  'api.estadisticasbcra.com',        // cosecha: tipo de cambio + tasas BCRA
 ];
 
 // ── INSTALL: pre-cachear assets locales ───────────────

@@ -465,13 +465,16 @@ async function fetchPrecioGrano() {
       const aaaa = fecha.getFullYear();
       const url = `https://monitorsiogranos.magyp.gob.ar/ws/ssma/precios_fob.php?Fecha=${dd}/${mm}/${aaaa}`;
       try {
-        const resp = await fetch(url);
+        const ctrl = new AbortController();
+        const tid  = setTimeout(() => ctrl.abort(), 6000);
+        const resp = await fetch(url, { signal: ctrl.signal });
+        clearTimeout(tid);
         const json = await resp.json();
         if (json && Array.isArray(json) && json.length > 0) {
           data = json;
           break;
         }
-      } catch(e) {}
+      } catch(e) { if (e.name === 'AbortError') break; } // timeout → no más reintentos
       intentos++;
     }
     if (!data) throw new Error('Sin datos');
@@ -506,7 +509,9 @@ async function fetchTipoCambio() {
   try {
     const token = S.bcraToken || localStorage.getItem('bcra_token');
     const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-    const resp = await fetch('https://api.estadisticasbcra.com/usd_of', { headers });
+    const ctrl1 = new AbortController();
+    setTimeout(() => ctrl1.abort(), 8000);
+    const resp = await fetch('https://api.estadisticasbcra.com/usd_of', { headers, signal: ctrl1.signal });
     const json = await resp.json();
     if (Array.isArray(json) && json.length > 0) {
       const ult = json[json.length - 1];
@@ -534,7 +539,8 @@ async function fetchTasasBCRA() {
   const headers = { 'Authorization': 'Bearer ' + token };
   try {
     setDot('dot-pf', 'loading');
-    const r1 = await fetch('https://api.estadisticasbcra.com/tasa_depositos_30_dias', { headers });
+    const c1 = new AbortController(); setTimeout(() => c1.abort(), 8000);
+    const r1 = await fetch('https://api.estadisticasbcra.com/tasa_depositos_30_dias', { headers, signal: c1.signal });
     const j1 = await r1.json();
     if (Array.isArray(j1) && j1.length > 0) {
       const ult = j1[j1.length-1];
@@ -548,7 +554,8 @@ async function fetchTasasBCRA() {
   } catch(e) { setDot('dot-pf', 'error'); sv('val-pf', 'error'); }
   try {
     setDot('dot-badlar', 'loading');
-    const r2 = await fetch('https://api.estadisticasbcra.com/tasa_badlar', { headers });
+    const c2 = new AbortController(); setTimeout(() => c2.abort(), 8000);
+    const r2 = await fetch('https://api.estadisticasbcra.com/tasa_badlar', { headers, signal: c2.signal });
     const j2 = await r2.json();
     if (Array.isArray(j2) && j2.length > 0) {
       const ult = j2[j2.length-1];

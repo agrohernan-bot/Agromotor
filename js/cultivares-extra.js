@@ -239,12 +239,18 @@ function bhCalcularGDD() {
 // ── DENSIDAD DE SIEMBRA — dsRender() ─────────────────────
 // Parámetros de densidad por cultivo (plantas/ha objetivo)
 const DS_PARAMS = {
-  Soja:    { minPl: 250000, maxPl: 380000, optPl: 300000, gmNombre: 'semi-determinate' },
-  Maíz:    { minPl:  60000, maxPl:  95000, optPl:  75000, gmNombre: 'ciclo largo/medio' },
-  Trigo:   { minPl: 180,    maxPl: 350,    optPl: 250,    esPiePm2: true },  // plantas/m²
-  Girasol: { minPl:  40000, maxPl:  65000, optPl:  50000, gmNombre: 'std' },
-  Sorgo:   { minPl: 100000, maxPl: 200000, optPl: 150000, gmNombre: 'std' },
-  Cebada:  { minPl: 200,    maxPl: 350,    optPl: 270,    esPiePm2: true },
+  Soja:    { minPl: 250000, maxPl: 380000, optPl: 300000, gmNombre: 'semi-determinate',
+             pmsRef: 145, surcosPre: [0.38, 0.52, 0.70] },
+  Maíz:    { minPl:  60000, maxPl:  95000, optPl:  75000, gmNombre: 'ciclo largo/medio',
+             pmsRef: 320, surcosPre: [0.52, 0.70, 0.80] },
+  Trigo:   { minPl: 180, maxPl: 350, optPl: 250, esPiePm2: true,
+             pmsRef: 38,  surcosPre: [0.175, 0.19, 0.20, 0.23] },
+  Girasol: { minPl:  40000, maxPl:  65000, optPl:  50000, gmNombre: 'std',
+             pmsRef: 80,  surcosPre: [0.52, 0.70, 0.80] },
+  Sorgo:   { minPl: 100000, maxPl: 200000, optPl: 150000, gmNombre: 'std',
+             pmsRef: 25,  surcosPre: [0.52, 0.70] },
+  Cebada:  { minPl: 200, maxPl: 350, optPl: 270, esPiePm2: true,
+             pmsRef: 42,  surcosPre: [0.175, 0.19, 0.20] },
 };
 
 window.dsRender = function() {
@@ -268,7 +274,7 @@ window.dsRender = function() {
   if (p.esPiePm2) {
     // Trigo / Cebada: plantas/m²
     const semM2 = p.optPl / (germ * vigor);
-    const kgHa  = (semM2 * pms) / 1000;
+    const kgHa  = (semM2 * 10000 * pms) / 1e6;  // semM2(sem/m²) × 10000(m²/ha) × pms(g) / 1e6(g→kg)
     const semLineal = semM2 * surco;
     html = `
       <div style="background:rgba(74,140,92,.06);border-radius:10px;padding:1rem;border:1px solid rgba(74,140,92,.2)">
@@ -318,6 +324,59 @@ window.dsRender = function() {
   }
 
   resEl.innerHTML = html;
+};
+
+// Actualiza el select de surcos y el PMS de referencia cuando cambia el cultivo
+window.dsActualizarCultivo = function(cultivo) {
+  const p = DS_PARAMS[cultivo];
+  if (!p) return;
+
+  // ── Poblar select de surcos ──
+  const sel = document.getElementById('ds-surco-sel');
+  if (sel) {
+    sel.innerHTML = '';
+    (p.surcosPre || []).forEach(function(v) {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v + ' m';
+      sel.appendChild(opt);
+    });
+    // Opción "Otro"
+    const otro = document.createElement('option');
+    otro.value = '__otro__';
+    otro.textContent = 'Otro…';
+    sel.appendChild(otro);
+    // Seleccionar primero por defecto
+    sel.value = (p.surcosPre || [])[0] || 0.52;
+    // Sincronizar input numérico oculto
+    var inp = document.getElementById('ds-surco');
+    if (inp) inp.value = sel.value;
+    document.getElementById('ds-surco-custom') && (document.getElementById('ds-surco-custom').style.display = 'none');
+  }
+
+  // ── Auto-rellenar PMS de referencia si el usuario no lo tocó ──
+  const pmsInp = document.getElementById('ds-pms');
+  if (pmsInp && !pmsInp._userEdited && p.pmsRef) {
+    pmsInp.value = p.pmsRef;
+    // Mostrar badge de referencia
+    var badge = document.getElementById('ds-pms-ref');
+    if (badge) badge.textContent = '(ref. ' + p.pmsRef + ' g para ' + cultivo + ')';
+  }
+
+  dsRender();
+};
+
+window.dsSurcoChange = function(sel) {
+  var inp = document.getElementById('ds-surco');
+  var custom = document.getElementById('ds-surco-custom');
+  if (sel.value === '__otro__') {
+    if (custom) custom.style.display = '';
+    if (inp) inp.value = '';
+  } else {
+    if (custom) custom.style.display = 'none';
+    if (inp) inp.value = sel.value;
+    dsRender();
+  }
 };
 
   // Exposición a global

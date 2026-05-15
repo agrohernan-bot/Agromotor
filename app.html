@@ -592,13 +592,13 @@
   <div class="module-subtitle">Plan de fertilización · Dosis óptima económica · Balance post-cosecha · INTA + datos reales del lote</div>
 
   <!-- ── Tabs ── -->
-  <div style="display:flex;gap:0;margin-bottom:1.4rem;border-bottom:2px solid rgba(74,46,26,.1)">
+  <div style="display:flex;gap:0;margin-bottom:1.4rem;border-bottom:2px solid rgba(109,191,130,.2)">
     <button id="nc-tab-plan"    onclick="ncSwitchTab('plan')"
-      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:700;border:none;cursor:pointer;border-bottom:3px solid #4A8C4E;background:rgba(74,140,92,.06);color:#2D5A30;font-family:inherit;margin-bottom:-2px">
+      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:700;border:none;cursor:pointer;border-bottom:3px solid #6DBF82;background:rgba(109,191,130,.12);color:#6DBF82;font-family:inherit;margin-bottom:-2px">
       📋 Plan de campaña
     </button>
     <button id="nc-tab-balance" onclick="ncSwitchTab('balance')"
-      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid transparent;background:transparent;color:rgba(74,46,26,.5);font-family:inherit;margin-bottom:-2px">
+      style="padding:.55rem 1.3rem;font-size:.84rem;font-weight:600;border:none;cursor:pointer;border-bottom:3px solid transparent;background:transparent;color:rgba(237,224,196,.55);font-family:inherit;margin-bottom:-2px">
       ⚖️ Balance post-cosecha
     </button>
   </div>
@@ -606,10 +606,10 @@
   <!-- ══ TAB A: PLAN DE CAMPAÑA ══ -->
   <div id="nc-panel-plan">
     <!-- Contexto del lote (auto) -->
-    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.55rem 1rem;background:rgba(200,162,85,.06);border:1px solid rgba(200,162,85,.2);border-radius:9px;margin-bottom:1.1rem;font-size:.78rem;color:#5A3A10">
-      <span>🌾 Cultivo: <strong id="nc-lbl-cultivo">—</strong></span>
-      <span>📍 <span id="nc-lbl-lote">Sin lote activo</span></span>
-      <span id="nc-lbl-fuente-badge" style="font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;background:rgba(74,46,26,.07);color:rgba(74,46,26,.4)">Sin datos de suelo</span>
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.55rem 1rem;background:rgba(109,191,130,.07);border:1px solid rgba(109,191,130,.18);border-radius:9px;margin-bottom:1.1rem;font-size:.78rem;color:rgba(237,224,196,.85)">
+      <span>🌾 Cultivo: <strong id="nc-lbl-cultivo" style="color:#6DBF82">—</strong></span>
+      <span>📍 <span id="nc-lbl-lote" style="color:rgba(237,224,196,.75)">Sin lote activo</span></span>
+      <span id="nc-lbl-fuente-badge" style="font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;background:rgba(74,46,26,.35);color:rgba(237,224,196,.6)">Sin datos de suelo</span>
     </div>
 
     <div class="grid-2">
@@ -952,9 +952,12 @@
       <!-- COMPARATIVO: HOY vs. COSECHA -->
       <div class="card" style="margin-top:1rem" id="ec-res-card">
         <div class="card-title">📈 Comparativo de márgenes</div>
-        <div id="ec-res-placeholder" style="text-align:center;padding:3rem 1rem;color:rgba(74,46,26,.35)">
+        <div id="ec-res-placeholder" style="text-align:center;padding:2rem 1rem;color:rgba(74,46,26,.35)">
           <div style="font-size:3rem;margin-bottom:.8rem">💰</div>
-          <div style="font-size:.88rem">Completá los datos y el motor<br>calcula el margen actual y a cosecha</div>
+          <div style="font-size:.88rem;margin-bottom:1rem">Completá los datos y el motor<br>calcula el margen actual y a cosecha</div>
+          <button onclick="ecCalc()" class="btn btn-p" style="font-size:.82rem;padding:.5rem 1.4rem">
+            📊 Calcular margen
+          </button>
         </div>
         <div id="ec-res" class="hidden">
 
@@ -1399,14 +1402,27 @@
 
         <div class="grid-2" style="margin-bottom:.9rem">
           <div class="fg">
-            <label>Distancia entre surcos (m)</label>
-            <input type="number" id="ds-surco" value="0.52" step="0.01" min="0.15" max="1.00"
-              oninput="dsRender()" placeholder="0.52">
+            <label>Distancia entre surcos</label>
+            <select id="ds-surco-sel" onchange="dsSurcoChange(this)" style="margin-bottom:.3rem">
+              <option value="0.175">0.175 m</option>
+              <option value="0.19">0.19 m</option>
+              <option value="0.20">0.20 m</option>
+              <option value="0.23">0.23 m</option>
+              <option value="0.38">0.38 m</option>
+              <option value="0.52" selected>0.52 m</option>
+              <option value="0.70">0.70 m</option>
+              <option value="0.80">0.80 m</option>
+              <option value="__otro__">Otro…</option>
+            </select>
+            <input type="number" id="ds-surco-custom" value="" step="0.01" min="0.10" max="1.50"
+              oninput="document.getElementById('ds-surco').value=this.value; dsRender()" placeholder="Escribí en metros" style="display:none">
+            <input type="hidden" id="ds-surco" value="0.52">
           </div>
           <div class="fg">
-            <label>Peso de mil semillas — PMS (g) <span class="it" title="Solo para cultivos de grano fino (trigo, cebada). Para maíz/soja usar valor del bolsón.">?</span></label>
-            <input type="number" id="ds-pms" value="35" step="1" min="5" max="80"
-              oninput="dsRender()" placeholder="35">
+            <label>Peso de mil semillas — PMS (g) <span class="it" title="Ingresá el PMS del bolsón. Se pre-llena con referencia según el cultivo elegido.">?</span></label>
+            <input type="number" id="ds-pms" value="38" step="1" min="5" max="500"
+              oninput="this._userEdited=true; dsRender()" placeholder="g">
+            <div id="ds-pms-ref" style="font-size:.67rem;color:var(--leaf);margin-top:.2rem">(ref. 38 g para Trigo)</div>
           </div>
         </div>
 

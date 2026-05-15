@@ -98,7 +98,12 @@ function usarUbicacionDefault() {
 window.pulvRefrescarMeteo = function() {
   var dashCoord = _parsCoordDashboard();
   if (dashCoord) { STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon; }
-  if (STATE.lat) fetchMeteo();
+  if (STATE.lat) {
+    fetchMeteo();
+  } else {
+    // Primera vez o sin coordenadas: iniciar flujo GPS completo
+    initGPS();
+  }
 };
 
 function setGPSState(st, txt) {
