@@ -227,36 +227,53 @@ function cvDetectarZona(lat) {
   return 'semiarida';
 }
 
-// Infiere posición/tipo de siembra a partir del cultivo y la fecha planificada.
+// Infiere posición de siembra + detecta si la fecha está fuera de ventana.
+// Retorna { tipo, enVentana, proximaVentana }
 // Basado en ventanas de siembra argentinas (INTA / RECSO / RET-INASE).
 function cvInferirTipoSiembra(cultivo, fecha) {
   const m = fecha.getMonth() + 1; // 1=ene … 12=dic
   const d = fecha.getDate();
+
   if (cultivo === 'Soja') {
-    if (m === 8 || (m === 9 && d < 15))                              return 'temprana';
-    if ((m === 9 && d >= 15) || m === 10 || (m === 11 && d <= 20))  return 'primera';
-    if ((m === 11 && d > 20) || (m === 12 && d <= 20))              return 'segunda';
-    return 'tardia';
+    // Ventana válida: agosto – enero
+    if (m === 8 || (m === 9 && d < 15))                              return { tipo:'temprana', enVentana:true };
+    if ((m === 9 && d >= 15) || m === 10 || (m === 11 && d <= 20))  return { tipo:'primera',  enVentana:true };
+    if ((m === 11 && d > 20) || (m === 12 && d <= 20))              return { tipo:'segunda',  enVentana:true };
+    if ((m === 12 && d > 20) || m === 1)                            return { tipo:'tardia',   enVentana:true };
+    // Feb–Jul → fuera de ventana
+    return { tipo:'fuera_ventana', enVentana:false, proximaVentana:'Agosto – Enero' };
   }
+
   if (cultivo === 'Maíz') {
-    if (m === 8 || (m === 9 && d < 15))                             return 'temprana';
-    if ((m === 9 && d >= 15) || m === 10)                           return 'primera';
-    if (m === 11)                                                    return 'segunda';
-    return 'tardia';
+    // Ventana válida: agosto – diciembre
+    if (m === 8 || (m === 9 && d < 15))           return { tipo:'temprana', enVentana:true };
+    if ((m === 9 && d >= 15) || m === 10)          return { tipo:'primera',  enVentana:true };
+    if (m === 11)                                   return { tipo:'segunda',  enVentana:true };
+    if (m === 12)                                   return { tipo:'tardia',   enVentana:true };
+    // Ene–Jul → fuera de ventana
+    return { tipo:'fuera_ventana', enVentana:false, proximaVentana:'Agosto – Diciembre' };
   }
+
   if (cultivo === 'Trigo') {
-    if (m === 5 || (m === 6 && d < 10))                             return 'temprana';
-    if ((m === 6 && d >= 10) || m === 7)                            return 'primera';
-    if (m === 8)                                                     return 'segunda';
-    return 'tardia';
+    // Ventana válida: mayo – septiembre
+    if (m === 5 || (m === 6 && d < 10))            return { tipo:'temprana', enVentana:true };
+    if ((m === 6 && d >= 10) || m === 7)           return { tipo:'primera',  enVentana:true };
+    if (m === 8)                                    return { tipo:'segunda',  enVentana:true };
+    if (m === 9)                                    return { tipo:'tardia',   enVentana:true };
+    // Oct–Abr → fuera de ventana
+    return { tipo:'fuera_ventana', enVentana:false, proximaVentana:'Mayo – Septiembre' };
   }
+
   if (cultivo === 'Girasol') {
-    if (m === 9)                                                     return 'temprana';
-    if (m === 10 || (m === 11 && d <= 15))                          return 'primera';
-    if ((m === 11 && d > 15) || m === 12)                           return 'segunda';
-    return 'tardia';
+    // Ventana válida: septiembre – diciembre
+    if (m === 9)                                    return { tipo:'temprana', enVentana:true };
+    if (m === 10 || (m === 11 && d <= 15))         return { tipo:'primera',  enVentana:true };
+    if ((m === 11 && d > 15) || m === 12)          return { tipo:'segunda',  enVentana:true };
+    // Ene–Ago → fuera de ventana
+    return { tipo:'fuera_ventana', enVentana:false, proximaVentana:'Septiembre – Diciembre' };
   }
-  return 'primera';
+
+  return { tipo:'primera', enVentana:true };
 }
 
 // Calcula calidad de ambiente (alto/medio/bajo) a partir de datos SoilGrids.
@@ -369,10 +386,25 @@ function cvActualizar() {
   }
 
   // ── Tipo de siembra (inferido de fecha + cultivo) ─────
-  const tipo = cvInferirTipoSiembra(cultivo, fecha);
-  const tipoLabels = { primera:'Siembra de primera', segunda:'Siembra de segunda (post-trigo)', temprana:'Siembra temprana (anticipada)', tardia:'Siembra tardía' };
+  const tipoResult  = cvInferirTipoSiembra(cultivo, fecha);
+  const tipo        = tipoResult.enVentana ? tipoResult.tipo : 'primera'; // fallback para cálculos
+  const tipoLabels  = { primera:'Siembra de primera', segunda:'Siembra de segunda (post-trigo)', temprana:'Siembra temprana (anticipada)', tardia:'Siembra tardía' };
   const tipoLabelEl = document.getElementById('cv-tipo-label');
-  if (tipoLabelEl) tipoLabelEl.textContent = tipoLabels[tipo] || tipo;
+  const tipoDisplay = document.getElementById('cv-tipo-display');
+  if (!tipoResult.enVentana) {
+    // Fuera de toda ventana de siembra para este cultivo
+    if (tipoLabelEl) tipoLabelEl.textContent = `⚠️ Fuera de ventana · próxima campaña: ${tipoResult.proximaVentana}`;
+    if (tipoDisplay) {
+      tipoDisplay.style.background = 'rgba(200,100,30,.08)';
+      tipoDisplay.style.border     = '1px solid rgba(200,100,30,.3)';
+    }
+  } else {
+    if (tipoLabelEl) tipoLabelEl.textContent = tipoLabels[tipo] || tipo;
+    if (tipoDisplay) {
+      tipoDisplay.style.background = 'rgba(74,46,26,.05)';
+      tipoDisplay.style.border     = '1px solid var(--border)';
+    }
+  }
 
   // ── Calidad de ambiente (calculada de SoilGrids) ──────
   const ambienteCalc = cvCalcularAmbiente(sgDatos);
@@ -403,13 +435,25 @@ function cvActualizar() {
   const gmsPorAmbiente = cultivoCfg.gmPorAmbiente[ambiente] || gmsRecom;
   const gmsFinal = [...new Set([...gmsRecom, ...gmsPorAmbiente])];
 
-  // Panel de GMs recomendados (ahora más limpio — zona ya se muestra en badge lateral)
+  // Alerta visible si la fecha está fuera de toda ventana de siembra
+  const alertaFueraVentana = !tipoResult.enVentana
+    ? `<div class="alert warn" style="margin-bottom:.8rem"><span class="ai">📅</span><div class="ac">
+        <strong>Fecha fuera de la ventana de siembra de ${cultivo}</strong><br>
+        La fecha seleccionada (${fecha.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})}) no corresponde a ningún período de siembra de este cultivo en Argentina.<br>
+        <span style="font-size:.8rem;color:rgba(74,46,26,.6);margin-top:.3rem;display:block">
+          ✅ Podés seguir analizando para planificar la próxima campaña.<br>
+          📆 Ventana óptima de ${cultivo}: <strong>${tipoResult.proximaVentana}</strong>
+        </span>
+      </div></div>`
+    : '';
+
+  // Panel de GMs recomendados (zona ya se muestra en badge lateral)
   const tipoLabelsCortos = { primera:'1ª', segunda:'2ª (post-trigo)', temprana:'temprana', tardia:'tardía' };
   const ambLabels = { alto:'alto potencial 🟢', medio:'medio potencial 🟡', bajo:'bajo potencial 🔴' };
-  $('cv-zona-info').innerHTML = `
+  $('cv-zona-info').innerHTML = alertaFueraVentana + `
     <div style="background:linear-gradient(135deg,rgba(74,140,92,.12),rgba(74,46,26,.06));border-radius:10px;padding:1rem;margin-bottom:.8rem;border:1px solid rgba(74,140,92,.2)">
       <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--earth);margin-bottom:.55rem">
-        GMs recomendados — Siembra ${tipoLabelsCortos[tipo]||tipo} · Ambiente ${ambLabels[ambiente]||ambiente}
+        ${tipoResult.enVentana ? `GMs recomendados — Siembra ${tipoLabelsCortos[tipo]||tipo} · Ambiente ${ambLabels[ambiente]||ambiente}` : `GMs de referencia (para planificación próxima campaña) · Ambiente ${ambLabels[ambiente]||ambiente}`}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:.4rem">
         ${gmsFinal.map(gm=>`<span style="background:${gmsRecom.includes(gm)?'var(--canopy)':'rgba(74,140,92,.3)'};color:${gmsRecom.includes(gm)?'white':'var(--field)'};padding:.25rem .7rem;border-radius:12px;font-size:.75rem;font-weight:600">${gm}${gmsRecom.includes(gm)?' ★':''}</span>`).join('')}
