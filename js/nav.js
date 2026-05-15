@@ -176,13 +176,6 @@ function _activarModulo(mod) {
     if (typeof ecRenderDolar === 'function') ecRenderDolar();
     if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
   }
-  if (mod === 'fertilizacion') {
-    _syncCultivo('f-cult');
-    if (typeof loadMaq === 'function' && !window._fertMaqCargado) {
-      loadMaq(); window._fertMaqCargado = true;
-    }
-    if (typeof updRend === 'function') updRend();
-  }
   if (mod === 'maquinaria') {
     if (typeof loadMaq === 'function' && !window._fertMaqCargado) {
       loadMaq(); window._fertMaqCargado = true;
@@ -192,18 +185,12 @@ function _activarModulo(mod) {
     _syncCultivo('dec-cultivo');
     _syncFecha('dec-fecha');
   }
-  if (mod === 'fertoptima') {
-    _syncCultivo('fo-cultivo');
-  }
   if (mod === 'cosecha') {
     _syncCultivoNorm('cultivo'); // cosecha.js usa id="cultivo" con valores lowercase
     _syncFecha('cos-fecha');     // si existe; si no, no hace nada
   }
   if (mod === 'siembra-variable') {
     _syncCultivo('sv-cultivo');
-  }
-  if (mod === 'balancenut') {
-    _syncCultivo('bn-cultivo');
   }
   if (mod === 'hidrico') {
     // hidrico.js lee gv('s-cultivo') directamente; no hay select bh-cultivo

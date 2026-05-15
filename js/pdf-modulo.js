@@ -437,6 +437,190 @@
     }
   };
 
+  // ── NUTRICIÓN DE CULTIVO (Plan + Balance) ────────────
+  window.pdfNutricion = function() {
+    try {
+      var planRes = document.getElementById('nc-plan-resultado');
+      var balRes  = document.getElementById('nc-balance-resultado');
+      var planOk  = planRes && planRes.style.display !== 'none' && planRes.innerHTML.trim() !== '';
+      var balOk   = balRes  && !balRes.classList.contains('hidden') && balRes.innerHTML.trim() !== '';
+
+      if (!planOk && !balOk) {
+        amToast('Calculá el plan o el balance antes de exportar el PDF.', 'err');
+        return;
+      }
+
+      var ctx = crearPDFBase('Nutrición de Cultivo', 'Plan de fertilización · Balance post-cosecha');
+      var doc = ctx.doc;
+      seccionDatosLote(ctx, datosLoteComunes());
+
+      // ── PLAN DE FERTILIZACIÓN ──────────────────────────
+      if (planOk) {
+        seccion(ctx, '⚗️ PLAN DE FERTILIZACIÓN', ctx.COL.VERDE);
+
+        var alt = false;
+        doc.setFontSize(8.5);
+        [
+          ['Cultivo',              gtv('nc-lbl-cultivo') || gv('s-cultivo') || '—'],
+          ['Rendimiento objetivo', (gv('nc-rend-obj') || '—') + ' t/ha'],
+          ['Precio grano',         'USD ' + (gv('nc-precio-grano') || '—') + '/t'],
+          ['Superficie',           (gv('nc-sup') || '—') + ' ha'],
+        ].forEach(function(row) {
+          if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+          doc.setFont('helvetica','normal'); doc.setTextColor(...ctx.COL.GRIS);
+          doc.text(row[0], ctx.ML+3, ctx.y+4);
+          doc.setFont('helvetica','bold'); doc.setTextColor(...ctx.COL.NEGRO);
+          doc.text(row[1], ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+          ctx.y += 6; alt = !alt;
+        });
+        ctx.y += 4;
+
+        // Encabezado de costo total
+        var planHeader = planRes.querySelector('[style*="0E2016"]');
+        if (planHeader) {
+          checkPage(ctx, 8);
+          var hTxt = planHeader.textContent.replace(/\s+/g,' ').trim();
+          doc.setFontSize(8.5); doc.setFont('helvetica','bold'); doc.setTextColor(...ctx.COL.VERDE2);
+          var hLines = doc.splitTextToSize(hTxt.slice(0,160), ctx.W-6);
+          hLines.slice(0,3).forEach(function(l) { doc.text(l, ctx.ML+3, ctx.y); ctx.y += 5; });
+          ctx.y += 4;
+        }
+
+        // Tabla de nutrientes
+        var nutCards = planRes.querySelectorAll('[style*="border-radius:12px"]');
+        if (nutCards.length) {
+          checkPage(ctx, 14);
+          doc.setFillColor(...ctx.COL.VERDE2);
+          doc.rect(ctx.ML, ctx.y, ctx.W, 7, 'F');
+          doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+          var ncols = [38, 16, 17, 17, 19, 18, 13, 16];
+          var nhdrs = ['Nutriente/Fertilizante','Req.','Disp.','Déficit','Dosis rec.','Producto','B/C','Costo'];
+          var nx = ctx.ML + 2;
+          nhdrs.forEach(function(h, i) { doc.text(h, nx, ctx.y+5); nx += ncols[i]; });
+          ctx.y += 8;
+
+          nutCards.forEach(function(card, ci) {
+            checkPage(ctx, 8);
+            // Nombre del nutriente (primer hijo del primer child = div flex header)
+            var hdr = card.firstElementChild && card.firstElementChild.firstElementChild;
+            var nutNom = hdr ? hdr.textContent.replace(/\s+/g,' ').trim() : '—';
+            // KPIs por índice: 0=Disp, 1=Req, 2=Déficit, 3=Dosis INTA, 4=Dosis rec, 5=Producto, 6=B/C, 7=Costo
+            var cells = card.querySelectorAll('[style*="f9f7f2"]');
+            function kpiVal(idx) {
+              var cell = cells[idx];
+              if (!cell) return '—';
+              var divs = cell.querySelectorAll('div');
+              return divs.length >= 2 ? divs[1].textContent.trim() : '—';
+            }
+            if (ci % 2 === 0) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+            doc.setFontSize(7);
+            nx = ctx.ML + 2;
+            [nutNom, kpiVal(1), kpiVal(0), kpiVal(2), kpiVal(4), kpiVal(5), kpiVal(6), kpiVal(7)].forEach(function(v, i) {
+              doc.setFont('helvetica', i===0 ? 'bold' : 'normal');
+              doc.setTextColor(...ctx.COL.NEGRO);
+              if (i === 3) { // déficit: naranja si positivo
+                var num = parseFloat(v.replace(/[^\d.-]/g,'') || '0');
+                if (num > 0) doc.setTextColor(...ctx.COL.WARN);
+              }
+              doc.text(v.slice(0,18), nx, ctx.y+4);
+              nx += ncols[i];
+            });
+            ctx.y += 6;
+          });
+          ctx.y += 4;
+        }
+      }
+
+      // ── BALANCE POST-COSECHA ─────────────────────────────
+      if (balOk) {
+        checkPage(ctx, 20);
+        seccion(ctx, '⚖️ BALANCE NUTRICIONAL POST-COSECHA', ctx.COL.VERDE2);
+
+        var alt2 = false;
+        doc.setFontSize(8.5);
+        var rastVal = gv('nc-bn-rastrojo');
+        [
+          ['Cultivo',          gv('nc-bn-cultivo') || '—'],
+          ['Rendimiento',      (gv('nc-bn-rend') || '—') + ' t/ha'],
+          ['Superficie',       (gv('nc-bn-sup') || '—') + ' ha'],
+          ['Destino rastrojo', rastVal === 'campo' ? 'Retenido en campo (se recicla)' : 'Extraído / rolado / quemado'],
+        ].forEach(function(row) {
+          if (alt2) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+          doc.setFont('helvetica','normal'); doc.setTextColor(...ctx.COL.GRIS);
+          doc.text(row[0], ctx.ML+3, ctx.y+4);
+          doc.setFont('helvetica','bold'); doc.setTextColor(...ctx.COL.NEGRO);
+          doc.text(row[1], ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+          ctx.y += 6; alt2 = !alt2;
+        });
+        ctx.y += 4;
+
+        // Tabla balance
+        var balTbRows = balRes.querySelectorAll('table tbody tr');
+        if (balTbRows.length) {
+          checkPage(ctx, 14);
+          doc.setFillColor(...ctx.COL.VERDE);
+          doc.rect(ctx.ML, ctx.y, ctx.W, 7, 'F');
+          doc.setTextColor(255,255,255); doc.setFontSize(7); doc.setFont('helvetica','bold');
+          var bcols = [35, 22, 25, 22, 23, 22, 21];
+          var bhdrs = ['Nutriente','Extr.grano','Extr.rastro.','Ferti.','Natural','Bal.neto','Total lote'];
+          var bx = ctx.ML + 2;
+          bhdrs.forEach(function(h, i) { doc.text(h, bx, ctx.y+5); bx += bcols[i]; });
+          ctx.y += 8;
+
+          balTbRows.forEach(function(tr, ri) {
+            checkPage(ctx, 8);
+            var tds = tr.querySelectorAll('td');
+            if (tds.length < 6) return;
+            if (ri % 2 === 0) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+            doc.setFontSize(7);
+            bx = ctx.ML + 2;
+            Array.from(tds).slice(0,7).forEach(function(td, ti) {
+              var txt = td.textContent.trim().slice(0, 22);
+              doc.setFont('helvetica', ti===0 ? 'bold' : 'normal');
+              doc.setTextColor(...ctx.COL.NEGRO);
+              if (ti === 5) { // balance neto: color por signo
+                var num = parseFloat(txt.replace(/[^\d.-]/g,'') || '0');
+                var neg = txt.charAt(0) === '-';
+                if (neg) num = -Math.abs(num);
+                doc.setTextColor(...(num >= 0 ? ctx.COL.OK : num > -30 ? ctx.COL.WARN : ctx.COL.DANGER));
+                doc.setFont('helvetica','bold');
+              }
+              doc.text(txt, bx, ctx.y+4);
+              bx += bcols[ti] || 20;
+            });
+            ctx.y += 6;
+          });
+          ctx.y += 4;
+        }
+
+        // Recomendaciones
+        var balAlerts = balRes.querySelectorAll('.alert');
+        if (balAlerts.length) {
+          checkPage(ctx, 10);
+          seccion(ctx, '💊 RECOMENDACIONES PRÓXIMA CAMPAÑA', ctx.COL.AMBAR);
+          balAlerts.forEach(function(a) {
+            checkPage(ctx, 14);
+            var txt = a.textContent.replace(/\s+/g,' ').trim();
+            var bgColor = a.classList.contains('danger') ? ctx.COL.DANGER : a.classList.contains('warn') ? ctx.COL.WARN : ctx.COL.OK;
+            doc.setDrawColor(...bgColor); doc.setLineWidth(0.5);
+            doc.line(ctx.ML, ctx.y-1, ctx.ML, ctx.y+9);
+            doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(...ctx.COL.NEGRO);
+            var aLines = doc.splitTextToSize(txt, ctx.W-8);
+            aLines.slice(0,4).forEach(function(l) { checkPage(ctx, 6); doc.text(l, ctx.ML+4, ctx.y+4); ctx.y += 4.5; });
+            ctx.y += 3;
+          });
+        }
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Nutricion'));
+      amToast('✅ Plan de Nutrición exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfNutricion error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
   // ── SUELO ────────────────────────────────────────────
   window.pdfSuelo = function() {
     try {
@@ -904,8 +1088,7 @@
     var modId = activePanel?.id?.replace('mod-','');
     var fns = {
       'decision':       window.pdfDecision,
-      'fertilizacion':  window.pdfFertilizacion,
-      'balancenut':     window.pdfBalanceNutricional,
+      'nutricion':      window.pdfNutricion,
       'suelo':          window.pdfSuelo,
       'hidrico':        window.pdfHidrico,
       'cosecha':        window.pdfCosecha,
