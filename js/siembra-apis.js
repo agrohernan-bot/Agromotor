@@ -708,6 +708,178 @@ function ecToneladasAqq(cult) {
   return { Soja:10, Maíz:10, Trigo:10, Girasol:10, Cebada:10, Sorgo:10 }[cult] || 10;
 }
 
+// ════════════════════════════════════════════════════════
+// DATOS UNIFICADOS DEL SUELO
+// _sueloDatos  = objeto fusionado {campo: {valor, fuente}}
+// _labDatos    = datos ingresados por el usuario (lab)
+// _sgDatos     = datos crudos de SoilGrids (sin cambios)
+// Prioridad: laboratorio > SoilGrids
+// ════════════════════════════════════════════════════════
+window._sueloDatos = {};
+window._labDatos   = {};
+
+// Fusiona _sgDatos + _labDatos → _sueloDatos
+function sueloFusionar() {
+  const sg  = window._sgDatos  || {};
+  const lab = window._labDatos || {};
+  const sd  = {};
+
+  // Cargar base desde SoilGrids
+  const sgCampos = {
+    ph:      sg.ph,
+    soc:     sg.soc,
+    n:       sg.n,
+    da:      sg.da,
+    cec:     sg.cec,
+    clay:    sg.clay,
+    sand:    sg.sand,
+    silt:    sg.silt,
+    textura: sg.textura,
+    mo:      sg.soc != null ? sg.soc * 1.724 / 10 : null,
+  };
+  Object.keys(sgCampos).forEach(function(k) {
+    if (sgCampos[k] != null) sd[k] = { valor: sgCampos[k], fuente: 'soilgrids' };
+  });
+
+  // Override campo a campo con datos de laboratorio
+  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da };
+  Object.keys(labCampos).forEach(function(k) {
+    const v = labCampos[k];
+    if (v != null && v !== '' && !isNaN(parseFloat(v))) {
+      sd[k] = { valor: parseFloat(v), fuente: 'laboratorio' };
+    }
+  });
+
+  sd.esFallback = sg.esFallback || false;
+  window._sueloDatos = sd;
+  return sd;
+}
+
+// Actualiza el resumen visual de datos efectivos en el panel lab
+function sueloRenderResumenLab() {
+  const sd      = window._sueloDatos || {};
+  const badge   = document.getElementById('lab-status-badge');
+  const resumen = document.getElementById('lab-resumen');
+  const content = document.getElementById('lab-resumen-content');
+  if (!content) return;
+
+  const tieneLab = Object.values(sd).some(function(v) { return v && v.fuente === 'laboratorio'; });
+  if (badge) badge.style.display = tieneLab ? '' : 'none';
+  if (!resumen) return;
+  if (!tieneLab && !window._sgDatos) { resumen.style.display = 'none'; return; }
+
+  const labels = {
+    ph:'pH', mo:'MO (%)', soc:'SOC g/kg', n:'N total g/kg',
+    da:'DA g/cm³', cec:'CEC cmol/kg', clay:'Arcilla %',
+    p:'P disp. ppm', k:'K int. ppm', textura:'Textura',
+  };
+  // Lab primero, luego SoilGrids (máx 10 ítems)
+  const labItems = Object.entries(sd).filter(function(e) { return e[1] && e[1].fuente === 'laboratorio'; });
+  const sgItems  = Object.entries(sd).filter(function(e) { return e[1] && e[1].fuente === 'soilgrids' && labels[e[0]]; });
+  const todos = labItems.concat(sgItems).slice(0, 10);
+
+  let html = '';
+  todos.forEach(function(entry) {
+    const k = entry[0], v = entry[1];
+    const lbl   = labels[k] || k;
+    const esLab = v.fuente === 'laboratorio';
+    const ico   = esLab ? '🔬' : '🛰️';
+    const color = esLab ? '#1b5e35' : '#6b7280';
+    const val   = typeof v.valor === 'number'
+      ? (v.valor < 10 ? v.valor.toFixed(2) : v.valor.toFixed(1))
+      : v.valor;
+    html += '<div style="background:#fff;border-radius:7px;padding:.38rem .6rem;border:1px solid ' + (esLab ? 'rgba(74,140,92,.25)' : 'rgba(74,46,26,.08)') + '">'
+          + '<div style="font-size:.61rem;color:' + color + ';font-weight:700">' + ico + ' ' + lbl + '</div>'
+          + '<div style="font-size:.82rem;font-weight:600;color:#1A2A1A;font-family:\'DM Mono\',monospace">' + val + '</div>'
+          + '</div>';
+  });
+  content.innerHTML = html;
+  resumen.style.display = '';
+}
+
+// Rellena los inputs del panel lab con _labDatos guardados
+function sueloRestaurarLabInputs() {
+  const lab = window._labDatos || {};
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  Object.keys(map).forEach(function(k) {
+    const el = document.getElementById(map[k]);
+    if (el && lab[k] != null) el.value = lab[k];
+  });
+  // Si hay datos, mostrar badge y resumen
+  const tieneLab = Object.keys(lab).length > 0;
+  if (tieneLab) {
+    sueloFusionar();
+    sueloRenderResumenLab();
+  }
+}
+
+// Toggle del panel colapsable
+window.sueloToggleLab = function() {
+  const panel = document.getElementById('lab-panel');
+  const icon  = document.getElementById('lab-toggle-icon');
+  if (!panel) return;
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : '';
+  if (icon) icon.textContent = open ? '▸' : '▾';
+};
+
+// Auto-guardar debounced al tipear (sin rerender completo)
+var _labAutoguardarTimer = null;
+window.sueloLabAutoguardar = function() {
+  clearTimeout(_labAutoguardarTimer);
+  _labAutoguardarTimer = setTimeout(function() {
+    if (typeof sueloAplicarLab === 'function') sueloAplicarLab(true);
+  }, 800);
+};
+
+// Aplica el análisis de laboratorio
+window.sueloAplicarLab = function(silencioso) {
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  const labData = {};
+  Object.keys(map).forEach(function(k) {
+    const el = document.getElementById(map[k]);
+    if (el && el.value.trim() !== '') {
+      const v = parseFloat(el.value);
+      if (!isNaN(v)) labData[k] = v;
+    }
+  });
+
+  if (Object.keys(labData).length === 0 && !silencioso) {
+    alert('Completá al menos un campo del análisis de laboratorio.');
+    return;
+  }
+
+  window._labDatos = labData;
+  sueloFusionar();
+  sueloRenderResumenLab();
+  if (typeof cacheGuardar === 'function') cacheGuardar();
+
+  if (!silencioso) {
+    const msg = document.getElementById('lab-aplicado-msg');
+    if (msg) { msg.style.display = ''; setTimeout(function() { msg.style.display = 'none'; }, 3000); }
+  }
+};
+
+// Limpia el análisis de laboratorio
+window.sueloLimpiarLab = function() {
+  window._labDatos = {};
+  sueloFusionar();
+  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const badge   = document.getElementById('lab-status-badge');
+  const resumen = document.getElementById('lab-resumen');
+  if (badge)   badge.style.display = 'none';
+  if (resumen) { resumen.style.display = 'none'; document.getElementById('lab-resumen-content').innerHTML = ''; }
+  if (typeof cacheGuardar === 'function') cacheGuardar();
+};
+
+// Exposición interna
+window.sueloFusionar = sueloFusionar;
+window.sueloRenderResumenLab = sueloRenderResumenLab;
+window.sueloRestaurarLabInputs = sueloRestaurarLabInputs;
+
 // ── CONSULTAR SUELO (botón del módulo Suelo) ─────────────
 async function consultarSuelo() {
   const lblCoord = document.getElementById('suelo-lbl-coord');
@@ -735,12 +907,16 @@ async function consultarSuelo() {
     const datos = await buscarSoilGrids(lat, lon);
     window._sgDatos = datos;
 
+    // Fusionar con datos de lab y actualizar _sueloDatos
+    sueloFusionar();
+    sueloRenderResumenLab();
+
     // Renderizar en el módulo Suelo
     if (typeof renderSoilGrids === 'function') renderSoilGrids(datos);
     // Renderizar badges resumen (sidebar / dashboard)
     if (typeof renderSueloModulo === 'function') renderSueloModulo(datos);
 
-    // Sincronizar suelo auto al Dashboard si corresponde
+    // Sincronizar textura al Dashboard si está vacío
     if (datos.textura) {
       const ss = document.getElementById('s-suelo');
       if (ss && !ss.value) ss.value = datos.textura;
@@ -748,13 +924,13 @@ async function consultarSuelo() {
 
     if (msgEl) msgEl.textContent = datos.esFallback
       ? 'Datos de base regional pampeana (SoilGrids no disponible en este momento)'
-      : 'Datos SoilGrids cargados';
+      : 'Datos SoilGrids cargados' + (Object.keys(window._labDatos || {}).length > 0 ? ' · Lab activo 🔬' : '');
     if (spEl) spEl.style.animation = 'none';
   } catch(e) {
     if (msgEl) msgEl.textContent = 'Error al consultar: ' + e.message;
     if (spEl)  spEl.style.animation = 'none';
   } finally {
-    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🌍 Analizar suelo'; }
+    if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔄 Actualizar'; }
   }
 }
 window.consultarSuelo = consultarSuelo;

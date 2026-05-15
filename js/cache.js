@@ -127,7 +127,9 @@ function amLimpiarDOM() {
     const el = document.getElementById(i);
     if(el) el.textContent = '—';
   });
-  window._sgDatos = null;
+  window._sgDatos    = null;
+  window._labDatos   = {};
+  window._sueloDatos = {};
   const mapaMsg = document.getElementById('api-msg');
   if(mapaMsg) mapaMsg.textContent = '';
   const mapSp = document.getElementById('api-sp');
@@ -314,7 +316,8 @@ function cacheGuardar() {
       bhCultivo:   document.getElementById('bh-cultivo')?.value,
       bhFecha:     document.getElementById('bh-fecha')?.value,
       bhRendObj:   document.getElementById('bh-rend-obj')?.value,
-      sgDatos: window._sgDatos || null,
+      sgDatos:  window._sgDatos  || null,
+      labDatos: window._labDatos || null,
     };
     
     // Almacenar también la data de los info badges si queremos
@@ -356,8 +359,13 @@ function cacheCargar() {
     if (datos.bhFecha    && document.getElementById('bh-fecha'))       document.getElementById('bh-fecha').value        = datos.bhFecha;
     if (datos.bhRendObj  && document.getElementById('bh-rend-obj'))    document.getElementById('bh-rend-obj').value     = datos.bhRendObj;
 
-    if (datos.sgDatos) window._sgDatos = datos.sgDatos;
-    else window._sgDatos = null;
+    if (datos.sgDatos)  window._sgDatos  = datos.sgDatos;
+    else                window._sgDatos  = null;
+    if (datos.labDatos) window._labDatos = datos.labDatos;
+    else                window._labDatos = {};
+    // Fusionar y restaurar panel lab si hay datos
+    if (typeof sueloFusionar === 'function') sueloFusionar();
+    if (typeof sueloRestaurarLabInputs === 'function') setTimeout(sueloRestaurarLabInputs, 50);
 
     const campos = ['t6','t18','h1','h2','h3','et0','vpd','viento','gdd'];
     const ids    = ['sv-t6','sv-t18','sv-h1','sv-h2','sv-h3','sv-et0','sv-vpd','sv-viento','i-gdd'];

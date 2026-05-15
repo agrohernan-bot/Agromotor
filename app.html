@@ -516,6 +516,74 @@
       </div>
     </div>
   </div>
+
+  <!-- ── ANÁLISIS DE LABORATORIO ─────────────────────────────── -->
+  <div style="margin-top:1.2rem">
+    <!-- Cabecera colapsable -->
+    <div id="lab-toggle-btn" onclick="sueloToggleLab()" style="cursor:pointer;display:flex;align-items:center;gap:.6rem;padding:.65rem 1rem;background:rgba(200,162,85,.06);border:1px solid rgba(200,162,85,.22);border-radius:10px;user-select:none">
+      <span style="font-size:1.1rem">🔬</span>
+      <div>
+        <div style="font-size:.84rem;font-weight:700;color:#5A3A10">Análisis de laboratorio</div>
+        <div style="font-size:.72rem;color:rgba(74,46,26,.5)">Tus datos prevalecen sobre SoilGrids · P disponible y K solo existen en lab</div>
+      </div>
+      <span id="lab-status-badge" style="display:none;font-size:.67rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;border:1px solid rgba(74,140,92,.3);padding:.15rem .6rem;border-radius:8px;margin-left:.4rem">🔬 Lab activo</span>
+      <span id="lab-toggle-icon" style="margin-left:auto;font-size:.9rem;color:rgba(74,46,26,.4);transition:transform .2s">▸</span>
+    </div>
+
+    <!-- Panel de entrada -->
+    <div id="lab-panel" style="display:none;margin-top:.7rem;background:#fff;border:1.5px solid rgba(200,162,85,.3);border-radius:12px;padding:1.1rem">
+      <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.9rem;line-height:1.5">
+        Completá solo los campos que tengas del análisis. Dejá vacíos los que no tenés.<br>
+        <strong>P disponible</strong> (Bray I) y <strong>K intercambiable</strong> no están en SoilGrids — son exclusivos del laboratorio y esenciales para el plan de fertilización.
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.65rem">
+        <div class="fg" style="margin-bottom:0">
+          <label>pH <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(H₂O)</span></label>
+          <input type="number" id="lab-ph" placeholder="ej: 6.2" min="3" max="10" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>MO <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(%)</span></label>
+          <input type="number" id="lab-mo" placeholder="ej: 3.1" min="0" max="20" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>N total <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/kg)</span></label>
+          <input type="number" id="lab-n" placeholder="ej: 1.8" min="0" max="10" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:.3rem">P disponible <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
+          <input type="number" id="lab-p" placeholder="ej: 18" min="0" max="200" step="0.1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm Bray I · 0-20 cm</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:.3rem">K intercambiable <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
+          <input type="number" id="lab-k" placeholder="ej: 180" min="0" max="1000" step="1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm · 0-20 cm</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>CEC <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(cmol/kg)</span></label>
+          <input type="number" id="lab-cec" placeholder="ej: 18.5" min="0" max="60" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Densidad aparente <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/cm³)</span></label>
+          <input type="number" id="lab-da" placeholder="ej: 1.25" min="0.8" max="2.0" step="0.01" oninput="sueloLabAutoguardar()">
+        </div>
+      </div>
+      <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+        <button onclick="sueloAplicarLab()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
+          🔬 Aplicar análisis
+        </button>
+        <button onclick="sueloLimpiarLab()" style="background:rgba(74,46,26,.07);color:#5A3A10;border:1px solid rgba(74,46,26,.2);border-radius:8px;padding:.48rem .9rem;font-size:.78rem;cursor:pointer;font-family:inherit">
+          ✕ Limpiar
+        </button>
+        <span id="lab-aplicado-msg" style="display:none;font-size:.75rem;color:#1b5e35;font-weight:600">✅ Datos aplicados — usados en todos los módulos</span>
+      </div>
+      <!-- Resumen datos efectivos -->
+      <div id="lab-resumen" style="display:none;margin-top:.9rem;padding:.8rem;background:#f4faf6;border:1px solid rgba(74,140,92,.22);border-radius:10px">
+        <div style="font-size:.64rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1b5e35;margin-bottom:.5rem">📊 Datos efectivos del lote</div>
+        <div id="lab-resumen-content" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.35rem;font-size:.75rem"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MÓDULO 2 ══ -->
