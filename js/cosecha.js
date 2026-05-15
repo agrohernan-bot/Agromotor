@@ -24,18 +24,18 @@ const S = {
 
 // Datos por cultivo
 const CULTIVOS = {
-  soja:    { humedadBase: 13, retDef: 33, nombre: 'Soja', emoji: 'ðŸŸ¡', unidad: 'USD/ton FOB' },
-  maiz:    { humedadBase: 14, retDef: 12, nombre: 'MaÃ­z', emoji: 'ðŸŸ ', unidad: 'USD/ton' },
-  trigo:   { humedadBase: 14, retDef: 12, nombre: 'Trigo', emoji: 'ðŸŸ¤', unidad: 'USD/ton' },
-  girasol: { humedadBase: 11, retDef: 7,  nombre: 'Girasol', emoji: 'ðŸŒ»', unidad: 'USD/ton' },
-  sorgo:   { humedadBase: 14, retDef: 12, nombre: 'Sorgo', emoji: 'ðŸ”´', unidad: 'USD/ton' }
+  soja:    { humedadBase: 13, retDef: 33, nombre: 'Soja', emoji: '🟡', unidad: 'USD/ton FOB' },
+  maiz:    { humedadBase: 14, retDef: 12, nombre: 'Maíz', emoji: '🟠', unidad: 'USD/ton' },
+  trigo:   { humedadBase: 14, retDef: 12, nombre: 'Trigo', emoji: '🟤', unidad: 'USD/ton' },
+  girasol: { humedadBase: 11, retDef: 7,  nombre: 'Girasol', emoji: '🌻', unidad: 'USD/ton' },
+  sorgo:   { humedadBase: 14, retDef: 12, nombre: 'Sorgo', emoji: '🔴', unidad: 'USD/ton' }
 };
 
-// â”€â”€ HELPERS â”€â”€
+// ── HELPERS ──
 const $  = id => document.getElementById(id);
 const sv = (id, val) => { const el=$(id); if(el) el.textContent=val; };
-const fmt = (n, dec=0) => isNaN(n)||!isFinite(n) ? 'â€”' : n.toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
-const fmtUSD = n => isNaN(n)||!isFinite(n) ? 'â€”' : 'USD '+fmt(n,0);
+const fmt = (n, dec=0) => isNaN(n)||!isFinite(n) ? '—' : n.toLocaleString('es-AR',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtUSD = n => isNaN(n)||!isFinite(n) ? '—' : 'USD '+fmt(n,0);
 
 function tarModo() { return $('tarifa-modo').value; }
 
@@ -65,7 +65,7 @@ function readState() {
   S.acZar         = +$('ac-zar').value || 0;
 }
 
-// â”€â”€ CÃLCULOS CENTRALES â”€â”€
+// ── C�LCULOS CENTRALES ──
 function calcProduccion() {
   const hb = CULTIVOS[S.cultivo].humedadBase;
   const hg = S.humedadGrano;
@@ -80,8 +80,8 @@ function calcProduccion() {
 function calcCostosCosecha(precioUSD, toneladasComerciales) {
   let costCosecha = 0;
   if (S.tarifaModo === 'pct')    costCosecha = precioUSD * S.tarifaCosecha / 100;
-  else if (S.tarifaModo === 'usd-qq') costCosecha = S.tarifaCosecha * 10; // qqâ†’ton
-  else costCosecha = S.tarifaCosecha / (S.rendimiento / 10); // por ha â†’ por ton
+  else if (S.tarifaModo === 'usd-qq') costCosecha = S.tarifaCosecha * 10; // qq→ton
+  else costCosecha = S.tarifaCosecha / (S.rendimiento / 10); // por ha → por ton
   const costGcom = precioUSD * S.gcom / 100;
   const costRet  = precioUSD * S.retenciones / 100;
   return { costCosecha, costGcom, costRet };
@@ -117,7 +117,7 @@ function calcAlmacCosto(opcion) {
   return { total: 0 };
 }
 
-// â”€â”€ CALCULAR EN TIEMPO REAL â”€â”€
+// ── CALCULAR EN TIEMPO REAL ──
 function calcLive() {
   readState();
   if (!S.precioUSD || !S.tipoCambio) return;
@@ -178,7 +178,7 @@ function calcAlmacResumen(netoAcopio, netoPuerto) {
   opciones.forEach(o => {
     const html2 = `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:.55rem 0;border-bottom:1px solid rgba(200,162,85,.12)">
-        <div style="font-weight:600;color:var(--straw);font-size:.85rem">${{sb:'ðŸŸ¡ Silo bolsa',sc:'ðŸšï¸ Silo chapa',ac:'ðŸ¢ Acopio'}[o.id]}</div>
+        <div style="font-weight:600;color:var(--straw);font-size:.85rem">${{sb:'🟡 Silo bolsa',sc:'��� Silo chapa',ac:'�� Acopio'}[o.id]}</div>
         <div>
           <span style="font-family:'DM Mono',monospace;font-size:1rem;color:var(--amber)">USD ${fmt(o.total,1)}/ton</span>
           <span style="font-size:.7rem;color:rgba(237,224,196,.4);margin-left:.4rem">(${m} mes${m>1?'es':''})</span>
@@ -186,14 +186,14 @@ function calcAlmacResumen(netoAcopio, netoPuerto) {
       </div>`;
     html += html2;
   });
-  $('almac-resumen').innerHTML = html + `<div style="font-size:.73rem;color:rgba(237,224,196,.4);margin-top:.7rem">Haga clic en "Ver DecisiÃ³n" para el anÃ¡lisis comparativo completo</div>`;
+  $('almac-resumen').innerHTML = html + `<div style="font-size:.73rem;color:rgba(237,224,196,.4);margin-top:.7rem">Haga clic en "Ver Decisión" para el análisis comparativo completo</div>`;
 }
 
 function calcDecision() {
   readState();
   if (!S.precioUSD || !S.tipoCambio) {
     $('sem-container').innerHTML = `
-      <div class="warn-box"><div>âš ï¸</div><div>CompletÃ¡ precio y tipo de cambio para activar el motor de decisiÃ³n.</div></div>`;
+      <div class="warn-box"><div>⚠�</div><div>Completá precio y tipo de cambio para activar el motor de decisión.</div></div>`;
     return;
   }
 
@@ -215,27 +215,27 @@ function calcDecision() {
   const opciones = [
     {
       id: 'hoy-puerto', label: 'Vender hoy a Puerto',
-      icon: 'ðŸš¢', neto: netoHoyPuerto,
+      icon: '🚢', neto: netoHoyPuerto,
       desglose: [{l:'Precio FOB',v:p},{l:'Costos totales',v:-(p-netoHoyPuerto)}]
     },
     {
       id: 'hoy-acopio', label: 'Vender hoy a Acopio',
-      icon: 'ðŸ¢', neto: netoHoyAcopio,
+      icon: '��', neto: netoHoyAcopio,
       desglose: [{l:'Precio disponible',v:p},{l:'Costos totales',v:-(p-netoHoyAcopio)}]
     },
     {
       id: 'sb-futuro', label: `Silo bolsa (${m} m.)`,
-      icon: 'ðŸŸ¡', neto: calcNetoFuturo('sb','acopio'),
+      icon: '🟡', neto: calcNetoFuturo('sb','acopio'),
       desglose: [{l:'Precio esperado',v:pf},{l:'Costo silo bolsa',v:-calcAlmacCosto('sb').total},{l:'Costos venta',v:-(pf-calcNeto(pf,'acopio').neto)}]
     },
     {
       id: 'sc-futuro', label: `Silo chapa (${m} m.)`,
-      icon: 'ðŸšï¸', neto: calcNetoFuturo('sc','acopio'),
+      icon: '���', neto: calcNetoFuturo('sc','acopio'),
       desglose: [{l:'Precio esperado',v:pf},{l:'Costo silo chapa',v:-calcAlmacCosto('sc').total},{l:'Costos venta',v:-(pf-calcNeto(pf,'acopio').neto)}]
     },
     {
       id: 'ac-futuro', label: `Acopio (${m} m.)`,
-      icon: 'ðŸ¢', neto: calcNetoFuturo('ac','acopio'),
+      icon: '��', neto: calcNetoFuturo('ac','acopio'),
       desglose: [{l:'Precio esperado',v:pf},{l:'Costo acopio',v:-calcAlmacCosto('ac').total},{l:'Costos venta',v:-(pf-calcNeto(pf,'acopio').neto)}]
     }
   ];
@@ -247,24 +247,24 @@ function calcDecision() {
   const esAlmacenamiento = ganador.id !== 'hoy-puerto' && ganador.id !== 'hoy-acopio';
   const ventajaUSD = ganador.neto - opciones[1].neto;
 
-  // SemÃ¡foro
+  // Semáforo
   let semClass, semEmoji, semTitulo, semSub;
   if (esAlmacenamiento && ventajaUSD > 5) {
-    semClass = 'verde'; semEmoji = 'ðŸŸ¢';
+    semClass = 'verde'; semEmoji = '🟢';
     semTitulo = 'ALMACENAR CONVIENE';
-    semSub = `La opciÃ³n <strong>${ganador.label}</strong> supera la venta inmediata por <strong>USD ${fmt(ventajaUSD,1)}/ton</strong>. El mercado futuro ofrece un retorno superior a la tasa de referencia financiera.`;
+    semSub = `La opción <strong>${ganador.label}</strong> supera la venta inmediata por <strong>USD ${fmt(ventajaUSD,1)}/ton</strong>. El mercado futuro ofrece un retorno superior a la tasa de referencia financiera.`;
   } else if (!esAlmacenamiento && ventajaUSD < 3) {
-    semClass = 'amarillo'; semEmoji = 'ðŸŸ¡';
-    semTitulo = 'DECISIÃ“N AJUSTADA';
-    semSub = `La diferencia entre vender hoy y almacenar es pequeÃ±a (< USD ${fmt(ventajaUSD,1)}/ton). Evaluar riesgo-mercado y necesidad financiera.`;
+    semClass = 'amarillo'; semEmoji = '🟡';
+    semTitulo = 'DECISIÓN AJUSTADA';
+    semSub = `La diferencia entre vender hoy y almacenar es pequeña (< USD ${fmt(ventajaUSD,1)}/ton). Evaluar riesgo-mercado y necesidad financiera.`;
   } else if (!esAlmacenamiento) {
-    semClass = 'rojo'; semEmoji = 'ðŸ”´';
-    semTitulo = 'VENDER HOY CONVIENE MÃS';
-    semSub = `Con el diferencial de precio esperado, <strong>vender hoy a ${ganador.label.includes('Puerto') ? 'Puerto' : 'Acopio'}</strong> es la opciÃ³n de mayor retorno neto. El costo del almacenamiento no es compensado por la suba proyectada.`;
+    semClass = 'rojo'; semEmoji = '🔴';
+    semTitulo = 'VENDER HOY CONVIENE M�S';
+    semSub = `Con el diferencial de precio esperado, <strong>vender hoy a ${ganador.label.includes('Puerto') ? 'Puerto' : 'Acopio'}</strong> es la opción de mayor retorno neto. El costo del almacenamiento no es compensado por la suba proyectada.`;
   } else {
-    semClass = 'amarillo'; semEmoji = 'ðŸŸ¡';
+    semClass = 'amarillo'; semEmoji = '🟡';
     semTitulo = 'VENTAJA MARGINAL';
-    semSub = `La opciÃ³n <strong>${ganador.label}</strong> tiene una ventaja acotada de <strong>USD ${fmt(ventajaUSD,1)}/ton</strong>. Considera riesgos de precio y necesidades de liquidez.`;
+    semSub = `La opción <strong>${ganador.label}</strong> tiene una ventaja acotada de <strong>USD ${fmt(ventajaUSD,1)}/ton</strong>. Considera riesgos de precio y necesidades de liquidez.`;
   }
 
   $('sem-container').innerHTML = `
@@ -273,7 +273,7 @@ function calcDecision() {
       <div class="sem-title">${semTitulo}</div>
       <div class="sem-sub">${semSub}</div>
       <div style="margin-top:1.2rem;font-family:'DM Mono',monospace;font-size:1.4rem;color:${semClass==='verde'?'var(--ok)':semClass==='rojo'?'var(--warn)':'var(--caution)'}">
-        ${ganador.label} â†’ USD ${fmt(ganador.neto,1)}/ton Â· ARS ${fmt(ganador.neto * S.tipoCambio, 0)}/ton
+        ${ganador.label} → USD ${fmt(ganador.neto,1)}/ton · ARS ${fmt(ganador.neto * S.tipoCambio, 0)}/ton
       </div>
     </div>`;
 
@@ -282,7 +282,7 @@ function calcDecision() {
   opciones.forEach((op, i) => {
     const cls = i===0?'winner':i===opciones.length-1?'last':'mid';
     const badgeCls = i===0?'badge-winner':i===opciones.length-1?'badge-last':'badge-mid';
-    const badgeTxt = i===0?'âœ“ MEJOR OPCIÃ“N':i===opciones.length-1?'â†“ MENOR RETORNO':`#${i+1}`;
+    const badgeTxt = i===0?'✓ MEJOR OPCIÓN':i===opciones.length-1?'↓ MENOR RETORNO':`#${i+1}`;
     const desgloseHTML = op.desglose.map(d =>
       `<div class="dest-row"><span class="dest-row-l">${d.l}</span><span class="dest-row-v ${d.v<0?'neg':'pos'}">USD ${fmt(d.v,1)}</span></div>`
     ).join('');
@@ -303,7 +303,7 @@ function calcDecision() {
   const bepPct = p > 0 ? ((bepNecesario - p) / p * 100) : 0;
   let bepHTML = `
     <div style="margin-bottom:.8rem">
-      <div style="font-size:.75rem;color:rgba(28,18,8,.5);margin-bottom:.4rem">Precio actual: <strong>USD ${fmt(p,1)}/ton</strong> â†’ Para que silo bolsa sea igual a venta hoy:</div>
+      <div style="font-size:.75rem;color:rgba(28,18,8,.5);margin-bottom:.4rem">Precio actual: <strong>USD ${fmt(p,1)}/ton</strong> → Para que silo bolsa sea igual a venta hoy:</div>
     </div>`;
   const opts2 = [
     { l:'Silo bolsa', bep: netoHoyAcopio + calcAlmacCosto('sb').total },
@@ -329,13 +329,13 @@ function calcDecision() {
   });
   $('bep-wrap').innerHTML = bepHTML;
 
-  // Tasas implÃ­citas
+  // Tasas implícitas
   const tasaImplicitaSB = p > 0 && pf > p ? ((pf - netoHoyAcopio - calcAlmacCosto('sb').costoFijo) / p - 1) / m * 100 : null;
   const tasaAnual = tasaImplicitaSB ? tasaImplicitaSB * 12 : null;
   const tasaRefAnual = S.tasaRef * 12;
   const kpiHTML = `
     <div class="kc ${tasaAnual > tasaRefAnual ? 'ok-card' : 'warn-card'}">
-      <div class="kl">Tasa implÃ­cita almacenaje (anual)</div>
+      <div class="kl">Tasa implícita almacenaje (anual)</div>
       <div class="kv">${tasaAnual ? fmt(tasaAnual,1)+'%' : 'N/D'}</div>
       <div class="ku">vs plazo fijo</div>
     </div>
@@ -346,7 +346,7 @@ function calcDecision() {
     </div>
     <div class="kc gold-card">
       <div class="kl">Diferencial tasa</div>
-      <div class="kv">${tasaAnual ? (tasaAnual - tasaRefAnual > 0 ? '+' : '') + fmt(tasaAnual - tasaRefAnual, 1)+'%' : 'â€”'}</div>
+      <div class="kv">${tasaAnual ? (tasaAnual - tasaRefAnual > 0 ? '+' : '') + fmt(tasaAnual - tasaRefAnual, 1)+'%' : '—'}</div>
       <div class="ku">anual</div>
     </div>`;
   $('kpi-tasas').innerHTML = kpiHTML;
@@ -354,20 +354,20 @@ function calcDecision() {
   if (tasaAnual) {
     const diff = tasaAnual - tasaRefAnual;
     $('tasa-comment').innerHTML = diff > 0
-      ? `âœ… Almacenar genera una tasa implÃ­cita <strong>${fmt(diff,1)} p.p. superior</strong> al plazo fijo. Conveniente si se cumple el precio esperado.`
-      : `âš ï¸ El plazo fijo supera la tasa implÃ­cita del almacenamiento por <strong>${fmt(Math.abs(diff),1)} p.p.</strong>. Evaluar riesgo-beneficio.`;
+      ? `✅ Almacenar genera una tasa implícita <strong>${fmt(diff,1)} p.p. superior</strong> al plazo fijo. Conveniente si se cumple el precio esperado.`
+      : `⚠� El plazo fijo supera la tasa implícita del almacenamiento por <strong>${fmt(Math.abs(diff),1)} p.p.</strong>. Evaluar riesgo-beneficio.`;
   }
 
   $('dest-container').classList.remove('hidden');
 }
 
-// â”€â”€ TABS â”€â”€
+// ── TABS ──
 function showTab(id) {
   document.querySelectorAll('.mod-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
   document.querySelectorAll('.mod-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + id));
 }
 
-// â”€â”€ MESES PILLS â”€â”€
+// ── MESES PILLS ──
 function buildMonthPills() {
   const wrap = $('month-pills');
   wrap.innerHTML = '';
@@ -387,10 +387,10 @@ function buildMonthPills() {
   S._meses = 3;
 }
 
-// â”€â”€ CULTIVO CHANGE â”€â”€
+// ── CULTIVO CHANGE ──
 function onCultivoChange() {
   const c = CULTIVOS[$('cultivo').value];
-  $('lbl-mercado').textContent = c.nombre + ' â€” ' + c.unidad;
+  $('lbl-mercado').textContent = c.nombre + ' — ' + c.unidad;
   // Ajustar retenciones por defecto
   const retEl = $('retenciones');
   retEl.value = c.retDef;
@@ -429,18 +429,18 @@ function calcSecado() {
   const info = $('humedad-info');
   if (hg > hb) {
     const pts = (hg - hb).toFixed(1);
-    info.innerHTML = `âš ï¸ <strong>${pts} puntos</strong> por encima de la humedad comercial (${hb}%). Descuento estimado: <strong>USD ${fmt(pts*2.2,1)}/ton</strong>`;
+    info.innerHTML = `⚠� <strong>${pts} puntos</strong> por encima de la humedad comercial (${hb}%). Descuento estimado: <strong>USD ${fmt(pts*2.2,1)}/ton</strong>`;
     info.style.color = 'var(--warn)';
   } else if (hg < hb - 1) {
-    info.innerHTML = `âœ… Humedad ideal. Sin descuento por humedad.`;
+    info.innerHTML = `✅ Humedad ideal. Sin descuento por humedad.`;
     info.style.color = 'var(--ok)';
   } else {
-    info.innerHTML = `âœ… Humedad en rango comercial (base ${hb}%).`;
+    info.innerHTML = `✅ Humedad en rango comercial (base ${hb}%).`;
     info.style.color = 'var(--ok)';
   }
 }
 
-// â”€â”€ APIs â”€â”€
+// ── APIs ──
 async function loadAllAPIs() {
   await Promise.allSettled([
     fetchPrecioGrano(),
@@ -451,12 +451,12 @@ async function loadAllAPIs() {
 
 async function fetchPrecioGrano() {
   const cultivo = $('cultivo').value;
-  setDot('dot-fob', 'loading'); sv('val-fob', 'buscandoâ€¦');
+  setDot('dot-fob', 'loading'); sv('val-fob', 'buscando…');
   try {
     const hoy = new Date();
     let intentos = 0;
     let data = null;
-    // Intentar Ãºltimos 5 dÃ­as hÃ¡biles
+    // Intentar últimos 5 días hábiles
     while (!data && intentos < 7) {
       const fecha = new Date(hoy);
       fecha.setDate(hoy.getDate() - intentos);
@@ -474,37 +474,37 @@ async function fetchPrecioGrano() {
           data = json;
           break;
         }
-      } catch(e) { if (e.name === 'AbortError') break; } // timeout → no más reintentos
+      } catch(e) { if (e.name === 'AbortError') break; } // timeout → no m�s reintentos
       intentos++;
     }
     if (!data) throw new Error('Sin datos');
 
     S.fobData = data;
-    const mapa = { soja:'Soja', maiz:'MaÃ­z', trigo:'Trigo', girasol:'Girasol', sorgo:'Sorgo' };
+    const mapa = { soja:'Soja', maiz:'Maíz', trigo:'Trigo', girasol:'Girasol', sorgo:'Sorgo' };
     const nombre = mapa[cultivo] || 'Soja';
     const item = data.find(d => d.producto && d.producto.toLowerCase().includes(nombre.toLowerCase()));
     if (item && item.precio_usd) {
       const precio = parseFloat(item.precio_usd);
       $('precio-usd').value = precio;
-      $('precio-source').innerHTML = `âœ… FOB oficial MAGYP â€” ${item.fecha || 'hoy'}`;
+      $('precio-source').innerHTML = `✅ FOB oficial MAGYP — ${item.fecha || 'hoy'}`;
       setDot('dot-fob', 'ok');
       // Mostrar en ribbon
       sv('val-fob', `${nombre}: USD ${fmt(precio,0)}`);
       calcLive();
     } else {
-      // Si no encontramos el cultivo, mostrar lo que llegÃ³
+      // Si no encontramos el cultivo, mostrar lo que llegó
       setDot('dot-fob', 'ok');
       sv('val-fob', 'OK (manual)');
-      $('precio-source').innerHTML = `âš ï¸ Datos FOB disponibles. IngresÃ¡ precio manualmente.`;
+      $('precio-source').innerHTML = `⚠� Datos FOB disponibles. Ingresá precio manualmente.`;
     }
   } catch(e) {
     setDot('dot-fob', 'error');
     sv('val-fob', 'manual');
-    $('precio-source').innerHTML = `âš ï¸ API FOB no disponible â€” ingresÃ¡ precio manualmente`;
+    $('precio-source').innerHTML = `⚠� API FOB no disponible — ingresá precio manualmente`;
   }
 }
 
-// USD OFICIAL — DolarAPI (gratuito, sin token, CORS ok)
+// USD OFICIAL � DolarAPI (gratuito, sin token, CORS ok)
 async function fetchTipoCambio() {
   setDot('dot-usd', 'loading');
   try {
@@ -516,7 +516,7 @@ async function fetchTipoCambio() {
     const tc = d.venta ?? d.compra;
     if (!tc) throw new Error('sin valor');
     $('tipo-cambio').value = tc;
-    if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA — DolarAPI · ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
+    if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA � DolarAPI � ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
     setDot('dot-usd', 'ok');
     sv('val-usd', '$ ' + fmt(tc, 0));
     S.usdData = tc;
@@ -524,13 +524,13 @@ async function fetchTipoCambio() {
   } catch(e) {
     setDot('dot-usd', 'error');
     sv('val-usd', 'manual');
-    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible — ingresá TC manualmente`;
+    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible � ingres� TC manualmente`;
   }
 }
 
-// TASAS — datos.gob.ar/SSPM (gratuito, sin token, CORS ok)
+// TASAS � datos.gob.ar/SSPM (gratuito, sin token, CORS ok)
 async function fetchTasasBCRA() {
-  // BADLAR — CSV diario: indice_tiempo, tasas_interes_call, tasas_interes_badlar, ...
+  // BADLAR � CSV diario: indice_tiempo, tasas_interes_call, tasas_interes_badlar, ...
   try {
     setDot('dot-badlar', 'loading');
     const cb = new AbortController(); setTimeout(() => cb.abort(), 15000);
@@ -551,7 +551,7 @@ async function fetchTasasBCRA() {
     setDot('dot-badlar', 'ok');
   } catch(e) { setDot('dot-badlar', 'error'); sv('val-badlar', 'error'); }
 
-  // PLAZO FIJO 30d — CSV mensual: tasas_interes_plazo_fijo_30_59_dias
+  // PLAZO FIJO 30d � CSV mensual: tasas_interes_plazo_fijo_30_59_dias
   try {
     setDot('dot-pf', 'loading');
     const cp = new AbortController(); setTimeout(() => cp.abort(), 15000);
@@ -575,7 +575,7 @@ async function fetchTasasBCRA() {
     sv('val-pf', fmt(pfVal, 1) + '% TNA');
     setDot('dot-pf', 'ok');
     if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
-    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d — datos.gob.ar · ${pfFecha}`;
+    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d � datos.gob.ar � ${pfFecha}`;
   } catch(e) { setDot('dot-pf', 'error'); sv('val-pf', 'error'); }
 }
 
@@ -601,18 +601,18 @@ function saveBcraToken() {
 function usarTasaBCRA() {
   if (S.pfData) {
     $('tasa-ref').value = (S.pfData / 12).toFixed(1);
-    $('tasa-source').innerHTML = `âœ… Tasa BCRA plazo fijo â€” ${fmt(S.pfData,1)}% TNA`;
+    $('tasa-source').innerHTML = `✅ Tasa BCRA plazo fijo — ${fmt(S.pfData,1)}% TNA`;
     calcLive();
   } else {
     fetchTasasBCRA();
   }
 }
 
-// â”€â”€ IA ANÃLISIS â”€â”€
+// ── IA AN�LISIS ──
 async function runIA() {
   readState();
   const iaBody = $('ia-body');
-  iaBody.innerHTML = '<div class="ia-loading"><div class="ia-spinner"></div> Generando anÃ¡lisisâ€¦</div>';
+  iaBody.innerHTML = '<div class="ia-loading"><div class="ia-spinner"></div> Generando análisis…</div>';
 
   const cultNombre = CULTIVOS[S.cultivo].nombre;
   const { toneladasComerciales } = calcProduccion();
@@ -622,17 +622,17 @@ async function runIA() {
   const costoSC = calcAlmacCosto('sc').total;
   const costoAC = calcAlmacCosto('ac').total;
 
-  const prompt = `Sos un asesor agrÃ­cola experto en comercializaciÃ³n de granos en Argentina.
+  const prompt = `Sos un asesor agrícola experto en comercialización de granos en Argentina.
 
-SituaciÃ³n del lote:
+Situación del lote:
 - Cultivo: ${cultNombre}
-- ProducciÃ³n: ${fmt(toneladasComerciales,0)} toneladas (${S.superficie} ha Ã— ${S.rendimiento} qq/ha)
+- Producción: ${fmt(toneladasComerciales,0)} toneladas (${S.superficie} ha × ${S.rendimiento} qq/ha)
 - Precio FOB actual: USD ${fmt(S.precioUSD,0)}/ton
 - Tipo de cambio oficial: $${fmt(S.tipoCambio,0)}/USD
 - Retenciones: ${S.retenciones}%
 - Humedad grano: ${S.humedadGrano}%
 
-Resultado comercial neto (despuÃ©s de todos los costos):
+Resultado comercial neto (después de todos los costos):
 - Vender HOY a Puerto: USD ${fmt(netoHoyPuerto,1)}/ton (ARS ${fmt(netoHoyPuerto*S.tipoCambio,0)}/ton)
 - Vender HOY a Acopio: USD ${fmt(netoHoyAcopio,1)}/ton
 - Precio esperado en ${S.mesesAlmacenar} meses: USD ${fmt(S.precioFuturo||S.precioUSD,0)}/ton
@@ -644,12 +644,12 @@ Costos de almacenamiento por ${S.mesesAlmacenar} mes/es:
 
 Tasa de referencia: ${S.tasaRef}% mensual (plazo fijo)
 
-ElaborÃ¡ un anÃ¡lisis narrativo conciso (4-5 pÃ¡rrafos) que:
-1. Explique la situaciÃ³n de mercado para ${cultNombre} en tÃ©rminos de conveniencia
+Elaborá un análisis narrativo conciso (4-5 párrafos) que:
+1. Explique la situación de mercado para ${cultNombre} en términos de conveniencia
 2. Analice si el diferencial de precio justifica almacenar vs el costo financiero
-3. SeÃ±ale los principales riesgos de cada opciÃ³n (precio, clima, tipo de cambio)
-4. DÃ© una recomendaciÃ³n clara y prÃ¡ctica para el asesor tÃ©cnico
-EscribÃ­ en espaÃ±ol rioplatense, tono profesional pero directo. Sin markdown, solo texto plano con pÃ¡rrafos.`;
+3. Señale los principales riesgos de cada opción (precio, clima, tipo de cambio)
+4. Dé una recomendación clara y práctica para el asesor técnico
+Escribí en español rioplatense, tono profesional pero directo. Sin markdown, solo texto plano con párrafos.`;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -663,16 +663,16 @@ EscribÃ­ en espaÃ±ol rioplatense, tono profesional pero directo. Sin markdow
     });
     const data = await response.json();
     const texto = data.content?.map(b => b.text || '').join('') || 'Sin respuesta';
-    // Formatear pÃ¡rrafos
+    // Formatear párrafos
     iaBody.innerHTML = texto.split('\n').filter(l=>l.trim()).map(l =>
       `<p style="margin-bottom:.7rem">${l}</p>`
     ).join('');
   } catch(e) {
-    iaBody.innerHTML = '<span style="color:var(--warn)">Error al consultar el motor IA. VerificÃ¡ la conexiÃ³n.</span>';
+    iaBody.innerHTML = '<span style="color:var(--warn)">Error al consultar el motor IA. Verificá la conexión.</span>';
   }
 }
 
-// â”€â”€ EXPORT PDF â”€â”€
+// ── EXPORT PDF ──
 function exportPDF() {
   if (!window.jspdf) { alert('jsPDF no disponible'); return; }
   const { jsPDF } = window.jspdf;
@@ -688,10 +688,10 @@ function exportPDF() {
   doc.rect(0, 0, 210, 30, 'F');
   doc.setTextColor(232, 184, 75);
   doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-  doc.text('CosechaDecide â€” Informe de DecisiÃ³n', 14, 12);
+  doc.text('CosechaDecide — Informe de Decisión', 14, 12);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal');
   doc.setTextColor(200, 180, 120);
-  doc.text(`Generado: ${new Date().toLocaleDateString('es-AR')} Â· AgroMotor Suite`, 14, 20);
+  doc.text(`Generado: ${new Date().toLocaleDateString('es-AR')} · AgroMotor Suite`, 14, 20);
   y = 38;
 
   doc.setTextColor(28, 18, 8);
@@ -701,7 +701,7 @@ function exportPDF() {
   doc.setFontSize(10); doc.setFont('helvetica', 'normal');
   const lineas = [
     [`Cultivo: ${cultNombre}`, `Superficie: ${S.superficie} ha`],
-    [`Rendimiento: ${S.rendimiento} qq/ha`, `ProducciÃ³n: ${fmt(toneladasComerciales,0)} ton comerciales`],
+    [`Rendimiento: ${S.rendimiento} qq/ha`, `Producción: ${fmt(toneladasComerciales,0)} ton comerciales`],
     [`Precio FOB: USD ${fmt(S.precioUSD,0)}/ton`, `Tipo de cambio: $${fmt(S.tipoCambio,0)}/USD`],
     [`Retenciones: ${S.retenciones}%`, `Humedad grano: ${S.humedadGrano}%`]
   ];
@@ -715,8 +715,8 @@ function exportPDF() {
 
   doc.setFontSize(10); doc.setFont('helvetica', 'normal');
   [
-    ['Vender hoy â†’ Puerto', `USD ${fmt(netoHoyPuerto,1)}/ton`, `ARS ${fmt(netoHoyPuerto*S.tipoCambio,0)}/ton`],
-    ['Vender hoy â†’ Acopio', `USD ${fmt(netoHoyAcopio,1)}/ton`, `ARS ${fmt(netoHoyAcopio*S.tipoCambio,0)}/ton`],
+    ['Vender hoy → Puerto', `USD ${fmt(netoHoyPuerto,1)}/ton`, `ARS ${fmt(netoHoyPuerto*S.tipoCambio,0)}/ton`],
+    ['Vender hoy → Acopio', `USD ${fmt(netoHoyAcopio,1)}/ton`, `ARS ${fmt(netoHoyAcopio*S.tipoCambio,0)}/ton`],
     [`Silo bolsa (${S.mesesAlmacenar} meses)`, `Costo: USD ${fmt(calcAlmacCosto('sb').total,1)}/ton`, ''],
     [`Acopio local (${S.mesesAlmacenar} meses)`, `Costo: USD ${fmt(calcAlmacCosto('ac').total,1)}/ton`, '']
   ].forEach(([a,b,c]) => {
@@ -725,9 +725,9 @@ function exportPDF() {
 
   y += 4;
   const iaText = $('ia-body')?.textContent || '';
-  if (iaText && iaText.length > 30 && !iaText.includes('PresionÃ¡')) {
+  if (iaText && iaText.length > 30 && !iaText.includes('Presioná')) {
     doc.setFontSize(13); doc.setFont('helvetica', 'bold');
-    doc.text('AnÃ¡lisis IA', 14, y); y += 7;
+    doc.text('Análisis IA', 14, y); y += 7;
     doc.setFontSize(9); doc.setFont('helvetica', 'normal');
     const lines = doc.splitTextToSize(iaText.substring(0, 1500), 182);
     lines.forEach(l => { if (y > 270) { doc.addPage(); y = 20; } doc.text(l, 14, y); y += 5; });
@@ -736,14 +736,14 @@ function exportPDF() {
   doc.setFillColor(15, 31, 20);
   doc.rect(0, 282, 210, 15, 'F');
   doc.setTextColor(200, 162, 85); doc.setFontSize(7);
-  doc.text('CosechaDecide Â· AgroMotor Suite Â· Datos: MAGYP, BCRA Â· Solo orientativo â€” verificar con operadores locales', 14, 288);
+  doc.text('CosechaDecide · AgroMotor Suite · Datos: MAGYP, BCRA · Solo orientativo — verificar con operadores locales', 14, 288);
 
   doc.save(`CosechaDecide_${cultNombre}_${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.pdf`);
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PANEL 5 â€” ESCENARIOS DE PRECIO
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ��������������������������������������������������
+// PANEL 5 — ESCENARIOS DE PRECIO
+// ��������������������������������������������������
 
 function buildEscenarioMesesPills() {
   const wrap = $('esc-meses-wrap');
@@ -762,7 +762,7 @@ function buildEscenarioMesesPills() {
 function buildEscenarios() {
   readState();
   if (!S.precioUSD || !S.tipoCambio) {
-    $('esc-table-wrap').innerHTML = `<div class="warn-box"><div>âš ï¸</div><div>CompletÃ¡ precio y tipo de cambio en el Panel 1 primero.</div></div>`;
+    $('esc-table-wrap').innerHTML = `<div class="warn-box"><div>⚠�</div><div>Completá precio y tipo de cambio en el Panel 1 primero.</div></div>`;
     return;
   }
 
@@ -771,17 +771,17 @@ function buildEscenarios() {
   const paso       = +$('esc-pasos').value || 10;
   const destino    = $('esc-destino').value;
 
-  // Columnas de variaciÃ³n de precio
+  // Columnas de variación de precio
   const varPcts = [];
   for (let v = rangoMin; v <= rangoMax; v += paso) varPcts.push(Math.round(v));
-  // Asegurar que 0% (precio hoy) estÃ© siempre
+  // Asegurar que 0% (precio hoy) esté siempre
   if (!varPcts.includes(0)) varPcts.push(0);
   varPcts.sort((a,b)=>a-b);
 
   // Filas de meses seleccionados
   const mesesSel = [...document.querySelectorAll('#esc-meses-wrap .month-pill.sel')]
     .map(el => +el.dataset.m).sort((a,b)=>a-b);
-  if (!mesesSel.length) { alert('SeleccionÃ¡ al menos un perÃ­odo.'); return; }
+  if (!mesesSel.length) { alert('Seleccioná al menos un período.'); return; }
 
   const p = S.precioUSD;
   const netoHoy = calcNeto(p, 'acopio').neto; // referencia base
@@ -804,7 +804,7 @@ function buildEscenarios() {
 
   // Build table
   let html = `<div class="esc-wrap"><table class="esc-tbl">`;
-  html += `<thead><tr><th class="col-mes">PerÃ­odo</th>`;
+  html += `<thead><tr><th class="col-mes">Período</th>`;
   varPcts.forEach(v => {
     const precioCol = p * (1 + v/100);
     html += `<th class="col-precio" style="${v===0?'background:rgba(200,162,85,.12);color:var(--grain)':''}">${v===0?'Hoy<br>':v>0?'+':''}${v}%<br><span style="font-weight:400;font-size:.6rem">USD ${fmt(precioCol,0)}</span></th>`;
@@ -812,7 +812,7 @@ function buildEscenarios() {
   html += `</tr></thead><tbody>`;
 
   // Fila de referencia: vender hoy (sin almacenamiento)
-  html += `<tr class="esc-ref-row"><td class="td-mes">ðŸš¢ Vender HOY</td>`;
+  html += `<tr class="esc-ref-row"><td class="td-mes">🚢 Vender HOY</td>`;
   varPcts.forEach(v => {
     const precioCol = p * (1 + v/100);
     const neto = calcNeto(precioCol, 'acopio').neto;
@@ -823,7 +823,7 @@ function buildEscenarios() {
 
   // Filas por mes
   mesesSel.forEach(m => {
-    html += `<tr><td class="td-mes">ðŸ“¦ ${m} ${m===1?'mes':'meses'}</td>`;
+    html += `<tr><td class="td-mes">📦 ${m} ${m===1?'mes':'meses'}</td>`;
     varPcts.forEach(v => {
       const precioCol = p * (1 + v/100);
       const netoAlmac = calcNetoEsc(precioCol, m, destino);
@@ -845,8 +845,8 @@ function buildEscenarios() {
   const destNombre = {sb:'Silo bolsa',sc:'Silo chapa',ac:'Acopio','hoy-puerto':'Vender hoy a Puerto'}[destino];
   $('esc-table-wrap').innerHTML = `
     <div style="font-size:.73rem;color:rgba(28,18,8,.5);margin-bottom:.7rem">
-      Precio actual: <strong>USD ${fmt(p,0)}/ton</strong> Â· Destino de almacenamiento: <strong>${destNombre}</strong>
-      Â· Las celdas muestran precio neto USD/ton y diferencial vs. venta hoy
+      Precio actual: <strong>USD ${fmt(p,0)}/ton</strong> · Destino de almacenamiento: <strong>${destNombre}</strong>
+      · Las celdas muestran precio neto USD/ton y diferencial vs. venta hoy
     </div>` + html;
 
   buildDevalTable();
@@ -893,9 +893,9 @@ function buildDevalTable() {
 }
 
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PANEL 6 â€” HISTORIAL DE LOTES
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ��������������������������������������������������
+// PANEL 6 — HISTORIAL DE LOTES
+// ��������������������������������������������������
 
 function cargarHistorial() {
   try { return JSON.parse(localStorage.getItem('cosecha_historial') || '[]'); }
@@ -908,7 +908,7 @@ function guardarHistorialLS(arr) {
 function guardarLote() {
   readState();
   if (!S.precioUSD || !S.tipoCambio) {
-    alert('CompletÃ¡ precio y tipo de cambio antes de guardar.');
+    alert('Completá precio y tipo de cambio antes de guardar.');
     return;
   }
   // Modal para nombre del lote
@@ -916,15 +916,15 @@ function guardarLote() {
   overlay.className = 'modal-overlay';
   overlay.innerHTML = `
     <div class="modal-box">
-      <div class="modal-title">ðŸ’¾ Guardar lote en historial</div>
-      <div class="modal-sub">IngresÃ¡ un nombre para identificar este lote o productor en el historial de campaÃ±a.</div>
+      <div class="modal-title">💾 Guardar lote en historial</div>
+      <div class="modal-sub">Ingresá un nombre para identificar este lote o productor en el historial de campaña.</div>
       <div class="fg">
         <label class="fl">Nombre del lote / productor</label>
-        <input type="text" id="modal-nombre" placeholder="Ej: Don Tito â€” Lote Bajo" style="font-size:.95rem" autofocus>
+        <input type="text" id="modal-nombre" placeholder="Ej: Don Tito — Lote Bajo" style="font-size:.95rem" autofocus>
       </div>
       <div class="modal-btns">
         <button class="btn btn-s" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-        <button class="btn btn-gold" onclick="confirmarGuardarLote(this)">ðŸ’¾ Guardar</button>
+        <button class="btn btn-gold" onclick="confirmarGuardarLote(this)">💾 Guardar</button>
       </div>
     </div>`;
   document.body.appendChild(overlay);
@@ -943,14 +943,14 @@ function confirmarGuardarLote(btn) {
   const netoHoyPuerto = calcNeto(S.precioUSD, 'puerto').neto;
   const netoHoyAcopio = calcNeto(S.precioUSD, 'acopio').neto;
 
-  // Determinar decisiÃ³n
+  // Determinar decisión
   const pf = S.precioFuturo || S.precioUSD;
   const costoSB = calcAlmacCosto('sb').total;
   const netoSB = calcNeto(pf, 'acopio').neto - costoSB;
   const mejor = Math.max(netoHoyPuerto, netoHoyAcopio, netoSB);
   let decision = 'amarillo', decisionLabel = 'Sin calcular';
-  if (mejor === netoHoyPuerto) { decision='rojo'; decisionLabel='Vender hoy â†’ Puerto'; }
-  else if (mejor === netoHoyAcopio) { decision='rojo'; decisionLabel='Vender hoy â†’ Acopio'; }
+  if (mejor === netoHoyPuerto) { decision='rojo'; decisionLabel='Vender hoy → Puerto'; }
+  else if (mejor === netoHoyAcopio) { decision='rojo'; decisionLabel='Vender hoy → Acopio'; }
   else { decision='verde'; decisionLabel=`Almacenar ${S._meses} meses`; }
 
   const lote = {
@@ -980,20 +980,20 @@ function confirmarGuardarLote(btn) {
 function renderHistorial() {
   const historial = cargarHistorial();
   const container = $('historial-container');
-  const resumenCard = $('resumen-campaÃ±a-card');
+  const resumenCard = $('resumen-campaña-card');
 
   if (!historial.length) {
-    container.innerHTML = `<div class="ph-state" style="padding:3rem 1rem"><span class="ph-icon">ðŸ“‹</span><p>TodavÃ­a no guardaste ningÃºn lote.<br>CompletÃ¡ un anÃ¡lisis y presionÃ¡ <strong>"ðŸ’¾ Guardar lote"</strong>.</p></div>`;
+    container.innerHTML = `<div class="ph-state" style="padding:3rem 1rem"><span class="ph-icon">📋</span><p>Todavía no guardaste ningún lote.<br>Completá un análisis y presioná <strong>"💾 Guardar lote"</strong>.</p></div>`;
     resumenCard.style.display = 'none';
     return;
   }
 
   let html = '';
   historial.forEach(l => {
-    const emoji = {soja:'ðŸŸ¡',maiz:'ðŸŸ ',trigo:'ðŸŸ¤',girasol:'ðŸŒ»',sorgo:'ðŸ”´'}[l.cultivo] || 'ðŸŒ¾';
+    const emoji = {soja:'🟡',maiz:'🟠',trigo:'🟤',girasol:'🌻',sorgo:'🔴'}[l.cultivo] || '🌾';
     html += `
       <div class="hist-lote">
-        <button class="hist-delete" onclick="eliminarLote(${l.id})" title="Eliminar">âœ•</button>
+        <button class="hist-delete" onclick="eliminarLote(${l.id})" title="Eliminar">✕</button>
         <div class="hist-lote-header">
           <div>
             <div class="hist-lote-nombre">${l.nombre}</div>
@@ -1009,8 +1009,8 @@ function renderHistorial() {
         <div class="hist-lote-datos">
           <div class="hist-dato"><div class="hist-dato-l">Toneladas</div><div class="hist-dato-v">${fmt(l.toneladas,0)} t</div></div>
           <div class="hist-dato"><div class="hist-dato-l">Precio FOB</div><div class="hist-dato-v">USD ${fmt(l.precioUSD,0)}</div></div>
-          <div class="hist-dato"><div class="hist-dato-l">Neto â†’ Puerto</div><div class="hist-dato-v">USD ${fmt(l.netoHoyPuerto,1)}</div></div>
-          <div class="hist-dato"><div class="hist-dato-l">Neto â†’ Acopio</div><div class="hist-dato-v">USD ${fmt(l.netoHoyAcopio,1)}</div></div>
+          <div class="hist-dato"><div class="hist-dato-l">Neto → Puerto</div><div class="hist-dato-v">USD ${fmt(l.netoHoyPuerto,1)}</div></div>
+          <div class="hist-dato"><div class="hist-dato-l">Neto → Acopio</div><div class="hist-dato-v">USD ${fmt(l.netoHoyAcopio,1)}</div></div>
           <div class="hist-dato"><div class="hist-dato-l">Neto s/bolsa</div><div class="hist-dato-v">USD ${fmt(l.netoSB,1)}</div></div>
           <div class="hist-dato"><div class="hist-dato-l">TC Oficial</div><div class="hist-dato-v">$${fmt(l.tipoCambio,0)}</div></div>
         </div>
@@ -1018,31 +1018,31 @@ function renderHistorial() {
   });
   container.innerHTML = html;
 
-  // Resumen campaÃ±a
+  // Resumen campaña
   resumenCard.style.display = 'block';
   const totTon   = historial.reduce((s,l) => s + (l.toneladas||0), 0);
   const totHa    = historial.reduce((s,l) => s + (l.superficie||0), 0);
   const totUSD   = historial.reduce((s,l) => s + (l.netoHoyAcopio||0)*(l.toneladas||0), 0);
   const promNeto = totTon > 0 ? totUSD / totTon : 0;
   const nVerdes  = historial.filter(l=>l.decision==='verde').length;
-  $('kpi-campaÃ±a').innerHTML = `
+  $('kpi-campaña').innerHTML = `
     <div class="kc gold-card"><div class="kl">Lotes analizados</div><div class="kv">${historial.length}</div><div class="ku">registros</div></div>
-    <div class="kc gold-card"><div class="kl">Superficie total</div><div class="kv">${fmt(totHa,0)}</div><div class="ku">hectÃ¡reas</div></div>
-    <div class="kc gold-card"><div class="kl">ProducciÃ³n total</div><div class="kv">${fmt(totTon,0)}</div><div class="ku">toneladas</div></div>
-    <div class="kc ok-card"><div class="kl">USD total campaÃ±a</div><div class="kv">${fmt(totUSD/1000,0)}K</div><div class="ku">neto est. USD</div></div>
+    <div class="kc gold-card"><div class="kl">Superficie total</div><div class="kv">${fmt(totHa,0)}</div><div class="ku">hectáreas</div></div>
+    <div class="kc gold-card"><div class="kl">Producción total</div><div class="kv">${fmt(totTon,0)}</div><div class="ku">toneladas</div></div>
+    <div class="kc ok-card"><div class="kl">USD total campaña</div><div class="kv">${fmt(totUSD/1000,0)}K</div><div class="ku">neto est. USD</div></div>
     <div class="kc ok-card"><div class="kl">Neto promedio</div><div class="kv">${fmt(promNeto,1)}</div><div class="ku">USD/ton prom.</div></div>
     <div class="kc ${nVerdes>0?'ok-card':'warn-card'}"><div class="kl">Almacenar conviene</div><div class="kv">${nVerdes}</div><div class="ku">de ${historial.length} lotes</div></div>`;
 }
 
 function eliminarLote(id) {
-  if (!confirm('Â¿EliminÃ¡r este lote del historial?')) return;
+  if (!confirm('¿Eliminár este lote del historial?')) return;
   const historial = cargarHistorial().filter(l => l.id !== id);
   guardarHistorialLS(historial);
   renderHistorial();
 }
 
 function limpiarHistorial() {
-  if (!confirm('Â¿Borrar todo el historial de lotes? Esta acciÃ³n no se puede deshacer.')) return;
+  if (!confirm('¿Borrar todo el historial de lotes? Esta acción no se puede deshacer.')) return;
   localStorage.removeItem('cosecha_historial');
   renderHistorial();
 }
@@ -1050,7 +1050,7 @@ function limpiarHistorial() {
 function exportHistorialCSV() {
   const historial = cargarHistorial();
   if (!historial.length) { alert('No hay lotes guardados.'); return; }
-  const cols = ['Nombre','Fecha','Cultivo','Superficie (ha)','Rendimiento (qq/ha)','Toneladas','Precio USD','TC Oficial','Neto Puerto (USD/ton)','Neto Acopio (USD/ton)','Neto Silo Bolsa (USD/ton)','DecisiÃ³n'];
+  const cols = ['Nombre','Fecha','Cultivo','Superficie (ha)','Rendimiento (qq/ha)','Toneladas','Precio USD','TC Oficial','Neto Puerto (USD/ton)','Neto Acopio (USD/ton)','Neto Silo Bolsa (USD/ton)','Decisión'];
   const rows = historial.map(l => [
     l.nombre, l.fecha, l.cultivoNombre, l.superficie, l.rendimiento,
     fmt(l.toneladas,1), l.precioUSD, l.tipoCambio,
@@ -1064,7 +1064,7 @@ function exportHistorialCSV() {
 }
 
 
-// â”€â”€ INIT â”€â”€
+// ── INIT ──
 function init() {
   const hoy = new Date();
   if ($('badge-date')) $('badge-date').textContent = '📅 ' + hoy.toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
@@ -1087,7 +1087,7 @@ window.cosInit = function() {
   init();
 };
 
-  // Exposición a global por retrocompatibilidad HTML
+  // Exposici�n a global por retrocompatibilidad HTML
   window.tarModo = tarModo;
   window.calcLive = calcLive;
   window.calcDecision = calcDecision;
