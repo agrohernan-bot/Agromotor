@@ -24,9 +24,9 @@ const AM_PLANES = {
     lotes: 5,
     iaCallsMes: 30,
     modulos: [
-      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
+      'siembra','suelo','decision','economia','nutricion',
       'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'seguimiento','plagas','pulverizacion',
       'cosecha','alerta-sanitaria','siembra-variable'
     ],
     color: '#3A7A4A',
@@ -39,9 +39,9 @@ const AM_PLANES = {
     lotes: 25,
     iaCallsMes: 100,
     modulos: [
-      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
+      'siembra','suelo','decision','economia','nutricion',
       'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'seguimiento','plagas','pulverizacion',
       'cosecha','alerta-sanitaria','siembra-variable'
     ],
     color: '#C8A255',
@@ -54,9 +54,9 @@ const AM_PLANES = {
     lotes: 75,
     iaCallsMes: 300,
     modulos: [
-      'siembra','suelo','decision','economia','fertilizacion','fertoptima',
+      'siembra','suelo','decision','economia','nutricion',
       'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','balance','balancenut','plagas','pulverizacion',
+      'seguimiento','plagas','pulverizacion',
       'cosecha','alerta-sanitaria','siembra-variable'
     ],
     color: '#2A5A8C',
@@ -208,12 +208,12 @@ function amCambiarVista(vista) {
 function amMostrarModalUpgrade(modulo) {
   const nombres = {
     suelo:'Análisis de Suelo', decision:'Motor de Decisión',
-    economia:'Economía de Campaña', fertilizacion:'Fertilización',
+    economia:'Economía de Campaña', nutricion:'Nutrición de Cultivo',
     maquinaria:'Productividad Maquinaria', hidrico:'Balance Hídrico',
     cultivares:'Cultivares RECSO/INTA', asistente:'Asistente IA',
     mapa:'Mapa de Distribuidores', plagas:'Alertas de Plagas',
     pulverizacion:'Ventanas de Pulverización', cosecha:'Cosecha Decide',
-    seguimiento:'Seguimiento Fenológico', balance:'Balance Nutricional'
+    seguimiento:'Seguimiento Fenológico'
   };
   const el = $('am-upgrade-modulo');
   if (el) el.textContent = nombres[modulo] || modulo;
