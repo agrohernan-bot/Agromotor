@@ -810,9 +810,110 @@ window.amAnalizarPlagas = function() {
   });
 }
 
+// ── PANEL ESTACIONAL DE PLAGAS ────────────────────────
+// Muestra automáticamente las plagas a vigilar según el mes actual,
+// el cultivo del lote activo y la zona detectada por coordenadas.
+// Se llama desde nav.js al entrar al módulo — no requiere análisis completo.
+
+var PLAGAS_ESTACIONAL = {
+  soja: {
+    // meses de actividad típica por plaga (Argentina)
+    cogollera:        [10,11,12,1],
+    anticarsia:       [11,12,1,2],
+    chinche_cuernos:  [12,1,2,3],
+    trips_soja:       [11,12,1,2],
+  },
+  maiz: {
+    cogollero_maiz:   [10,11,12,1],
+    diatraea:         [11,12,1,2,3],
+    diabrotica:       [10,11,12],
+  },
+  trigo: {
+    pulgon_verde:     [6,7,8,9],
+    pulgon_amarillo:  [8,9,10],
+    sitobion:         [9,10,11],
+  },
+  girasol: {
+    helicoverpa:      [11,12,1],
+    trips_girasol:    [10,11,12],
+  },
+};
+
+window.plagasRenderEstacional = function() {
+  var mes = new Date().getMonth() + 1; // 1-12
+
+  // Lote activo
+  var cultivoEl = document.getElementById('s-cultivo');
+  var cultivo   = (cultivoEl ? cultivoEl.value : 'Soja').toLowerCase();
+  if (!PLAGAS_ESTACIONAL[cultivo]) cultivo = 'soja';
+
+  // Zona aproximada desde coordenadas
+  var coordRaw = (document.getElementById('s-coord') || {}).value || '';
+  var lat = null;
+  if (coordRaw) { var p = coordRaw.replace(/\s/g,'').split(','); if (p.length >= 2) lat = parseFloat(p[0]); }
+  var zonaLabel = lat === null ? '' :
+    lat > -29 ? 'NOA' : lat > -32 ? 'NEA' :
+    lat > -35 ? 'Pampeana Norte' : lat > -38 ? 'Pampeana Sur' : 'Semiárida';
+
+  // Nombre del lote
+  var loteNombre = '';
+  if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
+    var lote = AM_LOTES.find(function(l){ return l.id === AM_LOTE_ACTIVO; });
+    if (lote) loteNombre = lote.nombre || '';
+  }
+
+  var estacional = PLAGAS_ESTACIONAL[cultivo] || {};
+  var plagasMes = Object.entries(estacional).filter(function(e){ return e[1].includes(mes); });
+
+  // Buscar datos de la plaga en PESTS
+  var pestsData = PESTS[cultivo] || [];
+  var mesNombre = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mes];
+
+  if (plagasMes.length === 0) {
+    document.getElementById('plagas-content').innerHTML =
+      '<div style="background:rgba(74,140,92,.08);border:1px solid rgba(74,140,92,.2);border-radius:12px;padding:1.2rem 1.4rem;margin-top:.5rem">' +
+      '<div style="font-size:.82rem;font-weight:700;color:var(--canopy);margin-bottom:.4rem">✅ ' + mesNombre + ' — Baja presión estacional para ' + cultivo.charAt(0).toUpperCase()+cultivo.slice(1) + '</div>' +
+      '<div style="font-size:.75rem;color:rgba(255,255,255,.5)">No hay plagas de alto riesgo típicas para este cultivo en ' + mesNombre + '. Ingresá la fecha de siembra y hacé clic en "Analizar" para un diagnóstico climático completo.</div>' +
+      '</div>';
+    return;
+  }
+
+  var html = '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem 1.2rem;margin-top:.5rem">';
+  html += '<div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:.8rem">';
+  html += '🗓️ Plagas a vigilar en ' + mesNombre;
+  if (zonaLabel) html += ' · ' + zonaLabel;
+  html += ' · ' + cultivo.charAt(0).toUpperCase()+cultivo.slice(1);
+  if (loteNombre) html += ' · <span style="color:rgba(122,174,245,.7)">' + loteNombre + '</span>';
+  html += '</div>';
+  html += '<div style="display:grid;gap:.6rem">';
+
+  plagasMes.forEach(function(entry) {
+    var id   = entry[0];
+    var pest = pestsData.find(function(p){ return p.id === id; }) || { name: id, icon:'🐛', rec:{} };
+    html += '<div style="display:flex;align-items:flex-start;gap:.8rem;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.65rem .9rem">';
+    html += '<span style="font-size:1.4rem;margin-top:.1rem">' + (pest.icon||'🐛') + '</span>';
+    html += '<div style="flex:1">';
+    html += '<div style="font-size:.82rem;font-weight:700;color:rgba(255,255,255,.88)">' + (pest.name||id) + '</div>';
+    html += '<div style="font-size:.72rem;color:rgba(255,255,255,.45);margin-top:.15rem">';
+    if (pest.sci) html += '<em>' + pest.sci + '</em> · ';
+    html += 'Estadios críticos: ' + (pest.vuln ? pest.vuln.join(', ') : '—') + '</div>';
+    if (pest.rec && pest.rec.med) {
+      html += '<div style="font-size:.72rem;color:rgba(255,200,80,.8);margin-top:.3rem">' + pest.rec.med + '</div>';
+    }
+    html += '</div></div>';
+  });
+
+  html += '</div>';
+  html += '<div style="margin-top:.8rem;font-size:.7rem;color:rgba(255,255,255,.3)">⚡ Vista rápida estacional — Ingresá la fecha de siembra y hacé clic en <strong>"Analizar"</strong> para diagnóstico climático completo con GDD y pronóstico.</div>';
+  html += '</div>';
+
+  document.getElementById('plagas-content').innerHTML = html;
+};
+
   // Exposición a global
   window.amAnalizarPlagas = amAnalizarPlagas;
   window.selectSev = selectSev;
   window.enviarReporte = enviarReporte;
+  window.plagasRenderEstacional = plagasRenderEstacional;
 
 })();

@@ -712,61 +712,121 @@
   // ── CULTIVARES ───────────────────────────────────────
   window.pdfCultivares = function() {
     try {
-      var ctx = crearPDFBase('Recomendador de Cultivares', 'Grupos de Madurez · RECSO/INTA · Zona agroecológica');
+      var cultivo = gv('cv-cultivo') || 'Soja';
+      var ctx = crearPDFBase(
+        'Recomendador de Cultivares — ' + cultivo,
+        'Grupos de Madurez · RECSO/INTA 2024-25 · Zona detectada del lote'
+      );
       var doc = ctx.doc;
       seccionDatosLote(ctx, datosLoteComunes());
 
-      seccion(ctx, '📍 ZONA Y GRUPOS DE MADUREZ', ctx.COL.VERDE);
+      // ── Zona y parámetros detectados automáticamente ──
+      seccion(ctx, 'ZONA Y PARAMETROS DEL LOTE', ctx.COL.VERDE);
       doc.setFontSize(9);
       doc.setFont('helvetica','normal');
       doc.setTextColor(...ctx.COL.NEGRO);
-      var zona = gtv('cv-zona-nombre') || gtv('cv-zona') || gv('cv-zona') || '—';
-      var gms  = Array.from(document.querySelectorAll('.cv-gm-tag, [id*="gm-"]')).map(e => e.textContent.trim()).filter(Boolean).slice(0, 6).join(', ') || '—';
-      doc.text('Zona detectada:', ctx.ML+3, ctx.y+4);
-      doc.setFont('helvetica','bold');
-      doc.text(zona, ctx.ML+50, ctx.y+4);
-      ctx.y += 7;
-      doc.setFont('helvetica','normal');
-      doc.text('GMs recomendados:', ctx.ML+3, ctx.y+4);
-      doc.setFont('helvetica','bold');
-      doc.text(gms, ctx.ML+50, ctx.y+4);
-      ctx.y += 9;
 
-      // Ranking de cultivares
-      seccion(ctx, '🌾 RANKING DE CULTIVARES', ctx.COL.VERDE2);
-      var cards = document.querySelectorAll('#mod-cultivares [class*="cv-card"], #mod-cultivares .card[id*="cv-"]');
-      if (cards.length === 0) {
-        // Fallback: buscar por estructura
-        cards = document.querySelectorAll('#mod-cultivares > * > .card');
-      }
-      doc.setFontSize(8.5);
-      var n = 0;
-      cards.forEach(function(c) {
-        if (n >= 8) return;
-        checkPage(ctx, 16);
-        var txt = c.textContent.replace(/\s+/g,' ').trim();
-        if (txt.length < 30 || !txt.match(/\d/)) return;
-        doc.setFont('helvetica','bold');
-        doc.setTextColor(...ctx.COL.NEGRO);
-        var head = txt.slice(0, 100);
-        doc.text(`#${n+1}  ${head}`, ctx.ML+3, ctx.y+4);
-        ctx.y += 5;
+      var zonaLabel  = document.getElementById('cv-zona-label')?.textContent  || gv('cv-zona') || '—';
+      var tipoLabel  = document.getElementById('cv-tipo-label')?.textContent  || '—';
+      var ambLabel   = document.getElementById('cv-amb-label')?.textContent   || '—';
+      var ambRazon   = document.getElementById('cv-amb-razon')?.textContent   || '';
+      var fechaSiem  = gv('cv-fecha') || '—';
+
+      var filas = [
+        ['Zona agroecologica', zonaLabel.replace(/·/g,'·').substring(0,70)],
+        ['Cultivo',            cultivo],
+        ['Fecha de siembra',   fechaSiem],
+        ['Posicion de siembra',tipoLabel.replace(/[⚠️]/g,'').trim()],
+        ['Calidad de ambiente',ambLabel],
+      ];
+      if (ambRazon) filas.push(['Indicadores suelo', ambRazon.replace(/🛰️|📚/g,'').trim().substring(0,80)]);
+
+      filas.forEach(function(f) {
+        checkPage(ctx, 6);
         doc.setFont('helvetica','normal');
         doc.setTextColor(...ctx.COL.GRIS);
-        doc.setFontSize(7.5);
-        var rest = txt.slice(100, 350);
-        var lines = doc.splitTextToSize(rest, ctx.W-6);
-        lines.slice(0, 2).forEach(function(l) { doc.text(l, ctx.ML+3, ctx.y+4); ctx.y += 4; });
-        doc.setFontSize(8.5);
-        ctx.y += 3;
-        n++;
+        doc.text(f[0] + ':', ctx.ML+3, ctx.y+4);
+        doc.setFont('helvetica','bold');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var lines = doc.splitTextToSize(f[1], ctx.W - 52);
+        doc.text(lines, ctx.ML+52, ctx.y+4);
+        ctx.y += Math.max(6, lines.length * 4.5);
       });
-      if (n === 0) {
-        doc.setFont('helvetica','italic');
-        doc.setTextColor(...ctx.COL.GRIS);
-        doc.text('Cargá el cultivo y ejecutá el análisis para incluir el ranking.', ctx.ML+3, ctx.y);
-        ctx.y += 8;
+      ctx.y += 3;
+
+      // ── GMs recomendados (del panel de zona-info) ────
+      var zonaInfoEl = document.getElementById('cv-zona-info');
+      if (zonaInfoEl) {
+        var gmSpans = zonaInfoEl.querySelectorAll('span[style*="border-radius:12px"]');
+        if (gmSpans.length > 0) {
+          seccion(ctx, 'GRUPOS DE MADUREZ RECOMENDADOS', ctx.COL.VERDE2);
+          doc.setFontSize(8.5);
+          var gmTexts = Array.from(gmSpans).map(function(s){ return s.textContent.trim(); });
+          var gmLine  = gmTexts.join('   ');
+          doc.setFont('helvetica','bold');
+          doc.setTextColor(...ctx.COL.NEGRO);
+          doc.text(gmLine.substring(0,120), ctx.ML+3, ctx.y+5);
+          ctx.y += 9;
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(...ctx.COL.GRIS);
+          doc.text('★ = GM optimo para la posicion de siembra y ambiente · Fuente: RECSO/RET-INASE (INTA Oliveros) 2024-25', ctx.ML+3, ctx.y);
+          ctx.y += 8;
+        }
       }
+
+      // ── Ranking de cultivares (del DOM generado por cvActualizar) ─
+      var rankingEl = document.getElementById('cv-ranking-content');
+      if (rankingEl) {
+        // Extraer cultivares de los divs de ranking buscando el texto estructurado
+        var cultivarDivs = rankingEl.querySelectorAll('div[style*="border-radius:12px"]');
+        if (cultivarDivs.length > 0) {
+          seccion(ctx, 'RANKING DE CULTIVARES — ' + cultivo.toUpperCase(), ctx.COL.VERDE);
+          doc.setFontSize(8.5);
+          var pos = 0;
+          cultivarDivs.forEach(function(d) {
+            if (pos >= 10) return;
+            var txt = d.textContent.replace(/\s+/g,' ').trim();
+            // Filtrar divs que no son cultivares (el div de metodología, etc)
+            if (txt.length < 20 || txt.indexOf('%') === -1) return;
+            checkPage(ctx, 18);
+            pos++;
+            // Primera línea: nombre + rend%
+            var match = txt.match(/([A-Z][A-Za-z0-9\s\-\/]+)\s+(\d+)%/);
+            var nombre = match ? match[1].trim() : txt.slice(0,40);
+            var rend   = match ? match[2] + '%' : '';
+            doc.setFont('helvetica','bold');
+            doc.setTextColor(...ctx.COL.NEGRO);
+            doc.text('#' + pos + '  ' + nombre + (rend ? '  →  ' + rend + ' vs testigo' : ''), ctx.ML+3, ctx.y+4);
+            ctx.y += 5;
+            // Segunda línea: resto del texto (empresa, GM, nota)
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(7.5);
+            doc.setTextColor(...ctx.COL.GRIS);
+            var resto = txt.replace(nombre,'').replace(rend,'').replace(/[#\d\s]+$/,'').trim();
+            var lines = doc.splitTextToSize(resto.substring(0, 220), ctx.W-6);
+            lines.slice(0,3).forEach(function(l){ doc.text(l, ctx.ML+5, ctx.y+4); ctx.y += 4; });
+            doc.setFontSize(8.5);
+            ctx.y += 3;
+          });
+          if (pos === 0) {
+            doc.setFont('helvetica','italic');
+            doc.setTextColor(...ctx.COL.GRIS);
+            doc.text('Completa los parametros del lote para incluir el ranking.', ctx.ML+3, ctx.y);
+            ctx.y += 8;
+          }
+        }
+      }
+
+      // ── Nota metodológica ────────────────────────────
+      checkPage(ctx, 16);
+      ctx.y += 4;
+      doc.setFontSize(7);
+      doc.setFont('helvetica','italic');
+      doc.setTextColor(...ctx.COL.GRIS);
+      var nota = 'Fuentes: RECSO (INTA Oliveros) 370 ensayos / 62 localidades · RET-INASE · Zona detectada automaticamente de coordenadas del lote · ' +
+                 'Calidad de ambiente calculada de SoilGrids ISRIC 250m (SOC, CEC, textura) · Rendimiento relativo promedio vs. testigo regional · Campana 2024/25';
+      doc.splitTextToSize(nota, ctx.W).forEach(function(l){ doc.text(l, ctx.ML, ctx.y); ctx.y += 4; });
 
       cerrarPDF(ctx);
       doc.save(nombreArchivo('Cultivares'));

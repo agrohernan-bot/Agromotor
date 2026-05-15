@@ -846,7 +846,9 @@
 
 <!-- ══ MÓDULO BALANCE HÍDRICO ══ -->
 <div id="mod-hidrico" class="module-panel">
-  <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático</div>
+  <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático
+    <span id="mod-lote-badge-hidrico" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">ENSO · Agua disponible · Requerimiento del cultivo · Rendimiento alcanzable · Riego suplementario</div>
 
   <div class="grid-2">
@@ -2033,6 +2035,10 @@
 </div>
 
 <div id="mod-cosecha" class="module-panel">
+  <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem">
+    <span style="font-size:1.1rem;font-weight:700;color:var(--ink)">Economía de <em>Cosecha</em></span>
+    <span id="mod-lote-badge-cosecha" style="display:none;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px"></span>
+  </div>
   <div class="api-ribbon" id="ribbon">
     <div class="api-item">
       <div class="api-dot loading" id="dot-fob"></div>

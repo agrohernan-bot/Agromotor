@@ -208,6 +208,10 @@ function _activarModulo(mod) {
   if (mod === 'plagas') {
     _syncCultivo('plagas-cultivo');
     _syncFecha('plagas-siembra');
+    // Mostrar panel estacional inmediatamente al entrar
+    setTimeout(function() {
+      if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
+    }, 150);
   }
 }
 
