@@ -344,6 +344,25 @@ function cacheCargar() {
     if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
     if (datos.fecha   && document.getElementById('s-fecha'))   document.getElementById('s-fecha').value   = datos.fecha;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
+
+    // ── Sincronizar AM.store con el lote cargado ──────────
+    // cacheCargar() asigna .value directamente (sin disparar el evento change),
+    // por lo que el Store no se entera. Lo actualizamos aquí para que todos los
+    // módulos que lean del Store (o _syncCultivo) reciban el valor correcto.
+    if (typeof AM !== 'undefined' && AM.store) {
+      var storeUpd = {};
+      if (datos.cultivo)  storeUpd.cultivo      = datos.cultivo;
+      if (datos.fecha)    storeUpd.fecha         = datos.fecha;
+      if (datos.coord)    storeUpd.coordenadas   = datos.coord;
+      if (Object.keys(storeUpd).length) AM.store.update(storeUpd);
+    }
+    // ── Cosecha usa id="cultivo" con valores en minúscula ─
+    var cosSelect = document.getElementById('cultivo');
+    if (cosSelect && datos.cultivo) {
+      var cosVal = datos.cultivo.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '');
+      cosSelect.value = cosVal;
+    }
     if (datos.precioDisp && document.getElementById('ec-precio-disp')) document.getElementById('ec-precio-disp').value = datos.precioDisp;
     if (datos.precioFut  && document.getElementById('ec-precio-fut'))  document.getElementById('ec-precio-fut').value  = datos.precioFut;
     if (datos.rendEc     && document.getElementById('ec-rend'))        document.getElementById('ec-rend').value         = datos.rendEc;

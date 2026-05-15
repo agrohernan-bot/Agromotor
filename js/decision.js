@@ -362,23 +362,32 @@ function decRender(resultados, aguaTotal, ensoFase) {
 
 // ── ELEGIR CULTIVO ────────────────────────────────────
 function decElegir(cultivo) {
-  // Propagar al resto del motor vía Store
+  // 1. Actualizar el select maestro (s-cultivo) siempre
+  var selSiembra = document.getElementById('s-cultivo');
+  if (selSiembra) selSiembra.value = cultivo;
+
+  // 2. Propagar vía Store (notifica a todos los subscribers)
   if (typeof AM !== 'undefined' && AM.store) {
     AM.store.update({ cultivo: cultivo });
-  } else {
-    // Fallback si no está el store
-    var selSiembra = document.getElementById('s-cultivo');
-    var selBH      = document.getElementById('bh-cultivo');
-    var selCV      = document.getElementById('cv-cultivo');
-    var selEC      = document.getElementById('ec-cultivo');
-    if (selSiembra) selSiembra.value = cultivo;
-    if (selBH)      selBH.value      = cultivo;
-    if (selCV)      selCV.value      = cultivo;
-    if (selEC)      selEC.value      = cultivo;
   }
 
+  // 3. Sincronizar selects propios de módulos ya cargados
+  //    - Cultivares
+  var selCV = document.getElementById('cv-cultivo');
+  if (selCV) selCV.value = cultivo;
+  //    - Cosecha usa id="cultivo" con valores en minúscula sin acentos
+  var selCos = document.getElementById('cultivo');
+  if (selCos) {
+    selCos.value = cultivo.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  }
+
+  // 4. Guardar en el lote activo (para que persista entre navegaciones)
+  if (typeof cacheGuardar === 'function') cacheGuardar();
+
   // Guardar elección
-  document.getElementById('dec-cult-elegido') && (document.getElementById('dec-cult-elegido').textContent = cultivo);
+  var elegido = document.getElementById('dec-cult-elegido');
+  if (elegido) elegido.textContent = cultivo;
 
   // Feedback visual
   var btn = document.getElementById('dec-cult-elegido-banner');
@@ -389,10 +398,11 @@ function decElegir(cultivo) {
 
   if (typeof amToast === 'function') amToast('✅ ' + cultivo + ' seleccionado — motor actualizado', 'ok');
 
-  // Si ya están cargados, actualizar módulos (se ejecutará de todas formas vía store, pero forzamos porsia)
-  if (typeof cvActualizar    === 'function') cvActualizar();
-  if (typeof bhActualizar    === 'function') bhActualizar();
+  // 5. Forzar refresco en módulos ya cargados
+  if (typeof cvActualizar        === 'function') cvActualizar();
+  if (typeof bhActualizar        === 'function') bhActualizar();
   if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  if (typeof ncActualizar        === 'function') ncActualizar();
 }
 
   // Exponer a window para onclick en HTML

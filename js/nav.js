@@ -135,9 +135,38 @@ function _activarModulo(mod) {
       setTimeout(consultarSuelo, 250);
     }
   }
-  // ── Sincronizar cultivo/fecha del Store a todos los módulos ──
-  var _syncCultivo = function(destId) { var d = document.getElementById(destId); if (d && typeof AM !== 'undefined' && AM.store) d.value = AM.store.getState().cultivo; };
-  var _syncFecha   = function(destId) { var d = document.getElementById(destId); if (d && typeof AM !== 'undefined' && AM.store) d.value = AM.store.getState().fecha; };
+  // ── Sincronizar cultivo/fecha a módulos ──────────────────
+  // Lee siempre desde el DOM master (s-cultivo / s-fecha), que es la fuente
+  // más actualizada. El Store puede estar desincronizado si cacheCargar()
+  // asignó .value sin disparar el evento change.
+  var _getMasterCultivo = function() {
+    var sc = document.getElementById('s-cultivo');
+    if (sc && sc.value) return sc.value;
+    if (typeof AM !== 'undefined' && AM.store) return AM.store.getState().cultivo || 'Soja';
+    return 'Soja';
+  };
+  var _getMasterFecha = function() {
+    var sf = document.getElementById('s-fecha');
+    if (sf && sf.value) return sf.value;
+    if (typeof AM !== 'undefined' && AM.store) return AM.store.getState().fecha || '';
+    return '';
+  };
+  // destId: ID del select destino. Si el elemento no existe, no hace nada.
+  var _syncCultivo = function(destId) {
+    var d = document.getElementById(destId);
+    if (d) d.value = _getMasterCultivo();
+  };
+  var _syncFecha = function(destId) {
+    var d = document.getElementById(destId);
+    if (d) d.value = _getMasterFecha();
+  };
+  // Cosecha usa id="cultivo" con valores en minúscula sin acentos
+  var _syncCultivoNorm = function(destId) {
+    var d = document.getElementById(destId);
+    if (!d) return;
+    d.value = _getMasterCultivo().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  };
 
   if (mod === 'economia') {
     _syncCultivo('ec-cultivo');
@@ -167,8 +196,8 @@ function _activarModulo(mod) {
     _syncCultivo('fo-cultivo');
   }
   if (mod === 'cosecha') {
-    _syncCultivo('cos-cultivo');
-    _syncFecha('cos-fecha');
+    _syncCultivoNorm('cultivo'); // cosecha.js usa id="cultivo" con valores lowercase
+    _syncFecha('cos-fecha');     // si existe; si no, no hace nada
   }
   if (mod === 'siembra-variable') {
     _syncCultivo('sv-cultivo');
@@ -177,7 +206,7 @@ function _activarModulo(mod) {
     _syncCultivo('bn-cultivo');
   }
   if (mod === 'hidrico') {
-    _syncCultivo('bh-cultivo');
+    // hidrico.js lee gv('s-cultivo') directamente; no hay select bh-cultivo
     _syncFecha('bh-fecha');
     var bhs = document.getElementById('bh-suelo');
     var ss = document.getElementById('s-suelo');
@@ -238,14 +267,43 @@ document.addEventListener('DOMContentLoaded', function() {
   var sf = document.getElementById('s-fecha');
   var scoord = document.getElementById('s-coord');
   
+  // ── Propagación de cultivo a módulos con select propio ──
+  // Cuando el usuario cambia s-cultivo directamente, sincronizar
+  // los selects de módulos que tienen su propio control de cultivo.
+  function _propagarCultivo(val) {
+    // Cultivares
+    var cv = document.getElementById('cv-cultivo');
+    if (cv) cv.value = val;
+    // Cosecha (lowercase, sin acentos)
+    var cos = document.getElementById('cultivo');
+    if (cos) cos.value = val.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    // Nutrición balance
+    if (typeof ncActualizar === 'function') {
+      var nb = document.getElementById('nc-bn-cultivo');
+      if (nb) {
+        var map = {'Maíz':'Maiz','Maiz':'Maiz','Soja':'Soja','Trigo':'Trigo',
+                   'Girasol':'Girasol','Sorgo':'Sorgo','Cebada':'Cebada','Colza':'Colza'};
+        nb.value = map[val] || val;
+      }
+    }
+    // Actualizar ec-lbl-cult (Economía)
+    if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  }
+
   if (typeof AM !== 'undefined' && AM.store) {
     // Escuchar DOM y actualizar Store
-    if (sc) sc.addEventListener('change', function() { AM.store.update({ cultivo: this.value }); });
+    if (sc) sc.addEventListener('change', function() {
+      AM.store.update({ cultivo: this.value });
+      _propagarCultivo(this.value);
+    });
     if (sf) sf.addEventListener('change', function() { AM.store.update({ fecha: this.value }); });
     if (scoord) scoord.addEventListener('input', function() { AM.store.update({ coordenadas: this.value }); });
-    
+
     // Escuchar Store y actualizar DOM (bidi)
-    AM.store.subscribe('cultivo', function(val) { if(sc && sc.value !== val) sc.value = val; });
+    AM.store.subscribe('cultivo', function(val) {
+      if(sc && sc.value !== val) sc.value = val;
+      _propagarCultivo(val);
+    });
     AM.store.subscribe('fecha', function(val) { if(sf && sf.value !== val) sf.value = val; });
     AM.store.subscribe('coordenadas', function(val) { if(scoord && scoord.value !== val) scoord.value = val; });
   }
