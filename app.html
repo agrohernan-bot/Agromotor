@@ -305,7 +305,9 @@
 
 <!-- ══ MÓDULO SIEMBRA ══ -->
 <div id="mod-siembra" class="module-panel">
-  <div class="module-title">Diagnóstico de <em>Siembra</em></div>
+  <div class="module-title">Diagnóstico de <em>Siembra</em>
+    <span id="mod-lote-badge-siembra" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">Análisis de compactación, humedad y pronóstico del lote seleccionado</div>
 
 
@@ -461,7 +463,9 @@
 
 <!-- ══ MÓDULO SUELO ══ -->
 <div id="mod-suelo" class="module-panel">
-  <div class="module-title">Análisis de <em>Suelo</em></div>
+  <div class="module-title">Análisis de <em>Suelo</em>
+    <span id="mod-lote-badge-suelo" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
 
   <!-- Ingreso de coordenadas -->
@@ -625,7 +629,9 @@
 
 <!-- ══ MÓDULO ECONOMÍA ══ -->
 <div id="mod-economia" class="module-panel">
-  <div class="module-title">Economía de <em>Campaña</em></div>
+  <div class="module-title">Economía de <em>Campaña</em>
+    <span id="mod-lote-badge-economia" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">Margen bruto actual y a cosecha · Precios Rosario · Dólar en tiempo real · Insumos · Flete · Arrendamiento</div>
 
   <div class="grid-2">
@@ -1025,8 +1031,16 @@
 
 <!-- ══ MÓDULO CULTIVARES ══ -->
 <div id="mod-cultivares" class="module-panel">
-  <div class="module-title">Recomendador de <em>Cultivares</em></div>
+  <div class="module-title">Recomendador de <em>Cultivares</em>
+    <span id="cv-lote-badge" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">Grupos de madurez · Ventana óptima de siembra · Ranking RECSO/INTA 2024-25 · Filtros por zona, tecnología y empresa</div>
+
+  <!-- Alerta si no hay lote cargado -->
+  <div id="cv-sin-lote" class="alert warn" style="display:none;margin-bottom:1rem">
+    <span class="ai">📍</span>
+    <div class="ac">Para recomendaciones automáticas, <strong>cargá un lote con coordenadas en el Dashboard</strong>. La zona y calidad de suelo se detectarán automáticamente.</div>
+  </div>
 
   <div class="grid-2">
     <!-- COLUMNA IZQUIERDA: FILTROS -->
@@ -1049,33 +1063,53 @@
           <input type="date" id="cv-fecha" onchange="cvActualizar()">
         </div>
 
-        <div class="fg">
-          <label>Zona agroecológica <span id="cv-zona-auto" style="font-size:.65rem;color:var(--leaf);font-weight:600"></span></label>
-          <select id="cv-zona" onchange="cvActualizar()">
-            <option value="pampeana_norte">Pampeana Norte (sur SF, este CBA, norte BA)</option>
-            <option value="pampeana_sur">Pampeana Sur (centro-sur BA, La Pampa)</option>
-            <option value="nea">NEA (Entre Ríos, Corrientes, Misiones)</option>
-            <option value="noa">NOA (Salta, Tucumán, Santiago del Estero, Chaco)</option>
-            <option value="semiarida">Semiárida pampeana (oeste BA, La Pampa sur)</option>
+        <!-- ZONA — auto-detectada desde coordenadas del lote -->
+        <div style="margin-bottom:.75rem">
+          <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">
+            Zona agroecológica <span style="font-size:.65rem;font-weight:500;color:var(--leaf);text-transform:none;letter-spacing:0">· detectada del lote</span>
+          </div>
+          <div id="cv-zona-display" style="background:rgba(74,140,92,.08);border:1px solid rgba(74,140,92,.25);border-radius:8px;padding:.55rem .8rem;font-size:.85rem;font-weight:600;color:var(--canopy);display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:1rem">📍</span>
+            <span id="cv-zona-label">— cargando lote —</span>
+          </div>
+          <!-- Hidden select: mantiene compatibilidad interna -->
+          <select id="cv-zona" style="display:none">
+            <option value="pampeana_norte">Pampeana Norte</option>
+            <option value="pampeana_sur">Pampeana Sur</option>
+            <option value="nea">NEA</option>
+            <option value="noa">NOA</option>
+            <option value="semiarida">Semiárida</option>
           </select>
         </div>
 
-        <div class="fg">
-          <label>Tipo de siembra</label>
-          <select id="cv-tipo-siem" onchange="cvActualizar()">
-            <option value="primera">Soja/Maíz de primera</option>
-            <option value="segunda">Soja/Maíz de segunda (posición trigo)</option>
-            <option value="temprana">Siembra temprana (anticipada)</option>
-            <option value="tardia">Siembra tardía</option>
-          </select>
+        <!-- TIPO DE SIEMBRA — inferido de fecha + zona + cultivo -->
+        <div style="margin-bottom:.75rem">
+          <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">
+            Posición de siembra <span style="font-size:.65rem;font-weight:500;color:var(--leaf);text-transform:none;letter-spacing:0">· calculada de la fecha</span>
+          </div>
+          <div id="cv-tipo-display" style="background:rgba(74,46,26,.05);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem;font-size:.85rem;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:.5rem">
+            <span style="font-size:1rem">📅</span>
+            <span id="cv-tipo-label">— ingresar fecha —</span>
+          </div>
         </div>
 
-        <div class="fg">
-          <label>Calidad de ambiente</label>
-          <select id="cv-ambiente" onchange="cvActualizar()">
-            <option value="alto">Alto potencial (suelo excelente, buena agua)</option>
-            <option value="medio" selected>Medio potencial (condición típica)</option>
-            <option value="bajo">Bajo potencial (restricciones de suelo/agua)</option>
+        <!-- CALIDAD DE AMBIENTE — calculada de SoilGrids -->
+        <div style="margin-bottom:.75rem">
+          <div style="font-size:.72rem;font-weight:600;color:rgba(74,46,26,.55);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem">
+            Calidad de ambiente <span style="font-size:.65rem;font-weight:500;color:var(--leaf);text-transform:none;letter-spacing:0">· calculada de SoilGrids</span>
+          </div>
+          <div id="cv-ambiente-display" style="background:rgba(74,46,26,.05);border:1px solid var(--border);border-radius:8px;padding:.55rem .8rem">
+            <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;font-weight:600;color:var(--ink)">
+              <span id="cv-amb-icono">⚪</span>
+              <span id="cv-amb-label">— sin datos de suelo —</span>
+            </div>
+            <div id="cv-amb-razon" style="font-size:.7rem;color:rgba(74,46,26,.5);margin-top:.25rem"></div>
+          </div>
+          <!-- Hidden select: mantiene lógica existente -->
+          <select id="cv-ambiente" style="display:none">
+            <option value="alto">Alto</option>
+            <option value="medio" selected>Medio</option>
+            <option value="bajo">Bajo</option>
           </select>
         </div>
 
@@ -1119,10 +1153,6 @@
             <option value="precoz">Mayor precocidad (escape a estreses)</option>
           </select>
         </div>
-
-        <button class="btn btn-p btn-full btn-lg" onclick="cvActualizar()" style="margin-top:.8rem">
-          🌱 Buscar cultivares recomendados
-        </button>
       </div>
 
       <!-- Info metodológica -->
@@ -1415,7 +1445,9 @@
 
 <!-- ══ MÓDULO PULVERIZACIÓN ══ -->
 <div id="mod-pulverizacion" class="module-panel">
-  <div class="module-title">Ventana de <em>Pulverización</em></div>
+  <div class="module-title">Ventana de <em>Pulverización</em>
+    <span id="mod-lote-badge-pulv" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">Semáforo agronómico · Condiciones meteo en tiempo real · Delta T · Deriva · Caldo · Calidad de agua · Registro</div>
 
   <!-- Sub-navegación interna -->
@@ -2685,7 +2717,9 @@
 
 <!-- ══ MÓDULO PLAGAS ══ -->
 <div id="mod-plagas" class="module-panel">
-  <div class="module-title">Módulo 07 · <em>Alertas de Plagas</em></div>
+  <div class="module-title">Módulo 07 · <em>Alertas de Plagas</em>
+    <span id="mod-lote-badge-plagas" style="display:none;margin-left:.8rem;font-size:.7rem;font-weight:500;background:rgba(74,140,92,.15);color:var(--canopy);padding:.2rem .7rem;border-radius:12px;vertical-align:middle"></span>
+  </div>
   <div class="module-subtitle">Favorabilidad climática + red comunitaria + alertas INTA</div>
 
   <div class="orientativa-banner" style="margin-top:1rem;border-radius:8px;">

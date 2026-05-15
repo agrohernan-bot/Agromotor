@@ -217,6 +217,7 @@ const CV_DB = {
 };
 
 // ── LÓGICA DE RECOMENDACIÓN ──────────────────────────
+
 function cvDetectarZona(lat) {
   if (lat === null) return null;
   if (lat > -29) return 'noa';
@@ -226,16 +227,156 @@ function cvDetectarZona(lat) {
   return 'semiarida';
 }
 
+// Infiere posición/tipo de siembra a partir del cultivo y la fecha planificada.
+// Basado en ventanas de siembra argentinas (INTA / RECSO / RET-INASE).
+function cvInferirTipoSiembra(cultivo, fecha) {
+  const m = fecha.getMonth() + 1; // 1=ene … 12=dic
+  const d = fecha.getDate();
+  if (cultivo === 'Soja') {
+    if (m === 8 || (m === 9 && d < 15))                              return 'temprana';
+    if ((m === 9 && d >= 15) || m === 10 || (m === 11 && d <= 20))  return 'primera';
+    if ((m === 11 && d > 20) || (m === 12 && d <= 20))              return 'segunda';
+    return 'tardia';
+  }
+  if (cultivo === 'Maíz') {
+    if (m === 8 || (m === 9 && d < 15))                             return 'temprana';
+    if ((m === 9 && d >= 15) || m === 10)                           return 'primera';
+    if (m === 11)                                                    return 'segunda';
+    return 'tardia';
+  }
+  if (cultivo === 'Trigo') {
+    if (m === 5 || (m === 6 && d < 10))                             return 'temprana';
+    if ((m === 6 && d >= 10) || m === 7)                            return 'primera';
+    if (m === 8)                                                     return 'segunda';
+    return 'tardia';
+  }
+  if (cultivo === 'Girasol') {
+    if (m === 9)                                                     return 'temprana';
+    if (m === 10 || (m === 11 && d <= 15))                          return 'primera';
+    if ((m === 11 && d > 15) || m === 12)                           return 'segunda';
+    return 'tardia';
+  }
+  return 'primera';
+}
+
+// Calcula calidad de ambiente (alto/medio/bajo) a partir de datos SoilGrids.
+// Indicadores: MO (SOC), CEC, textura, pH.
+function cvCalcularAmbiente(sgDatos) {
+  if (!sgDatos || Object.keys(sgDatos).length === 0) {
+    return { nivel: 'medio', label: 'Medio potencial', razon: 'Consultá el lote en el Dashboard para calcular automáticamente', icono: '⚪', fuente: '' };
+  }
+  let puntaje = 0;
+  const indicadores = [];
+
+  // Materia orgánica: MO% = SOC(g/kg) * 1.724 / 10
+  const mo = sgDatos.soc != null ? (sgDatos.soc * 1.724 / 10) : null;
+  if (mo !== null) {
+    if (mo > 3.5)      { puntaje += 2; indicadores.push(`MO ${mo.toFixed(1)}% alta`); }
+    else if (mo > 2.0) { puntaje += 1; indicadores.push(`MO ${mo.toFixed(1)}% media`); }
+    else               {               indicadores.push(`MO ${mo.toFixed(1)}% baja ↓`); }
+  }
+
+  // CEC: capacidad de intercambio catiónico (cmolc/kg)
+  const cec = sgDatos.cec;
+  if (cec != null) {
+    if (cec > 20)      { puntaje += 2; indicadores.push(`CEC ${cec.toFixed(0)} alta`); }
+    else if (cec > 12) { puntaje += 1; indicadores.push(`CEC ${cec.toFixed(0)} media`); }
+    else               {               indicadores.push(`CEC ${cec.toFixed(0)} baja ↓`); }
+  }
+
+  // Textura: 18-42% arcilla = óptima para retención hídrica
+  const clay = sgDatos.clay;
+  if (clay != null) {
+    if (clay >= 18 && clay <= 42) { puntaje += 1; indicadores.push(`${clay.toFixed(0)}% arcilla óptima`); }
+    else if (clay < 12)           { indicadores.push(`${clay.toFixed(0)}% arcilla (arenoso ↓)`); }
+    else                          { indicadores.push(`${clay.toFixed(0)}% arcilla (arcilloso)`); }
+  }
+
+  // pH: 6.0-7.2 = óptimo para disponibilidad de nutrientes
+  const ph = sgDatos.ph;
+  if (ph != null) {
+    if (ph >= 6.0 && ph <= 7.2) { puntaje += 1; }
+  }
+
+  const razon   = indicadores.join(' · ') || 'Calculado de SoilGrids';
+  const fuente  = sgDatos.esFallback ? '📚 Base regional pampeana' : '🛰️ SoilGrids ISRIC';
+  if (puntaje >= 5) return { nivel: 'alto',  label: 'Alto potencial',  razon, icono: '🟢', fuente };
+  if (puntaje >= 2) return { nivel: 'medio', label: 'Medio potencial', razon, icono: '🟡', fuente };
+  return               { nivel: 'bajo',  label: 'Bajo potencial',  razon, icono: '🔴', fuente };
+}
+
 function cvActualizar() {
   const cultivo  = gv('cv-cultivo')    || 'Soja';
-  const zona     = gv('cv-zona')       || 'pampeana_norte';
-  const tipo     = gv('cv-tipo-siem')  || 'primera';
-  const ambiente = gv('cv-ambiente')   || 'medio';
   const tec      = gv('cv-tecnologia') || 'todas';
   const empresa  = gv('cv-empresa')    || 'todas';
   const prior    = gv('cv-prioridad')  || 'rendimiento';
   const fechaStr = gv('cv-fecha')      || new Date().toISOString().split('T')[0];
-  const fecha    = new Date(fechaStr);
+  const fecha    = new Date(fechaStr + 'T12:00:00'); // evitar offset UTC
+
+  // ── Auto-detección desde lote activo ─────────────────
+  let lat = null, lon = null, loteNombre = '', sgDatos = null;
+
+  // Obtener lote activo del sistema
+  if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
+    const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+    if (lote) {
+      loteNombre = lote.nombre || '';
+      const datos = lote.data || {};
+      // Coordenadas
+      const coordStr = datos.coord || '';
+      if (coordStr && typeof parsCoord === 'function') {
+        [lat, lon] = parsCoord(coordStr);
+      }
+      // SoilGrids guardado en cache
+      sgDatos = datos.sgDatos || window._sgDatos || null;
+    }
+  }
+  // Fallback: coordenadas del campo de siembra si no hay lote
+  if (lat === null) {
+    const coordStr = document.getElementById('s-coord')?.value?.trim() || '';
+    if (coordStr && typeof parsCoord === 'function') [lat, lon] = parsCoord(coordStr);
+    sgDatos = sgDatos || window._sgDatos || null;
+  }
+
+  // ── Zona agroecológica (auto-detectada) ──────────────
+  const zonaDetectada = (lat !== null) ? cvDetectarZona(lat) : null;
+  const zona = zonaDetectada || 'pampeana_norte';
+  // Sincronizar hidden select para compatibilidad
+  const selZona = document.getElementById('cv-zona');
+  if (selZona) selZona.value = zona;
+  // Mostrar en UI
+  const zonaInfo = CV_ZONAS[zona];
+  const loteLabel = document.getElementById('cv-lote-badge');
+  const sinLoteDiv = document.getElementById('cv-sin-lote');
+  if (loteNombre && loteLabel) { loteLabel.textContent = '📂 ' + loteNombre; loteLabel.style.display = ''; }
+  if (sinLoteDiv) sinLoteDiv.style.display = (lat === null) ? '' : 'none';
+  const zonaLabelEl = document.getElementById('cv-zona-label');
+  if (zonaLabelEl) {
+    zonaLabelEl.textContent = zonaInfo ? zonaInfo.label + ' · ' + zonaInfo.desc : zona;
+    const coordInfo = (lat !== null) ? ` (${lat.toFixed(2)}°, ${lon?.toFixed(2)}°)` : ' (sin coordenadas — usando Pampeana Norte)';
+    zonaLabelEl.title = zonaDetectada ? 'Detectado de coordenadas del lote' + coordInfo : 'Sin coordenadas — zona por defecto';
+  }
+
+  // ── Tipo de siembra (inferido de fecha + cultivo) ─────
+  const tipo = cvInferirTipoSiembra(cultivo, fecha);
+  const tipoLabels = { primera:'Siembra de primera', segunda:'Siembra de segunda (post-trigo)', temprana:'Siembra temprana (anticipada)', tardia:'Siembra tardía' };
+  const tipoLabelEl = document.getElementById('cv-tipo-label');
+  if (tipoLabelEl) tipoLabelEl.textContent = tipoLabels[tipo] || tipo;
+
+  // ── Calidad de ambiente (calculada de SoilGrids) ──────
+  const ambienteCalc = cvCalcularAmbiente(sgDatos);
+  // Sincronizar hidden select
+  const selAmb = document.getElementById('cv-ambiente');
+  if (selAmb) selAmb.value = ambienteCalc.nivel;
+  // Mostrar en UI
+  const ambIcono = document.getElementById('cv-amb-icono');
+  const ambLabel = document.getElementById('cv-amb-label');
+  const ambRazon = document.getElementById('cv-amb-razon');
+  if (ambIcono) ambIcono.textContent = ambienteCalc.icono;
+  if (ambLabel) ambLabel.textContent = ambienteCalc.label;
+  if (ambRazon) ambRazon.textContent = ambienteCalc.razon + (ambienteCalc.fuente ? ' · ' + ambienteCalc.fuente : '');
+
+  const ambiente = ambienteCalc.nivel;
 
   const zonaInfo = CV_ZONAS[zona];
   if (!zonaInfo) return;
@@ -251,16 +392,18 @@ function cvActualizar() {
   const gmsPorAmbiente = cultivoCfg.gmPorAmbiente[ambiente] || gmsRecom;
   const gmsFinal = [...new Set([...gmsRecom, ...gmsPorAmbiente])];
 
-  // Panel de zona
+  // Panel de GMs recomendados (ahora más limpio — zona ya se muestra en badge lateral)
+  const tipoLabelsCortos = { primera:'1ª', segunda:'2ª (post-trigo)', temprana:'temprana', tardia:'tardía' };
+  const ambLabels = { alto:'alto potencial 🟢', medio:'medio potencial 🟡', bajo:'bajo potencial 🔴' };
   $('cv-zona-info').innerHTML = `
     <div style="background:linear-gradient(135deg,rgba(74,140,92,.12),rgba(74,46,26,.06));border-radius:10px;padding:1rem;margin-bottom:.8rem;border:1px solid rgba(74,140,92,.2)">
-      <div style="font-weight:700;color:var(--canopy);font-size:.95rem;margin-bottom:.4rem">📍 ${zonaInfo.label}</div>
-      <div style="font-size:.78rem;color:rgba(74,46,26,.65);margin-bottom:.7rem">${zonaInfo.desc}</div>
-      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--earth);margin-bottom:.4rem">Grupos de Madurez recomendados:</div>
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--earth);margin-bottom:.55rem">
+        GMs recomendados — Siembra ${tipoLabelsCortos[tipo]||tipo} · Ambiente ${ambLabels[ambiente]||ambiente}
+      </div>
       <div style="display:flex;flex-wrap:wrap;gap:.4rem">
         ${gmsFinal.map(gm=>`<span style="background:${gmsRecom.includes(gm)?'var(--canopy)':'rgba(74,140,92,.3)'};color:${gmsRecom.includes(gm)?'white':'var(--field)'};padding:.25rem .7rem;border-radius:12px;font-size:.75rem;font-weight:600">${gm}${gmsRecom.includes(gm)?' ★':''}</span>`).join('')}
       </div>
-      <div style="margin-top:.6rem;font-size:.72rem;color:rgba(74,46,26,.5)">★ = recomendado para siembra ${tipo} en ambiente ${ambiente} · Fuente: Andrade/Enrico (INTA Oliveros) 2024</div>
+      <div style="margin-top:.55rem;font-size:.7rem;color:rgba(74,46,26,.45)">★ = GM óptimo · Fuente: RECSO/RET-INASE (INTA Oliveros) 2024-25</div>
     </div>`;
 
   // Ventana de siembra

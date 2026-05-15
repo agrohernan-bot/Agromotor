@@ -273,6 +273,7 @@ window.amCambiarLoteGlobal = function() {
   }
   
   amRenderSelectLotes(); // Actualizar visualmente la lista
+  amActualizarBadgesLote(); // Actualizar badges de lote en todos los módulos
 };
 
 function amGuardarLotesEstado() {
@@ -383,10 +384,58 @@ function cacheCargar() {
 }
 
 
+// ── BADGES DE LOTE ACTIVO EN TODOS LOS MÓDULOS ────────
+// Muestra el nombre del lote activo en el encabezado de cada módulo.
+// Se llama automáticamente al cambiar de lote.
+window.amActualizarBadgesLote = function() {
+  const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
+  const nombre = lote?.nombre || 'Sin lote';
+  const coordStr = lote?.data?.coord || '';
+  const tieneCoordenadas = coordStr.trim().length > 3;
+  const tooltip = tieneCoordenadas ? `Coord: ${coordStr}` : 'Sin coordenadas cargadas';
+
+  // Lista de badges en módulos: id del elemento → ícono
+  const badges = [
+    'mod-lote-badge-siembra',
+    'mod-lote-badge-suelo',
+    'mod-lote-badge-clima',
+    'mod-lote-badge-cosecha',
+    'mod-lote-badge-plagas',
+    'mod-lote-badge-pulv',
+    'mod-lote-badge-economia',
+  ];
+  badges.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = '📂 ' + nombre;
+    el.title = tooltip;
+    el.style.display = '';
+  });
+
+  // También actualizar cultivares si está visible
+  const cvBadge = document.getElementById('cv-lote-badge');
+  if (cvBadge) {
+    cvBadge.textContent = '📂 ' + nombre;
+    cvBadge.title = tooltip;
+    cvBadge.style.display = '';
+  }
+
+  // Re-ejecutar cvActualizar si el módulo cultivares está activo
+  if (typeof cvActualizar === 'function') {
+    const modCv = document.getElementById('mod-cultivares');
+    if (modCv && !modCv.classList.contains('hidden') && modCv.style.display !== 'none') {
+      cvActualizar();
+    }
+  }
+};
+
 // Inicializar global
 document.addEventListener('DOMContentLoaded', () => {
   amCargarLotesGlobales();
-  setTimeout(cacheCargar, 500); // Dar un poco más de tiempo
+  setTimeout(() => {
+    cacheCargar();
+    amActualizarBadgesLote();
+  }, 500);
 });
 
   // Exposición global
