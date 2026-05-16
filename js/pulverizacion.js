@@ -54,7 +54,7 @@ function initGPS() {
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
     setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
-    document.getElementById('btn-refresh').style.display = '';
+    // btn-refresh always visible in HTML
     fetchMeteo();
     return;
   }
@@ -69,7 +69,7 @@ function initGPS() {
       STATE.lat = pos.coords.latitude;
       STATE.lon = pos.coords.longitude;
       setGPSState('ok', `Ubicación: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong> — Precisión: ±${Math.round(pos.coords.accuracy)} m`);
-      document.getElementById('btn-refresh').style.display = '';
+      // btn-refresh always visible in HTML
       fetchMeteo();
     },
     err => {
@@ -90,7 +90,7 @@ function usarUbicacionDefault() {
     STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
     setGPSState('ok', 'Ubicación de referencia: <strong>Córdoba capital</strong> — Ingresá coordenadas en el Dashboard para datos locales');
   }
-  document.getElementById('btn-refresh').style.display = '';
+  // btn-refresh always visible in HTML
   fetchMeteo();
 }
 
@@ -107,18 +107,18 @@ window.pulvRefrescarMeteo = function() {
 };
 
 function setGPSState(st, txt) {
-  const dot = document.getElementById('gps-dot');
-  const textEl = document.getElementById('gps-text');
-  dot.className = 'gps-dot' + (st === 'loading' ? ' loading' : st === 'error' ? ' error' : '');
+  const dot = document.getElementById('pulv-gps-dot');
+  const textEl = document.getElementById('pulv-gps-txt');
+  dot.className = 'gps-dot-p' + (st === 'loading' ? ' loading' : st === 'error' ? ' error' : '');
   textEl.innerHTML = txt;
 }
 
 // ─── FETCH OPEN-METEO ────────────────────────────────────
 async function fetchMeteo() {
   if (!STATE.lat) return;
-  document.getElementById('sem-loading').style.display = 'flex';
-  document.getElementById('sem-content').style.display = 'none';
-  document.getElementById('ventana-card').style.display = 'none';
+  document.getElementById('pulv-sem-loading').style.display = 'flex';
+  document.getElementById('pulv-sem-content').style.display = 'none';
+  document.getElementById('pulv-ventana-card').style.display = 'none';
 
   const vars = [
     'temperature_2m', 'relative_humidity_2m', 'wind_speed_10m',
@@ -147,7 +147,7 @@ async function fetchMeteo() {
     actualizarPanelAgua();
     actualizarMotorCobertura();
   } catch(e) {
-    document.getElementById('sem-loading').innerHTML = `
+    document.getElementById('pulv-sem-loading').innerHTML = `
       <div style="color:var(--warn);text-align:center;padding:2rem">
         ⚠️ Error al conectar con Open-Meteo. Verificá tu conexión a internet.
       </div>`;
@@ -209,13 +209,13 @@ function renderSemaforo(c) {
   ];
   const e = estados[score];
 
-  document.getElementById('sem-estado-txt').textContent = e.txt;
-  document.getElementById('sem-estado-txt').style.color = e.color;
-  document.getElementById('sem-desc-txt').textContent = e.desc;
-  const badge = document.getElementById('sem-badge');
+  document.getElementById('pulv-estado-txt').textContent = e.txt;
+  document.getElementById('pulv-estado-txt').style.color = e.color;
+  document.getElementById('pulv-desc-txt').textContent = e.desc;
+  const badge = document.getElementById('pulv-badge');
   badge.className = 'semaforo-badge ' + e.cls;
-  document.getElementById('sem-emoji').textContent = e.emoji;
-  document.getElementById('sem-badge-txt').textContent = e.cls.toUpperCase();
+  document.getElementById('pulv-emoji').textContent = e.emoji;
+  document.getElementById('pulv-badge-txt').textContent = e.cls.toUpperCase();
 
   // ── GRILLA VARIABLES ──
   const dirLabel = gradosADireccion(c.wind_direction_10m);
@@ -229,7 +229,7 @@ function renderSemaforo(c) {
     { var:'Prob. lluvia', val: pp_prob, unit:'%', st: pp_prob>50?'warn': pp_prob>25?'caution':'ok' },
     { var:'Nubosidad', val: c.cloud_cover, unit:'%', st:'info' },
   ];
-  const grid = document.getElementById('meteo-grid');
+  const grid = document.getElementById('pulv-meteo-grid');
   grid.innerHTML = variables.map(v => `
     <div class="meteo-cell">
       <div class="meteo-var">${v.var}</div>
@@ -238,15 +238,15 @@ function renderSemaforo(c) {
     </div>`).join('');
 
   // ── ALERTAS ──
-  const lista = document.getElementById('alertas-lista');
+  const lista = document.getElementById('pulv-alertas');
   lista.innerHTML = alertas.map(a => `
     <div class="alerta-item">
       <span class="alerta-icon">${a.ico}</span>
       <span class="alerta-text">${a.txt}</span>
     </div>`).join('');
 
-  document.getElementById('sem-loading').style.display = 'none';
-  document.getElementById('sem-content').style.display = 'block';
+  document.getElementById('pulv-sem-loading').style.display = 'none';
+  document.getElementById('pulv-sem-content').style.display = 'block';
 }
 
 // ─── RENDER VENTANA HORARIA ───────────────────────────────
@@ -263,7 +263,7 @@ function renderVentana(hourly) {
   const idxFin = Math.min(idxAhora + 24, horas.length);
   const bloquesSlice = horas.slice(idxAhora, idxFin);
 
-  const timeline = document.getElementById('timeline');
+  const timeline = document.getElementById('pulv-timeline');
   timeline.innerHTML = bloquesSlice.map((t, i) => {
     const idx = idxAhora + i;
     const hora = new Date(t).getHours();
@@ -286,8 +286,8 @@ function renderVentana(hourly) {
     </div>`;
   }).join('');
 
-  document.getElementById('ventana-fecha').textContent = ahora.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
-  document.getElementById('ventana-card').style.display = 'block';
+  document.getElementById('pulv-ventana-fecha').textContent = ahora.toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('pulv-ventana-card').style.display = 'block';
 }
 
 // ─── DERIVA ───────────────────────────────────────────────
