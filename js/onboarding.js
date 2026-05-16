@@ -48,7 +48,7 @@
     {
       icon: '📄',
       title: 'Paso 5 · Tus análisis con membrete profesional',
-      body: () => 'Cada análisis (Decisión, Fertilización, Balance, etc.) lo podés exportar a PDF con tu nombre, matrícula y firma — listo para entregarle al productor.',
+      body: () => 'Cada análisis (Decisión, Nutrición, Suelo, Cosecha, etc.) lo podés exportar a PDF con tu nombre, matrícula y firma — listo para entregarle al productor.',
       target: null,
       placement: 'center',
     },
