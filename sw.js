@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v39';
+const CACHE_NAME    = 'agromotor-v42';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -25,6 +25,7 @@ const ASSETS_LOCAL = [
   './js/siembra-apis.js',
   './js/economia.js',
   './js/fertilizacion.js',
+  './js/nutricion.js',
   './js/maquinaria.js',
   './js/hidrico.js',
   './js/cultivares.js',
@@ -67,8 +68,10 @@ const API_HOSTS = [
   'api.bcra.gob.ar',
   'supabase.co',
   'api.anthropic.com',
-  'monitorsiogranos.magyp.gob.ar',  // cosecha: precio FOB granos
-  'api.estadisticasbcra.com',        // cosecha: tipo de cambio + tasas BCRA
+  'monitorsiogranos.magyp.gob.ar',       // cosecha: precio FOB granos
+  'api.estadisticasbcra.com',            // cosecha: tipo de cambio + tasas BCRA
+  'api.openlandmap.org',                 // suelo: P/K/Zn OpenLandMap
+  'idecor-ws.mapascordoba.gob.ar',       // suelo: P IDECOR Córdoba
 ];
 
 // ── INSTALL: pre-cachear assets locales ───────────────
