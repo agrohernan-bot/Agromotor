@@ -20,13 +20,74 @@
   // Helper: getElementById con prefijo sv-
   function el(id) { return document.getElementById('sv-' + id); }
 
+  // ── GEOFENCE ────────────────────────────────────────
+  var GF_KM = 5; // radio máximo desde el centro del lote activo
+
+  function _parsLoteCoord() {
+    var raw = (document.getElementById('s-coord') || {}).value || '';
+    if (!raw.trim()) return null;
+    var p = raw.split(',');
+    if (p.length < 2) return null;
+    var lat = parseFloat(p[0].trim()), lon = parseFloat(p[1].trim());
+    return (isNaN(lat) || isNaN(lon)) ? null : { lat: lat, lon: lon };
+  }
+
+  // Distancia haversine en km entre dos {lat,lon}
+  function _distKm(a, b) {
+    var R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function _dentroGeofence(latlng) {
+    var c = _parsLoteCoord(); if (!c) return true; // sin lote → no bloquear aquí (ya bloqueado en init)
+    return _distKm(c, { lat: latlng.lat, lon: latlng.lng }) <= GF_KM;
+  }
+
+  function _mostrarErrorGeoFence() {
+    var hint = el('draw-hint');
+    hint.style.display = 'block';
+    hint.style.color = '#e05a3a';
+    hint.innerHTML = '⚠️ Fuera del área del lote activo (' + GF_KM + ' km). Dibujá dentro del lote seleccionado en el Dashboard.';
+    setTimeout(function () {
+      hint.style.color = '';
+      hint.innerHTML = '<strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar';
+    }, 3000);
+  }
+
+  function _mostrarOverlayLote() {
+    var overlay = el('lote-overlay');
+    if (overlay) overlay.style.display = 'flex';
+    var btn = el('btn-dibujar');
+    if (btn) btn.disabled = true;
+    // Deshabilitar importar GeoJSON
+    var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
+    if (fileBtn) fileBtn.disabled = true;
+  }
+
+  function _ocultarOverlayLote() {
+    var overlay = el('lote-overlay');
+    if (overlay) overlay.style.display = 'none';
+    var btn = el('btn-dibujar');
+    if (btn) btn.disabled = false;
+    var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
+    if (fileBtn) fileBtn.disabled = false;
+  }
+
   // ── INIT (llamado desde nav.js al activar el módulo) ─
   window.svInit = function () {
+    var loteCoord = _parsLoteCoord();
+
     if (svIniciado) {
       if (svMap) setTimeout(function () { svMap.invalidateSize(); }, 100);
+      // Re-verificar lote activo cada vez que se abre el módulo
+      if (!loteCoord) { _mostrarOverlayLote(); } else { _ocultarOverlayLote(); if (svMap) svMap.setView([loteCoord.lat, loteCoord.lon], 14); }
       return;
     }
     svIniciado = true;
+
+    // Bloquear si no hay lote activo con coordenadas
+    if (!loteCoord) { _mostrarOverlayLote(); }
 
     // Auto-conectar con key centralizada sin validación de red (confiamos en config.js)
     if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.agromonitoringKey) {
@@ -40,7 +101,11 @@
       el('api-status').innerHTML = '<span class="sv-dot sv-dot-ok"></span> Conectado · Agromonitoring';
     }
 
-    svMap = L.map('sv-map', { zoomControl: true }).setView([-33.45, -62.9], 13);
+    // Centrar mapa en lote activo (o fallback a pampa húmeda)
+    var initLat = loteCoord ? loteCoord.lat : -33.45;
+    var initLon = loteCoord ? loteCoord.lon : -62.9;
+    var initZoom = loteCoord ? 14 : 13;
+    svMap = L.map('sv-map', { zoomControl: true }).setView([initLat, initLon], initZoom);
     var sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       { attribution: '© Esri', maxZoom: 19 });
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -65,6 +130,7 @@
     el('btn-dibujar').style.background = '#92400e';
   }
   function _ck(e) {
+    if (!_dentroGeofence(e.latlng)) { _mostrarErrorGeoFence(); return; }
     _pts.push(e.latlng);
     _mks.push(L.circleMarker(e.latlng, { radius: 5, fillColor: '#1b5e35', fillOpacity: 1, color: '#fff', weight: 2 }).addTo(svMap));
     if (_pl) svMap.removeLayer(_pl);
@@ -140,6 +206,18 @@
         var coords = feat.geometry.type === 'Polygon'
           ? feat.geometry.coordinates[0].map(function (c) { return [c[1], c[0]]; })
           : feat.geometry.coordinates[0][0].map(function (c) { return [c[1], c[0]]; });
+        // Geofence: verificar que el centroide del GeoJSON esté dentro del radio
+        var loteCoord = _parsLoteCoord();
+        if (loteCoord) {
+          var sumLat = 0, sumLng = 0;
+          coords.forEach(function(c) { sumLat += c[0]; sumLng += c[1]; });
+          var centroid = { lat: sumLat / coords.length, lon: sumLng / coords.length };
+          if (_distKm(loteCoord, centroid) > GF_KM) {
+            alert('⚠️ El archivo GeoJSON corresponde a un lote fuera del área permitida (' + GF_KM + ' km del lote activo en el Dashboard).\n\nSeleccioná primero el lote correcto en el Dashboard.');
+            ev.target.value = '';
+            return;
+          }
+        }
         setLote(L.polygon(coords, { color: '#1b5e35', weight: 2, fillOpacity: .08 }));
       } catch (err) { alert('Error: ' + err.message); }
     };

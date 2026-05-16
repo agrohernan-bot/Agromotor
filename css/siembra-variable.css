@@ -40,6 +40,7 @@
   flex-direction: column;
   overflow-y: auto;
   flex-shrink: 0;
+  position: relative;
 }
 
 .sv-panel { border-bottom: 1px solid var(--sv-bdr); }
