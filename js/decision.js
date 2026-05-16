@@ -255,7 +255,7 @@ function decAnalizar() {
       margenBruto: Math.round(margenBruto),
       ingresosBruto: Math.round(ingresosBruto),
       costoTotal: costoTotal,
-      precio: precio,
+      precio: parseFloat(precio.toFixed(2)),
       relInsumoProd: relInsumoProd,
       factoresAgro: factoresAgro,
       retencion: c.retencion,
@@ -295,7 +295,7 @@ function decRender(resultados, aguaTotal, ensoFase) {
     veredictoHtml += mejorAgro.emoji + ' ' + mejorAgro.nombre + ' — la mejor opción en ambos criterios</div>';
     veredictoHtml += '<div style="font-size:.84rem;color:rgba(237,224,196,.6);line-height:1.5">Es el cultivo más recomendable agronómicamente Y el más rentable para esta campaña. Condiciones del lote y precios actuales apuntan en la misma dirección.</div>';
   } else {
-    veredictoHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:.8rem">';
+    veredictoHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:.8rem">';
     veredictoHtml += '<div style="background:rgba(42,122,74,.15);border-radius:12px;padding:.9rem;border:1px solid rgba(42,122,74,.3)">';
     veredictoHtml += '<div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(109,191,130,.6);margin-bottom:.3rem">🌱 Más recomendable agronómicamente</div>';
     veredictoHtml += '<div style="font-size:1.3rem;font-weight:700;color:white">' + mejorAgro.emoji + ' ' + mejorAgro.nombre + '</div>';
@@ -309,9 +309,9 @@ function decRender(resultados, aguaTotal, ensoFase) {
   veredictoHtml += '</div>';
 
   // ── TABLA COMPARATIVA ──
-  var tablaHtml = '<div style="background:#fff;border-radius:14px;padding:1rem 1.1rem;border:1px solid rgba(74,46,26,.12);box-shadow:0 2px 10px rgba(0,0,0,.15)">';
-  tablaHtml += '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.6rem">Comparación completa de cultivos</div>';
-  tablaHtml += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
+  var tablaHtml = '<div style="background:#fff;border-radius:14px;border:1px solid rgba(74,46,26,.12);box-shadow:0 2px 10px rgba(0,0,0,.15);overflow:hidden">';
+  tablaHtml += '<div style="padding:1rem 1.1rem .4rem"><div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.4rem">Comparación completa de cultivos</div></div>';
+  tablaHtml += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:520px;border-collapse:collapse;font-size:.82rem">';
   tablaHtml += '<thead><tr style="background:#f3ede0">';
   tablaHtml += '<th style="padding:.6rem .8rem;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Cultivo</th>';
   tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(42,122,74,.7)">Score<br>Agronómico</th>';
@@ -344,7 +344,7 @@ function decRender(resultados, aguaTotal, ensoFase) {
     tablaHtml += '</tr>';
   });
 
-  tablaHtml += '</tbody></table></div></div>';
+  tablaHtml += '</tbody></table></div></div>'; // cierra overflow-x:auto + card
 
   // ── NOTA METODOLÓGICA ──
   var notaHtml = '<div style="margin-top:.8rem;font-size:.72rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.15);border-radius:8px;line-height:1.5">';

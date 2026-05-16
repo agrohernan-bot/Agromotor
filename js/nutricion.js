@@ -215,11 +215,14 @@ window.ncActualizar = function() {
   if (lblCult)   lblCult.textContent = cultivo;
   if (lblLote)   lblLote.textContent = lote ? lote.nombre : 'Sin lote activo';
   if (lblFuente) {
+    var sg2 = window._sgDatos || {};
+    var pkzId2 = sg2.fuente_pkz_id || '';
+    var pkzSfx = pkzId2 === 'openlandmap' ? ' + 🌍 OLM' : pkzId2.includes('idecor') ? ' + 📍 IDECOR' : pkzId2 === 'db' ? ' + 📚 DB' : '';
     var fTxt, fSty;
-    if      (tieneLab && tieneSG) { fTxt = '🔬 Lab + 🛰️ SoilGrids'; fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
-    else if (tieneLab)            { fTxt = '🔬 Lab activo';           fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
-    else if (tieneSG)             { fTxt = '🛰️ SoilGrids';            fSty = 'background:rgba(122,174,245,.1);color:#2A5A8C;border:1px solid rgba(42,90,140,.25)'; }
-    else                          { fTxt = 'Sin datos de suelo';       fSty = 'background:rgba(74,46,26,.07);color:rgba(74,46,26,.4);border:1px solid rgba(74,46,26,.12)'; }
+    if      (tieneLab && tieneSG) { fTxt = '🔬 Lab + 🛰️ SoilGrids' + pkzSfx; fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
+    else if (tieneLab)            { fTxt = '🔬 Lab activo' + pkzSfx;            fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
+    else if (tieneSG)             { fTxt = '🛰️ SoilGrids' + pkzSfx;             fSty = 'background:rgba(122,174,245,.1);color:#2A5A8C;border:1px solid rgba(42,90,140,.25)'; }
+    else                          { fTxt = 'Sin datos de suelo';                  fSty = 'background:rgba(74,46,26,.07);color:rgba(74,46,26,.4);border:1px solid rgba(74,46,26,.12)'; }
     lblFuente.textContent = fTxt;
     lblFuente.style.cssText = 'font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;' + fSty;
   }
@@ -260,8 +263,8 @@ function ncRenderSueloPanel() {
 
   var labels = { ph:'pH', mo:'MO (%)', soc:'SOC g/kg', n:'N total g/kg', da:'DA g/cm³',
                  cec:'CEC cmol/kg', clay:'Arcilla %', textura:'Textura',
-                 p:'P disp. ppm 🔬', k:'K int. ppm 🔬' };
-  var mostrar = ['ph', 'mo', 'n', 'cec', 'da', 'p', 'k', 'textura'];
+                 p:'P disp. ppm', k:'K int. ppm', zn:'Zn disp. ppm' };
+  var mostrar = ['ph', 'mo', 'n', 'cec', 'da', 'p', 'k', 'zn', 'textura'];
   var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:.32rem">';
   var tienePLab = sd.p && sd.p.valor != null;
   var tieneKLab = sd.k && sd.k.valor != null;
@@ -269,22 +272,29 @@ function ncRenderSueloPanel() {
   mostrar.forEach(function(k) {
     var v = sd[k];
     if (!v) return;
-    var esLab = v.fuente === 'laboratorio';
-    var color = esLab ? '#1b5e35' : '#2A5A8C';
-    var bg    = esLab ? 'rgba(74,140,92,.07)' : 'rgba(42,90,140,.04)';
-    var bdr   = esLab ? 'rgba(74,140,92,.22)' : 'rgba(42,90,140,.12)';
+    var esLab  = v.fuente === 'laboratorio';
+    var esOLM  = v.fuente === 'openlandmap' || v.fuente === 'idecor+olm';
+    var esIDEC = v.fuente === 'idecor';
+    var esDB   = v.fuente === 'db';
+    var srcIco = esLab ? ' 🔬' : esOLM ? ' 🌍' : esIDEC ? ' 📍' : esDB ? ' 📚' : '';
+    var color = esLab ? '#1b5e35' : esOLM ? '#2A6E3A' : esIDEC ? '#1A5A8C' : esDB ? '#7a5c3a' : '#2A5A8C';
+    var bg    = esLab ? 'rgba(74,140,92,.07)' : esOLM ? 'rgba(42,110,58,.05)' : esIDEC ? 'rgba(26,90,140,.05)' : esDB ? 'rgba(122,92,58,.05)' : 'rgba(42,90,140,.04)';
+    var bdr   = esLab ? 'rgba(74,140,92,.22)' : esOLM ? 'rgba(42,110,58,.18)' : esIDEC ? 'rgba(26,90,140,.18)' : esDB ? 'rgba(122,92,58,.14)' : 'rgba(42,90,140,.12)';
     var val   = typeof v.valor === 'number'
       ? (v.valor < 10 ? v.valor.toFixed(2) : v.valor.toFixed(1)) : v.valor;
     html += '<div style="background:' + bg + ';border:1px solid ' + bdr + ';border-radius:8px;padding:.45rem .6rem">'
-          + '<div style="font-size:.63rem;color:' + color + ';font-weight:700;white-space:nowrap;overflow:hidden;margin-bottom:.1rem">' + (labels[k] || k) + '</div>'
+          + '<div style="font-size:.63rem;color:' + color + ';font-weight:700;white-space:nowrap;overflow:hidden;margin-bottom:.1rem">' + (labels[k] || k) + srcIco + '</div>'
           + '<div style="font-size:.9rem;font-weight:700;color:#1A2A1A;font-family:\'DM Mono\',monospace">' + val + '</div>'
           + '</div>';
   });
   html += '</div>';
   panel.innerHTML = html;
 
+  // Mostrar aviso solo cuando P y K no provienen de laboratorio
+  var tienePReal = sd.p && sd.p.valor != null && sd.p.fuente === 'laboratorio';
+  var tieneKReal = sd.k && sd.k.valor != null && sd.k.fuente === 'laboratorio';
   var aviso = document.getElementById('nc-suelo-aviso-p');
-  if (aviso) aviso.style.display = (!tienePLab || !tieneKLab) ? '' : 'none';
+  if (aviso) aviso.style.display = (!tienePReal || !tieneKReal) ? '' : 'none';
 }
 
 // ════════════════════════════════════════════════════════
@@ -308,11 +318,13 @@ window.ncPlanCalcular = function() {
 
   var sd      = window._sueloDatos || {};
   var sueloKg = ncSueloAkg(sd);
+  // tienePLab/tieneKLab: cualquier fuente (lab, OLM, IDECOR, DB) — habilita cálculo de déficit
   var tienePLab = sd.p && sd.p.valor != null;
   var tieneKLab = sd.k && sd.k.valor != null;
+  var fuenteP   = sd.p ? (sd.p.fuente || null) : null;
 
   var nutList = ['N', 'P', 'S'];
-  if (tieneKLab) nutList.push('K');
+  if (tieneKLab) nutList.push('K'); // incluye K si viene de cualquier fuente (OLM, DB, lab)
 
   var resultados = {};
   var costoTotal = 0;
@@ -379,7 +391,7 @@ window.ncPlanCalcular = function() {
     };
   });
 
-  ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN, tienePLab, tieneKLab });
+  ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN, tienePLab, tieneKLab, fuenteP });
 };
 
 // ── RENDER PLAN ──────────────────────────────────────────
@@ -415,11 +427,22 @@ function ncRenderPlan(res, ctx) {
     var rentable = r.bcOpt != null && r.bcOpt >= 1.2;
     var bc       = r.bcOpt != null ? r.bcOpt.toFixed(1) + ':1' : '—';
 
-    // Badge de fuente
+    // Badge de fuente (lab, OpenLandMap, IDECOR, DB, SoilGrids)
     var fuenteBadge = '';
-    if (r.fuenteDisp === 'laboratorio')    fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🔬</span>';
-    else if (r.fuenteDisp && r.fuenteDisp !== 'estimado') fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(42,90,140,.1);color:#2A5A8C;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🛰️</span>';
-    else if (r.disponible != null)          fuenteBadge = '<span style="font-size:.58rem;color:rgba(74,46,26,.35);margin-left:.25rem">~</span>';
+    var fd = r.fuenteDisp;
+    if (fd === 'laboratorio') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🔬</span>';
+    } else if (fd === 'openlandmap' || fd === 'idecor+olm') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(42,110,58,.12);color:#2A6E3A;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🌍 OLM</span>';
+    } else if (fd === 'idecor') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(26,90,140,.1);color:#1A5A8C;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">📍 IDECOR</span>';
+    } else if (fd === 'db') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(122,92,58,.1);color:#7a5c3a;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">📚 DB</span>';
+    } else if (fd && fd !== 'estimado') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(42,90,140,.1);color:#2A5A8C;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🛰️</span>';
+    } else if (r.disponible != null) {
+      fuenteBadge = '<span style="font-size:.58rem;color:rgba(74,46,26,.35);margin-left:.25rem">~</span>';
+    }
 
     var bdrColor = r.dosisRec === 0 ? 'rgba(74,140,92,.3)' : (rentable ? 'rgba(74,140,92,.18)' : 'rgba(200,162,85,.3)');
     html += '<div style="background:#fff;border-radius:12px;padding:.9rem 1rem;border:1.5px solid ' + bdrColor + '">';
@@ -461,8 +484,12 @@ function ncRenderPlan(res, ctx) {
   });
   html += '</div>'; // cierra columna tarjetas
 
-  if (!ctx.tienePLab) {
-    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>P sin análisis de laboratorio:</strong> La recomendación de P se basó en la curva óptima económica (INTA). Para mayor precisión, ingresá el P disponible (ppm Bray I) en Suelo → Análisis de laboratorio.</div></div>';
+  var fp = ctx.fuenteP;
+  if (!fp) {
+    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>P sin datos de suelo:</strong> La recomendación de P se basó en la curva óptima económica (INTA). Ingresá el P disponible (ppm Bray I) en el módulo Suelo → Análisis de laboratorio para mayor precisión.</div></div>';
+  } else if (fp !== 'laboratorio') {
+    var nomFP = fp === 'openlandmap' ? 'OpenLandMap 250m' : fp === 'idecor' ? 'IDECOR Córdoba 90m' : fp === 'idecor+olm' ? 'IDECOR 90m + OLM 250m' : fp === 'db' ? 'DB regional (Fertilizar/INTA)' : fp;
+    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">🌍</span><div class="ac"><strong>P estimado — ' + nomFP + ':</strong> Precisión orientativa (±30-40% vs Bray local). Se usó el dato disponible de mayor resolución. Para fertilización de precisión, ingresá el P Bray I real en el panel de laboratorio.</div></div>';
   }
 
   html += '<div style="margin-top:.9rem;font-size:.7rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:8px;line-height:1.5">';

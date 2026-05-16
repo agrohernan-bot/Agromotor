@@ -211,6 +211,17 @@ const DB_SUELO_PAMPA = {
   Oxisol:   { ph:5.2, clay:35, sand:28, silt:37, soc:22.0, n:1.90, da:1.10, cec:12.0, fuente:'DB interna · Oxisol laterítico' },
 };
 
+// Valores típicos P/K/Zn por tipo de suelo pampeano
+// Fuente: Fertilizar — Mapas de Disponibilidad de Nutrientes Región Pampeana (2018, 2024)
+//         + WoSIS ISRIC + INTA EEA Balcarce/Marcos Juárez
+const DB_PKZ_PAMPA = {
+  Molisol:  { p: 18, k: 195, zn: 1.0 },
+  Vertisol: { p: 14, k: 340, zn: 0.8 },
+  Alfisol:  { p: 11, k: 175, zn: 0.6 },
+  Entisol:  { p:  8, k: 100, zn: 0.5 },
+  Oxisol:   { p:  4, k:  80, zn: 0.7 },
+};
+
 // Clasifica textura USDA
 function clasificarTextura(clay, sand, silt) {
   if (clay >= 40) return 'Vertisol';
@@ -305,10 +316,163 @@ async function buscarSoilGrids(lat, lon) {
   return r;
 }
 
+// ══════════════════════════════════════════════════════════════
+// P · K · Zn — FUENTES ARGENTINAS + OPENLANDMAP
+// SoilGrids 2.0 no incluye P, K ni Zn. Esta cascada cubre
+// el gap más crítico para el plan de fertilización:
+// 1° OpenLandMap (OLM) 250m — P+K+Zn, Argentina completa
+// 2° IDECOR WFS — P a 90m, solo provincia de Córdoba
+// 3° DB interna por tipo de suelo (Fertilizar/INTA)
+// ══════════════════════════════════════════════════════════════
+
+function estaEnCordoba(lat, lon) {
+  return lat >= -38.8 && lat <= -29.2 && lon >= -65.8 && lon <= -61.9;
+}
+
+async function buscarOpenLandMap(lat, lon) {
+  // OpenLandMap/OpenGeoHub predicted250m point query
+  // P: mg/kg (≈ ppm Mehlich/Bray)  |  K: cmol(+)/kg × 391 → ppm  |  Zn: mg/kg
+  try {
+    const url = 'https://api.openlandmap.org/query/point' +
+      '?lat=' + lat.toFixed(4) + '&lon=' + lon.toFixed(4) +
+      '&coll=predicted250m' +
+      '&regex=sol_(phosphorus.extractable|potassium.exchangeable|zinc.extractable)' +
+      '&format=json';
+
+    const res = await Promise.race([
+      fetch(url, { headers: { 'Accept': 'application/json' } }),
+      new Promise(function(_, r) { setTimeout(function() { r(new Error('timeout')); }, 10000); })
+    ]);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    var props = {};
+    if (data && data.properties) {
+      props = data.properties;
+    } else if (data && Array.isArray(data.features) && data.features.length > 0) {
+      props = data.features[0].properties || {};
+    } else if (data && typeof data === 'object' && !Array.isArray(data)) {
+      props = data;
+    }
+
+    var resultado = {};
+
+    var pKey = Object.keys(props).find(function(k) { return k.toLowerCase().includes('phosphorus'); });
+    if (pKey != null && props[pKey] != null && props[pKey] > 0 && props[pKey] < 300) {
+      resultado.p = parseFloat(props[pKey].toFixed(1));
+    }
+
+    var kKey = Object.keys(props).find(function(k) { return k.toLowerCase().includes('potassium'); });
+    if (kKey != null && props[kKey] != null && props[kKey] > 0 && props[kKey] < 20) {
+      resultado.k = Math.round(props[kKey] * 391);
+    }
+
+    var znKey = Object.keys(props).find(function(k) { return k.toLowerCase().includes('zinc'); });
+    if (znKey != null && props[znKey] != null && props[znKey] > 0 && props[znKey] < 30) {
+      resultado.zn = parseFloat(props[znKey].toFixed(2));
+    }
+
+    if (Object.keys(resultado).length === 0) throw new Error('Sin datos P/K/Zn en respuesta OLM');
+
+    resultado.fuente_pkz     = '🌍 OpenLandMap · 250 m';
+    resultado.fuente_pkz_id  = 'openlandmap';
+    resultado.fuente_pkz_det = 'OpenGeoHub · predicted250m · P+K+Zn 0-5 cm · Estimación a 250m — validar con análisis Bray local';
+    return resultado;
+
+  } catch(e) {
+    console.warn('[OLM] falló:', e.message, '→ continuando cascada');
+    return null;
+  }
+}
+
+async function buscarIDECOR(lat, lon) {
+  // IDECOR WFS — Mapa de Fósforo 2024 · 90m · Solo Córdoba
+  if (!estaEnCordoba(lat, lon)) return null;
+  var capas = [
+    'idecor:suelos_fosforo_2024',
+    'idecor:suelos_fosforo',
+    'idecor:propiedades_suelos_fosforo',
+  ];
+  var delta = 0.0045;
+  var bbox  = (lon - delta) + ',' + (lat - delta) + ',' + (lon + delta) + ',' + (lat + delta) + ',EPSG:4326';
+
+  for (var ci = 0; ci < capas.length; ci++) {
+    try {
+      var url = 'https://idecor-ws.mapascordoba.gob.ar/geoserver/idecor/wfs' +
+        '?service=WFS&version=2.0.0&request=GetFeature&typeName=' + capas[ci] +
+        '&bbox=' + bbox + '&outputFormat=application/json';
+      var res = await Promise.race([
+        fetch(url),
+        new Promise(function(_, r) { setTimeout(function() { r(new Error('timeout')); }, 8000); })
+      ]);
+      if (!res.ok) continue;
+      var gj = await res.json();
+      if (!gj.features || gj.features.length === 0) continue;
+      var feat = gj.features[0].properties || {};
+      var pCampos = ['fosforo_ppm', 'fosforo', 'p_ppm', 'P', 'phosphorus', 'p'];
+      for (var pi = 0; pi < pCampos.length; pi++) {
+        var pv = feat[pCampos[pi]];
+        if (pv != null && !isNaN(parseFloat(pv)) && parseFloat(pv) > 0 && parseFloat(pv) < 300) {
+          return {
+            p:              parseFloat(parseFloat(pv).toFixed(1)),
+            fuente_pkz:     '📍 IDECOR Córdoba · 90 m · P 2024',
+            fuente_pkz_id:  'idecor',
+            fuente_pkz_det: 'IDECOR / Gobierno de Córdoba · Mapa de Fósforo 2024 · 90 m · Solo provincia de Córdoba',
+          };
+        }
+      }
+    } catch(e) { continue; }
+  }
+  console.warn('[IDECOR] capa de fósforo no encontrada → fallback');
+  return null;
+}
+
+async function buscarPKZ(lat, lon, textura) {
+  // 1° OpenLandMap — P+K+Zn, 250m, Argentina completa
+  var olm = await buscarOpenLandMap(lat, lon);
+  if (olm && (olm.p != null || olm.k != null || olm.zn != null)) {
+    // En Córdoba: reemplazar P con IDECOR 90m si disponible (mayor resolución)
+    if (estaEnCordoba(lat, lon)) {
+      var idecor = await buscarIDECOR(lat, lon);
+      if (idecor && idecor.p != null) {
+        olm.p = idecor.p;
+        olm.fuente_pkz     = '📍 IDECOR 90m (P) + 🌍 OLM 250m (K/Zn)';
+        olm.fuente_pkz_id  = 'idecor+olm';
+        olm.fuente_pkz_det = 'P: IDECOR Córdoba 2024 90m · K+Zn: OpenLandMap predicted250m';
+      }
+    }
+    return olm;
+  }
+
+  // 2° Solo IDECOR (si OLM falló y estamos en Córdoba)
+  var idecorSolo = await buscarIDECOR(lat, lon);
+  if (idecorSolo) return idecorSolo;
+
+  // 3° DB interna por tipo de suelo
+  var tipo = (textura && DB_PKZ_PAMPA[textura]) ? textura : 'Molisol';
+  var db   = DB_PKZ_PAMPA[tipo];
+  return {
+    p:              db.p,
+    k:              db.k,
+    zn:             db.zn,
+    fuente_pkz:     '📚 DB regional · P/K/Zn típicos',
+    fuente_pkz_id:  'db',
+    fuente_pkz_det: 'DB interna · valores típicos ' + tipo + ' pampeano (Fertilizar/INTA) · Alta incertidumbre — requiere análisis de laboratorio',
+  };
+}
+
 function renderSoilGrids(d) {
   if (!d || Object.keys(d).length === 0) return;
 
   const mo = d.soc != null ? d.soc * 1.724 / 10 : null; // % MO
+
+  // Badge de fuente para P/K/Zn
+  const pkzId  = d.fuente_pkz_id || '';
+  const pkzBadge = pkzId === 'openlandmap' ? '🌍 OLM 250m'
+                 : pkzId === 'idecor'      ? '📍 IDECOR 90m'
+                 : pkzId === 'idecor+olm'  ? '📍+🌍 90m/250m'
+                 : pkzId === 'db'          ? '📚 DB regional'
+                 : '—';
 
   // ── Panel resumen superior (api-info) ──
   $('sg-ph').textContent      = d.ph   != null ? d.ph.toFixed(1)        : '—';
@@ -322,13 +486,6 @@ function renderSoilGrids(d) {
   $('sg-info').classList.remove('hidden');
 
   // ── KPI cards principales ──
-  const kpiColor = (val, buenos, malos) => {
-    if (val == null) return '';
-    if (malos(val)) return 'warn';
-    if (buenos(val)) return '';
-    return 'neutral';
-  };
-
   const kpis = `<div class="rg" style="grid-template-columns:repeat(auto-fit,minmax(105px,1fr));margin-bottom:1rem">
     ${d.ph != null ? `<div class="kc ${d.ph<5.5||d.ph>7.8?'warn':d.ph>=6&&d.ph<=7.5?'':'neutral'}">
       <div class="kl">pH suelo</div>
@@ -365,6 +522,21 @@ function renderSoilGrids(d) {
       <div class="kv">${d.clay.toFixed(0)}</div>
       <div class="ku">% · ${d.clay>40?'Vértica':d.clay>25?'Media':'Baja'}</div>
     </div>` : ''}
+    ${d.p != null ? `<div class="kc ${d.p<12?'warn':d.p<25?'neutral':''}">
+      <div class="kl">P disponible</div>
+      <div class="kv">${d.p.toFixed(0)}</div>
+      <div class="ku">ppm · ${d.p<12?'⚠️ Bajo':d.p<25?'Medio':'Alto'} · ${pkzBadge}</div>
+    </div>` : ''}
+    ${d.k != null ? `<div class="kc ${d.k<100?'warn':d.k<200?'neutral':''}">
+      <div class="kl">K intercambiable</div>
+      <div class="kv">${d.k.toFixed(0)}</div>
+      <div class="ku">ppm · ${d.k<100?'⚠️ Bajo':d.k<200?'Medio':'Alto'} · ${pkzBadge}</div>
+    </div>` : ''}
+    ${d.zn != null ? `<div class="kc ${d.zn<0.7?'warn':d.zn<1.5?'neutral':''}">
+      <div class="kl">Zinc disponible</div>
+      <div class="kv">${d.zn.toFixed(1)}</div>
+      <div class="ku">ppm · ${d.zn<0.7?'⚠️ Deficiente':d.zn<1.5?'Adecuado':'Alto'} · ${pkzBadge}</div>
+    </div>` : ''}
     ${d.textura ? `<div class="kc" style="background:linear-gradient(135deg,#3A2A0E,#6A4A1A)">
       <div class="kl">Tipo de suelo</div>
       <div class="kv" style="font-size:1.1rem;color:var(--grain)">${d.textura}</div>
@@ -398,6 +570,7 @@ function renderSoilGrids(d) {
   // ── Tabla detallada ──
   const ccEstim = d.clay>=35 ? 35 : d.sand>=65 ? 12 : 28;
   const pmEstim = d.clay>=35 ? 18 : d.sand>=65 ? 4  : 12;
+  const pkzFuente = d.fuente_pkz ? ` <span style="font-size:.65em;opacity:.6">(${d.fuente_pkz})</span>` : '';
   const tabla = `
     <div style="overflow-x:auto">
     <table class="dt">
@@ -413,6 +586,9 @@ function renderSoilGrids(d) {
         ${d.sand !=null?`<tr><td>🏖️ Arena</td><td class="mn">${d.sand.toFixed(0)} %</td><td>—</td></tr>`:''}
         ${d.silt !=null?`<tr><td>🌫️ Limo</td><td class="mn">${d.silt.toFixed(0)} %</td><td>—</td></tr>`:''}
         <tr style="background:rgba(74,140,92,.08)"><td><strong>💧 Capacidad de campo estim.</strong></td><td class="mn"><strong>~${ccEstim}%</strong></td><td>Punto de marchitez: ~${pmEstim}% · Agua útil: ~${ccEstim-pmEstim}%</td></tr>
+        ${d.p    !=null?`<tr style="background:rgba(200,162,85,.06)"><td>⚗️ P disponible${pkzFuente}</td><td class="mn" style="font-weight:700">${d.p.toFixed(0)} ppm</td><td>${d.p<8?'🚫 Muy bajo — deficiencia severa probable':d.p<12?'⚠️ Bajo — respuesta a P esperable':d.p<25?'Medio — fertilización de reposición':d.p<40?'✅ Bueno':'Alto — sin respuesta a P esperada'}</td></tr>`:''}
+        ${d.k    !=null?`<tr style="background:rgba(200,162,85,.06)"><td>🧲 K intercambiable${pkzFuente}</td><td class="mn" style="font-weight:700">${d.k.toFixed(0)} ppm</td><td>${d.k<80?'🚫 Muy bajo — deficiencia probable':d.k<120?'⚠️ Bajo — considerar fertilización K':d.k<200?'Medio — adecuado para la mayoría de cultivos':'✅ Alto — sin limitación de K'}</td></tr>`:''}
+        ${d.zn   !=null?`<tr style="background:rgba(200,162,85,.06)"><td>⚡ Zinc disponible${pkzFuente}</td><td class="mn" style="font-weight:700">${d.zn.toFixed(2)} ppm</td><td>${d.zn<0.5?'🚫 Deficiente — aplicar ZnSO₄ o EDTA-Zn':d.zn<0.7?'⚠️ Bajo — monitorear, especialmente en maíz':d.zn<1.5?'✅ Adecuado':'Alto — sin limitación de Zn'}</td></tr>`:''}
         ${d.textura?`<tr class="hl"><td><strong>🗺️ Tipo de suelo (estimado)</strong></td><td colspan="2"><strong>${d.textura}</strong> — clasificación por textura USDA/WRB</td></tr>`:''}
       </tbody>
     </table></div>`;
@@ -424,10 +600,15 @@ function renderSoilGrids(d) {
     mo!=null&&mo<2.0 ? `<div class="alert warn"><span class="ai">🌱</span><div class="ac"><strong>Materia orgánica baja (${mo.toFixed(1)}%)</strong> — Suelo con estructura degradada. Priorizar siembra directa, cobertura permanente y retención total de rastrojos. Cada 1% de MO adicional aporta ~20 kg N/ha/año mineralizable.</div></div>` : '',
     d.da!=null&&d.da>1.45 ? `<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>Densidad aparente alta (${d.da?.toFixed(2)} g/cm³)</strong> — Indica compactación existente. Confirmar con penetrómetro. Porosidad reducida limita el crecimiento radicular y la infiltración del agua.</div></div>` : '',
     d.cec!=null&&d.cec<10 ? `<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (${d.cec?.toFixed(1)} cmol/kg)</strong> — El suelo tiene poca capacidad de retener cationes (K⁺, Ca²⁺, Mg²⁺). Fraccioná las aplicaciones de fertilizantes potásicos y cálcicos para evitar pérdidas.</div></div>` : '',
+    d.p!=null&&d.p<12 ? `<div class="alert warn"><span class="ai">⚗️</span><div class="ac"><strong>Fósforo bajo (${d.p?.toFixed(0)} ppm)</strong> — Nivel por debajo del umbral crítico para cultivos pampeanos (~12-15 ppm Bray I). Se espera respuesta económica a la fertilización fosfatada. ${pkzId==='db'?'Valor estimado — confirmar con análisis de laboratorio.':''}</div></div>` : '',
+    d.zn!=null&&d.zn<0.7 ? `<div class="alert warn"><span class="ai">⚡</span><div class="ac"><strong>Zinc deficiente (${d.zn?.toFixed(2)} ppm)</strong> — Nivel inferior al umbral crítico (0.7 ppm DTPA). El maíz es especialmente sensible a la deficiencia de Zn. Considerar 2-4 kg/ha de ZnSO₄ o aplicación foliar. ${pkzId==='db'?'Valor estimado — confirmar con análisis.':''}</div></div>` : '',
+    (d.p!=null||d.k!=null||d.zn!=null)&&pkzId==='db' ? `<div class="alert info"><span class="ai">📚</span><div class="ac"><strong>P/K/Zn estimados por tipo de suelo</strong> — Los valores de fósforo, potasio y zinc corresponden a valores típicos de ${d.textura||'Molisol'} pampeano (Fertilizar/INTA). La precisión es orientativa — para decisiones de fertilización se recomienda análisis de laboratorio (Bray I, NH₄Ac, DTPA).</div></div>` : '',
   ].filter(Boolean).join('');
 
+  // Nota de fuentes múltiples
+  const pkzFuenteTexto = d.fuente_pkz_det ? ` · ${d.fuente_pkz_det}` : '';
   const fuente = `<div style="margin-top:.8rem;padding:.55rem .8rem;background:rgba(74,46,26,.04);border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
-    📡 <strong>Fuente:</strong> SoilGrids 2.0 ISRIC/Wageningen · Resolución 250 m · Profundidad 0-5 cm · Licencia CC BY 4.0 · Datos de orientación — validar con análisis de suelo local para decisiones críticas.
+    📡 <strong>pH/MO/N/Textura:</strong> SoilGrids 2.0 ISRIC/Wageningen · 250 m · CC BY 4.0${d.fuente_pkz ? ` · <strong>P/K/Zn:</strong> ${d.fuente_pkz}${pkzFuenteTexto}` : ''} · Datos de orientación — validar con análisis de suelo local para decisiones críticas.
   </div>`;
 
   $('sg-card').classList.remove('hidden');
@@ -712,8 +893,8 @@ function ecToneladasAqq(cult) {
 // DATOS UNIFICADOS DEL SUELO
 // _sueloDatos  = objeto fusionado {campo: {valor, fuente}}
 // _labDatos    = datos ingresados por el usuario (lab)
-// _sgDatos     = datos crudos de SoilGrids (sin cambios)
-// Prioridad: laboratorio > SoilGrids
+// _sgDatos     = datos crudos de APIs (SoilGrids + PKZ de OLM/IDECOR/DB)
+// Prioridad: laboratorio > OpenLandMap/IDECOR/DB (P/K/Zn) > SoilGrids (resto)
 // ════════════════════════════════════════════════════════
 window._sueloDatos = {};
 window._labDatos   = {};
@@ -724,7 +905,7 @@ function sueloFusionar() {
   const lab = window._labDatos || {};
   const sd  = {};
 
-  // Cargar base desde SoilGrids
+  // Cargar base desde SoilGrids (textura, pH, MO, N, DA, CEC)
   const sgCampos = {
     ph:      sg.ph,
     soc:     sg.soc,
@@ -741,7 +922,13 @@ function sueloFusionar() {
     if (sgCampos[k] != null) sd[k] = { valor: sgCampos[k], fuente: 'soilgrids' };
   });
 
-  // Override campo a campo con datos de laboratorio
+  // P, K, Zn desde OpenLandMap / IDECOR / DB (SoilGrids no los incluye)
+  const pkzId = sg.fuente_pkz_id || null;
+  if (sg.p  != null) sd.p  = { valor: sg.p,  fuente: pkzId || 'soilgrids' };
+  if (sg.k  != null) sd.k  = { valor: sg.k,  fuente: pkzId || 'soilgrids' };
+  if (sg.zn != null) sd.zn = { valor: sg.zn, fuente: pkzId || 'soilgrids' };
+
+  // Override campo a campo con datos de laboratorio (máxima prioridad)
   const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da };
   Object.keys(labCampos).forEach(function(k) {
     const v = labCampos[k];
@@ -783,7 +970,11 @@ function sueloRenderResumenLab() {
     const k = entry[0], v = entry[1];
     const lbl   = labels[k] || k;
     const esLab = v.fuente === 'laboratorio';
-    const ico   = esLab ? '🔬' : '🛰️';
+    const ico   = v.fuente === 'laboratorio' ? '🔬'
+                : (v.fuente === 'openlandmap' || v.fuente === 'idecor+olm') ? '🌍'
+                : v.fuente === 'idecor' ? '📍'
+                : v.fuente === 'db' ? '📚'
+                : '🛰️';
     const color = esLab ? '#1b5e35' : '#6b7280';
     const val   = typeof v.valor === 'number'
       ? (v.valor < 10 ? v.valor.toFixed(2) : v.valor.toFixed(1))
@@ -904,7 +1095,24 @@ async function consultarSuelo() {
   if (msgEl) msgEl.textContent = 'Consultando SoilGrids ISRIC...';
 
   try {
+    // Paso 1: SoilGrids (textura, pH, MO, N, DA, CEC)
     const datos = await buscarSoilGrids(lat, lon);
+
+    // Paso 2: P, K, Zn — cascada OpenLandMap → IDECOR → DB
+    if (msgEl) msgEl.textContent = datos.esFallback
+      ? 'Estimando suelo regional · Consultando P/K/Zn...'
+      : 'SoilGrids OK · Consultando P/K/Zn (OLM)...';
+
+    const pkz = await buscarPKZ(lat, lon, datos.textura || 'Molisol');
+    if (pkz) {
+      if (pkz.p  != null) datos.p  = pkz.p;
+      if (pkz.k  != null) datos.k  = pkz.k;
+      if (pkz.zn != null) datos.zn = pkz.zn;
+      datos.fuente_pkz     = pkz.fuente_pkz;
+      datos.fuente_pkz_id  = pkz.fuente_pkz_id;
+      datos.fuente_pkz_det = pkz.fuente_pkz_det;
+    }
+
     window._sgDatos = datos;
 
     // Fusionar con datos de lab y actualizar _sueloDatos
@@ -922,9 +1130,14 @@ async function consultarSuelo() {
       if (ss && !ss.value) ss.value = datos.textura;
     }
 
+    const pkzLabel = datos.fuente_pkz_id === 'openlandmap'   ? ' · P+K+Zn 🌍 OLM'
+                   : (datos.fuente_pkz_id || '').includes('idecor') ? ' · P+K/Zn 📍 IDECOR'
+                   : datos.fuente_pkz_id === 'db'            ? ' · P/K/Zn 📚 DB'
+                   : '';
+    const labLabel = Object.keys(window._labDatos || {}).length > 0 ? ' · Lab 🔬' : '';
     if (msgEl) msgEl.textContent = datos.esFallback
-      ? 'Datos de base regional pampeana (SoilGrids no disponible en este momento)'
-      : 'Datos SoilGrids cargados' + (Object.keys(window._labDatos || {}).length > 0 ? ' · Lab activo 🔬' : '');
+      ? 'Base regional pampeana (SoilGrids no disponible)' + pkzLabel + labLabel
+      : 'SoilGrids cargado' + pkzLabel + labLabel;
     if (spEl) spEl.style.animation = 'none';
   } catch(e) {
     if (msgEl) msgEl.textContent = 'Error al consultar: ' + e.message;
@@ -936,13 +1149,16 @@ async function consultarSuelo() {
 window.consultarSuelo = consultarSuelo;
 
   // Exposición a global
-  window.buscarNASAPower = buscarNASAPower;
-  window.renderNASAPower = renderNASAPower;
-  window.buscarSoilGrids = buscarSoilGrids;
-  window.renderSoilGrids = renderSoilGrids;
+  window.buscarNASAPower    = buscarNASAPower;
+  window.renderNASAPower    = renderNASAPower;
+  window.buscarSoilGrids    = buscarSoilGrids;
+  window.renderSoilGrids    = renderSoilGrids;
+  window.buscarOpenLandMap  = buscarOpenLandMap;
+  window.buscarIDECOR       = buscarIDECOR;
+  window.buscarPKZ          = buscarPKZ;
   window.calcularCompactacion = calcularCompactacion;
   window.renderCompactacion = renderCompactacion;
-  window.ecToneladasAqq = ecToneladasAqq;
+  window.ecToneladasAqq     = ecToneladasAqq;
 
 // Estado del dólar
 })();
