@@ -72,6 +72,7 @@ const API_HOSTS = [
   'api.estadisticasbcra.com',            // cosecha: tipo de cambio + tasas BCRA
   'api.openlandmap.org',                 // suelo: P/K/Zn OpenLandMap
   'idecor-ws.mapascordoba.gob.ar',       // suelo: P IDECOR Córdoba
+  'infra.datos.gob.ar',                  // cosecha: BADLAR + plazo fijo (CSV SSPM)
 ];
 
 // ── INSTALL: pre-cachear assets locales ───────────────
