@@ -256,10 +256,39 @@ async function amLogin() {
 
 // ── REGISTRO ──────────────────────────────────────────
 // Auto-abrir modal desde URL params (?signup=1&plan=X)
+// También maneja el return de Mercado Pago (?subscription=success/pending/failure)
 function amProcesarUrlParams() {
   try {
-    if (localStorage.getItem('am_god') === 'true') return; // Evitar modal si God Mode está activo
+    if (localStorage.getItem('am_god') === 'true') return;
     const params = new URLSearchParams(window.location.search);
+
+    // ── Retorno desde checkout de Mercado Pago ──
+    const subResult = params.get('subscription');
+    if (subResult) {
+      // Limpiar URL sin reload
+      const urlLimpia = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, '', urlLimpia);
+
+      setTimeout(async function() {
+        if (subResult === 'success') {
+          // Recargar datos del usuario desde Supabase (el webhook pudo haber actualizado el plan)
+          if (typeof AM_SB !== 'undefined') {
+            try {
+              const { data: { user } } = await AM_SB.auth.getUser();
+              if (user && typeof amCargarSesion === 'function') await amCargarSesion();
+            } catch(e) { /* noop */ }
+          }
+          amToast('✅ ¡Suscripción iniciada! Tu plan se activará en unos minutos una vez confirmado el pago.', 'ok');
+        } else if (subResult === 'pending') {
+          amToast('⏳ Pago pendiente de confirmación. Te avisamos cuando se acredite.', 'ok');
+        } else if (subResult === 'failure') {
+          amToast('❌ El pago no pudo procesarse. Podés intentarlo de nuevo desde tu perfil.', 'err');
+        }
+      }, 1200);
+      return;
+    }
+
+    // ── Auto-abrir modal de login/registro ──
     if (params.get('signup') === '1' || params.get('login') === '1') {
       const planSel = params.get('plan');
       const vista = params.get('login') === '1' ? 'login' : 'registro';
