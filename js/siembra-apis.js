@@ -1159,6 +1159,9 @@ window.consultarSuelo = consultarSuelo;
   window.calcularCompactacion = calcularCompactacion;
   window.renderCompactacion = renderCompactacion;
   window.ecToneladasAqq     = ecToneladasAqq;
+  window.EC_COSTOS_BASE     = EC_COSTOS_BASE;
+  window.EC_COSECHA_INFO    = EC_COSECHA_INFO;
+  window.EC_REND_BASE       = EC_REND_BASE;
 
 // Estado del dólar
 })();

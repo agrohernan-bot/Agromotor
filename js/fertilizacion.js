@@ -44,29 +44,29 @@
   window.calcFert = calcFert;
 
 // ── MAQUINARIA ──
-let TC=[];
+window.TC = window.TC || [];
 function loadMaq(){
   const m=DB.maqs[gv('m-maq')];
   $('m-ancho').value=m.a;
-  TC=m.t.map(t=>({...t,prod:'Soja',pct:100,dosis:80}));
+  window.TC=m.t.map(t=>({...t,prod:'Soja',pct:100,dosis:80}));
   renderTC();
 }
 function renderTC(){
-  $('m-tolvas').innerHTML=TC.map((t,i)=>`
+  $('m-tolvas').innerHTML=window.TC.map((t,i)=>`
     <div class="tr"><div class="trh"><span class="trn">📦 ${t.n}</span><span class="trv">${(t.v/1000).toFixed(1)} m³ · ${t.v.toLocaleString()} L</span></div>
     <div class="grid-3">
       <div class="fg" style="margin-bottom:0"><label>Producto</label>
-        <select onchange="TC[${i}].prod=this.value;syncD(${i})">
+        <select onchange="window.TC[${i}].prod=this.value;syncD(${i})">
           ${Object.keys(DB.dosis).map(p=>`<option value="${p}" ${p===t.prod?'selected':''}>${p}</option>`).join('')}
         </select></div>
       <div class="fg" style="margin-bottom:0"><label>Dosis (kg/ha)</label>
-        <input type="number" id="md-${i}" value="${DB.dosis[t.prod]||80}" min="0" max="500" onchange="TC[${i}].dosis=+this.value||0"></div>
+        <input type="number" id="md-${i}" value="${DB.dosis[t.prod]||80}" min="0" max="500" onchange="window.TC[${i}].dosis=+this.value||0"></div>
       <div class="fg" style="margin-bottom:0"><label>% llenado</label>
-        <div class="sw"><input type="range" min="10" max="100" value="100" oninput="TC[${i}].pct=+this.value;sv('mp-${i}',this.value+'%')"><span class="sv" id="mp-${i}">100%</span></div></div>
+        <div class="sw"><input type="range" min="10" max="100" value="100" oninput="window.TC[${i}].pct=+this.value;sv('mp-${i}',this.value+'%')"><span class="sv" id="mp-${i}">100%</span></div></div>
     </div></div>`).join('');
-  TC.forEach((t,i)=>t.dosis=DB.dosis[t.prod]||80);
+  window.TC.forEach((t,i)=>t.dosis=DB.dosis[t.prod]||80);
 }
-function syncD(i){const e=$(`md-${i}`);if(e){e.value=DB.dosis[TC[i].prod]||80;TC[i].dosis=+e.value}}
+function syncD(i){const e=$(`md-${i}`);if(e){e.value=DB.dosis[window.TC[i].prod]||80;window.TC[i].dosis=+e.value}}
 
   window.loadMaq = loadMaq;
   window.renderTC = renderTC;

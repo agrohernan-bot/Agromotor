@@ -8,7 +8,7 @@
   function calcMaq(){
     const a=gi('m-ancho'),v=gi('m-vel'),ef=+gv('m-efic')||.85;
     const hs=gi('m-hs'),tr=gi('m-rec'),pe=gi('m-precio'),mg=gi('m-margen');
-    TC.forEach((t,i)=>{const e=$(`md-${i}`);if(e)t.dosis=+e.value||0});
+    (window.TC||[]).forEach((t,i)=>{const e=$(`md-${i}`);if(e)t.dosis=+e.value||0});
     const cT=(a*v*ef)/10;
     let hpc=[],ti=[];
     for(const t of TC){

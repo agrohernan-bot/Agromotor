@@ -1054,7 +1054,7 @@ function exportHistorialCSV() {
 // â”€â”€ INIT â”€â”€
 function init() {
   const hoy = new Date();
-  $('badge-date').textContent = 'ðŸ“… ' + hoy.toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+  if ($('badge-date')) $('badge-date').textContent = '📅 ' + hoy.toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
 
   buildMonthPills();
   buildEscenarioMesesPills();
