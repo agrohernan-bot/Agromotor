@@ -116,7 +116,7 @@ function cvRenderComparador() {
 // STRESS TEST HÍDRICO — Percentil 20 vs Promedio
 // ════════════════════════════════════════════════════════
 function bhStressTest() {
-  const cultivo = gv('bh-cultivo')||'Soja';
+  const cultivo = gv('s-cultivo')||'Soja';
   const rendObj = gi('bh-rend-obj')||3.5;
   const aguaPerf = gi('bh-agua-perfil')||120;
   const precipHist = gi('bh-precip-hist')||580;
@@ -187,8 +187,17 @@ const GDD_MES_B10 = [310,270,210,115,55,18,20,40,85,165,235,295];
 const GDD_MES_B8  = [340,300,240,145,75,32,35,58,108,190,262,322];
 const GDD_MES_B0  = [527,490,430,345,265,205,200,225,295,390,465,518];
 
+// Ventanas de siembra típicas pampa argentina (meses 0-based)
+const GDD_ESTACION = {
+  Soja:    {meses:[9,10,11,0,1],  label:'Oct–Feb'},
+  Maíz:    {meses:[8,9,10,11,0,1],label:'Sep–Feb'},
+  Trigo:   {meses:[4,5,6],        label:'May–Jul'},
+  Girasol: {meses:[9,10,11],      label:'Oct–Dic'},
+  Sorgo:   {meses:[9,10,11,0,1],  label:'Oct–Feb'},
+};
+
 function bhCalcularGDD() {
-  const cultivo  = gv('bh-cultivo')||'Soja';
+  const cultivo  = gv('s-cultivo')||'Soja';
   const fechaStr = gv('bh-fecha')||new Date().toISOString().split('T')[0];
   const cfg = GDD_CULTIVOS_FL[cultivo]; if(!cfg) return;
   const fechaSiem = new Date(fechaStr);
@@ -209,10 +218,13 @@ function bhCalcularGDD() {
   const meses = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const riesgoCalor  = [0,1,11].includes(mesFlor);
   const riesgoHelada = [5,6,7].includes(mesFlor);
+  const estacion = GDD_ESTACION[cultivo];
+  const fueraEstacion = estacion && !estacion.meses.includes(mesIni);
 
   const gddEl = $('bh-gdd'); if(!gddEl) return;
   gddEl.innerHTML = `
     <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.6rem">📅 Floración estimada — ${cultivo} (GDD base ${cfg.base}°C · ${cfg.label})</div>
+    ${fueraEstacion?`<div class="alert warn" style="margin-bottom:.7rem"><span class="ai">⚠️</span><div class="ac"><strong>Fecha fuera de la época de siembra típica</strong> — ${cultivo} se siembra normalmente entre ${estacion.label} en la región pampeana. El resultado puede no reflejar condiciones reales de cultivo.</div></div>`:''}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.7rem;margin-bottom:.8rem">
       <div style="background:linear-gradient(145deg,#0E2016,#173325);border-radius:12px;padding:.9rem;color:white;border:1px solid rgba(109,191,130,.12)">
         <div style="font-size:.6rem;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:.3rem">Siembra</div>
