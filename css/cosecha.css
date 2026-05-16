@@ -378,6 +378,21 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 .tbl .ok   { color: var(--ok); font-weight: 600; }
 .tbl .warn { color: var(--warn); font-weight: 600; }
 
+/* Tables inside dark/gold cards — override light-bg defaults */
+.card-dark .tbl th,
+.card-gold .tbl th { color: rgba(237,224,196,.55); background: rgba(0,0,0,.15); border-bottom-color: rgba(200,162,85,.2); }
+.card-dark .tbl td,
+.card-gold .tbl td { color: var(--straw); border-bottom-color: rgba(200,162,85,.08); }
+.card-dark .tbl tr:hover td,
+.card-gold .tbl tr:hover td { background: rgba(200,162,85,.06); }
+.card-dark .tbl .ok,
+.card-gold .tbl .ok { color: var(--sprout); }
+
+/* Scenario / devaluation table inside card-gold */
+.card-gold .esc-tbl th.col-precio { color: rgba(237,224,196,.55) !important; background: rgba(0,0,0,.12); }
+.card-gold .esc-tbl td { color: var(--straw) !important; border-bottom-color: rgba(200,162,85,.08); }
+.card-gold .esc-tbl td.td-mes { color: var(--straw) !important; background: rgba(42,90,140,.12); }
+
 /* ── INFO BOX ── */
 .info-box {
   background: rgba(122,174,245,.12); border: 1px solid rgba(122,174,245,.35);

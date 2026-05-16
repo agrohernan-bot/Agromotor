@@ -875,7 +875,7 @@ function buildDevalTable() {
     const netoHoyARS = netoHoyUSD * tc;
     html += `<tr><td class="td-mes">${m} ${m===1?'mes':'meses'}</td>`;
     html += `<td style="font-family:'DM Mono',monospace;text-align:center;font-weight:600">$${fmt(tcFuturo,0)}</td>`;
-    html += `<td style="font-family:'DM Mono',monospace;text-align:center;color:rgba(28,18,8,.5)">$${fmt(netoHoyARS,0)}</td>`;
+    html += `<td style="font-family:'DM Mono',monospace;text-align:center;color:rgba(237,224,196,.5)">$${fmt(netoHoyARS,0)}</td>`;
     [0, -5, -10, 5, 10, 15].forEach(v => {
       const precioFut = p * (1 + v/100);
       const netoFutUSD = calcNeto(precioFut, 'acopio').neto - calcAlmacCosto('sb').total;
