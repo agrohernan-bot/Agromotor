@@ -181,5 +181,7 @@ function cvRenderDondeComprar(cultivarNombre, empresa, especie, lat, lon) {
 
   // Exposición a global
   window.cvRenderDondeComprar = cvRenderDondeComprar;
+  window.DC_DB        = DC_DB;          // usado por asistente.js → mapaFiltrar
+  window.dcDistancia  = dcDistancia;    // usado por asistente.js → mapaFiltrar
 
 })();
