@@ -255,7 +255,7 @@ function decAnalizar() {
       margenBruto: Math.round(margenBruto),
       ingresosBruto: Math.round(ingresosBruto),
       costoTotal: costoTotal,
-      precio: parseFloat(precio.toFixed(2)),
+      precio: precio.toFixed(2),
       relInsumoProd: relInsumoProd,
       factoresAgro: factoresAgro,
       retencion: c.retencion,
