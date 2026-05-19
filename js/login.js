@@ -123,10 +123,12 @@ AM_SB.auth.onAuthStateChange((event, session) => {
 function amTieneAcceso(modulo) {
   if (localStorage.getItem('am_god') === 'true') return true;
   if (AM_CONFIG.devMode) return true;
-  if (!AM_SESION) return modulo === 'siembra';
 
-  // Promoción lanzamiento (acceso total hasta el 01 Agosto 2026 inclusive)
+  // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive
+  // — aplica a cualquier usuario, logueado o no (sin popup de planes)
   if (new Date() < new Date('2026-08-02')) return true;
+
+  if (!AM_SESION) return modulo === 'siembra';
 
   const plan = AM_PLANES[AM_SESION.plan];
   if (!plan?.modulos?.includes(modulo)) return false;
