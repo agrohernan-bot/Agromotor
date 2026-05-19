@@ -275,6 +275,17 @@ function amProcesarUrlParams() {
 }
 window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 
+// Auto-mostrar modal de bienvenida a visitantes nuevos (sin sesión, sin haberlo visto antes)
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    if (localStorage.getItem('am_god') === 'true') return;
+    if (AM_SESION) return;
+    if (localStorage.getItem('am_seen_welcome') === '1') return;
+    localStorage.setItem('am_seen_welcome', '1');
+    amMostrarModal('planes');
+  }, 1500);
+});
+
 // Toggle bloques agronomo/estudiante en el form de registro
 function amRegToggleRol() {
   const rol = gv('am-reg-rol') || 'agronomo';

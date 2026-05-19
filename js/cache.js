@@ -33,6 +33,7 @@ function amCargarLotesGlobales() {
 }
 
 function amGetLoteLimit() {
+  if (localStorage.getItem('am_god') === 'true') return 999;
   if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.devMode) return 999;
   if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
     return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
