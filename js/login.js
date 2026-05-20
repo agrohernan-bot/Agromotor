@@ -197,6 +197,8 @@ function amCerrarModal() {
 }
 
 function amCambiarVista(vista) {
+  // TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios
+  if (vista === 'planes') vista = 'registro';
   ['am-vista-planes','am-vista-login','am-vista-registro'].forEach(id => {
     $(id)?.classList.add('hidden');
   });

@@ -3027,7 +3027,8 @@
       onmouseleave="this.style.background='rgba(61,34,16,.1)'">✕</button>
 
     <!-- ── VISTA PLANES ── -->
-    <div id="am-vista-planes">
+    <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
+    <div id="am-vista-planes" style="display:none">
       <!-- Header -->
       <div style="padding:1.6rem 2rem 1rem;text-align:center;border-bottom:1px solid var(--border)">
         <div style="display:inline-flex;align-items:center;gap:.45rem;background:#f4faf6;border:1px solid rgba(74,140,92,.35);color:#1b5e35;font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .8rem;border-radius:20px;margin-bottom:.7rem">
@@ -3189,7 +3190,8 @@
         </div>
         <button id="am-btn-login-submit" onclick="amLogin()" class="btn btn-p btn-full btn-lg">Iniciar sesión</button>
         <div style="text-align:center;margin-top:1rem;display:flex;gap:1rem;justify-content:center">
-          <button onclick="amCambiarVista('planes')" style="background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
+          <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
+          <button onclick="amCambiarVista('planes')" style="display:none;background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
           <button onclick="amCambiarVista('registro')" style="background:none;border:none;color:var(--canopy);font-size:.78rem;cursor:pointer;font-family:inherit;text-decoration:underline">Crear cuenta nueva</button>
         </div>
       </div>
