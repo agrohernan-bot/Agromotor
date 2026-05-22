@@ -185,15 +185,37 @@ function amActualizarUI() {
 // ── MODAL PRINCIPAL ───────────────────────────────────
 function amMostrarModal(vista = 'planes') {
   const modal = $('am-modal');
+  // Usar transition en lugar de animation keyframes para evitar
+  // el problema de opacity:0 pegado cuando la tab está en background
+  // o cuando la animación se reinicia.
+  modal.style.transition = 'none';
+  modal.style.opacity = '0';
+  modal.style.transform = 'scale(0.96)';
   modal.classList.remove('hidden');
-  modal.style.animation = 'amFadeIn .3s ease both';
+  // Doble rAF garantiza que el browser pinte el estado inicial
+  // antes de iniciar la transición
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      modal.style.transition = 'opacity .3s ease, transform .3s ease';
+      modal.style.opacity = '1';
+      modal.style.transform = 'scale(1)';
+    });
+  });
   amCambiarVista(vista);
 }
 
 function amCerrarModal() {
   const modal = $('am-modal');
-  modal.style.animation = 'amFadeOut .25s ease both';
-  setTimeout(() => modal.classList.add('hidden'), 250);
+  modal.style.transition = 'opacity .25s ease, transform .25s ease';
+  modal.style.opacity = '0';
+  modal.style.transform = 'scale(0.96)';
+  setTimeout(function() {
+    modal.classList.add('hidden');
+    // Limpiar estilos inline para próxima apertura
+    modal.style.opacity = '';
+    modal.style.transform = '';
+    modal.style.transition = '';
+  }, 260);
 }
 
 function amCambiarVista(vista) {
