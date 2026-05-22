@@ -151,13 +151,15 @@ function amTieneAcceso(modulo) {
 
 // ── ACTUALIZAR UI SEGÚN SESIÓN ────────────────────────
 function amActualizarUI() {
-  const btnLogin = $('am-btn-login');
-  const btnUser  = $('am-btn-user');
-  const userInfo = $('am-user-info');
+  const btnLogin    = $('am-btn-login');
+  const btnRegistro = $('am-btn-registro'); // TODO: eliminar el 1° de agosto de 2026
+  const btnUser     = $('am-btn-user');
+  const userInfo    = $('am-user-info');
 
   if (AM_SESION) {
     const plan = AM_PLANES[AM_SESION.plan];
     btnLogin?.classList.add('hidden');
+    btnRegistro?.classList.add('hidden');
     if (btnUser) {
       btnUser.classList.remove('hidden');
       const prefijo = AM_SESION.rol === 'agronomo' ? 'Ing. ' : '';
@@ -172,6 +174,7 @@ function amActualizarUI() {
     }
   } else {
     btnLogin?.classList.remove('hidden');
+    btnRegistro?.classList.remove('hidden');
     btnUser?.classList.add('hidden');
     if (userInfo) { userInfo.textContent = ''; userInfo.style.display = 'none'; }
   }
@@ -183,17 +186,22 @@ function amActualizarUI() {
 }
 
 // ── MODAL PRINCIPAL ───────────────────────────────────
+var _amModalCloseTimer = null; // timer pendiente de amCerrarModal
+
 function amMostrarModal(vista = 'planes') {
   const modal = $('am-modal');
+  // Cancelar cualquier timer de cierre pendiente (race condition:
+  // si amCerrarModal fue llamado hace < 260ms, su setTimeout
+  // agregaría .hidden encima de esta apertura)
+  if (_amModalCloseTimer) { clearTimeout(_amModalCloseTimer); _amModalCloseTimer = null; }
   // Usar transition en lugar de animation keyframes para evitar
   // el problema de opacity:0 pegado cuando la tab está en background
-  // o cuando la animación se reinicia.
   modal.style.transition = 'none';
   modal.style.opacity = '0';
   modal.style.transform = 'scale(0.96)';
   modal.classList.remove('hidden');
   // Doble rAF garantiza que el browser pinte el estado inicial
-  // antes de iniciar la transición
+  // antes de iniciar la transición visible
   requestAnimationFrame(function() {
     requestAnimationFrame(function() {
       modal.style.transition = 'opacity .3s ease, transform .3s ease';
@@ -209,7 +217,8 @@ function amCerrarModal() {
   modal.style.transition = 'opacity .25s ease, transform .25s ease';
   modal.style.opacity = '0';
   modal.style.transform = 'scale(0.96)';
-  setTimeout(function() {
+  _amModalCloseTimer = setTimeout(function() {
+    _amModalCloseTimer = null;
     modal.classList.add('hidden');
     // Limpiar estilos inline para próxima apertura
     modal.style.opacity = '';
