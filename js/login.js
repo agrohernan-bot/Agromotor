@@ -135,7 +135,9 @@ function amTieneAcceso(modulo) {
   // — requiere sesión activa (login obligatorio durante el promo)
   // TODO: restaurar el 1° de agosto de 2026
   if (new Date() < new Date('2026-08-02')) {
-    if (!AM_SESION) return modulo === 'siembra'; // sin login: solo siembra (para ver algo)
+    // Dashboard y Siembra accesibles sin login (vista previa);
+    // cualquier otro módulo requiere sesión activa durante el promo
+    if (!AM_SESION) return modulo === 'siembra' || modulo === 'dashboard';
     return true; // con login: todo habilitado
   }
 
@@ -350,11 +352,20 @@ function amProcesarUrlParams() {
 }
 window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 
-// Auto-mostrar modal de bienvenida a visitantes nuevos (sin sesión, sin haberlo visto antes)
+// Auto-mostrar modal si no logueado:
+// — Período promo (hasta 01-ago-2026): mostrar en CADA carga de página hasta que el usuario se registre
+// — Post-promo: mostrar solo la primera vez por dispositivo (am_seen_welcome)
+// TODO: restaurar el 1° de agosto de 2026 — usar solo el bloque post-promo
 window.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     if (localStorage.getItem('am_god') === 'true') return;
-    if (AM_SESION) return;
+    if (AM_SESION) return; // ya logueado → no mostrar
+    if (new Date() < new Date('2026-08-02')) {
+      // Promo: siempre mostrar registro si no hay sesión activa
+      amMostrarModal('registro');
+      return;
+    }
+    // Post-promo: solo la primera vez por dispositivo
     if (localStorage.getItem('am_seen_welcome') === '1') return;
     localStorage.setItem('am_seen_welcome', '1');
     amMostrarModal('planes');

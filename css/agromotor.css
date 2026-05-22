@@ -1531,7 +1531,7 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
     width: 100% !important;
     margin: 0 !important;
     border-radius: 0 !important;
-    min-height: 100vh !important;
+    /* min-height: 100vh eliminado — el outer overlay maneja el scroll */
   }
 
   /* ── GRIDS GENERALES: 2-col → 1-col ── */

@@ -98,32 +98,32 @@
 <nav class="module-nav">
   <div class="nav-inner">
     <!-- 1. PLANIFICACIÓN -->
-    <div class="nav-tab active" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
-    <div class="nav-tab" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
-    <div class="nav-tab" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
+    <div class="nav-tab active" data-mod="dashboard" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
+    <div class="nav-tab" data-mod="decision" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
+    <div class="nav-tab" data-mod="cultivares" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
     <div class="nav-sep"></div>
     <!-- 2. IMPLANTACIÓN -->
-    <div class="nav-tab" onclick="switchMod('siembra')"><span class="dot"></span>🌱 Siembra</div>
-    <div class="nav-tab" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Suelo</div>
-    <div class="nav-tab" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
+    <div class="nav-tab" data-mod="siembra" onclick="switchMod('siembra')"><span class="dot"></span>🌱 Siembra</div>
+    <div class="nav-tab" data-mod="suelo" onclick="switchMod('suelo')"><span class="dot"></span>🌍 Suelo</div>
+    <div class="nav-tab" data-mod="hidrico" onclick="switchMod('hidrico')"><span class="dot"></span>💧 Hídrico</div>
     <div class="nav-sep"></div>
     <!-- 3. NUTRICIÓN -->
-    <div class="nav-tab" onclick="switchMod('nutricion')"><span class="dot"></span>🌿 Nutrición</div>
+    <div class="nav-tab" data-mod="nutricion" onclick="switchMod('nutricion')"><span class="dot"></span>🌿 Nutrición</div>
     <div class="nav-sep"></div>
     <!-- 4. ECONOMÍA -->
-    <div class="nav-tab" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
-    <div class="nav-tab" onclick="switchMod('cosecha')"><span class="dot"></span>🌾 Cosecha</div>
-    <div class="nav-tab" onclick="switchMod('maquinaria')"><span class="dot"></span>🚜 Maquinaria</div>
+    <div class="nav-tab" data-mod="economia" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
+    <div class="nav-tab" data-mod="cosecha" onclick="switchMod('cosecha')"><span class="dot"></span>🌾 Cosecha</div>
+    <div class="nav-tab" data-mod="maquinaria" onclick="switchMod('maquinaria')"><span class="dot"></span>🚜 Maquinaria</div>
     <div class="nav-sep"></div>
     <!-- 5. SANIDAD -->
-    <div class="nav-tab" onclick="switchMod('plagas')"><span class="dot"></span>🐛 Plagas</div>
-    <div class="nav-tab" onclick="switchMod('alerta-sanitaria')"><span class="dot"></span>🦠 Enfermedades</div>
-    <div class="nav-tab" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
+    <div class="nav-tab" data-mod="plagas" onclick="switchMod('plagas')"><span class="dot"></span>🐛 Plagas</div>
+    <div class="nav-tab" data-mod="alerta-sanitaria" onclick="switchMod('alerta-sanitaria')"><span class="dot"></span>🦠 Enfermedades</div>
+    <div class="nav-tab" data-mod="pulverizacion" onclick="switchMod('pulverizacion')"><span class="dot"></span>💦 Pulverización</div>
     <div class="nav-sep"></div>
     <!-- 6. AVANZADO -->
-    <div class="nav-tab" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
-    <div class="nav-tab" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
-    <div class="nav-tab nav-tab-ia" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
+    <div class="nav-tab" data-mod="siembra-variable" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
+    <div class="nav-tab" data-mod="mapa" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
+    <div class="nav-tab nav-tab-ia" data-mod="asistente" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
     <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
   </div>
 </nav>
@@ -3002,7 +3002,8 @@
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
   padding:1.5rem 1rem 3rem;
-  overflow-y:auto">
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch">
 
   <div style="
     background:var(--panel-bg);
