@@ -7,8 +7,12 @@
 (function() {
   window.AM = window.AM || {};
 
+// ── LÍMITES POR PLAN ──────────────────────────────────
+// PERÍODO PROMO (hasta 01-ago-2026): login obligatorio, 6 lotes, 15 IA/mes
+// TODO: restaurar selector de planes y precios el 1° de agosto de 2026
 const AM_PLANES = {
   free: {
+    // Plan post-promo: solo siembra, sin IA, 1 lote
     nombre: 'Demo',
     precio: 'Gratis',
     lotes: 1,
@@ -19,6 +23,7 @@ const AM_PLANES = {
     desc: 'Probá AgroMotor con un lote · Diagnóstico básico de siembra'
   },
   asesor: {
+    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
     nombre: 'Asesor',
     precio: 'USD 35/mes',
     lotes: 5,
@@ -34,6 +39,7 @@ const AM_PLANES = {
     desc: 'Para asesor independiente · 5 lotes · IA 30 consultas/mes · Todo el motor agronómico'
   },
   pro: {
+    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
     nombre: 'Pro',
     precio: 'USD 90/mes',
     lotes: 25,
@@ -49,6 +55,7 @@ const AM_PLANES = {
     desc: 'Para estudio chico · 25 lotes · IA 100 consultas/mes · PDF brandeable · Historial extendido'
   },
   empresa: {
+    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
     nombre: 'Empresa',
     precio: 'USD 250/mes',
     lotes: 75,
@@ -125,8 +132,12 @@ function amTieneAcceso(modulo) {
   if (AM_CONFIG.devMode) return true;
 
   // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive
-  // — aplica a cualquier usuario, logueado o no (sin popup de planes)
-  if (new Date() < new Date('2026-08-02')) return true;
+  // — requiere sesión activa (login obligatorio durante el promo)
+  // TODO: restaurar el 1° de agosto de 2026
+  if (new Date() < new Date('2026-08-02')) {
+    if (!AM_SESION) return modulo === 'siembra'; // sin login: solo siembra (para ver algo)
+    return true; // con login: todo habilitado
+  }
 
   if (!AM_SESION) return modulo === 'siembra';
 

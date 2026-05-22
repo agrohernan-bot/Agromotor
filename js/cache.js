@@ -35,9 +35,12 @@ function amCargarLotesGlobales() {
 function amGetLoteLimit() {
   if (localStorage.getItem('am_god') === 'true') return 999;
   if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.devMode) return 999;
-  // Promoción lanzamiento: sin límite de lotes hasta el 01 Agosto 2026 inclusive
-  // (mismo criterio que amTieneAcceso en login.js)
-  if (new Date() < new Date('2026-08-02')) return 999;
+  // Promoción lanzamiento: hasta el 01 Agosto 2026 → máx 6 lotes (con sesión activa)
+  // Sin sesión → 1 lote (mismo que plan free)
+  // TODO: restaurar el 1° de agosto de 2026
+  if (new Date() < new Date('2026-08-02')) {
+    return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 6 : 1;
+  }
   if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
     return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
   }

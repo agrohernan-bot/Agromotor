@@ -15,8 +15,15 @@ const CORS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-// Límites mensuales por plan
+// Límites mensuales por plan (consultas IA / mes)
+// Período promo (hasta 01-ago-2026): plan free → 15 consultas/mes
+// Post-promo: free → 0, planes pagos según tabla
+// TODO: restaurar el 1° de agosto de 2026 (eliminar entrada 'free' de IA_LIMITES_PROMO)
+const PROMO_FIN = new Date('2026-08-02');
+const EN_PROMO  = new Date() < PROMO_FIN;
+
 const IA_LIMITES: Record<string, number> = {
+  free:    EN_PROMO ? 15 : 0,  // 15/mes durante promo, 0 post-promo
   asesor:  30,
   pro:     100,
   empresa: 300,
@@ -61,9 +68,18 @@ serve(async (req: Request) => {
     const planPago   = planHasta  && planHasta  > ahora;
     const enTrial    = trialHasta && trialHasta > ahora;
 
-    if (!(planActivo in IA_LIMITES) || (!planPago && !enTrial)) {
+    // Verificar acceso al Asistente IA:
+    // - Durante promo (hasta 01-ago-2026): plan free tiene 15 llamadas/mes → permitir
+    // - Post-promo: solo planes pagos con suscripción/trial vigente
+    const tieneAccesoIA = EN_PROMO
+      ? (planActivo in IA_LIMITES && IA_LIMITES[planActivo] > 0)
+      : ((planActivo in IA_LIMITES) && (planPago || enTrial));
+
+    if (!tieneAccesoIA) {
       return json({
-        error: 'El Asistente IA requiere plan Asesor Pro o Empresa. Actualizá tu plan.'
+        error: EN_PROMO
+          ? 'El Asistente IA requiere registrarse durante el período de lanzamiento.'
+          : 'El Asistente IA requiere plan Asesor Pro o Empresa. Actualizá tu plan.',
       }, 403);
     }
 
