@@ -652,11 +652,20 @@ Elaborá un análisis narrativo conciso (4-5 párrafos) que:
 Escribí en español rioplatense, tono profesional pero directo. Sin markdown, solo texto plano con párrafos.`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    // Obtener token de sesión activa (mismo proxy seguro que el Asistente IA)
+    const { data: { session } } = await AM_SB.auth.getSession();
+    if (!session) {
+      iaBody.innerHTML = '<span style="color:var(--warn)">Necesitás iniciar sesión para usar el análisis IA.</span>';
+      return;
+    }
+    const response = await fetch(AM_CONFIG.claudeProxy, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }]
       })

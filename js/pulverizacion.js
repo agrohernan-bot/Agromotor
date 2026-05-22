@@ -16,7 +16,9 @@ function showTab(id) {
   document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  event.currentTarget.classList.add('active');
+  // Marcar botón nav activo (cross-browser: no usa window.event legacy)
+  const activeBtn = document.querySelector(`.nav-tab[onclick*="'${id}'"]`);
+  if (activeBtn) activeBtn.classList.add('active');
   // Inicializar mapa si corresponde
   if (id === 'mapa') {
     setTimeout(() => {

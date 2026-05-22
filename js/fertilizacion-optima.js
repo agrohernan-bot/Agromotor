@@ -186,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (foPrecioEl) {
     var ecPrecio = document.getElementById('ec-precio-disp');
     if (ecPrecio && ecPrecio.value) foPrecioEl.value = ecPrecio.value;
+  }
 });
 
 })();

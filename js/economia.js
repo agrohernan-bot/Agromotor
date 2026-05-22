@@ -34,6 +34,7 @@ async function ecActualizarDolar() {
       else if (c === 'contadoconliqui' || c === 'ccl') EC_DOLAR.ccl = v;
     });
     EC_DOLAR.ts = new Date();
+    window.EC_DOLAR = EC_DOLAR; // exponer para asistente.js y otros módulos
 
     // Mostrar panel
     ecRenderDolar();
