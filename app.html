@@ -2999,8 +2999,7 @@
   position:fixed;inset:0;z-index:9999;
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
-  display:flex;align-items:flex-start;justify-content:center;
-  padding:1.5rem 1rem;
+  padding:1.5rem 1rem 3rem;
   overflow-y:auto">
 
   <div style="
@@ -3011,7 +3010,7 @@
     border:1px solid var(--border);
     position:relative;
     padding-bottom:2rem;
-    margin:auto 0;">
+    margin:0 auto;">
 
     <!-- Cerrar -->
     <button onclick="amCerrarModal()" style="
@@ -3289,14 +3288,12 @@
             <span>Declaro bajo juramento que los datos profesionales son verdaderos y vigentes, y acepto los <a href="/terminos.html" target="_blank" style="color:var(--canopy);text-decoration:underline">Términos y Condiciones</a> y la <a href="/privacidad.html" target="_blank" style="color:var(--canopy);text-decoration:underline">Política de Privacidad</a> de AgroMotor.</span>
           </label>
         </div>
-        <div class="fg">
-          <label>Plan seleccionado</label>
-          <select id="am-reg-plan">
-            <option value="free">Demo — Gratis (1 lote)</option>
-            <option value="asesor">Asesor — USD 35/mes · 5 lotes (14 días gratis)</option>
-            <option value="pro" selected>Pro — USD 90/mes · 25 lotes (14 días gratis)</option>
-            <option value="empresa">Empresa — USD 250/mes · 75 lotes · 300 IA</option>
-          </select>
+        <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar selector de planes con precios -->
+        <input type="hidden" id="am-reg-plan" value="pro">
+        <div style="background:linear-gradient(135deg,#1b5e35 0%,#2d7a4a 100%);border-radius:12px;padding:1rem 1.1rem;margin:.9rem 0;text-align:center">
+          <div style="font-size:1.3rem;margin-bottom:.3rem">🎉</div>
+          <div style="color:#fff;font-weight:700;font-size:.9rem;margin-bottom:.25rem">Período de lanzamiento — Acceso completo gratuito</div>
+          <div style="color:rgba(255,255,255,.85);font-size:.76rem;line-height:1.6">Todas las funciones habilitadas <strong style="color:#AFFFD4">sin costo hasta el 1° de agosto de 2026</strong>.<br>Sin tarjeta de crédito · Sin compromiso · Cancelá cuando quieras.</div>
         </div>
         <button id="am-btn-reg-submit" onclick="amRegistrar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Crear cuenta</button>
         <div style="text-align:center;margin-top:.8rem">
