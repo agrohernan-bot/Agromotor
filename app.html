@@ -3182,8 +3182,12 @@
           <input type="password" id="am-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')amLogin()">
         </div>
         <button id="am-btn-login-submit" onclick="amLogin()" class="btn btn-p btn-full btn-lg">Iniciar sesión</button>
-        <div style="text-align:center;margin-top:1rem;display:flex;gap:1rem;justify-content:center">
-          <button onclick="amCambiarVista('planes')" style="background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
+        <div style="text-align:center;margin-top:.5rem">
+          <button onclick="amOlvidarContrasena()" style="background:none;border:none;color:rgba(61,34,16,.4);font-size:.73rem;cursor:pointer;font-family:inherit">¿Olvidaste tu contraseña?</button>
+        </div>
+        <div style="text-align:center;margin-top:.75rem;display:flex;gap:1rem;justify-content:center">
+          <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar "← Ver planes" -->
+          <button onclick="amCambiarVista('planes')" style="display:none;background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
           <button onclick="amCambiarVista('registro')" style="background:none;border:none;color:var(--canopy);font-size:.78rem;cursor:pointer;font-family:inherit;text-decoration:underline">Crear cuenta nueva</button>
         </div>
       </div>

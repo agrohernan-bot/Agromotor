@@ -124,11 +124,15 @@ function amTieneAcceso(modulo) {
   if (localStorage.getItem('am_god') === 'true') return true;
   if (AM_CONFIG.devMode) return true;
 
-  // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive
-  // — aplica a cualquier usuario, logueado o no (sin popup de planes)
-  if (new Date() < new Date('2026-08-02')) return true;
+  // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive,
+  // con sesión activa (login obligatorio durante el promo).
+  // TODO: restaurar el 1° de agosto de 2026
+  if (new Date() < new Date('2026-08-02')) {
+    if (!AM_SESION) return false;
+    return true;
+  }
 
-  if (!AM_SESION) return modulo === 'siembra';
+  if (!AM_SESION) return false;
 
   const plan = AM_PLANES[AM_SESION.plan];
   if (!plan?.modulos?.includes(modulo)) return false;
@@ -190,13 +194,20 @@ function amMostrarModal(vista = 'planes') {
   amCambiarVista(vista);
 }
 
-function amCerrarModal() {
+function amCerrarModal(force) {
+  if (!force && !AM_SESION && localStorage.getItem('am_god') !== 'true') {
+    const visibleErr = document.querySelector('#am-vista-login:not(.hidden) #am-login-err, #am-vista-registro:not(.hidden) #am-reg-err');
+    if (visibleErr) amMostrarError(visibleErr, 'Necesitás iniciar sesión para usar AgroMotor.');
+    return;
+  }
   const modal = $('am-modal');
   modal.style.animation = 'amFadeOut .25s ease both';
   setTimeout(() => modal.classList.add('hidden'), 250);
 }
 
 function amCambiarVista(vista) {
+  // TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios
+  if (vista === 'planes' && new Date() < new Date('2026-08-02')) vista = 'registro';
   ['am-vista-planes','am-vista-login','am-vista-registro'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
@@ -246,10 +257,28 @@ async function amLogin() {
   }
 
   // onAuthStateChange actualiza AM_SESION y la UI automáticamente
-  amCerrarModal();
+  amCerrarModal(true);
   setTimeout(() => {
     if (AM_SESION) amToast(`Bienvenido ${AM_SESION.nombre.split(' ')[0]}! Plan ${AM_PLANES[AM_SESION.plan].nombre} activo.`, 'ok');
   }, 500);
+}
+
+// ── RECUPERAR CONTRASEÑA ──────────────────────────────
+async function amOlvidarContrasena() {
+  const email = $('am-email')?.value?.trim();
+  const err   = $('am-login-err');
+  if (!email) {
+    amMostrarError(err, 'Ingresá tu email primero, luego hacé clic en ¿Olvidaste tu contraseña?');
+    return;
+  }
+  const { error } = await AM_SB.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://agromotor.com.ar/app.html'
+  });
+  if (error) {
+    amMostrarError(err, `Error: ${error.message}`);
+    return;
+  }
+  amToast('Te enviamos un email para restablecer tu contraseña. Revisá tu bandeja.', 'ok');
 }
 
 // ── REGISTRO ──────────────────────────────────────────
@@ -276,6 +305,24 @@ function amProcesarUrlParams() {
   } catch(e) { /* noop */ }
 }
 window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
+
+// Auto-mostrar modal si no logueado:
+// — Período promo (hasta 01-ago-2026): mostrar login en CADA carga de página
+// — Post-promo: mostrar solo la primera vez por dispositivo (am_seen_welcome)
+// TODO: restaurar el 1° de agosto de 2026 — usar solo el bloque post-promo
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    if (localStorage.getItem('am_god') === 'true') return;
+    if (AM_SESION) return;
+    if (new Date() < new Date('2026-08-02')) {
+      amMostrarModal('login');
+      return;
+    }
+    if (localStorage.getItem('am_seen_welcome') === '1') return;
+    localStorage.setItem('am_seen_welcome', '1');
+    amMostrarModal('planes');
+  }, 1500);
+});
 
 // Toggle bloques agronomo/estudiante en el form de registro
 function amRegToggleRol() {
@@ -362,8 +409,17 @@ async function amRegistrar() {
   }
 
   if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
-  amCerrarModal();
-  amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión.', 'ok');
+
+  if (data.session) {
+    // Confirmación de email desactivada en Supabase — el usuario queda logueado de inmediato
+    // onAuthStateChange actualizará AM_SESION y la UI
+    amCerrarModal(true);
+    amToast(`Bienvenido ${nombre.split(' ')[0]}! Tu cuenta está lista.`, 'ok');
+  } else {
+    // Confirmación de email requerida — mostrar login para cuando confirmen
+    amCambiarVista('login');
+    amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión aquí.', 'ok');
+  }
 }
 
 // ── CERRAR SESIÓN ─────────────────────────────────────
@@ -503,6 +559,7 @@ function amCargarSesion() {}
   };
 
   window.amLogin = amLogin;
+  window.amOlvidarContrasena = amOlvidarContrasena;
   window.amProcesarUrlParams = amProcesarUrlParams;
   window.amRegistrar = amRegistrar;
   window.amCerrarSesion = amCerrarSesion;
