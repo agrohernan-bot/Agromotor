@@ -7,13 +7,27 @@
   window.AM = window.AM || {};
   window.AM.cache = {};
 
-  const LOTES_KEY = 'am_global_lotes_v2';
+  const LOTES_LEGACY_KEY = 'am_global_lotes_v2'; // clave pre-fix (compartida por todos)
+
+  function getLotesKey() {
+    var uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
+    return uid ? ('am_lotes_v2_' + uid) : LOTES_LEGACY_KEY;
+  }
   window.AM_LOTES = [];
   window.AM_LOTE_ACTIVO = 'default';
 
 function amCargarLotesGlobales() {
+  var _uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
+  if (_uid) {
+    var _newKey = 'am_lotes_v2_' + _uid;
+    var _legacyData = localStorage.getItem(LOTES_LEGACY_KEY);
+    if (_legacyData) {
+      if (!localStorage.getItem(_newKey)) localStorage.setItem(_newKey, _legacyData);
+      localStorage.removeItem(LOTES_LEGACY_KEY);
+    }
+  }
   try {
-    const raw = localStorage.getItem(LOTES_KEY);
+    const raw = localStorage.getItem(getLotesKey());
     if(raw) {
       const data = JSON.parse(raw);
       AM_LOTES = Array.isArray(data.lotes) ? data.lotes : [];
@@ -286,7 +300,7 @@ window.amCambiarLoteGlobal = function() {
 };
 
 function amGuardarLotesEstado() {
-  localStorage.setItem(LOTES_KEY, JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+  localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
 }
 
 function cacheGuardar() {

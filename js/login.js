@@ -151,6 +151,7 @@ AM_SB.auth.onAuthStateChange((event, session) => {
   if (event === 'USER_UPDATED' && _modoRecovery) {
     _modoRecovery = false;
     if (session?.user) { amSetSesion(session); amActualizarUI(); amEnrichPerfil(session); }
+    if (typeof amCargarLotesGlobales === 'function') amCargarLotesGlobales();
     amCerrarModal();
     amToast('Contraseña actualizada. ¡Bienvenido a AgroMotor!', 'ok');
     return;
@@ -161,6 +162,7 @@ AM_SB.auth.onAuthStateChange((event, session) => {
     _modoRecovery = false;
     AM_SESION = null;
     amActualizarUI();
+    if (typeof amCargarLotesGlobales === 'function') amCargarLotesGlobales();
     return;
   }
 
@@ -168,10 +170,12 @@ AM_SB.auth.onAuthStateChange((event, session) => {
   if (session?.user) {
     amSetSesion(session);
     amActualizarUI();
+    if (typeof amCargarLotesGlobales === 'function') amCargarLotesGlobales();
     amEnrichPerfil(session);
   } else {
     AM_SESION = null;
     amActualizarUI();
+    if (typeof amCargarLotesGlobales === 'function') amCargarLotesGlobales();
   }
 });
 
