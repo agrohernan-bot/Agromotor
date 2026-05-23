@@ -929,7 +929,7 @@ function sueloFusionar() {
   if (sg.zn != null) sd.zn = { valor: sg.zn, fuente: pkzId || 'soilgrids' };
 
   // Override campo a campo con datos de laboratorio (máxima prioridad)
-  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da };
+  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da, zn: lab.zn, ce: lab.ce };
   Object.keys(labCampos).forEach(function(k) {
     const v = labCampos[k];
     if (v != null && v !== '' && !isNaN(parseFloat(v))) {
@@ -991,7 +991,7 @@ function sueloRenderResumenLab() {
 // Rellena los inputs del panel lab con _labDatos guardados
 function sueloRestaurarLabInputs() {
   const lab = window._labDatos || {};
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
     if (el && lab[k] != null) el.value = lab[k];
@@ -1025,7 +1025,7 @@ window.sueloLabAutoguardar = function() {
 
 // Aplica el análisis de laboratorio
 window.sueloAplicarLab = function(silencioso) {
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
   const labData = {};
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
@@ -1055,7 +1055,7 @@ window.sueloAplicarLab = function(silencioso) {
 window.sueloLimpiarLab = function() {
   window._labDatos = {};
   sueloFusionar();
-  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da'].forEach(function(id) {
+  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da','lab-zn','lab-ce'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -1064,6 +1064,168 @@ window.sueloLimpiarLab = function() {
   if (badge)   badge.style.display = 'none';
   if (resumen) { resumen.style.display = 'none'; document.getElementById('lab-resumen-content').innerHTML = ''; }
   if (typeof cacheGuardar === 'function') cacheGuardar();
+};
+
+// ── ANÁLISIS POR PDF / FOTO ──────────────────────────────
+
+// Tab switcher del panel lab
+window.sueloLabTab = function(tab) {
+  ['manual','pdf','foto'].forEach(function(t) {
+    var btn  = document.getElementById('lab-tab-' + t);
+    var sect = document.getElementById('lab-sect-' + t);
+    var activo = t === tab;
+    if (btn) {
+      btn.style.background  = activo ? '#2D5A30' : 'transparent';
+      btn.style.color       = activo ? '#fff' : 'rgba(74,46,26,.65)';
+      btn.style.fontWeight  = activo ? '700' : '500';
+    }
+    if (sect) sect.style.display = activo ? '' : 'none';
+  });
+};
+
+// Muestra el nombre del archivo seleccionado
+window.sueloLabArchivoSeleccionado = function(tipo) {
+  var input  = document.getElementById('lab-' + tipo + '-input');
+  var label  = document.getElementById('lab-' + tipo + '-nombre');
+  var status = document.getElementById('lab-' + tipo + '-status');
+  if (!input || !input.files[0]) return;
+  if (label)  label.textContent = input.files[0].name;
+  if (status) status.style.display = 'none';
+};
+
+// Convierte un File a base64 puro (sin prefijo data:)
+function sueloLabArchivoABase64(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload  = function(e) { resolve(e.target.result.split(',')[1]); };
+    reader.onerror = function()  { reject(new Error('Error leyendo el archivo')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Llamada compartida al proxy de Claude
+async function sueloLabLlamarIA(blocks) {
+  var sesionData = await AM_SB.auth.getSession();
+  var session    = sesionData.data && sesionData.data.session;
+  if (!session) throw new Error('Sesión no activa. Iniciá sesión primero.');
+
+  var prompt = 'Analizá este análisis de suelo agrícola y extraé los valores nutricionales. '
+    + 'Respondé ÚNICAMENTE con un objeto JSON sin texto adicional ni backticks:\n'
+    + '{"ph":<número o null>,"mo":<MO % o null>,"n":<N total g/kg o null>,'
+    + '"p":<P disponible ppm Bray/Olsen o null>,"k":<K intercambiable ppm o null>,'
+    + '"cec":<CEC cmol/kg o null>,"da":<densidad aparente g/cm³ o null>,'
+    + '"zn":<Zn disponible DTPA ppm o null>,"ce":<conductividad eléctrica dS/m o null>}\n'
+    + 'Si K viene en meq/100g, multiplicar por 391 para convertir a ppm. '
+    + 'Si algún valor no está presente o no es claro, poner null.';
+
+  var resp = await fetch(AM_CONFIG.claudeProxy, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + session.access_token
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{ role: 'user', content: blocks.concat([{ type:'text', text: prompt }]) }]
+    })
+  });
+
+  if (resp.status === 401 || resp.status === 403) {
+    var err = await resp.json().catch(function() { return {}; });
+    throw new Error(err.error || 'Sin acceso — verificá tu plan.');
+  }
+  if (resp.status === 429) {
+    var err2 = await resp.json().catch(function() { return {}; });
+    throw new Error(err2.error || 'Límite de uso alcanzado. Intentá más tarde.');
+  }
+  if (!resp.ok) throw new Error('Error ' + resp.status + ' del servidor.');
+
+  var data   = await resp.json();
+  var texto  = (data.content && data.content[0] && data.content[0].text) || '';
+  var clean  = texto.replace(/```json|```/g, '').trim();
+  return JSON.parse(clean);
+}
+
+// Rellena los inputs del form manual y aplica
+function sueloLabRellenarCampos(extraido) {
+  var map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k',
+              cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
+  var detectados = [], noDetect = [];
+  Object.keys(map).forEach(function(k) {
+    var el = document.getElementById(map[k]);
+    if (!el) return;
+    if (extraido[k] != null) { el.value = extraido[k]; detectados.push(k); }
+    else noDetect.push(k);
+  });
+  sueloAplicarLab(true);
+  return { detectados: detectados, noDetect: noDetect };
+}
+
+// Construye el mensaje de resultado de la extracción
+function sueloLabMsgResultado(detectados, noDetect) {
+  var msg = '✅ ' + detectados.length + ' valor' + (detectados.length !== 1 ? 'es' : '') + ' extraído' + (detectados.length !== 1 ? 's' : '');
+  if (detectados.length > 0) msg += ' (' + detectados.join(', ') + ')';
+  if (noDetect.filter(function(k) { return ['p','k','ph','mo'].indexOf(k) >= 0; }).length > 0) {
+    msg += '. No detectados: ' + noDetect.filter(function(k) { return ['p','k','ph','mo','n','cec','zn','ce'].indexOf(k) >= 0; }).join(', ');
+  }
+  msg += '. Revisá y editá los campos antes de confirmar.';
+  return msg;
+}
+
+// Procesar PDF
+window.sueloLabProcesarPDF = async function() {
+  var input  = document.getElementById('lab-pdf-input');
+  var file   = input && input.files[0];
+  if (!file) { alert('Seleccioná un archivo PDF primero.'); return; }
+
+  var btn    = document.getElementById('lab-pdf-btn');
+  var status = document.getElementById('lab-pdf-status');
+  if (btn)    { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
+  if (status) { status.style.color = 'rgba(74,46,26,.6)'; status.textContent = '🤖 Claude analizando el PDF...'; status.style.display = ''; }
+
+  try {
+    var b64    = await sueloLabArchivoABase64(file);
+    var blocks = [{ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }];
+    var extraido = await sueloLabLlamarIA(blocks);
+    var resultado = sueloLabRellenarCampos(extraido);
+    sueloLabTab('manual');
+    if (status) {
+      status.style.color = '#1b5e35';
+      status.textContent = sueloLabMsgResultado(resultado.detectados, resultado.noDetect);
+    }
+  } catch(err) {
+    if (status) { status.style.color = '#C0392B'; status.textContent = '❌ ' + err.message; }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '🔍 Procesar PDF'; }
+};
+
+// Procesar foto
+window.sueloLabProcesarFoto = async function() {
+  var input  = document.getElementById('lab-foto-input');
+  var file   = input && input.files[0];
+  if (!file) { alert('Seleccioná o tomá una foto primero.'); return; }
+
+  var btn    = document.getElementById('lab-foto-btn');
+  var status = document.getElementById('lab-foto-status');
+  if (btn)    { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
+  if (status) { status.style.color = 'rgba(74,46,26,.6)'; status.textContent = '🤖 Claude analizando la imagen...'; status.style.display = ''; }
+
+  try {
+    var b64    = await sueloLabArchivoABase64(file);
+    var mime   = file.type || 'image/jpeg';
+    var blocks = [{ type:'image', source:{ type:'base64', media_type:mime, data:b64 } }];
+    var extraido = await sueloLabLlamarIA(blocks);
+    var resultado = sueloLabRellenarCampos(extraido);
+    sueloLabTab('manual');
+    if (status) {
+      status.style.color = '#1b5e35';
+      status.textContent = sueloLabMsgResultado(resultado.detectados, resultado.noDetect);
+    }
+  } catch(err) {
+    if (status) { status.style.color = '#C0392B'; status.textContent = '❌ ' + err.message; }
+  }
+  if (btn) { btn.disabled = false; btn.textContent = '📷 Procesar imagen'; }
 };
 
 // Exposición interna
