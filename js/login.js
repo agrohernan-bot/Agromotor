@@ -76,55 +76,99 @@ const AM_PLANES = {
 // { id, email, nombre, plan, planHasta, trialHasta, token }
 let AM_SESION = null;
 
+// Flag activo durante el flujo PASSWORD_RECOVERY. Suprime la apertura normal
+// de la app cuando SIGNED_IN dispara justo después de PASSWORD_RECOVERY,
+// y se limpia solo cuando USER_UPDATED confirma que la contraseña fue cambiada.
+let _modoRecovery = false;
+if (window.location.hash.includes('type=recovery')) _modoRecovery = true;
+
+// ── HELPERS INTERNOS DE SESIÓN ────────────────────────
+function amSetSesion(session) {
+  var meta = session.user.user_metadata || {};
+  AM_SESION = {
+    id:        session.user.id,
+    email:     session.user.email,
+    nombre:    meta.nombre || session.user.email.split('@')[0],
+    plan:      meta.plan || 'free',
+    planHasta: null,
+    trialHasta:null,
+    rol:       meta.rol || 'agronomo',
+    cpia:      meta.cpia || null,
+    matricula: meta.matricula_numero || null,
+    matriculaVerificada: false,
+    token:     session.access_token
+  };
+}
+
+function amEnrichPerfil(session) {
+  // Enrich desde profiles en background — no bloquea el flow ni onAuthStateChange
+  setTimeout(function() {
+    Promise.race([
+      AM_SB.from('profiles')
+        .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
+        .eq('id', session.user.id).maybeSingle(),
+      new Promise(function(resolve) { setTimeout(function() { resolve({ data: null, error: { message: 'timeout' } }); }, 5000); })
+    ]).then(function(res) {
+      if (!AM_SESION || !res?.data) return;
+      var p = res.data;
+      AM_SESION.nombre    = p.nombre    || AM_SESION.nombre;
+      AM_SESION.plan      = p.plan      || AM_SESION.plan;
+      AM_SESION.planHasta = p.plan_hasta;
+      AM_SESION.trialHasta= p.trial_hasta;
+      AM_SESION.rol       = p.rol       || AM_SESION.rol;
+      AM_SESION.cpia      = p.cpia      || AM_SESION.cpia;
+      AM_SESION.matricula = p.matricula_numero || AM_SESION.matricula;
+      AM_SESION.matriculaVerificada = !!p.matricula_verificada;
+      amActualizarUI();
+    }).catch(function() { /* noop — usamos lo que ya tenemos del JWT */ });
+  }, 0);
+}
+
 // ── LISTENER CENTRAL (única fuente de verdad) ─────────
 // IMPORTANTE: NUNCA usar `await` directo a Supabase dentro de onAuthStateChange
 // — causa deadlock con supabase-js v2. Usamos user_metadata (ya en el JWT)
 // como fuente primaria, y enrich desde profiles de forma deferred.
 AM_SB.auth.onAuthStateChange((event, session) => {
+  // PASSWORD_RECOVERY: llegó via link de reset → mostrar form y bloquear apertura de app
   if (event === 'PASSWORD_RECOVERY') {
+    _modoRecovery = true;
     amMostrarFormularioNuevaContrasena();
     return;
   }
 
-  if (session?.user) {
-    var meta = session.user.user_metadata || {};
-    // Estado inmediato basado en el JWT (no requiere DB query)
-    AM_SESION = {
-      id:        session.user.id,
-      email:     session.user.email,
-      nombre:    meta.nombre || session.user.email.split('@')[0],
-      plan:      meta.plan || 'free',
-      planHasta: null,
-      trialHasta:null,
-      rol:       meta.rol || 'agronomo',
-      cpia:      meta.cpia || null,
-      matricula: meta.matricula_numero || null,
-      matriculaVerificada: false,
-      token:     session.access_token
-    };
-    amActualizarUI();
+  // SIGNED_IN durante recovery: la sesión temporal es válida, pero NO abrir la app.
+  // Supabase dispara SIGNED_IN sincrónicamente justo después de PASSWORD_RECOVERY — es el
+  // "flash" que el usuario ve: sin este guard, la app se abría pisando el formulario.
+  // Solo reabrimos el modal si por algún motivo estaba cerrado; si PASSWORD_RECOVERY
+  // ya lo abrió (caso normal), evitamos la doble animación.
+  if (event === 'SIGNED_IN' && _modoRecovery) {
+    const modal = document.getElementById('am-modal');
+    if (!modal || modal.classList.contains('hidden')) amMostrarFormularioNuevaContrasena();
+    return;
+  }
 
-    // Enrich desde profiles en background (no bloquea el flow)
-    setTimeout(function() {
-      Promise.race([
-        AM_SB.from('profiles')
-          .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
-          .eq('id', session.user.id).maybeSingle(),
-        new Promise(function(resolve) { setTimeout(function() { resolve({ data: null, error: { message: 'timeout' } }); }, 5000); })
-      ]).then(function(res) {
-        if (!AM_SESION || !res?.data) return;
-        var p = res.data;
-        AM_SESION.nombre    = p.nombre    || AM_SESION.nombre;
-        AM_SESION.plan      = p.plan      || AM_SESION.plan;
-        AM_SESION.planHasta = p.plan_hasta;
-        AM_SESION.trialHasta= p.trial_hasta;
-        AM_SESION.rol       = p.rol       || AM_SESION.rol;
-        AM_SESION.cpia      = p.cpia      || AM_SESION.cpia;
-        AM_SESION.matricula = p.matricula_numero || AM_SESION.matricula;
-        AM_SESION.matriculaVerificada = !!p.matricula_verificada;
-        amActualizarUI();
-      }).catch(function() { /* noop — usamos lo que ya tenemos del JWT */ });
-    }, 0);
+  // USER_UPDATED tras recovery exitoso: contraseña cambiada → ahora sí abrir la app
+  if (event === 'USER_UPDATED' && _modoRecovery) {
+    _modoRecovery = false;
+    if (session?.user) { amSetSesion(session); amActualizarUI(); amEnrichPerfil(session); }
+    amCerrarModal();
+    amToast('Contraseña actualizada. ¡Bienvenido a AgroMotor!', 'ok');
+    return;
+  }
+
+  // SIGNED_OUT — limpiar flag y sesión
+  if (event === 'SIGNED_OUT') {
+    _modoRecovery = false;
+    AM_SESION = null;
+    amActualizarUI();
+    return;
+  }
+
+  // SIGNED_IN / TOKEN_REFRESHED / INITIAL_SESSION — flujo normal
+  if (session?.user) {
+    amSetSesion(session);
+    amActualizarUI();
+    amEnrichPerfil(session);
   } else {
     AM_SESION = null;
     amActualizarUI();
@@ -382,7 +426,7 @@ window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 window.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     if (localStorage.getItem('am_god') === 'true') return;
-    if (window.location.hash.includes('type=recovery')) return; // flujo de reset de contraseña
+    if (_modoRecovery) return; // flujo de reset de contraseña (hash puede estar limpio a los 1500ms)
     if (AM_SESION) return; // ya logueado → no mostrar
     if (new Date() < new Date('2026-08-02')) {
       // Promo: mostrar login (ya registrado) o nuevo usuario puede ir a registro desde allí
@@ -518,10 +562,7 @@ async function amConfirmarNuevaContrasena() {
     amMostrarError(err, `Error al actualizar: ${error.message}`);
     return;
   }
-
-  amCerrarModal();
-  amToast('Contraseña actualizada. ¡Bienvenido a AgroMotor!', 'ok');
-  // USER_UPDATED disparado por Supabase → onAuthStateChange fija AM_SESION normalmente
+  // USER_UPDATED → onAuthStateChange limpia _modoRecovery, cierra modal y muestra toast
 }
 
 async function amCerrarSesion() {
