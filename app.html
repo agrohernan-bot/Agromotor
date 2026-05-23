@@ -3025,7 +3025,7 @@
     padding: 2.5rem 2rem;
     text-align:center;">
 
-    <button onclick="document.getElementById('am-modal-feedback').classList.add('hidden')" style="
+    <button onclick="amCerrarModalFeedback()" style="
       position:absolute;top:1rem;right:1rem;
       width:32px;height:32px;border-radius:50%;
       border:none;background:rgba(61,34,16,.1);
@@ -3057,6 +3057,13 @@
 <script>
   function amMostrarModalSugerencias() {
     document.getElementById('am-modal-feedback').classList.remove('hidden');
+    document.documentElement.classList.add('modal-open');
+    document.body.classList.add('modal-open');
+  }
+  function amCerrarModalFeedback() {
+    document.getElementById('am-modal-feedback').classList.add('hidden');
+    document.documentElement.classList.remove('modal-open');
+    document.body.classList.remove('modal-open');
   }
 </script>
 

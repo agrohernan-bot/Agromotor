@@ -1744,3 +1744,23 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
   opacity: 0;
   pointer-events: none;
 }
+
+/* ── MODAL SCROLL LOCK ───────────────────────────────── */
+/* Bloquear scroll del body mientras hay un modal abierto.
+   Aplicado via JS (amMostrarModal/amCerrarModal) como clase en <html> y <body>. */
+html.modal-open,
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Forzar compositing layer propio en los overlays para ganar la batalla
+   de capas contra el backdrop-filter de .module-nav en Safari/iOS.
+   overscroll-behavior:contain evita que el scroll interno propague al body. */
+#am-modal {
+  will-change: opacity, transform;
+  overscroll-behavior: contain;
+}
+
+#am-modal-feedback {
+  overscroll-behavior: contain;
+}

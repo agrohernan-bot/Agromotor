@@ -256,6 +256,9 @@ function amMostrarModal(vista = 'planes') {
   // si amCerrarModal fue llamado hace < 260ms, su setTimeout
   // agregaría .hidden encima de esta apertura)
   if (_amModalCloseTimer) { clearTimeout(_amModalCloseTimer); _amModalCloseTimer = null; }
+  // Bloquear scroll del body mientras el modal está abierto
+  document.documentElement.classList.add('modal-open');
+  document.body.classList.add('modal-open');
   // Usar transition en lugar de animation keyframes para evitar
   // el problema de opacity:0 pegado cuando la tab está en background
   modal.style.transition = 'none';
@@ -286,6 +289,9 @@ function amCerrarModal() {
     modal.style.opacity = '';
     modal.style.transform = '';
     modal.style.transition = '';
+    // Restaurar scroll del body
+    document.documentElement.classList.remove('modal-open');
+    document.body.classList.remove('modal-open');
   }, 260);
 }
 
