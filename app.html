@@ -3009,7 +3009,7 @@
 
 <!-- ══ MODAL DE SUGERENCIAS (FEEDBACK) ══ -->
 <div id="am-modal-feedback" class="hidden" style="
-  position:fixed;inset:0;z-index:9999;
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
   display:flex;align-items:center;justify-content:center;
@@ -3069,9 +3069,10 @@
 
 <!-- ══ MODAL SISTEMA DE PLANES ══ -->
 <div id="am-modal" class="hidden" style="
-  position:fixed;inset:0;z-index:9999;
+  position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   padding:1.5rem 1rem 3rem;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch">

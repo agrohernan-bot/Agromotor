@@ -1745,22 +1745,35 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
   pointer-events: none;
 }
 
-/* ── MODAL SCROLL LOCK ───────────────────────────────── */
+/* ── MODAL: z-index y scroll lock ────────────────────── */
+
+/* Garantizar que los overlays siempre queden encima de todo.
+   El !important gana contra reglas específicas y compositing bugs de Safari
+   donde backdrop-filter en .module-nav puede adelantar su capa. */
+#am-modal,
+#am-modal-feedback {
+  z-index: 9999 !important;
+  overscroll-behavior: contain;
+}
+
+/* Cuando un modal está abierto: bajar el header, nav y banners
+   por debajo del overlay. Esto soluciona el bug de compositing
+   de backdrop-filter en Safari/iOS donde el nav puede quedar encima
+   del overlay a pesar de tener un z-index CSS menor. */
+html.modal-open header,
+html.modal-open .module-nav,
+html.modal-open #am-promo-banner,
+html.modal-open .am-net-banner {
+  z-index: 0 !important;
+}
+
 /* Bloquear scroll del body mientras hay un modal abierto.
-   Aplicado via JS (amMostrarModal/amCerrarModal) como clase en <html> y <body>. */
-html.modal-open,
-body.modal-open {
+   Solo en html (no en body) para evitar el bug de Safari donde
+   overflow:hidden en body convierte al body en el containing block
+   de elementos position:fixed, descolocando el overlay. */
+html.modal-open {
   overflow: hidden;
 }
-
-/* Forzar compositing layer propio en los overlays para ganar la batalla
-   de capas contra el backdrop-filter de .module-nav en Safari/iOS.
-   overscroll-behavior:contain evita que el scroll interno propague al body. */
-#am-modal {
-  will-change: opacity, transform;
-  overscroll-behavior: contain;
-}
-
-#am-modal-feedback {
-  overscroll-behavior: contain;
+body.modal-open {
+  overflow: hidden;
 }
