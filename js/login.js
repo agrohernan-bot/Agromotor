@@ -298,6 +298,24 @@ async function amLogin() {
   }, 500);
 }
 
+// ── RECUPERAR CONTRASEÑA ──────────────────────────────
+async function amOlvidarContrasena() {
+  const email = $('am-email')?.value?.trim();
+  const err   = $('am-login-err');
+  if (!email) {
+    amMostrarError(err, 'Ingresá tu email primero y luego hacé clic en ¿Olvidaste tu contraseña?');
+    return;
+  }
+  const { error } = await AM_SB.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://agromotor.com.ar/app.html'
+  });
+  if (error) {
+    amMostrarError(err, `Error al enviar el email: ${error.message}`);
+    return;
+  }
+  amToast('Te enviamos un email para restablecer tu contraseña. Revisá tu bandeja.', 'ok');
+}
+
 // ── REGISTRO ──────────────────────────────────────────
 // Auto-abrir modal desde URL params (?signup=1&plan=X)
 // También maneja el return de Mercado Pago (?subscription=success/pending/failure)
@@ -361,8 +379,8 @@ window.addEventListener('DOMContentLoaded', function() {
     if (localStorage.getItem('am_god') === 'true') return;
     if (AM_SESION) return; // ya logueado → no mostrar
     if (new Date() < new Date('2026-08-02')) {
-      // Promo: siempre mostrar registro si no hay sesión activa
-      amMostrarModal('registro');
+      // Promo: mostrar login (ya registrado) o nuevo usuario puede ir a registro desde allí
+      amMostrarModal('login');
       return;
     }
     // Post-promo: solo la primera vez por dispositivo
@@ -457,8 +475,17 @@ async function amRegistrar() {
   }
 
   if (btn) { btn.disabled = false; btn.textContent = 'Crear cuenta'; }
-  amCerrarModal();
-  amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión.', 'ok');
+
+  if (data.session) {
+    // Email confirmation OFF en Supabase — sesión activa inmediatamente
+    // onAuthStateChange disparará AM_SESION y cerrará la UI
+    amCerrarModal();
+    amToast(`Bienvenido ${nombre.split(' ')[0]}! Tu cuenta está lista.`, 'ok');
+  } else {
+    // Email confirmation ON — el usuario debe confirmar antes de iniciar sesión
+    amCambiarVista('login');
+    amToast('Cuenta creada. Revisá tu email para confirmarla y luego iniciá sesión aquí.', 'ok');
+  }
 }
 
 // ── CERRAR SESIÓN ─────────────────────────────────────
@@ -598,6 +625,7 @@ function amCargarSesion() {}
   };
 
   window.amLogin = amLogin;
+  window.amOlvidarContrasena = amOlvidarContrasena;
   window.amProcesarUrlParams = amProcesarUrlParams;
   window.amRegistrar = amRegistrar;
   window.amCerrarSesion = amCerrarSesion;
