@@ -129,6 +129,23 @@ var NC_FERTS = {
   K: { nombre: 'KCl (60% K₂O)',  fraccion: 0.60, idPrecio: 'nc-precio-k', precioRef: 480 },
 };
 
+// Modos de fertilización
+var MODO_FERT_KEY      = 'am_modo_fertilizacion';
+var CREDITO_SUELO_FRAC = { P: 0.25, K: 0.60 };
+var EXT_REPOS = {
+  Maiz:    { N: 15, P2O5: 7,  K2O: 5,  S: 4  },
+  Soja:    { N: 57, P2O5: 15, K2O: 20, S: 5  },
+  Trigo:   { N: 25, P2O5: 9,  K2O: 6,  S: 4  },
+  Girasol: { N: 22, P2O5: 12, K2O: 10, S: 6  },
+  Sorgo:   { N: 14, P2O5: 6,  K2O: 4,  S: 4  },
+  Cebada:  { N: 22, P2O5: 9,  K2O: 5,  S: 3  },
+  Colza:   { N: 34, P2O5: 16, K2O: 10, S: 10 },
+};
+var OPTIMOS_REGEN = { P: 25, K: 200, Zn: 1.5 };
+var EFI_REGEN     = { P: 0.35, K: 0.70, Zn: 0.40 };
+var ANOS_REGEN    = 10;
+function ncPpmAKgha(ppm, da) { return ppm * (da || 1.25) * 2; }
+
 // ── HELPERS ──────────────────────────────────────────────
 function ncGv(id) { var e = document.getElementById(id); return e ? (e.value || '') : ''; }
 function ncGf(id) { return parseFloat(document.getElementById(id) && document.getElementById(id).value) || 0; }
@@ -176,6 +193,42 @@ function ncCalcOptima(curva, Pg_kg, Pf_kg) {
   var beneficio = deltaY * Pg_kg;
   var costo     = Xopt * Pf_kg;
   return { Xopt: Xopt, beneficio: beneficio, costo: costo, bc: costo > 0 ? beneficio / costo : 0 };
+}
+
+// ── MODO FERTILIZACIÓN ──────────────────────────────────
+function ncGetModo() { return localStorage.getItem(MODO_FERT_KEY) || '1'; }
+
+window.ncSetModo = function(modo) {
+  localStorage.setItem(MODO_FERT_KEY, modo);
+  ncRenderModoSelector();
+};
+
+function ncRenderModoSelector() {
+  var cont = document.getElementById('nc-modo-selector');
+  if (!cont) return;
+  var actual = ncGetModo();
+  var modos = [
+    { id:'1', ico:'⚖️', nombre:'Balanceada',  desc:'Crédito de suelo + curva INTA',     nota:'Máxima eficiencia' },
+    { id:'2', ico:'♻️', nombre:'Reposición',   desc:'Repone lo que extrae el cultivo',   nota:'Mantiene capital de suelo' },
+    { id:'3', ico:'🌱', nombre:'Regenerativa', desc:'Extracción + corrección a óptimo',  nota:'Mejora el suelo en 10 años' },
+  ];
+  var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1.1rem">';
+  modos.forEach(function(m) {
+    var activo = m.id === actual;
+    var bg   = activo ? 'linear-gradient(135deg,#1A3A25,#2D5A30)' : '#fff';
+    var bdr  = activo ? '2px solid rgba(109,191,130,.5)' : '1.5px solid rgba(74,46,26,.12)';
+    var clrT = activo ? '#6DBF82' : '#3A7A4A';
+    var clrD = activo ? 'rgba(237,224,196,.8)' : 'rgba(74,46,26,.6)';
+    var clrN = activo ? 'rgba(237,224,196,.45)' : 'rgba(74,46,26,.35)';
+    html += '<button onclick="ncSetModo(\'' + m.id + '\')" style="background:' + bg + ';border:' + bdr + ';border-radius:10px;padding:.7rem .5rem;cursor:pointer;text-align:center;font-family:inherit;width:100%">';
+    html += '<div style="font-size:1.2rem;margin-bottom:.2rem">' + m.ico + '</div>';
+    html += '<div style="font-size:.78rem;font-weight:700;color:' + clrT + ';margin-bottom:.15rem">' + m.nombre + '</div>';
+    html += '<div style="font-size:.64rem;color:' + clrD + ';line-height:1.35">' + m.desc + '</div>';
+    html += '<div style="font-size:.58rem;color:' + clrN + ';margin-top:.2rem">' + m.nota + '</div>';
+    html += '</button>';
+  });
+  html += '</div>';
+  cont.innerHTML = html;
 }
 
 // ── TABS ─────────────────────────────────────────────────
@@ -228,6 +281,7 @@ window.ncActualizar = function() {
   }
 
   ncRenderSueloPanel();
+  ncRenderModoSelector();
 
   // Sincronizar select de balance con cultivo del lote
   var selBal = document.getElementById('nc-bn-cultivo');
@@ -301,15 +355,16 @@ function ncRenderSueloPanel() {
 // TAB A — PLAN DE FERTILIZACIÓN INTEGRADO
 // ════════════════════════════════════════════════════════
 window.ncPlanCalcular = function() {
+  var modo    = ncGetModo();
   var cultStr = ncCultStr();
   var cultKey = ncCultivoKey(cultStr);
   var db      = CULTIVO_DB[cultKey];
   if (!db) { alert('Cultivo no encontrado: ' + cultStr + '\nVerificá el cultivo seleccionado en el Dashboard.'); return; }
 
-  var rendObj   = ncGf('nc-rend-obj') || ((db.rendR[0] + db.rendR[1]) / 2);
-  var precioG   = ncGf('nc-precio-grano') || 300;
-  var sup       = ncGf('nc-sup') || 100;
-  var Pg_kg     = precioG / 1000;
+  var rendObj = ncGf('nc-rend-obj') || ((db.rendR[0] + db.rendR[1]) / 2);
+  var precioG = ncGf('nc-precio-grano') || 300;
+  var sup     = ncGf('nc-sup') || 100;
+  var Pg_kg   = precioG / 1000;
 
   var precios = {};
   Object.keys(NC_FERTS).forEach(function(n) {
@@ -318,16 +373,18 @@ window.ncPlanCalcular = function() {
 
   var sd      = window._sueloDatos || {};
   var sueloKg = ncSueloAkg(sd);
-  // tienePLab/tieneKLab: cualquier fuente (lab, OLM, IDECOR, DB) — habilita cálculo de déficit
+  var da      = (sd.da && sd.da.valor) ? sd.da.valor : 1.25;
   var tienePLab = sd.p && sd.p.valor != null;
   var tieneKLab = sd.k && sd.k.valor != null;
   var fuenteP   = sd.p ? (sd.p.fuente || null) : null;
 
+  // K siempre en modos 2/3 (reposición no depende de análisis de suelo)
   var nutList = ['N', 'P', 'S'];
-  if (tieneKLab) nutList.push('K'); // incluye K si viene de cualquier fuente (OLM, DB, lab)
+  if (tieneKLab || modo === '2' || modo === '3') nutList.push('K');
 
   var resultados = {};
   var costoTotal = 0;
+  var extR = EXT_REPOS[cultKey] || {};
 
   nutList.forEach(function(nut) {
     var fert = NC_FERTS[nut];
@@ -335,63 +392,87 @@ window.ncPlanCalcular = function() {
 
     var disponible = sueloKg[nut] ? sueloKg[nut].valor : null;
     var fuenteDisp = sueloKg[nut] ? sueloKg[nut].fuente : null;
+    var dosisRec, extra = {};
 
-    // Requerimiento del cultivo (kg nutriente/ha)
-    var reqBase;
-    if      (nut === 'N') reqBase = (db.req.N || 0) * rendObj;
-    else if (nut === 'P') reqBase = (db.req.P || 0) * rendObj;
-    else if (nut === 'K') reqBase = (db.req.K || 0) * rendObj;
-    else if (nut === 'S') reqBase = db.ext.S ? db.ext.S.grano * rendObj : 0;
+    if (modo === '1') {
+      // ── MODO BALANCEADA: crédito fraccionado + curva INTA ──
+      var reqBase;
+      if      (nut === 'N') reqBase = (db.req.N || 0) * rendObj;
+      else if (nut === 'P') reqBase = (db.req.P || 0) * rendObj;
+      else if (nut === 'K') reqBase = (db.req.K || 0) * rendObj;
+      else if (nut === 'S') reqBase = db.ext.S ? db.ext.S.grano * rendObj : 0;
 
-    // Déficit
-    var deficit = disponible != null ? Math.max(0, reqBase - disponible) : reqBase;
+      var frac      = (nut === 'P') ? CREDITO_SUELO_FRAC.P : (nut === 'K') ? CREDITO_SUELO_FRAC.K : 1.0;
+      var creditado = disponible != null ? disponible * frac : null;
+      var deficit   = creditado != null ? Math.max(0, reqBase - creditado) : reqBase;
 
-    // Dosis óptima económica (N, P, S tienen curvas; K no)
-    var dosisCurva = null, bcOpt = null;
-    if (nut !== 'K' && db.curvas && db.curvas[nut]) {
-      var Pf_kg = precios[nut] / 1000 / fert.fraccion;
-      var opt   = ncCalcOptima(db.curvas[nut], Pg_kg, Pf_kg);
-      dosisCurva = Math.round(opt.Xopt);
-      bcOpt      = opt.bc;
-    }
-
-    // Recomendación integrada
-    var dosisRec;
-    if (nut === 'K') {
-      dosisRec = deficit;
-    } else if (dosisCurva !== null) {
-      if (db.esFBN && nut === 'N') {
-        // Soja FBN: dosis N muy conservadora (arranque)
-        dosisRec = Math.min(deficit * 0.6, dosisCurva * 0.5, 40);
-      } else if (!tienePLab && nut === 'P') {
-        // Sin análisis de P de suelo: confiar en curva óptima
-        dosisRec = dosisCurva;
-      } else {
-        // Ponderar déficit y curva óptima
-        var pond = disponible != null ? 0.55 : 0.35;   // + peso déficit si hay dato real
-        dosisRec = pond * deficit + (1 - pond) * dosisCurva;
-        dosisRec = Math.max(deficit * 0.8, Math.min(dosisCurva * 1.2, dosisRec));
+      var dosisCurva = null, bcOpt = null;
+      if (nut !== 'K' && db.curvas && db.curvas[nut]) {
+        var Pf_kg = precios[nut] / 1000 / fert.fraccion;
+        var opt   = ncCalcOptima(db.curvas[nut], Pg_kg, Pf_kg);
+        dosisCurva = Math.round(opt.Xopt);
+        bcOpt      = opt.bc;
       }
+
+      if (nut === 'K') {
+        dosisRec = deficit;
+      } else if (dosisCurva !== null) {
+        if (db.esFBN && nut === 'N') {
+          dosisRec = Math.min(deficit * 0.6, dosisCurva * 0.5, 40);
+        } else if (!tienePLab && nut === 'P') {
+          dosisRec = dosisCurva;
+        } else {
+          var pond = creditado != null ? 0.55 : 0.35;
+          dosisRec = pond * deficit + (1 - pond) * dosisCurva;
+          dosisRec = Math.max(deficit * 0.8, Math.min(dosisCurva * 1.2, dosisRec));
+        }
+      } else {
+        dosisRec = deficit;
+      }
+      dosisRec = Math.max(0, Math.round(dosisRec));
+      extra = { reqBase: Math.round(reqBase), deficit: Math.round(deficit),
+                creditado: creditado != null ? Math.round(creditado) : null,
+                frac: frac, dosisCurva: dosisCurva, bcOpt: bcOpt };
+
+    } else if (modo === '2') {
+      // ── MODO REPOSICIÓN: extracción exacta por tonelada cosechada ──
+      var extKey2 = (nut === 'P') ? 'P2O5' : (nut === 'K') ? 'K2O' : nut;
+      var extVal2 = extR[extKey2] || 0;
+      dosisRec    = Math.round(extVal2 * rendObj);
+      extra       = { extraccion: dosisRec };
+
     } else {
-      dosisRec = deficit;
+      // ── MODO REGENERATIVA: extracción + corrección hacia óptimo ──
+      var extKey3 = (nut === 'P') ? 'P2O5' : (nut === 'K') ? 'K2O' : nut;
+      var extVal3 = extR[extKey3] || 0;
+      var extKg   = extVal3 * rendObj;
+      var corrKg  = 0;
+
+      if (nut === 'P' && sd.p && sd.p.valor != null) {
+        var defPpm = Math.max(0, OPTIMOS_REGEN.P - sd.p.valor);
+        corrKg = ncPpmAKgha(defPpm, da) / ANOS_REGEN / EFI_REGEN.P;
+      } else if (nut === 'K' && sd.k && sd.k.valor != null) {
+        var defPpm = Math.max(0, OPTIMOS_REGEN.K - sd.k.valor);
+        corrKg = ncPpmAKgha(defPpm, da) / ANOS_REGEN / EFI_REGEN.K;
+      }
+
+      dosisRec = Math.round(extKg + corrKg);
+      extra    = { extraccion: Math.round(extKg), correccion: Math.round(corrKg) };
     }
-    dosisRec = Math.max(0, Math.round(dosisRec));
 
     var kgFert = Math.round(dosisRec / fert.fraccion);
     var costo  = (kgFert / 1000) * precios[nut];
     costoTotal += costo;
 
-    resultados[nut] = {
+    resultados[nut] = Object.assign({}, extra, {
       disponible: disponible, fuenteDisp: fuenteDisp,
-      reqBase: Math.round(reqBase),
-      deficit: Math.round(deficit),
-      dosisCurva: dosisCurva, bcOpt: bcOpt,
       dosisRec: dosisRec, kgFert: kgFert, costo: costo,
       fertNombre: fert.nombre,
-    };
+    });
   });
 
-  ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN, tienePLab, tieneKLab, fuenteP });
+  ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN,
+                              tienePLab, tieneKLab, fuenteP, modo, sd, da });
 };
 
 // ── RENDER PLAN ──────────────────────────────────────────
@@ -404,30 +485,30 @@ function ncRenderPlan(res, ctx) {
 
   var nutColor = { N:'#3A7A4A', P:'#C8A255', S:'#8b6f47', K:'#2A5A8C' };
   var nutEmoji = { N:'🌿', P:'⚗️', S:'🟡', K:'🧲' };
+  var modoNom  = { '1':'⚖️ Balanceada', '2':'♻️ Reposición', '3':'🌱 Regenerativa' };
+  var modo = ctx.modo || '1';
 
   // Encabezado
   var html = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:14px;padding:1.1rem 1.4rem;margin-bottom:1.1rem;border:1px solid rgba(109,191,130,.2)">';
   html += '<div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(237,224,196,.75);margin-bottom:.7rem">';
-  html += '📋 PLAN · ' + ctx.cultStr.toUpperCase() + ' · ' + ctx.rendObj + ' t/ha · USD ' + Math.round(ctx.precioG) + '/t grano</div>';
+  html += '📋 PLAN · ' + ctx.cultStr.toUpperCase() + ' · ' + ctx.rendObj + ' t/ha · USD ' + Math.round(ctx.precioG) + '/t · ' + (modoNom[modo] || '') + '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem">';
   html += '<div style="text-align:center;background:rgba(255,255,255,.09);padding:.7rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#6DBF82">USD ' + Math.round(ctx.costoTotal) + '/ha</div><div style="font-size:.62rem;color:rgba(237,224,196,.65);text-transform:uppercase;margin-top:.15rem">Costo total fertilización</div></div>';
   html += '<div style="text-align:center;background:rgba(255,255,255,.09);padding:.7rem;border-radius:9px"><div style="font-size:1.3rem;font-weight:700;color:#E8B84B">USD ' + Math.round(ctx.costoTotal * ctx.sup / 1000) + 'k</div><div style="font-size:.62rem;color:rgba(237,224,196,.65);text-transform:uppercase;margin-top:.15rem">Campaña total (' + ctx.sup + ' ha)</div></div>';
   html += '</div></div>';
 
-  if (ctx.esFBN) {
+  if (ctx.esFBN && modo === '1') {
     html += '<div class="alert info" style="margin-bottom:.9rem"><span class="ai">💡</span><div class="ac"><strong>Soja — Fijación Biológica de N (FBN):</strong> Con inoculación de <em>Bradyrhizobium</em>, la soja cubre hasta el 80% de sus necesidades de N. La dosis de N indicada es para arranque o ambientes de alto potencial.</div></div>';
   }
 
   // Tarjetas por nutriente
   html += '<div style="display:flex;flex-direction:column;gap:.65rem">';
   Object.keys(res).forEach(function(nut) {
-    var r       = res[nut];
-    var color   = nutColor[nut] || '#C8A255';
-    var emoji   = nutEmoji[nut] || '🔹';
-    var rentable = r.bcOpt != null && r.bcOpt >= 1.2;
-    var bc       = r.bcOpt != null ? r.bcOpt.toFixed(1) + ':1' : '—';
+    var r     = res[nut];
+    var color = nutColor[nut] || '#C8A255';
+    var emoji = nutEmoji[nut] || '🔹';
 
-    // Badge de fuente (lab, OpenLandMap, IDECOR, DB, SoilGrids)
+    // Badge de fuente
     var fuenteBadge = '';
     var fd = r.fuenteDisp;
     if (fd === 'laboratorio') {
@@ -444,29 +525,60 @@ function ncRenderPlan(res, ctx) {
       fuenteBadge = '<span style="font-size:.58rem;color:rgba(74,46,26,.35);margin-left:.25rem">~</span>';
     }
 
-    var bdrColor = r.dosisRec === 0 ? 'rgba(74,140,92,.3)' : (rentable ? 'rgba(74,140,92,.18)' : 'rgba(200,162,85,.3)');
+    var bdrColor;
+    if (modo === '1') {
+      var rentM1 = r.bcOpt != null && r.bcOpt >= 1.2;
+      bdrColor = r.dosisRec === 0 ? 'rgba(74,140,92,.3)' : (rentM1 ? 'rgba(74,140,92,.18)' : 'rgba(200,162,85,.3)');
+    } else {
+      bdrColor = 'rgba(74,46,26,.12)';
+    }
+
     html += '<div style="background:#fff;border-radius:12px;padding:.9rem 1rem;border:1.5px solid ' + bdrColor + '">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem">';
     html += '<div style="font-weight:700;font-size:.9rem;color:' + color + '">' + emoji + ' ' + nut + ' — ' + r.fertNombre + '</div>';
-    if (r.dosisRec === 0) {
-      html += '<span style="font-size:.7rem;font-weight:700;background:rgba(74,140,92,.1);color:#1b5e35;padding:.18rem .55rem;border-radius:20px">✅ Sin déficit</span>';
-    } else if (r.bcOpt != null) {
-      html += '<span style="font-size:.7rem;font-weight:700;background:' + (rentable ? 'rgba(74,140,92,.1)' : 'rgba(212,82,42,.1)') + ';color:' + (rentable ? '#1b5e35' : '#C0392B') + ';padding:.18rem .55rem;border-radius:20px">' + (rentable ? '✅ Rentable' : '⚠️ Sin margen') + '</span>';
+    if (modo === '1') {
+      var rentM1b = r.bcOpt != null && r.bcOpt >= 1.2;
+      if (r.dosisRec === 0) {
+        html += '<span style="font-size:.7rem;font-weight:700;background:rgba(74,140,92,.1);color:#1b5e35;padding:.18rem .55rem;border-radius:20px">✅ Sin déficit</span>';
+      } else if (r.bcOpt != null) {
+        html += '<span style="font-size:.7rem;font-weight:700;background:' + (rentM1b ? 'rgba(74,140,92,.1)' : 'rgba(212,82,42,.1)') + ';color:' + (rentM1b ? '#1b5e35' : '#C0392B') + ';padding:.18rem .55rem;border-radius:20px">' + (rentM1b ? '✅ Rentable' : '⚠️ Sin margen') + '</span>';
+      }
     }
     html += '</div>';
 
-    // KPIs
+    // KPIs según modo
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:.42rem;margin-bottom:.5rem">';
-    var kpis = [
-      { lbl:'Disponible suelo',   val: r.disponible != null ? r.disponible + ' kg/ha' : '—', xtra: fuenteBadge },
-      { lbl:'Requerimiento',      val: r.reqBase + ' kg/ha' },
-      { lbl:'Déficit real',       val: r.deficit + ' kg/ha',    clr: r.deficit > 0 ? '#C0392B' : '#1b5e35' },
-      { lbl:'Dosis óptima INTA',  val: r.dosisCurva != null ? r.dosisCurva + ' kg/ha' : '—' },
-      { lbl:'Recomendación',      val: r.dosisRec + ' kg/ha',   clr: color, bold: true },
-      { lbl:'Producto',           val: r.kgFert + ' kg/ha' },
-      { lbl:'Relación B/C',       val: bc,                       clr: r.bcOpt != null && r.bcOpt >= 1.2 ? '#1b5e35' : r.bcOpt != null && r.bcOpt < 1 ? '#C0392B' : '#C8A255' },
-      { lbl:'Costo',              val: 'USD ' + r.costo.toFixed(0) + '/ha' },
-    ];
+    var kpis;
+    if (modo === '1') {
+      var bc        = r.bcOpt != null ? r.bcOpt.toFixed(1) + ':1' : '—';
+      var fracLabel = (nut === 'P') ? ' (25% disp.)' : (nut === 'K') ? ' (60% disp.)' : '';
+      kpis = [
+        { lbl:'Crédito campaña',   val: r.creditado != null ? r.creditado + ' kg/ha' + fracLabel : '—', xtra: fuenteBadge },
+        { lbl:'Requerimiento',     val: r.reqBase + ' kg/ha' },
+        { lbl:'Déficit real',      val: r.deficit + ' kg/ha',  clr: r.deficit > 0 ? '#C0392B' : '#1b5e35' },
+        { lbl:'Dosis óptima INTA', val: r.dosisCurva != null ? r.dosisCurva + ' kg/ha' : '—' },
+        { lbl:'Recomendación',     val: r.dosisRec + ' kg/ha', clr: color, bold: true },
+        { lbl:'Producto',          val: r.kgFert + ' kg/ha' },
+        { lbl:'Relación B/C',      val: bc, clr: r.bcOpt != null && r.bcOpt >= 1.2 ? '#1b5e35' : r.bcOpt != null && r.bcOpt < 1 ? '#C0392B' : '#C8A255' },
+        { lbl:'Costo',             val: 'USD ' + r.costo.toFixed(0) + '/ha' },
+      ];
+    } else if (modo === '2') {
+      kpis = [
+        { lbl:'Extracción cultivo', val: r.extraccion + ' kg/ha' },
+        { lbl:'Recomendación',      val: r.dosisRec + ' kg/ha',  clr: color, bold: true },
+        { lbl:'Producto',           val: r.kgFert + ' kg/ha' },
+        { lbl:'Costo',              val: 'USD ' + r.costo.toFixed(0) + '/ha' },
+      ];
+    } else {
+      kpis = [
+        { lbl:'Extracción cultivo',   val: r.extraccion + ' kg/ha' },
+        { lbl:'Corrección suelo/año', val: r.correccion > 0 ? r.correccion + ' kg/ha' : '—' },
+        { lbl:'Recomendación total',  val: r.dosisRec + ' kg/ha',  clr: color, bold: true },
+        { lbl:'Producto',             val: r.kgFert + ' kg/ha' },
+        { lbl:'Costo',                val: 'USD ' + r.costo.toFixed(0) + '/ha' },
+      ];
+    }
+
     kpis.forEach(function(kpi) {
       html += '<div style="background:#f9f7f2;border-radius:7px;padding:.42rem .6rem;border:1px solid rgba(74,46,26,.09)">';
       html += '<div style="font-size:.63rem;text-transform:uppercase;letter-spacing:.04em;color:rgba(74,46,26,.52);margin-bottom:.12rem">' + kpi.lbl + (kpi.xtra || '') + '</div>';
@@ -484,18 +596,77 @@ function ncRenderPlan(res, ctx) {
   });
   html += '</div>'; // cierra columna tarjetas
 
-  var fp = ctx.fuenteP;
-  if (!fp) {
-    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>P sin datos de suelo:</strong> La recomendación de P se basó en la curva óptima económica (INTA). Ingresá el P disponible (ppm Bray I) en el módulo Suelo → Análisis de laboratorio para mayor precisión.</div></div>';
-  } else if (fp !== 'laboratorio') {
-    var nomFP = fp === 'openlandmap' ? 'OpenLandMap 250m' : fp === 'idecor' ? 'IDECOR Córdoba 90m' : fp === 'idecor+olm' ? 'IDECOR 90m + OLM 250m' : fp === 'db' ? 'DB regional (Fertilizar/INTA)' : fp;
-    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">🌍</span><div class="ac"><strong>P estimado — ' + nomFP + ':</strong> Precisión orientativa (±30-40% vs Bray local). Se usó el dato disponible de mayor resolución. Para fertilización de precisión, ingresá el P Bray I real en el panel de laboratorio.</div></div>';
+  // ── Proyección de recuperación (solo Modo 3) ──
+  if (modo === '3') {
+    var sd3 = ctx.sd || {};
+    var da3 = ctx.da || 1.25;
+    var proyHtml = '';
+    [
+      { nut:'P', ppmKey:'p', label:'Fósforo (P Bray)', optimo: OPTIMOS_REGEN.P, efi: EFI_REGEN.P },
+      { nut:'K', ppmKey:'k', label:'Potasio (K)',       optimo: OPTIMOS_REGEN.K, efi: EFI_REGEN.K },
+    ].forEach(function(item) {
+      var sdDato = sd3[item.ppmKey];
+      if (!sdDato || sdDato.valor == null) return;
+      var actual  = sdDato.valor;
+      var optimo  = item.optimo;
+      if (actual >= optimo) {
+        proyHtml += '<div style="display:flex;align-items:center;gap:.5rem;padding:.4rem .7rem;background:rgba(74,140,92,.06);border-radius:7px;margin-bottom:.4rem">';
+        proyHtml += '<span style="font-size:.8rem">✅</span><span style="font-size:.75rem;color:#1b5e35"><strong>' + item.label + ':</strong> Ya en nivel óptimo (' + actual.toFixed(1) + ' ppm ≥ ' + optimo + ' ppm)</span>';
+        proyHtml += '</div>';
+        return;
+      }
+      var defPpm    = optimo - actual;
+      var gainPAnio = defPpm / ANOS_REGEN;
+      proyHtml += '<div style="margin-bottom:.8rem">';
+      proyHtml += '<div style="font-size:.76rem;font-weight:700;color:#3A7A4A;margin-bottom:.4rem">' + item.label + ': ' + actual.toFixed(1) + ' → ' + optimo + ' ppm en ' + ANOS_REGEN + ' años</div>';
+      proyHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(68px,1fr));gap:.3rem">';
+      [0, 2, 5, 8, 10].forEach(function(yr) {
+        var ppm = Math.min(optimo, actual + gainPAnio * yr);
+        var pct = Math.round((ppm - actual) / defPpm * 100);
+        var clrPct = pct >= 80 ? '#1b5e35' : pct >= 40 ? '#C8A255' : 'rgba(74,46,26,.5)';
+        proyHtml += '<div style="background:#f9f7f2;border-radius:7px;padding:.38rem .45rem;border:1px solid rgba(74,46,26,.09);text-align:center">';
+        proyHtml += '<div style="font-size:.6rem;color:rgba(74,46,26,.45);margin-bottom:.08rem">Año ' + yr + '</div>';
+        proyHtml += '<div style="font-size:.82rem;font-weight:700;color:#1A2A1A;font-family:\'DM Mono\',monospace">' + ppm.toFixed(1) + '</div>';
+        proyHtml += '<div style="font-size:.58rem;color:' + clrPct + '">' + (yr > 0 ? '+' + pct + '%' : 'actual') + '</div>';
+        proyHtml += '</div>';
+      });
+      proyHtml += '</div></div>';
+    });
+
+    if (proyHtml) {
+      html += '<div style="margin-top:.9rem;background:rgba(74,140,92,.04);border:1px solid rgba(74,140,92,.18);border-radius:10px;padding:.9rem">';
+      html += '<div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2D5A30;margin-bottom:.65rem">🌍 Proyección de recuperación de suelo (ppm)</div>';
+      html += proyHtml;
+      html += '<div style="font-size:.67rem;color:rgba(74,46,26,.4);margin-top:.4rem">Estimación lineal · Eficiencia: P=' + (EFI_REGEN.P*100).toFixed(0) + '%, K=' + (EFI_REGEN.K*100).toFixed(0) + '% · Sin rastrojo exportado ni pérdidas por lixiviación.</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>Sin datos de suelo P/K:</strong> La corrección regenerativa no pudo calcularse. La recomendación incluye solo extracción. Cargá un análisis de laboratorio para activar la proyección.</div></div>';
+    }
+    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">🌱</span><div class="ac"><strong>Zinc (Zn):</strong> Si Zn disponible &lt; 0.5 ppm, aplicar 1–2 kg Zn/ha (sulfato de zinc 23% Zn) en el arranque. El 20% del Zn disponible es aprovechado por el cultivo.</div></div>';
+  }
+
+  // ── Notas de metodología ──
+  if (modo === '1') {
+    var fp = ctx.fuenteP;
+    if (!fp) {
+      html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>P sin datos de suelo:</strong> La recomendación de P se basó en la curva óptima económica (INTA). Ingresá el P disponible (ppm Bray I) en el módulo Suelo para mayor precisión.</div></div>';
+    } else if (fp !== 'laboratorio') {
+      var nomFP = fp === 'openlandmap' ? 'OpenLandMap 250m' : fp === 'idecor' ? 'IDECOR Córdoba 90m' : fp === 'idecor+olm' ? 'IDECOR 90m + OLM 250m' : fp === 'db' ? 'DB regional (Fertilizar/INTA)' : fp;
+      html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">🌍</span><div class="ac"><strong>P estimado — ' + nomFP + ':</strong> Precisión orientativa (±30-40% vs Bray local). Para fertilización de precisión, ingresá el P Bray I real en el panel de laboratorio.</div></div>';
+    }
+    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>Zinc (Zn):</strong> Si Zn disponible &lt; 0.5 ppm, aplicar 1–2 kg Zn/ha. Crédito de suelo: 20% del Zn disponible.</div></div>';
+  } else if (modo === '2') {
+    html += '<div class="alert info" style="margin-top:.9rem"><span class="ai">💡</span><div class="ac"><strong>Zinc (Zn):</strong> Si Zn disponible &lt; 0.5 ppm, reponer 1–2 kg Zn/ha (extracción típica: 0.02–0.05 kg Zn/t grano).</div></div>';
   }
 
   html += '<div style="margin-top:.9rem;font-size:.7rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:8px;line-height:1.5">';
-  html += '📊 <strong>Metodología:</strong> Déficit = requerimiento cultivo − disponible en suelo. ';
-  html += 'Dosis óptima = curva respuesta cuadrática INTA Marcos Juárez / Balcarce / Oliveros. ';
-  html += 'Recomendación pondera ambos enfoques según disponibilidad de datos. Calibrar con análisis local.';
+  if (modo === '1') {
+    html += '📊 <strong>Balanceada:</strong> Crédito de suelo (N=MO×20, P=25% disp., K=60% disp.) + déficit + curva respuesta cuadrática INTA Marcos Juárez / Balcarce / Oliveros.';
+  } else if (modo === '2') {
+    html += '📊 <strong>Reposición:</strong> Extracción de grano (INTA Balcarce · Echeverría & García). Mantiene el capital de suelo sin acumulación ni pérdida.';
+  } else {
+    html += '📊 <strong>Regenerativa:</strong> Extracción + corrección gradual al óptimo (P=25 ppm, K=200 ppm) en ' + ANOS_REGEN + ' años. Eficiencias: P=' + (EFI_REGEN.P*100).toFixed(0) + '%, K=' + (EFI_REGEN.K*100).toFixed(0) + '%. Fuente: INTA + Fertilizar A.C.';
+  }
   html += '</div>';
 
   out.innerHTML = html;
