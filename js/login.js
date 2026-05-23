@@ -81,6 +81,11 @@ let AM_SESION = null;
 // — causa deadlock con supabase-js v2. Usamos user_metadata (ya en el JWT)
 // como fuente primaria, y enrich desde profiles de forma deferred.
 AM_SB.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    amMostrarFormularioNuevaContrasena();
+    return;
+  }
+
   if (session?.user) {
     var meta = session.user.user_metadata || {};
     // Estado inmediato basado en el JWT (no requiere DB query)
@@ -243,7 +248,7 @@ function amCerrarModal() {
 function amCambiarVista(vista) {
   // TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios
   if (vista === 'planes') vista = 'registro';
-  ['am-vista-planes','am-vista-login','am-vista-registro'].forEach(id => {
+  ['am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
   $(`am-vista-${vista}`)?.classList.remove('hidden');
@@ -377,6 +382,7 @@ window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 window.addEventListener('DOMContentLoaded', function() {
   setTimeout(function() {
     if (localStorage.getItem('am_god') === 'true') return;
+    if (window.location.hash.includes('type=recovery')) return; // flujo de reset de contraseña
     if (AM_SESION) return; // ya logueado → no mostrar
     if (new Date() < new Date('2026-08-02')) {
       // Promo: mostrar login (ya registrado) o nuevo usuario puede ir a registro desde allí
@@ -489,6 +495,35 @@ async function amRegistrar() {
 }
 
 // ── CERRAR SESIÓN ─────────────────────────────────────
+// ── RECOVERY: nueva contraseña ────────────────────────
+function amMostrarFormularioNuevaContrasena() {
+  amMostrarModal('recovery');
+}
+
+async function amConfirmarNuevaContrasena() {
+  const pass1 = $('am-rec-pass1')?.value?.trim();
+  const pass2 = $('am-rec-pass2')?.value?.trim();
+  const err   = $('am-rec-err');
+  const btn   = $('am-rec-btn');
+
+  if (!pass1) { amMostrarError(err, 'Ingresá tu nueva contraseña.'); return; }
+  if (pass1.length < 8) { amMostrarError(err, 'La contraseña debe tener al menos 8 caracteres.'); return; }
+  if (pass1 !== pass2) { amMostrarError(err, 'Las contraseñas no coinciden. Verificá e intentá de nuevo.'); return; }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando...'; }
+  const { error } = await AM_SB.auth.updateUser({ password: pass1 });
+  if (btn) { btn.disabled = false; btn.textContent = 'Guardar nueva contraseña'; }
+
+  if (error) {
+    amMostrarError(err, `Error al actualizar: ${error.message}`);
+    return;
+  }
+
+  amCerrarModal();
+  amToast('Contraseña actualizada. ¡Bienvenido a AgroMotor!', 'ok');
+  // USER_UPDATED disparado por Supabase → onAuthStateChange fija AM_SESION normalmente
+}
+
 async function amCerrarSesion() {
   await AM_SB.auth.signOut();
   // onAuthStateChange pone AM_SESION = null y actualiza la UI
@@ -625,6 +660,7 @@ function amCargarSesion() {}
   };
 
   window.amLogin = amLogin;
+  window.amConfirmarNuevaContrasena = amConfirmarNuevaContrasena;
   window.amOlvidarContrasena = amOlvidarContrasena;
   window.amProcesarUrlParams = amProcesarUrlParams;
   window.amRegistrar = amRegistrar;
