@@ -67,8 +67,9 @@
   function buildOverlay() {
     overlay = document.createElement('div');
     overlay.id = 'am-onboarding-overlay';
+    // top/left/right/bottom en lugar de inset:0 para compatibilidad Safari iOS < 14.1
     overlay.style.cssText = `
-      position: fixed; inset: 0; z-index: 9998;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9998;
       background: rgba(15,31,20,.7);
       backdrop-filter: blur(2px);
       pointer-events: auto;
@@ -78,6 +79,7 @@
 
     tooltip = document.createElement('div');
     tooltip.id = 'am-onboarding-tooltip';
+    // width con min() — box-sizing:border-box — opacity:0 hasta que positionTooltip calcule
     tooltip.style.cssText = `
       position: fixed; z-index: 9999;
       background: linear-gradient(145deg, #fff, #fbf8f1);
@@ -85,10 +87,14 @@
       border-radius: 16px;
       box-shadow: 0 16px 48px rgba(0,0,0,.4), 0 4px 16px rgba(200,162,85,.25);
       padding: 1.5rem 1.6rem;
-      max-width: 420px;
+      width: min(420px, calc(100vw - 2rem));
+      max-height: calc(100vh - 3rem);
+      overflow-y: auto;
+      box-sizing: border-box;
       font-family: 'DM Sans', sans-serif;
       color: #1c1208;
-      transition: all .25s cubic-bezier(.22,.68,0,1.2);
+      opacity: 0;
+      transition: opacity .2s ease;
     `;
     document.body.appendChild(overlay);
     document.body.appendChild(tooltip);
@@ -110,6 +116,8 @@
     var nextLabel = currentStep === STEPS.length - 1 ? '🚀 Empezar' : 'Siguiente →';
     var btnNext = `<button onclick="amOnbNext()" style="background:linear-gradient(135deg,#1E4D2B,#3A7A4A);color:white;border:none;padding:.55rem 1.2rem;border-radius:9px;font-size:.85rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(58,122,74,.3)">${nextLabel}</button>`;
 
+    // Ocultar durante la transición para evitar flash de posición incorrecta
+    tooltip.style.opacity = '0';
     tooltip.innerHTML = `
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
         <div style="font-size:1.6rem">${step.icon}</div>
@@ -120,49 +128,88 @@
       <div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center">${btnPrev}${btnNext}</div>
     `;
 
-    positionTooltip(step);
+    // Scroll primero (sin behavior:'smooth' para que el layout sea inmediato)
     highlightTarget(step.target);
+
+    // Doble rAF: el primero asegura que el DOM está actualizado con el nuevo innerHTML,
+    // el segundo asegura que el browser completó el layout y getBoundingClientRect es correcto.
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        positionTooltip(step);
+        tooltip.style.opacity = '1';
+      });
+    });
   }
 
   function positionTooltip(step) {
     var placement = step.placement || 'center';
     var rect = step.target ? document.querySelector(step.target)?.getBoundingClientRect() : null;
-    var ttRect = tooltip.getBoundingClientRect();
     var vw = window.innerWidth, vh = window.innerHeight;
+    var gap = 16;
+
+    // En mobile (<500px) siempre posicionar en la parte superior full-width
+    // para que el botón "Siguiente" sea siempre accesible sin scroll.
+    if (vw < 500) {
+      tooltip.style.top  = '1rem';
+      tooltip.style.left = '1rem';
+      tooltip.style.right = '1rem';
+      tooltip.style.width = 'auto';
+      return;
+    }
+
+    // Restablecer overrides de mobile
+    tooltip.style.right = '';
+    tooltip.style.width = '';
+
+    // Leer rect DESPUÉS del doble rAF — layout ya está completo
+    var ttRect = tooltip.getBoundingClientRect();
+    var ttW = ttRect.width  || 420;
+    var ttH = ttRect.height || 200;
 
     if (placement === 'center' || !rect) {
-      tooltip.style.top = Math.max(50, (vh - ttRect.height) / 2) + 'px';
-      tooltip.style.left = Math.max(20, (vw - ttRect.width) / 2) + 'px';
-      tooltip.style.transform = 'none';
+      tooltip.style.top  = Math.max(16, (vh - ttH) / 2) + 'px';
+      tooltip.style.left = Math.max(16, (vw - ttW) / 2) + 'px';
       return;
     }
 
     var top, left;
-    var gap = 16;
+
     if (placement === 'bottom') {
-      top  = Math.min(rect.bottom + gap, vh - ttRect.height - 20);
-      left = Math.max(20, Math.min(rect.left + rect.width / 2 - ttRect.width / 2, vw - ttRect.width - 20));
+      top = rect.bottom + gap;
+      // Flip arriba si no entra abajo
+      if (top + ttH > vh - 16) top = rect.top - ttH - gap;
+      left = Math.max(16, Math.min(rect.left + rect.width / 2 - ttW / 2, vw - ttW - 16));
     } else if (placement === 'top') {
-      top  = Math.max(20, rect.top - ttRect.height - gap);
-      left = Math.max(20, Math.min(rect.left + rect.width / 2 - ttRect.width / 2, vw - ttRect.width - 20));
+      top = rect.top - ttH - gap;
+      // Flip abajo si no entra arriba
+      if (top < 16) top = rect.bottom + gap;
+      left = Math.max(16, Math.min(rect.left + rect.width / 2 - ttW / 2, vw - ttW - 16));
     } else if (placement === 'left') {
-      top  = Math.max(20, Math.min(rect.top + rect.height / 2 - ttRect.height / 2, vh - ttRect.height - 20));
-      left = Math.max(20, rect.left - ttRect.width - gap);
+      left = rect.left - ttW - gap;
+      // Flip derecha si no entra izquierda
+      if (left < 16) left = rect.right + gap;
+      top = Math.max(16, Math.min(rect.top + rect.height / 2 - ttH / 2, vh - ttH - 16));
     } else if (placement === 'right') {
-      top  = Math.max(20, Math.min(rect.top + rect.height / 2 - ttRect.height / 2, vh - ttRect.height - 20));
-      left = Math.min(rect.right + gap, vw - ttRect.width - 20);
+      left = rect.right + gap;
+      // Flip izquierda si no entra derecha
+      if (left + ttW > vw - 16) left = rect.left - ttW - gap;
+      top = Math.max(16, Math.min(rect.top + rect.height / 2 - ttH / 2, vh - ttH - 16));
     }
-    tooltip.style.top = top + 'px';
+
+    // Clamping duro contra los bordes del viewport
+    top  = Math.max(16, Math.min(top,  vh - ttH - 16));
+    left = Math.max(16, Math.min(left, vw - ttW - 16));
+
+    tooltip.style.top  = top  + 'px';
     tooltip.style.left = left + 'px';
   }
 
   function highlightTarget(selector) {
-    // limpiar highlight previo
     var prev = document.querySelector('.am-onb-highlight');
     if (prev) {
       prev.classList.remove('am-onb-highlight');
-      prev.style.position = '';
-      prev.style.zIndex = '';
+      prev.style.position  = '';
+      prev.style.zIndex    = '';
       prev.style.boxShadow = '';
       prev.style.borderRadius = '';
     }
@@ -172,19 +219,21 @@
     el.classList.add('am-onb-highlight');
     var origPos = window.getComputedStyle(el).position;
     if (origPos === 'static') el.style.position = 'relative';
-    el.style.zIndex = '9999';
-    el.style.boxShadow = '0 0 0 4px rgba(200,162,85,.6), 0 0 0 9999px rgba(15,31,20,.0)';
+    el.style.zIndex     = '9999';
+    el.style.boxShadow  = '0 0 0 4px rgba(200,162,85,.6), 0 0 0 9999px rgba(15,31,20,.0)';
     el.style.borderRadius = '14px';
-    // Scroll al target si está fuera de pantalla
-    var rect = el.getBoundingClientRect();
-    if (rect.top < 80 || rect.bottom > window.innerHeight - 100) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Scroll INSTANTÁNEO (sin behavior:'smooth') para que el rect sea correcto
+    // cuando positionTooltip() llame a getBoundingClientRect() en el rAF siguiente.
+    var elRect = el.getBoundingClientRect();
+    if (elRect.top < 80 || elRect.bottom > window.innerHeight - 100) {
+      el.scrollIntoView({ block: 'center' });
     }
   }
 
   function startTour() {
     if (isCompleted()) return;
     currentStep = 0;
+    document.documentElement.classList.add('onb-active');
     buildOverlay();
     setTimeout(renderStep, 100);
   }
@@ -210,6 +259,7 @@
     }
   }
   function cleanup() {
+    document.documentElement.classList.remove('onb-active');
     var hl = document.querySelector('.am-onb-highlight');
     if (hl) {
       hl.classList.remove('am-onb-highlight');
@@ -238,9 +288,7 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    // Trigger si el user está logueado al cargar
     setTimeout(checkAndStart, 1500);
-    // Trigger si AM_SESION cambia (login fresco)
     var lastSess = null;
     setInterval(function() {
       var hasSess = !!window.AM_SESION;
