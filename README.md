@@ -25,8 +25,8 @@ Datos en tiempo real desde 7 APIs externas (Open-Meteo, NASA POWER, SoilGrids IS
 | Capa | Tecnología | Por qué |
 |---|---|---|
 | **Frontend** | Vanilla JS + HTML + CSS, sin framework | App de 18k LOC, 100% lazy modular, ~50 KB JS inicial |
-| **Hosting** | GitHub Pages | Gratis, simple, suficiente para el escenario actual |
-| **DNS / SSL** | Vercel DNS + GitHub Pages SSL (Let's Encrypt) | Gratis, configurado vía CLI |
+| **Hosting** | Vercel | Estático, CDN global, deploy automático desde GitHub |
+| **DNS / SSL** | Vercel | Dominio agromotor.com.ar con SSL Let's Encrypt automático |
 | **Auth + DB** | Supabase (Postgres) | RLS policies, Auth con email + magic link |
 | **Edge Functions** | Supabase Edge (Deno) | `claude-proxy`, `mp-crear-suscripcion`, `mp-webhook` |
 | **PWA** | Service Worker propio | Cache-first local + Network-first APIs + auto-update |

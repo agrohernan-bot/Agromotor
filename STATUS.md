@@ -48,36 +48,7 @@ a que baje a ~25-28% de humedad..."
 
 ## ⏳ Tu próxima acción (cuando vuelvas)
 
-### 1. Configurar DNS en NIC.ar (10 min)
-
-https://nic.ar → login con CUIT/clave fiscal AFIP → **agromotor.com.ar** → Editar zona DNS
-
-Agregar **exactamente** estos registros (eliminar todos los default primero):
-
-```
-A     @     185.199.108.153    3600
-A     @     185.199.109.153    3600
-A     @     185.199.110.153    3600
-A     @     185.199.111.153    3600
-CNAME www   agrohernan-bot.github.io.    3600
-```
-
-⚠️ El punto final en `agrohernan-bot.github.io.` es importante.
-
-### 2. Esperar propagación (1-3 horas)
-
-Verificás cuándo está listo en https://www.whatsmydns.net/#A/agromotor.com.ar
-
-### 3. Re-activar custom domain en GitHub Pages
-
-Cuando DNS propague, podés:
-
-**Opción A:** Ir al settings de GitHub Pages del repo y poner `agromotor.com.ar` como custom domain manualmente:
-https://github.com/agrohernan-bot/Agromotor/settings/pages
-
-**Opción B (lo más simple):** Avisame y lo hago yo via la GitHub API.
-
-### 4. Configurar Supabase Auth (5 min) — CRÍTICO antes del lanzamiento
+### 1. Configurar Supabase Auth (5 min) — CRÍTICO antes del lanzamiento
 
 https://supabase.com/dashboard/project/xsbaqlqztppdpdcjgazz/auth/url-configuration
 
@@ -94,14 +65,13 @@ https://supabase.com/dashboard/project/xsbaqlqztppdpdcjgazz/auth/url-configurati
 
 | Componente | Estado | URL |
 |---|---|---|
-| Landing pública | ✅ Live | https://agrohernan-bot.github.io/Agromotor/ |
-| App (login + 17 módulos + IA) | ✅ Live | https://agrohernan-bot.github.io/Agromotor/app.html |
+| Landing pública | ✅ Live | https://agromotor.com.ar |
+| App (login + 17 módulos + IA) | ✅ Live | https://agromotor.com.ar/app.html |
 | Supabase Auth + DB | ✅ Producción | xsbaqlqztppdpdcjgazz |
 | Edge Function claude-proxy v10 | ✅ ACTIVE | con prompt caching |
 | Anthropic Claude Sonnet 4.5 | ✅ Conectada | model: claude-sonnet-4-5 |
 | 7 migraciones SQL aplicadas | ✅ | 001-007 |
-| Dominio agromotor.com.ar | ⏳ Comprado, falta DNS | NIC.ar pago confirmado |
-| GitHub Pages custom domain | ⏳ A re-activar tras DNS | actualmente en agrohernan-bot.github.io |
+| Dominio agromotor.com.ar | ✅ Live en Vercel | SSL automático |
 
 ## 💰 Estructura de planes activa
 
