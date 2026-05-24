@@ -403,6 +403,14 @@
     var durTotal  = stages.reduce(function(a, s) { return a + s.dias;  }, 0);
     var balClass  = balance >= 0 ? 'fen-ok' : (balance > -80 ? 'fen-warn' : 'fen-crit');
 
+    // Compartir resultados con módulo hídrico vía localStorage
+    try {
+      localStorage.setItem('am_fen_etc_total',    totalEtc);
+      localStorage.setItem('am_fen_precip_total', totalPrec);
+      localStorage.setItem('am_fen_agua_perfil',  aguaPerfil);
+      localStorage.setItem('am_fen_cultivo',      cultRaw);
+    } catch(e) {}
+
     document.getElementById('fen-output').innerHTML =
       '<div class="fen-result">' +
         '<div class="fen-result-header">' +

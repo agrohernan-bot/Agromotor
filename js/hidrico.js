@@ -198,13 +198,14 @@
     const aguaTotalDisp = aguaPerf + precipEfec;
 
     // ── 2. REQUERIMIENTO HÍDRICO DEL CULTIVO ─────────────
-    // ETc = ET₀ histórica × Kc promedio × días ciclo
-    // Usamos etcMed como referencia base, ajustado por rendimiento objetivo
-    // Relación lineal: más rendimiento = más consumo de agua
-    const etcBase = c.etcMed;
-    const mmPorTon = c.mmPorTon;
-    const etcObjetivo = mmPorTon * rendObj;     // mm totales para el rendimiento objetivo
-    const etcUsar = Math.max(c.etcMin, Math.min(c.etcMax, etcObjetivo));
+    const etcBase     = c.etcMed;
+    const mmPorTon    = c.mmPorTon;
+    const etcObjetivo = mmPorTon * rendObj;
+    // Preferir ETc calculado por fenología (NASA POWER + Hargreaves-Samani) cuando está disponible
+    const _fenEtcNum  = parseInt(localStorage.getItem('am_fen_etc_total'));
+    const _fenCultH   = (localStorage.getItem('am_fen_cultivo') || '').toLowerCase();
+    const _usaFenEtc  = !isNaN(_fenEtcNum) && _fenEtcNum > 0 && _fenCultH === cult.toLowerCase();
+    const etcUsar     = _usaFenEtc ? _fenEtcNum : Math.max(c.etcMin, Math.min(c.etcMax, etcObjetivo));
 
     // ── 3. RENDIMIENTO ALCANZABLE (secano) ───────────────
     // Función FAO Ky: (1 - Ya/Ym) = Ky × (1 - ETa/ETm)
@@ -282,7 +283,7 @@
       <div class="kc neutral">
         <div class="kl">ETc ${cult}</div>
         <div class="kv">${etcUsar.toFixed(0)}</div>
-        <div class="ku">mm requeridos</div>
+        <div class="ku">mm · ${_usaFenEtc ? 'NASA POWER' : 'FAO-56'}</div>
       </div>
       <div class="kc ${deficit>80?'warn':deficit>40?'neutral':''}">
         <div class="kl">${deficit>0?'Déficit hídrico':'Superávit'}</div>

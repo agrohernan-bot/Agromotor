@@ -202,8 +202,19 @@ function _activarModulo(mod) {
     var h1 = parseFloat((document.getElementById('s-h1') || {}).value) || 0;
     var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
     var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
-    if (h1 > 0 && document.getElementById('bh-agua-perfil'))
-      document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));
+    var _fenAgua    = parseInt(localStorage.getItem('am_fen_agua_perfil'));
+    var _fenPrecip  = parseInt(localStorage.getItem('am_fen_precip_total'));
+    var _fenCultBH  = localStorage.getItem('am_fen_cultivo') || '';
+    var _sCultivoBH = (document.getElementById('s-cultivo') || {}).value || '';
+    var _fenMatchBH = _fenCultBH.toLowerCase() === _sCultivoBH.toLowerCase();
+    if (document.getElementById('bh-agua-perfil')) {
+      if (!isNaN(_fenAgua) && _fenAgua > 0 && _fenMatchBH)
+        document.getElementById('bh-agua-perfil').value = _fenAgua;          // agua real de siembra (fenología)
+      else if (h1 > 0)
+        document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));  // fallback AWC suelo
+    }
+    if (!isNaN(_fenPrecip) && _fenPrecip > 0 && _fenMatchBH && document.getElementById('bh-precip-hist'))
+      document.getElementById('bh-precip-hist').value = _fenPrecip;          // precipitación real del ciclo (NASA)
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
