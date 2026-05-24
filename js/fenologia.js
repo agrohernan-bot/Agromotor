@@ -213,8 +213,16 @@
       var rs  = (props['ALLSKY_SFC_SW_DWN'] || {})[NASA_MONTHS[m]] || 5;   // MJ/m²/d
       var tx  = (props['T2M_MAX'] || {})[NASA_MONTHS[m]] || 28;
       var tn  = (props['T2M_MIN'] || {})[NASA_MONTHS[m]] || 14;
-      if (d.getDate() === 15) console.log('[ETc debug] mes:', NASA_MONTHS[m], 'rs:', rs, 'tx:', tx, 'tn:', tn, 'et0:', calcET0(rs, tx, tn));
       var et0 = calcET0(rs, tx, tn);
+      if (d.getDate() === 1) {
+        var _tm = (tx + tn) / 2, _td = tx - tn;
+        var _et0bruto = (_td > 0) ? 0.0023 * rs * (_tm + 17.8) * Math.sqrt(_td) : null;
+        console.log('[ETc día1] mes:', NASA_MONTHS[m],
+          'rs:', rs, 'Tmax:', tx, 'Tmin:', tn,
+          'ET0_bruto:', _et0bruto != null ? _et0bruto.toFixed(3) : null,
+          'ET0_cal(×0.60):', et0 != null ? et0.toFixed(3) : null,
+          'ETc_día:', et0 != null ? (et0 * kc).toFixed(3) : null);
+      }
       if (et0 !== null) { totalEtc += et0 * kc; totalEt0 += et0; }
       d.setDate(d.getDate() + 1);
     }
