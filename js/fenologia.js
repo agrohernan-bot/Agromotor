@@ -137,15 +137,15 @@
   var NASA_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
   // ── ET₀ Hargreaves-Samani ────────────────────────────────
-  // rs: ALLSKY_SFC_SW_DWN de NASA POWER, devuelve MJ/m²/día (NO kWh).
-  // La versión en siembra-apis.js aplica ×3.6 erróneamente; aquí se usa
-  // el valor directo porque la NASA API ya entrega MJ/m²/día.
+  // rs: ALLSKY_SFC_SW_DWN de NASA POWER en kWh/m²/día
+  // Conversión a MJ/m²/día: ×3.6 (igual que siembra-apis.js)
   function calcET0(rs, tx, tn) {
     if (rs == null || tx == null || tn == null) return null;
+    var ra = rs * 3.6;          // kWh/m²/d → MJ/m²/d
     var tm = (tx + tn) / 2;
     var td = tx - tn;
     if (td <= 0) return null;
-    return 0.0023 * rs * (tm + 17.8) * Math.sqrt(td);
+    return 0.0023 * ra * (tm + 17.8) * Math.sqrt(td);
   }
 
   // ── Día del año → mes (0-indexed) ─────────────────────
@@ -209,7 +209,7 @@
     while (d < dEnd) {
       var doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
       var m   = dayToMonth(doy - 1);
-      var rs  = (props['ALLSKY_SFC_SW_DWN'] || {})[NASA_MONTHS[m]] || 15;
+      var rs  = (props['ALLSKY_SFC_SW_DWN'] || {})[NASA_MONTHS[m]] || 5;   // kWh/m²/d
       var tx  = (props['T2M_MAX'] || {})[NASA_MONTHS[m]] || 28;
       var tn  = (props['T2M_MIN'] || {})[NASA_MONTHS[m]] || 14;
       var et0 = calcET0(rs, tx, tn);
@@ -403,7 +403,7 @@
         alertBanner +
         '<div class="fen-chart-wrap"><canvas id="fen-chart"></canvas></div>' +
         buildTable(stages) +
-        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani (MJ/m²/día) · Kc FAO-56 · Ke FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
+        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani (kWh→MJ×3.6) · Kc FAO-56 · Ke FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
       '</div>';
 
     buildChart(stages, ef);
