@@ -136,14 +136,16 @@
   // ── NASA POWER months ─────────────────────────────────
   var NASA_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
-  // ── ET₀ Hargreaves-Samani (replicado de siembra-apis.js) ──
+  // ── ET₀ Hargreaves-Samani ────────────────────────────────
+  // rs: ALLSKY_SFC_SW_DWN de NASA POWER, devuelve MJ/m²/día (NO kWh).
+  // La versión en siembra-apis.js aplica ×3.6 erróneamente; aquí se usa
+  // el valor directo porque la NASA API ya entrega MJ/m²/día.
   function calcET0(rs, tx, tn) {
     if (rs == null || tx == null || tn == null) return null;
-    var ra = rs * 3.6;
     var tm = (tx + tn) / 2;
     var td = tx - tn;
     if (td <= 0) return null;
-    return 0.0023 * ra * (tm + 17.8) * Math.sqrt(td);
+    return 0.0023 * rs * (tm + 17.8) * Math.sqrt(td);
   }
 
   // ── Día del año → mes (0-indexed) ─────────────────────
@@ -196,9 +198,13 @@
     return Math.round(total);
   }
 
-  // ── ETc acumulada en un estadio ───────────────────────
-  function etcPerStage(dStart, dEnd, kc, props) {
-    var total = 0;
+  // ── ETc + evaporación de suelo por estadio ───────────
+  // Devuelve { etc, evap, et0total }
+  // Ke = max(0, 0.5 - Kc) → simplificación FAO-56 para estadios con
+  //   cobertura baja (germinación, madurez); en estadios con Kc ≥ 0.5
+  //   se asume que el canopeo suprime la evaporación directa.
+  function etcAndEvapPerStage(dStart, dEnd, kc, props) {
+    var totalEtc = 0, totalEt0 = 0;
     var d = new Date(dStart);
     while (d < dEnd) {
       var doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
@@ -207,10 +213,15 @@
       var tx  = (props['T2M_MAX'] || {})[NASA_MONTHS[m]] || 28;
       var tn  = (props['T2M_MIN'] || {})[NASA_MONTHS[m]] || 14;
       var et0 = calcET0(rs, tx, tn);
-      if (et0 !== null) total += et0 * kc;
+      if (et0 !== null) { totalEtc += et0 * kc; totalEt0 += et0; }
       d.setDate(d.getDate() + 1);
     }
-    return Math.round(total);
+    var ke   = Math.max(0, 0.5 - kc);
+    return {
+      etc:     Math.round(totalEtc),
+      evap:    Math.round(ke * totalEt0),
+      et0total: Math.round(totalEt0),
+    };
   }
 
   // ── Clasificar riesgo hídrico ─────────────────────────
@@ -338,22 +349,29 @@
   // ── Tabla resumen ─────────────────────────────────────
   function buildTable(stages) {
     var rows = stages.map(function(s) {
-      var r = s.riesgo;
+      var r   = s.riesgo;
+      var bal = s.balance;
+      var balCss = bal >= 0 ? 'fen-bal-ok' : (bal > -40 ? 'fen-bal-warn' : 'fen-bal-crit');
       return '<tr class="' + (s.isCritico ? 'fen-row-crit' : '') + '">' +
         '<td><span class="fen-dot-color" style="background:' + s.color + '"></span>' + s.nombre + '</td>' +
-        '<td>' + s.dias + ' d</td>' +
-        '<td>' + s.precip + ' mm</td>' +
-        '<td>' + s.etc   + ' mm</td>' +
+        '<td class="fen-num">' + s.dias + ' d</td>' +
+        '<td class="fen-num">' + s.precip + '</td>' +
+        '<td class="fen-num">' + s.etc   + '</td>' +
+        '<td class="fen-num">' + (s.evap > 0 ? s.evap : '—') + '</td>' +
+        '<td class="fen-num ' + balCss + '">' + (bal >= 0 ? '+' : '') + bal + '</td>' +
         '<td><span class="fen-badge ' + r.css + '">' + r.icon + ' ' + r.label + '</span></td>' +
       '</tr>';
     }).join('');
     return '<table class="fen-table">' +
-      '<thead><tr><th>Estadio</th><th>Duración</th><th>Precip.</th><th>ETc</th><th>Riesgo</th></tr></thead>' +
+      '<thead><tr>' +
+        '<th>Estadio</th><th>Días</th><th>Precip. mm</th>' +
+        '<th>ETc mm</th><th>Evap. suelo</th><th>Balance mm</th><th>Riesgo</th>' +
+      '</tr></thead>' +
       '<tbody>' + rows + '</tbody></table>';
   }
 
   // ── Render principal ──────────────────────────────────
-  function renderResultado(stages, ef, ensoFase, lat, lon, cultRaw) {
+  function renderResultado(stages, ef, ensoFase, lat, lon, cultRaw, aguaPerfil) {
     var critCount = stages.filter(function(s) { return s.riesgo.css === 'fen-crit'; }).length;
     var alertBanner = critCount > 0
       ? '<div class="fen-alert-banner">⚠️ ' + critCount + ' estadio' + (critCount > 1 ? 's' : '') +
@@ -365,7 +383,8 @@
 
     var totalPrec = stages.reduce(function(a, s) { return a + s.precip; }, 0);
     var totalEtc  = stages.reduce(function(a, s) { return a + s.etc;   }, 0);
-    var balance   = totalPrec - totalEtc;
+    var totalEvap = stages.reduce(function(a, s) { return a + s.evap;  }, 0);
+    var balance   = totalPrec + aguaPerfil - totalEtc - totalEvap;
     var durTotal  = stages.reduce(function(a, s) { return a + s.dias;  }, 0);
     var balClass  = balance >= 0 ? 'fen-ok' : (balance > -80 ? 'fen-warn' : 'fen-crit');
 
@@ -374,16 +393,17 @@
         '<div class="fen-result-header">' +
           '<div class="fen-kpi-grid">' +
             '<div class="fen-kpi"><span class="fen-kpi-val">' + totalPrec + ' mm</span><span class="fen-kpi-lbl">Lluvia campaña</span></div>' +
+            '<div class="fen-kpi"><span class="fen-kpi-val">' + aguaPerfil + ' mm</span><span class="fen-kpi-lbl">Agua perfil inicial</span></div>' +
             '<div class="fen-kpi"><span class="fen-kpi-val">' + totalEtc  + ' mm</span><span class="fen-kpi-lbl">ETc total</span></div>' +
+            '<div class="fen-kpi"><span class="fen-kpi-val">' + totalEvap + ' mm</span><span class="fen-kpi-lbl">Evap. suelo</span></div>' +
             '<div class="fen-kpi"><span class="fen-kpi-val ' + balClass + '">' + (balance >= 0 ? '+' : '') + balance + ' mm</span><span class="fen-kpi-lbl">Balance hídrico</span></div>' +
-            '<div class="fen-kpi"><span class="fen-kpi-val">' + durTotal + ' d</span><span class="fen-kpi-lbl">Duración campaña</span></div>' +
             '<div class="fen-kpi"><span class="fen-kpi-val fen-enso">' + ensoLabel + '</span><span class="fen-kpi-lbl">ENSO · certeza ' + certezaLabel(ensoFase) + '</span></div>' +
           '</div>' +
         '</div>' +
         alertBanner +
         '<div class="fen-chart-wrap"><canvas id="fen-chart"></canvas></div>' +
         buildTable(stages) +
-        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani · Kc FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
+        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani (MJ/m²/día) · Kc FAO-56 · Ke FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
       '</div>';
 
     buildChart(stages, ef);
@@ -405,8 +425,9 @@
     var lbl = document.getElementById('fen-cultivo-label');
     if (lbl) lbl.textContent = cultRaw;
 
-    var ciclo  = (document.getElementById('fen-ciclo') || {}).value || 'corto';
-    var fecha  = (document.getElementById('fen-fecha') || {}).value || '';
+    var ciclo      = (document.getElementById('fen-ciclo')   || {}).value || 'corto';
+    var fecha      = (document.getElementById('fen-fecha')   || {}).value || '';
+    var aguaPerfil = parseInt((document.getElementById('fen-agua-perfil') || {}).value, 10) || 80;
 
     var out = document.getElementById('fen-output');
 
@@ -428,14 +449,19 @@
     var cacheKey = lat.toFixed(3) + ',' + lon.toFixed(3);
 
     function _run(props) {
-      var enso   = getENSO();
-      var stages = computeStages(cult, ciclo, fecha);
+      var enso    = getENSO();
+      var stages  = computeStages(cult, ciclo, fecha);
+      var durTotal = stages.reduce(function(a, s) { return a + s.dias; }, 0);
       stages.forEach(function(s) {
-        s.precip = precipPerStage(s.dStart, s.dEnd, props, enso.factor);
-        s.etc    = etcPerStage(s.dStart, s.dEnd, s.kc, props);
-        s.riesgo = clasificarRiesgo(s.precip, s.etc, s.stress);
+        var etcEvap = etcAndEvapPerStage(s.dStart, s.dEnd, s.kc, props);
+        s.precip    = precipPerStage(s.dStart, s.dEnd, props, enso.factor);
+        s.etc       = etcEvap.etc;
+        s.evap      = etcEvap.evap;
+        var aporteP = Math.round(aguaPerfil * s.dias / durTotal);
+        s.balance   = s.precip + aporteP - s.etc - s.evap;
+        s.riesgo    = clasificarRiesgo(s.precip, s.etc, s.stress);
       });
-      renderResultado(stages, enso.factor, enso.fase, lat.toFixed(3), lon.toFixed(3), cultRaw);
+      renderResultado(stages, enso.factor, enso.fase, lat.toFixed(3), lon.toFixed(3), cultRaw, aguaPerfil);
       if (btn) btn.disabled = false;
     }
 
@@ -483,6 +509,10 @@
         '<div class="fen-fg">' +
           '<label>Fecha de siembra</label>' +
           '<input type="date" id="fen-fecha"' + (fechaVal ? ' value="' + fechaVal + '"' : '') + '>' +
+        '</div>' +
+        '<div class="fen-fg">' +
+          '<label title="Agua disponible estimada en el perfil al momento de la siembra">Agua perfil inicial (mm) ⓘ</label>' +
+          '<input type="number" id="fen-agua-perfil" min="0" max="200" value="80" step="5">' +
         '</div>' +
         '<button class="fen-btn-analizar" id="fen-btn" onclick="fenAnalizar()">📅 Analizar</button>' +
       '</div>' +

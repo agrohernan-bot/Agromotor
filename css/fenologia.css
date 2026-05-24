@@ -247,6 +247,14 @@
 
 .fen-table tbody tr:hover td { background: rgba(109,191,130,.05); }
 
+/* Celdas numéricas alineadas a la derecha */
+.fen-num { text-align: right; }
+
+/* Colores de balance por estadio en la tabla */
+.fen-bal-ok   { color: #6DBF82; }
+.fen-bal-warn { color: #C8A255; }
+.fen-bal-crit { color: #E07055; }
+
 /* ── Dot de color de estadio ─────────────────────────── */
 .fen-dot-color {
   display: inline-block;
