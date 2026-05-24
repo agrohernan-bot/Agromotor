@@ -405,7 +405,7 @@
         alertBanner +
         '<div class="fen-chart-wrap"><canvas id="fen-chart"></canvas></div>' +
         buildTable(stages) +
-        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani (kWh→MJ×3.6) · Kc FAO-56 · Ke FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
+        '<div class="fen-nota">NASA POWER 1984–presente · ET₀ Hargreaves-Samani (MJ/m²·día, cal.0.60) · Kc FAO-56 · Ke FAO-56 · ENSO NOAA · ' + cultRaw + ' · ' + lat + ', ' + lon + '</div>' +
       '</div>';
 
     buildChart(stages, ef);
