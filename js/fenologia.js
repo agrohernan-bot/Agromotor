@@ -204,9 +204,10 @@
   //   cobertura baja (germinación, madurez); en estadios con Kc ≥ 0.5
   //   se asume que el canopeo suprime la evaporación directa.
   function etcAndEvapPerStage(dStart, dEnd, kc, props) {
-    console.log('[ETc debug] dStart:', dStart, 'dEnd:', dEnd, 'kc:', kc);
     var totalEtc = 0, totalEt0 = 0;
     var d = new Date(dStart);
+    console.group('[ETc] kc=' + kc + '  ' +
+      dStart.toISOString().slice(0,10) + ' → ' + dEnd.toISOString().slice(0,10));
     while (d < dEnd) {
       var doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
       var m   = dayToMonth(doy - 1);
@@ -217,15 +218,19 @@
       if (d.getDate() === 1) {
         var _tm = (tx + tn) / 2, _td = tx - tn;
         var _et0bruto = (_td > 0) ? 0.0023 * rs * (_tm + 17.8) * Math.sqrt(_td) : null;
-        console.log('[ETc día1] mes:', NASA_MONTHS[m],
-          'rs:', rs, 'Tmax:', tx, 'Tmin:', tn,
-          'ET0_bruto:', _et0bruto != null ? _et0bruto.toFixed(3) : null,
-          'ET0_cal(×0.60):', et0 != null ? et0.toFixed(3) : null,
-          'ETc_día:', et0 != null ? (et0 * kc).toFixed(3) : null);
+        console.log('mes=' + NASA_MONTHS[m] +
+          ' | rs=' + rs.toFixed(1) + ' MJ/m²/d' +
+          ' | Tmax=' + tx.toFixed(1) + ' Tmin=' + tn.toFixed(1) + ' Tmed=' + _tm.toFixed(1) +
+          ' | ET₀_bruto=' + (_et0bruto != null ? _et0bruto.toFixed(2) : 'n/a') + ' mm/d' +
+          ' | ET₀×0.60=' + (et0 != null ? et0.toFixed(2) : 'n/a') + ' mm/d' +
+          ' | ETc(Kc' + kc + ')=' + (et0 != null ? (et0 * kc).toFixed(2) : 'n/a') + ' mm/d');
       }
       if (et0 !== null) { totalEtc += et0 * kc; totalEt0 += et0; }
       d.setDate(d.getDate() + 1);
     }
+    console.log('TOTAL → ETc=' + Math.round(totalEtc) + 'mm  ET₀acum=' + Math.round(totalEt0) +
+      'mm  días=' + Math.round((dEnd - dStart) / 86400000));
+    console.groupEnd();
     var ke   = Math.max(0, 0.5 - kc);
     return {
       etc:     Math.round(totalEtc),
