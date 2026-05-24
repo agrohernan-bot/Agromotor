@@ -176,6 +176,22 @@ AM_SB.auth.onAuthStateChange((event, session) => {
     AM_SESION = null;
     amActualizarUI();
     if (typeof amCargarLotesGlobales === 'function') amCargarLotesGlobales();
+
+    // INITIAL_SESSION sin sesión → mostrar modal ahora que auth está confirmado.
+    // Se hace acá (no en un timer) para eliminar la race condition: el timer de 1500ms
+    // podía disparar antes que supabase confirmara el estado real, mostrando el modal
+    // aunque el usuario ya estuviera logueado (TOKEN_REFRESHED aún pendiente).
+    if (event === 'INITIAL_SESSION' && !_modoRecovery && localStorage.getItem('am_god') !== 'true') {
+      setTimeout(function() {
+        if (AM_SESION) return; // TOKEN_REFRESHED llegó antes — ya hay sesión
+        if (new Date() < new Date('2026-08-02')) {
+          amMostrarModal('login');
+        } else if (!localStorage.getItem('am_seen_welcome')) {
+          localStorage.setItem('am_seen_welcome', '1');
+          amMostrarModal('planes');
+        }
+      }, 300);
+    }
   }
 });
 
@@ -429,26 +445,6 @@ function amProcesarUrlParams() {
 }
 window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 
-// Auto-mostrar modal si no logueado:
-// — Período promo (hasta 01-ago-2026): mostrar en CADA carga de página hasta que el usuario se registre
-// — Post-promo: mostrar solo la primera vez por dispositivo (am_seen_welcome)
-// TODO: restaurar el 1° de agosto de 2026 — usar solo el bloque post-promo
-window.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() {
-    if (localStorage.getItem('am_god') === 'true') return;
-    if (_modoRecovery) return; // flujo de reset de contraseña (hash puede estar limpio a los 1500ms)
-    if (AM_SESION) return; // ya logueado → no mostrar
-    if (new Date() < new Date('2026-08-02')) {
-      // Promo: mostrar login (ya registrado) o nuevo usuario puede ir a registro desde allí
-      amMostrarModal('login');
-      return;
-    }
-    // Post-promo: solo la primera vez por dispositivo
-    if (localStorage.getItem('am_seen_welcome') === '1') return;
-    localStorage.setItem('am_seen_welcome', '1');
-    amMostrarModal('planes');
-  }, 1500);
-});
 
 // Toggle bloques agronomo/estudiante en el form de registro
 function amRegToggleRol() {
