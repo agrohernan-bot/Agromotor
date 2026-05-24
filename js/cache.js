@@ -453,6 +453,7 @@ window.amActualizarBadgesLote = function() {
     'mod-lote-badge-economia',
     'mod-lote-badge-hidrico',
     'mod-lote-badge-nutricion',
+    'mod-lote-badge-fenologia',
   ];
   badges.forEach(id => {
     const el = document.getElementById(id);

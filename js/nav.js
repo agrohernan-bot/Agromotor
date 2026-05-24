@@ -233,7 +233,6 @@ function _activarModulo(mod) {
   if (mod === 'siembra-variable'  && typeof svInit === 'function') svInit();
   if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') asInit();
   if (mod === 'fenologia') {
-    _syncCultivo('fen-cultivo');
     _syncFecha('fen-fecha');
     if (typeof fenInit === 'function') fenInit();
   }
