@@ -411,6 +411,9 @@
       localStorage.setItem('am_fen_precip_nasa',  _nasaBase);
       localStorage.setItem('am_fen_agua_perfil',  aguaPerfil);
       localStorage.setItem('am_fen_cultivo',      cultRaw);
+      var _aguaInp = document.getElementById('fen-agua-perfil');
+      if (_aguaInp && _aguaInp.dataset.editadoManual === '1')
+        localStorage.setItem('am_fen_agua_perfil_fuente', 'usuario');
     } catch(e) {}
     // Sincronizar hídrico en vivo si el módulo ya está cargado (evita que el usuario tenga que re-navegar)
     if (document.getElementById('bh-agua-perfil'))
@@ -515,6 +518,124 @@
     });
   }
 
+  // ── Open-Meteo: humedad de suelo en la fecha de siembra ─
+  // Forecast API (soil_moisture_3_to_9cm…) para fechas ≤ +16 días
+  // Archive API (soil_moisture_0_to_7cm…) para fechas históricas > 5 días atrás
+  async function omHumedadSuelo(lat, lon, fecha) {
+    var hoy = new Date();
+    var dFecha = new Date(fecha + 'T12:00:00');
+    var daysFromToday = Math.round((dFecha - hoy) / 86400000);
+    var url, isArchive;
+
+    if (daysFromToday < -5) {
+      var fmt = function(d) { return d.toISOString().slice(0, 10); };
+      var d0 = new Date(dFecha); d0.setDate(d0.getDate() - 1);
+      var d2 = new Date(dFecha); d2.setDate(d2.getDate() + 1);
+      url = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lon +
+        '&start_date=' + fmt(d0) + '&end_date=' + fmt(d2) +
+        '&hourly=soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm' +
+        '&timezone=America%2FArgentina%2FBuenos_Aires';
+      isArchive = true;
+    } else if (daysFromToday <= 16) {
+      url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+        '&hourly=soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
+        '&past_days=7&forecast_days=16' +
+        '&timezone=America%2FArgentina%2FBuenos_Aires';
+      isArchive = false;
+    } else {
+      return null;
+    }
+
+    var res = await Promise.race([
+      fetch(url),
+      new Promise(function(_, r) { setTimeout(function() { r(new Error('timeout')); }, 10000); })
+    ]);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+
+    var times = ((data.hourly || {}).time) || [];
+    var smA   = isArchive
+      ? ((data.hourly || {}).soil_moisture_0_to_7cm    || [])
+      : ((data.hourly || {}).soil_moisture_3_to_9cm    || []);
+    var smB   = isArchive
+      ? ((data.hourly || {}).soil_moisture_7_to_28cm   || [])
+      : ((data.hourly || {}).soil_moisture_9_to_27cm   || []);
+    var smC   = isArchive
+      ? ((data.hourly || {}).soil_moisture_28_to_100cm || [])
+      : ((data.hourly || {}).soil_moisture_27_to_81cm  || []);
+
+    var vals = { a: [], b: [], c: [] };
+    times.forEach(function(t, i) {
+      if (t && t.slice(0, 10) === fecha) {
+        if (smA[i] != null) vals.a.push(smA[i]);
+        if (smB[i] != null) vals.b.push(smB[i]);
+        if (smC[i] != null) vals.c.push(smC[i]);
+      }
+    });
+    var avg = function(arr) {
+      return arr.length ? arr.reduce(function(s, v) { return s + v; }, 0) / arr.length : null;
+    };
+    return { sm_top: avg(vals.a), sm_mid: avg(vals.b), sm_deep: avg(vals.c),
+             fuente: isArchive ? 'ERA5-Land' : 'Pronóstico', isArchive: isArchive };
+  }
+
+  // ── θ volumétrica (m³/m³) → agua útil en mm (PTF Rawls) ──
+  function omSmAAgua(smObj, sgDatos) {
+    var clay = (sgDatos && sgDatos.clay != null) ? sgDatos.clay / 100 : 0.28;
+    var sand = (sgDatos && sgDatos.sand != null) ? sgDatos.sand / 100 : 0.35;
+    var wp   = 0.026 + 0.187 * clay;                          // punto de marchitez permanente
+    var fc   = 0.299 - 0.251 * sand + 0.195 * clay;          // capacidad de campo
+    var layers = smObj.isArchive
+      ? [{ sm: smObj.sm_top, mm: 70 }, { sm: smObj.sm_mid, mm: 210 }, { sm: smObj.sm_deep, mm: 720 }]
+      : [{ sm: smObj.sm_top, mm: 60 }, { sm: smObj.sm_mid, mm: 180 }, { sm: smObj.sm_deep, mm: 540 }];
+    var total = 0;
+    layers.forEach(function(c) {
+      if (c.sm == null || isNaN(c.sm)) return;
+      total += Math.max(0, Math.min(c.sm, fc) - wp) * c.mm;
+    });
+    return Math.round(total);
+  }
+
+  // ── Auto-fill agua perfil cuando cambia la fecha ──────────
+  async function fenFechaChange() {
+    var coordStr = (document.getElementById('s-coord') || {}).value || '';
+    var parts    = coordStr.split(',');
+    var lat      = parseFloat(parts[0]);
+    var lon      = parseFloat(parts[1]);
+    var fecha    = (document.getElementById('fen-fecha') || {}).value;
+    var inp      = document.getElementById('fen-agua-perfil');
+    var fuenteEl = document.getElementById('fen-agua-fuente');
+
+    if (!fecha || isNaN(lat) || isNaN(lon)) return;
+    if (inp && inp.dataset.editadoManual === '1') return;
+
+    if (fuenteEl) fuenteEl.textContent = '⟳ Consultando Open-Meteo...';
+    try {
+      var smObj = await omHumedadSuelo(lat, lon, fecha);
+      if (!smObj || smObj.sm_top == null) {
+        if (fuenteEl) fuenteEl.textContent = 'Sin datos para esta fecha — ingresá el valor manualmente';
+        return;
+      }
+      var agua = omSmAAgua(smObj, window._sgDatos);
+      if (inp) { inp.value = agua; inp.dataset.editadoManual = '0'; }
+      if (fuenteEl)
+        fuenteEl.textContent = 'Open-Meteo ' + smObj.fuente + ' · ' + fecha + ' · Editá para ajustar';
+      try { localStorage.setItem('am_fen_agua_perfil_fuente',
+              smObj.isArchive ? 'openmeteo-era5' : 'openmeteo-forecast'); } catch(e) {}
+    } catch(e) {
+      if (fuenteEl) fuenteEl.textContent = 'No se pudo consultar — ingresá manualmente';
+      console.warn('[OM agua perfil]', e.message);
+    }
+  }
+
+  function fenAguaManualEdit() {
+    var inp = document.getElementById('fen-agua-perfil');
+    var fuenteEl = document.getElementById('fen-agua-fuente');
+    if (inp) inp.dataset.editadoManual = '1';
+    if (fuenteEl) fuenteEl.textContent = 'Ingresado manualmente';
+    try { localStorage.setItem('am_fen_agua_perfil_fuente', 'usuario'); } catch(e) {}
+  }
+
   // ── Construir UI del form (título/subtitle ya son estáticos en app.html) ──
   function buildUI() {
     var body = document.getElementById('fenologia-body');
@@ -539,11 +660,12 @@
         '</div>' +
         '<div class="fen-fg">' +
           '<label>Fecha de siembra</label>' +
-          '<input type="date" id="fen-fecha"' + (fechaVal ? ' value="' + fechaVal + '"' : '') + '>' +
+          '<input type="date" id="fen-fecha"' + (fechaVal ? ' value="' + fechaVal + '"' : '') + ' onchange="fenFechaChange()">' +
         '</div>' +
         '<div class="fen-fg">' +
-          '<label title="Agua disponible estimada en el perfil al momento de la siembra">Agua perfil inicial (mm) ⓘ</label>' +
-          '<input type="number" id="fen-agua-perfil" min="0" max="200" value="80" step="5">' +
+          '<label title="Agua disponible estimada en el perfil al momento de la siembra. Se autocompleta con Open-Meteo ERA5.">Agua perfil inicial (mm) ⓘ</label>' +
+          '<input type="number" id="fen-agua-perfil" min="0" max="200" value="80" step="5" oninput="fenAguaManualEdit()">' +
+          '<div id="fen-agua-fuente" style="font-size:.63rem;color:rgba(74,46,26,.4);margin-top:.15rem;min-height:.9rem"></div>' +
         '</div>' +
         '<button class="fen-btn-analizar" id="fen-btn" onclick="fenAnalizar()">📅 Analizar</button>' +
       '</div>' +
@@ -570,6 +692,11 @@
     if (fenFecha && sFecha && sFecha.value && !fenFecha.value) {
       fenFecha.value = sFecha.value;
     }
+    // Auto-fetch agua perfil si hay fecha y el usuario no editó manualmente
+    var aguaInp = document.getElementById('fen-agua-perfil');
+    if (fenFecha && fenFecha.value && aguaInp && aguaInp.dataset.editadoManual !== '1') {
+      fenFechaChange();
+    }
   }
 
   // ── Init (llamado por nav.js al activar el módulo) ────
@@ -577,12 +704,19 @@
     if (!_fenBuilt) {
       buildUI();
       _fenBuilt = true;
+      // Auto-fetch si la fecha ya estaba sincronizada desde Siembra
+      var fenFecha = document.getElementById('fen-fecha');
+      if (fenFecha && fenFecha.value) {
+        fenFechaChange();
+      }
     } else {
       _fenRefresh();
     }
   }
 
-  window.fenInit     = fenInit;
-  window.fenAnalizar = fenAnalizar;
+  window.fenInit           = fenInit;
+  window.fenAnalizar       = fenAnalizar;
+  window.fenFechaChange    = fenFechaChange;
+  window.fenAguaManualEdit = fenAguaManualEdit;
 
 })();
