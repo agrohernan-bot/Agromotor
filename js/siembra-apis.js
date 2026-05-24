@@ -35,6 +35,17 @@ async function buscarNASAPower(lat, lon, mes) {
   return props;
 }
 
+function calcET0(rs, tx, tn) {
+  // Hargreaves-Samani: ET₀ (mm/día)
+  // rs en kWh/m²/día (ALLSKY_SFC_SW_DWN de NASA POWER)
+  if (rs == null || tx == null || tn == null) return null;
+  const ra = rs * 3.6;           // kWh/m²/d → MJ/m²/d
+  const tm = (tx + tn) / 2;
+  const td = tx - tn;
+  if (td <= 0) return null;
+  return 0.0023 * ra * (tm + 17.8) * Math.sqrt(td);
+}
+
 function renderNASAPower(props, mes, lat, lon) {
   // mes: 1-12
   const MES_KEYS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC','ANN'];
@@ -50,14 +61,16 @@ function renderNASAPower(props, mes, lat, lon) {
   const precD  = get('PRECTOTCORR');        // mm/día → * 30 para mensual
   const rh     = get('RH2M');
   const ws     = get('WS2M');
-  const et0    = get('ET0');
-  const precM  = precD != null ? precD * 30 : null;    // mm/mes aprox
-  const et0M   = et0  != null ? et0  * 30 : null;      // mm/mes aprox
+  const DIAS_MES = [31,28,31,30,31,30,31,31,30,31,30,31];
+  const diasM  = DIAS_MES[mes - 1];
+  const et0D   = calcET0(rad, tmax, tmin);             // mm/día · Hargreaves-Samani
+  const precM  = precD != null ? precD * diasM : null;
+  const et0M   = et0D  != null ? et0D  * diasM : null;
   const balHid = (precM != null && et0M != null) ? precM - et0M : null;
 
   // Días con lluvia: estimado por umbral 1mm/d
   // NASA POWER no da días con lluvia directamente, estimamos
-  const drd = precD != null ? Math.round(precD * 30 / 3.5) : null; // aprox
+  const drd = precD != null ? Math.round(precD * diasM / 3.5) : null; // aprox
 
   // Panel rápido
   $('np-rad').textContent  = rad   != null ? rad.toFixed(1)+' MJ/m²/d' : '—';
@@ -97,10 +110,11 @@ function renderNASAPower(props, mes, lat, lon) {
     const tx  = props['T2M_MAX']?.[k];
     const tn  = props['T2M_MIN']?.[k];
     const pd  = props['PRECTOTCORR']?.[k];
-    const e   = props['ET0']?.[k];
+    const e   = calcET0(r, tx, tn);                                      // mm/día · Hargreaves-Samani
     const h   = props['RH2M']?.[k];
-    const pm  = pd != null ? (esAnual ? pd * 365 : pd * 30) : null;
-    const em  = e  != null ? (esAnual ? e  * 365 : e  * 30) : null;
+    const dm  = esAnual ? 365 : DIAS_MES[i];
+    const pm  = pd != null ? pd * dm : null;
+    const em  = e  != null ? e  * dm : null;
     const bal = pm != null && em != null ? pm - em : null;
 
     // Color del balance
@@ -125,11 +139,14 @@ function renderNASAPower(props, mes, lat, lon) {
   }).join('');
 
   // Mini gráfico de barras del balance hídrico (ASCII visual con CSS)
-  const balMeses = claves.slice(0,12).map(k => {
-    const pd = props['PRECTOTCORR']?.[k];
-    const e  = props['ET0']?.[k];
+  const balMeses = claves.slice(0,12).map((k, i) => {
+    const pd  = props['PRECTOTCORR']?.[k];
+    const r2  = props['ALLSKY_SFC_SW_DWN']?.[k];
+    const tx2 = props['T2M_MAX']?.[k];
+    const tn2 = props['T2M_MIN']?.[k];
+    const e   = calcET0(r2, tx2, tn2);
     if (pd == null || e == null) return null;
-    return (pd - e) * 30;
+    return (pd - e) * DIAS_MES[i];
   });
 
   const maxAbs = Math.max(...balMeses.filter(v=>v!=null).map(Math.abs), 1);
@@ -159,9 +176,9 @@ function renderNASAPower(props, mes, lat, lon) {
     </div>`;
 
   // Interpretación agronómica del contexto histórico
-  const et0MesVal = et0 != null ? et0 * 30 : null;
-  const precMesVal = precD != null ? precD * 30 : null;
-  const balMesVal = (et0MesVal && precMesVal) ? precMesVal - et0MesVal : null;
+  const et0MesVal  = et0M;    // mm/mes · Hargreaves-Samani
+  const precMesVal = precM;   // mm/mes
+  const balMesVal  = balHid;  // mm/mes
 
   let interp = '';
   if (balMesVal != null) {
