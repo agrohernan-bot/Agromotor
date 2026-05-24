@@ -15,7 +15,6 @@ async function buscarNASAPower(lat, lon, mes) {
     'PRECTOTCORR',        // Precipitación (mm/día)
     'RH2M',               // Humedad relativa 2m (%)
     'WS2M',               // Velocidad viento 2m (m/s)
-    'ET0',                // ET₀ de referencia (mm/día)
     'ALLSKY_SFC_LW_DWN',  // Radiación onda larga (W/m²)
   ].join(',');
 
@@ -25,7 +24,10 @@ async function buscarNASAPower(lat, lon, mes) {
     `&longitude=${lon.toFixed(4)}&latitude=${lat.toFixed(4)}` +
     `&format=JSON`;
 
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
+  const res = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeoutId);
   if (!res.ok) throw new Error('NASA POWER HTTP ' + res.status);
   const data = await res.json();
   const props = data?.properties?.parameter;
