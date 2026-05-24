@@ -137,15 +137,15 @@
   var NASA_MONTHS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 
   // ── ET₀ Hargreaves-Samani ────────────────────────────────
-  // rs: ALLSKY_SFC_SW_DWN de NASA POWER en kWh/m²/día
-  // Conversión a MJ/m²/día: ×3.6 (igual que siembra-apis.js)
   function calcET0(rs, tx, tn) {
     if (rs == null || tx == null || tn == null) return null;
-    var ra = rs * 3.6;          // kWh/m²/d → MJ/m²/d
     var tm = (tx + tn) / 2;
     var td = tx - tn;
     if (td <= 0) return null;
-    return 0.0023 * ra * (tm + 17.8) * Math.sqrt(td);
+    // rs en MJ/m²/día (NASA POWER ALLSKY_SFC_SW_DWN ya viene en MJ, NO kWh)
+    // Factor 0.60: calibración regional para Argentina semiárida (Hargreaves-Samani sobreestima vs Penman-Monteith)
+    var et0 = 0.0023 * rs * (tm + 17.8) * Math.sqrt(td);
+    return et0 * 0.60;
   }
 
   // ── Día del año → mes (0-indexed) ─────────────────────
@@ -204,14 +204,16 @@
   //   cobertura baja (germinación, madurez); en estadios con Kc ≥ 0.5
   //   se asume que el canopeo suprime la evaporación directa.
   function etcAndEvapPerStage(dStart, dEnd, kc, props) {
+    console.log('[ETc debug] dStart:', dStart, 'dEnd:', dEnd, 'kc:', kc);
     var totalEtc = 0, totalEt0 = 0;
     var d = new Date(dStart);
     while (d < dEnd) {
       var doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
       var m   = dayToMonth(doy - 1);
-      var rs  = (props['ALLSKY_SFC_SW_DWN'] || {})[NASA_MONTHS[m]] || 5;   // kWh/m²/d
+      var rs  = (props['ALLSKY_SFC_SW_DWN'] || {})[NASA_MONTHS[m]] || 5;   // MJ/m²/d
       var tx  = (props['T2M_MAX'] || {})[NASA_MONTHS[m]] || 28;
       var tn  = (props['T2M_MIN'] || {})[NASA_MONTHS[m]] || 14;
+      if (d.getDate() === 15) console.log('[ETc debug] mes:', NASA_MONTHS[m], 'rs:', rs, 'tx:', tx, 'tn:', tn, 'et0:', calcET0(rs, tx, tn));
       var et0 = calcET0(rs, tx, tn);
       if (et0 !== null) { totalEtc += et0 * kc; totalEt0 += et0; }
       d.setDate(d.getDate() + 1);
