@@ -16,7 +16,7 @@ var AM_TAB_ORDER = [
   'nutricion',
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
-  'siembra-variable','mapa','asistente'
+  'siembra-variable','mapa','asistente','fenologia'
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
@@ -60,6 +60,7 @@ function switchMod(mod) {
     'plagas':           ['plagas.js'],
     'siembra-variable':  ['siembra-variable.js'],
     'alerta-sanitaria':  ['alerta-sanitaria.js'],
+    'fenologia':         ['fenologia.js'],
   };
 
   var archivos = modLazy[mod];
@@ -231,6 +232,11 @@ function _activarModulo(mod) {
   if (mod === 'cosecha' && typeof cosInit === 'function') cosInit();
   if (mod === 'siembra-variable'  && typeof svInit === 'function') svInit();
   if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') asInit();
+  if (mod === 'fenologia') {
+    _syncCultivo('fen-cultivo');
+    _syncFecha('fen-fecha');
+    if (typeof fenInit === 'function') fenInit();
+  }
   if (mod === 'plagas') {
     _syncCultivo('plagas-cultivo');
     _syncFecha('plagas-siembra');

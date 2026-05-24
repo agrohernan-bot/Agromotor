@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="css/cosecha.css">
   <link rel="stylesheet" href="css/siembra-variable.css">
   <link rel="stylesheet" href="css/alerta-sanitaria.css">
+  <link rel="stylesheet" href="css/fenologia.css">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -124,7 +125,7 @@
     <div class="nav-tab" data-mod="siembra-variable" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
     <div class="nav-tab" data-mod="mapa" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
     <div class="nav-tab nav-tab-ia" data-mod="asistente" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
-    <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
+    <div class="nav-tab" data-mod="fenologia" onclick="switchMod('fenologia')"><span class="dot"></span>📅 Fenología</div>
   </div>
 </nav>
 
@@ -3603,6 +3604,12 @@
   </div>
 </div>
 <!-- ══ FIN MÓDULO ALERTA SANITARIA ══════════════════════ -->
+
+<!-- ══ MÓDULO FENOLOGÍA ══════════════════════════════════ -->
+<div id="mod-fenologia" class="module-panel">
+  <div id="fenologia-body"></div>
+</div>
+<!-- ══ FIN MÓDULO FENOLOGÍA ══════════════════════════════ -->
 
   <div class="footer-note" style="margin-top:4rem">AgroMotor v3.8 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
 
