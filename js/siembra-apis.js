@@ -37,7 +37,8 @@ async function buscarNASAPower(lat, lon, mes) {
 
 function renderNASAPower(props, mes, lat, lon) {
   // mes: 1-12
-  const mIdx = String(mes).padStart(2, '0'); // "01" a "12"
+  const MES_KEYS = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC','ANN'];
+  const mIdx = MES_KEYS[mes - 1]; // "JAN" a "DEC"
   const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
   const get = (key) => props[key]?.[mIdx] ?? null;
@@ -71,7 +72,7 @@ function renderNASAPower(props, mes, lat, lon) {
 
   // Tabla mensual completa — los 12 meses + anual
   const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic','Anual'];
-  const claves = ['01','02','03','04','05','06','07','08','09','10','11','12','ANN'];
+  const claves = MES_KEYS;
 
   // Balance hídrico mensual para gráfico de barras
   const filaHeader = `
@@ -167,17 +168,17 @@ function renderNASAPower(props, mes, lat, lon) {
     if (balMesVal > 30) {
       interp = `<div class="alert ok" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente superavitario</strong>
-        En ${mesesNombres[parseInt(mIdx)-1]}, este lote recibe históricamente más lluvia (${precMesVal.toFixed(0)} mm) que lo que pierde por ET₀ (${et0MesVal.toFixed(0)} mm). Balance promedio: +${balMesVal.toFixed(0)} mm. Condición típicamente favorable para establecimiento del cultivo.
+        En ${mesesNombres[mes-1]}, este lote recibe históricamente más lluvia (${precMesVal.toFixed(0)} mm) que lo que pierde por ET₀ (${et0MesVal.toFixed(0)} mm). Balance promedio: +${balMesVal.toFixed(0)} mm. Condición típicamente favorable para establecimiento del cultivo.
       </div></div>`;
     } else if (balMesVal < -30) {
       interp = `<div class="alert danger" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente deficitario</strong>
-        En ${mesesNombres[parseInt(mIdx)-1]}, la demanda hídrica (ET₀: ${et0MesVal.toFixed(0)} mm) supera históricamente a la lluvia (${precMesVal.toFixed(0)} mm). Déficit promedio: ${balMesVal.toFixed(0)} mm. El establecimiento depende fuertemente de la reserva de agua en el perfil.
+        En ${mesesNombres[mes-1]}, la demanda hídrica (ET₀: ${et0MesVal.toFixed(0)} mm) supera históricamente a la lluvia (${precMesVal.toFixed(0)} mm). Déficit promedio: ${balMesVal.toFixed(0)} mm. El establecimiento depende fuertemente de la reserva de agua en el perfil.
       </div></div>`;
     } else {
       interp = `<div class="alert warn" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente en equilibrio hídrico</strong>
-        Balance promedio en ${mesesNombres[parseInt(mIdx)-1]}: ${balMesVal>=0?'+':''}${balMesVal.toFixed(0)} mm. Las condiciones del lote en esta época son variables — el pronóstico de corto plazo (Open-Meteo) tiene mayor peso para la decisión de siembra que el histórico.
+        Balance promedio en ${mesesNombres[mes-1]}: ${balMesVal>=0?'+':''}${balMesVal.toFixed(0)} mm. Las condiciones del lote en esta época son variables — el pronóstico de corto plazo (Open-Meteo) tiene mayor peso para la decisión de siembra que el histórico.
       </div></div>`;
     }
   }
