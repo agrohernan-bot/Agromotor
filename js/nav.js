@@ -203,7 +203,8 @@ function _activarModulo(mod) {
     var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
     var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
     var _fenAgua    = parseInt(localStorage.getItem('am_fen_agua_perfil'));
-    var _fenPrecip  = parseInt(localStorage.getItem('am_fen_precip_total'));
+    var _fenPrecip  = parseInt(localStorage.getItem('am_fen_precip_nasa')) ||
+                      parseInt(localStorage.getItem('am_fen_precip_total'));
     var _fenCultBH  = localStorage.getItem('am_fen_cultivo') || '';
     var _sCultivoBH = (document.getElementById('s-cultivo') || {}).value || '';
     var _fenMatchBH = _fenCultBH.toLowerCase() === _sCultivoBH.toLowerCase();

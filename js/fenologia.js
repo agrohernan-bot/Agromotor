@@ -404,12 +404,20 @@
     var balClass  = balance >= 0 ? 'fen-ok' : (balance > -80 ? 'fen-warn' : 'fen-crit');
 
     // Compartir resultados con módulo hídrico vía localStorage
+    var _nasaBase = ef > 0 ? Math.round(totalPrec / ef) : totalPrec;
     try {
       localStorage.setItem('am_fen_etc_total',    totalEtc);
       localStorage.setItem('am_fen_precip_total', totalPrec);
+      localStorage.setItem('am_fen_precip_nasa',  _nasaBase);
       localStorage.setItem('am_fen_agua_perfil',  aguaPerfil);
       localStorage.setItem('am_fen_cultivo',      cultRaw);
     } catch(e) {}
+    // Sincronizar hídrico en vivo si el módulo ya está cargado (evita que el usuario tenga que re-navegar)
+    if (document.getElementById('bh-agua-perfil'))
+      document.getElementById('bh-agua-perfil').value = aguaPerfil;
+    if (document.getElementById('bh-precip-hist'))
+      document.getElementById('bh-precip-hist').value = _nasaBase;
+    if (typeof bhActualizar === 'function') bhActualizar();
 
     document.getElementById('fen-output').innerHTML =
       '<div class="fen-result">' +
