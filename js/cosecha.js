@@ -18,7 +18,6 @@ const S = {
   sbCostoBolsa: 5.5, sbMO: 2.5, sbMerma: 0.10,
   scAmort: 1.2, scSeguro: 0.5, scMerma: 0.05,
   acTarifa: 2.0, acZar: 3.0,
-  bcraToken: localStorage.getItem('bcra_token') || '',
   fobData: null, usdData: null, pfData: null, badlarData: null
 };
 
@@ -585,19 +584,6 @@ function setDot(id, state) {
   el.className = 'api-dot ' + state;
 }
 
-function saveBcraToken() {
-  const t = $('bcra-token').value.trim();
-  if (t) {
-    localStorage.setItem('bcra_token', t);
-    S.bcraToken = t;
-    fetchTasasBCRA();
-    fetchTipoCambio();
-    $('bcra-token').value = '';
-    $('token-wrap').style.opacity = '.5';
-    setTimeout(() => $('token-wrap').style.opacity = '1', 2000);
-  }
-}
-
 function usarTasaBCRA() {
   if (S.pfData) {
     $('tasa-ref').value = (S.pfData / 12).toFixed(1);
@@ -1081,9 +1067,6 @@ function init() {
   buildMonthPills();
   buildEscenarioMesesPills();
 
-  const token = localStorage.getItem('bcra_token');
-  if (token) { $('token-wrap').style.opacity = '.5'; S.bcraToken = token; }
-
   calcSecado();
   loadAllAPIs();
   renderHistorial();
@@ -1105,7 +1088,6 @@ window.cosInit = function() {
   window.onTarifaChange = onTarifaChange;
   window.calcSecado = calcSecado;
   window.usarTasaBCRA = usarTasaBCRA;
-  window.saveBcraToken = saveBcraToken;
   window.runIA = runIA;
   window.exportPDF = exportPDF;
   window.buildEscenarios = buildEscenarios;

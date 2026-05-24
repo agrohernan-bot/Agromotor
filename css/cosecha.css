@@ -414,15 +414,6 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   display: flex; gap: .7rem; align-items: flex-start;
 }
 
-/* ── TOKEN FIELD ── */
-.token-wrap {
-  background: rgba(15,31,20,.5); border: 1px solid rgba(200,162,85,.2);
-  border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1rem;
-}
-.token-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--grain); margin-bottom: .5rem; }
-.token-row { display: flex; gap: .6rem; }
-.token-inp { flex: 1; }
-
 /* ── PLACEHOLDER STATE ── */
 .ph-state {
   text-align: center; padding: 3rem 1rem; color: rgba(74,46,26,.45);

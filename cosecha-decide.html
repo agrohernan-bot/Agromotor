@@ -407,15 +407,6 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
   display: flex; gap: .7rem; align-items: flex-start;
 }
 
-/* ── TOKEN FIELD ── */
-.token-wrap {
-  background: rgba(15,31,20,.5); border: 1px solid rgba(200,162,85,.2);
-  border-radius: 12px; padding: 1rem 1.2rem; margin-bottom: 1rem;
-}
-.token-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--grain); margin-bottom: .5rem; }
-.token-row { display: flex; gap: .6rem; }
-.token-inp { flex: 1; }
-
 /* ── PLACEHOLDER STATE ── */
 .ph-state {
   text-align: center; padding: 3rem 1rem; color: rgba(74,46,26,.45);
@@ -580,16 +571,6 @@ footer {
       <span class="api-value" id="val-badlar">cargando…</span>
     </div>
     <div class="ribbon-refresh" onclick="loadAllAPIs()">↺ Actualizar</div>
-  </div>
-
-  <!-- TOKEN CONFIG (BCRA) -->
-  <div class="token-wrap" id="token-wrap">
-    <div class="token-title">🔑 Token API estadisticasbcra.com <span style="font-weight:400;opacity:.6;font-size:.9em">(gratuito — <a href="https://estadisticasbcra.com/api/registracion" target="_blank" style="color:var(--grain)">registrarse aquí</a>)</span></div>
-    <div class="token-row">
-      <input type="text" class="dark-inp token-inp" id="bcra-token" placeholder="Pegá tu Bearer token aquí para activar tasas en tiempo real…" style="font-family:'DM Mono',monospace;font-size:.78rem">
-      <button class="btn btn-gold" onclick="saveBcraToken()">Guardar</button>
-    </div>
-    <div style="font-size:.7rem;color:rgba(237,224,196,.35);margin-top:.4rem">Sin token: tasas financieras en modo manual. Precios FOB granos funcionan sin token.</div>
   </div>
 
   <!-- MODULE TABS -->
@@ -1262,7 +1243,6 @@ const S = {
   sbCostoBolsa: 5.5, sbMO: 2.5, sbMerma: 0.10,
   scAmort: 1.2, scSeguro: 0.5, scMerma: 0.05,
   acTarifa: 2.0, acZar: 3.0,
-  bcraToken: localStorage.getItem('bcra_token') || '',
   fobData: null, usdData: null, pfData: null, badlarData: null
 };
 
@@ -1745,81 +1725,83 @@ async function fetchPrecioGrano() {
   }
 }
 
+// USD OFICIAL — DolarAPI (gratuito, sin token, CORS ok)
 async function fetchTipoCambio() {
   setDot('dot-usd', 'loading');
   try {
-    const token = S.bcraToken || localStorage.getItem('bcra_token');
-    const headers = token ? { 'Authorization': 'Bearer ' + token } : {};
-    const resp = await fetch('https://api.estadisticasbcra.com/usd_of', { headers });
-    const json = await resp.json();
-    if (Array.isArray(json) && json.length > 0) {
-      const ult = json[json.length - 1];
-      $('tipo-cambio').value = ult.v;
-      $('tc-source').innerHTML = `✅ BCRA USD Oficial — ${ult.d}`;
-      setDot('dot-usd', 'ok');
-      sv('val-usd', '$ ' + fmt(ult.v, 2));
-      S.usdData = ult.v;
-      calcLive();
-    } else throw new Error();
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 8000);
+    const resp = await fetch('https://dolarapi.com/v1/dolares/oficial', { signal: ctrl.signal });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const d = await resp.json();
+    const tc = d.venta ?? d.compra;
+    if (!tc) throw new Error('sin valor');
+    $('tipo-cambio').value = tc;
+    if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA — DolarAPI — ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
+    setDot('dot-usd', 'ok');
+    sv('val-usd', '$ ' + fmt(tc, 0));
+    S.usdData = tc;
+    calcLive();
   } catch(e) {
     setDot('dot-usd', 'error');
     sv('val-usd', 'manual');
-    $('tc-source').innerHTML = `⚠️ Registrá token BCRA para obtener TC automático`;
+    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible — ingresá TC manualmente`;
   }
 }
 
+// TASAS — datos.gob.ar/SSPM (gratuito, sin token, CORS ok)
 async function fetchTasasBCRA() {
-  const token = S.bcraToken || localStorage.getItem('bcra_token');
-  if (!token) {
-    setDot('dot-pf', 'error'); sv('val-pf', 'sin token');
-    setDot('dot-badlar', 'error'); sv('val-badlar', 'sin token');
-    return;
-  }
-  const headers = { 'Authorization': 'Bearer ' + token };
-  try {
-    setDot('dot-pf', 'loading');
-    const r1 = await fetch('https://api.estadisticasbcra.com/tasa_depositos_30_dias', { headers });
-    const j1 = await r1.json();
-    if (Array.isArray(j1) && j1.length > 0) {
-      const ult = j1[j1.length-1];
-      S.pfData = ult.v;
-      sv('val-pf', fmt(ult.v,1) + '% TNA');
-      setDot('dot-pf', 'ok');
-      // Convertir a mensual para el campo
-      $('tasa-ref').value = (ult.v / 12).toFixed(1);
-      $('tasa-source').innerHTML = `✅ Plazo fijo 30d — BCRA ${ult.d}`;
-    }
-  } catch(e) { setDot('dot-pf', 'error'); sv('val-pf', 'error'); }
   try {
     setDot('dot-badlar', 'loading');
-    const r2 = await fetch('https://api.estadisticasbcra.com/tasa_badlar', { headers });
-    const j2 = await r2.json();
-    if (Array.isArray(j2) && j2.length > 0) {
-      const ult = j2[j2.length-1];
-      S.badlarData = ult.v;
-      sv('val-badlar', fmt(ult.v,1) + '% TNA');
-      setDot('dot-badlar', 'ok');
-    }
+    const cb = new AbortController(); setTimeout(() => cb.abort(), 15000);
+    const rb = await fetch(
+      'https://infra.datos.gob.ar/catalog/sspm/dataset/89/distribution/89.2/download/principales-tasas-interes-diarias.csv',
+      { signal: cb.signal }
+    );
+    if (!rb.ok) throw new Error('HTTP ' + rb.status);
+    const txt = await rb.text();
+    const lines = txt.trim().split('\n').filter(l => l.trim());
+    const header = lines[0].split(',');
+    const badlarIdx = header.findIndex(h => h.toLowerCase().includes('badlar'));
+    const last = lines[lines.length - 1].split(',');
+    const badlar = parseFloat(last[badlarIdx]);
+    if (isNaN(badlar)) throw new Error('sin valor');
+    S.badlarData = badlar;
+    sv('val-badlar', fmt(badlar, 1) + '% TNA');
+    setDot('dot-badlar', 'ok');
   } catch(e) { setDot('dot-badlar', 'error'); sv('val-badlar', 'error'); }
+
+  try {
+    setDot('dot-pf', 'loading');
+    const cp = new AbortController(); setTimeout(() => cp.abort(), 15000);
+    const rp = await fetch(
+      'https://infra.datos.gob.ar/catalog/sspm/dataset/89/distribution/89.1/download/principales-tasas-interes.csv',
+      { signal: cp.signal }
+    );
+    if (!rp.ok) throw new Error('HTTP ' + rp.status);
+    const txt = await rp.text();
+    const lines = txt.trim().split('\n').filter(l => l.trim());
+    const header = lines[0].split(',');
+    const pfIdx = header.findIndex(h => h.toLowerCase().includes('plazo_fijo_30'));
+    let pfVal = NaN, pfFecha = '';
+    for (let i = lines.length - 1; i > 0; i--) {
+      const cols = lines[i].split(',');
+      const v = parseFloat(cols[pfIdx]);
+      if (!isNaN(v)) { pfVal = v; pfFecha = cols[0]; break; }
+    }
+    if (isNaN(pfVal)) throw new Error('sin valor');
+    S.pfData = pfVal;
+    sv('val-pf', fmt(pfVal, 1) + '% TNA');
+    setDot('dot-pf', 'ok');
+    if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
+    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d — datos.gob.ar — ${pfFecha}`;
+  } catch(e) { setDot('dot-pf', 'error'); sv('val-pf', 'error'); }
 }
 
 function setDot(id, state) {
   const el = $(id);
   if (!el) return;
   el.className = 'api-dot ' + state;
-}
-
-function saveBcraToken() {
-  const t = $('bcra-token').value.trim();
-  if (t) {
-    localStorage.setItem('bcra_token', t);
-    S.bcraToken = t;
-    fetchTasasBCRA();
-    fetchTipoCambio();
-    $('bcra-token').value = '';
-    $('token-wrap').style.opacity = '.5';
-    setTimeout(() => $('token-wrap').style.opacity = '1', 2000);
-  }
 }
 
 function usarTasaBCRA() {
@@ -2295,9 +2277,6 @@ function init() {
 
   buildMonthPills();
   buildEscenarioMesesPills();
-
-  const token = localStorage.getItem('bcra_token');
-  if (token) { $('token-wrap').style.opacity = '.5'; S.bcraToken = token; }
 
   calcSecado();
   loadAllAPIs();
