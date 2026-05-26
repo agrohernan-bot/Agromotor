@@ -1,360 +1,660 @@
-// ════════════════════════════════════════════════════════
-// AGROMOTOR — hidrico.js
-// Balance hídrico FAO-56 · ENSO/NOAA
-// Rendimiento alcanzable · Riego suplementario
-// Stress Test percentil 20-80 · GDD y floración
-// ════════════════════════════════════════════════════════
+/**
+ * hidrico.js — Balance hídrico diario AGROMOTOR v2.0
+ * Modo PLANIFICACIÓN : NASA POWER + Hargreaves-Samani (factor 0.60)
+ * Modo SEGUIMIENTO   : OpenMeteo ERA5/forecast + ET0 directo
+ *
+ * Exports (dual):  CommonJS module.exports  +  window.Hidrico
+ */
 
-// ════════════════════════════════════════════════════════
-// MÓDULO BALANCE HÍDRICO Y ESCENARIO CLIMÁTICO
-// ════════════════════════════════════════════════════════
-(function() {
-  window.AM = window.AM || {};
-  window.AM.hidrico = {};
+"use strict";
 
-  // Base de requerimientos hídricos por cultivo (FAO-56 + datos INTA)
-  // ETc total del ciclo (mm), Kc promedio, coeficiente respuesta Ky (FAO)
-  const BH_CULTIVOS = {
-    Soja:    { etcMin:480, etcMax:650, etcMed:560, ky:0.85, kc:[0.4,0.75,1.15,0.75,0.5],
-               periodos:['Vegetativo','Floración','Llenado granos','Madurez','Total'],
-               dias:[35,25,45,30,135], critico:'R3-R6 (llenado de granos)',
-               mmPorTon:155, nPorTon:3.0, pPorTon:0.75 },
-    Maíz:    { etcMin:500, etcMax:800, etcMed:640, ky:1.25, kc:[0.3,0.7,1.2,1.0,0.6],
-               periodos:['Vegetativo','Pre-floración','Floración','Llenado','Madurez'],
-               dias:[35,20,20,35,20], critico:'VT-R2 (floración)',
-               mmPorTon:85, nPorTon:22, pPorTon:3.5 },
-    Trigo:   { etcMin:380, etcMax:560, etcMed:450, ky:1.15, kc:[0.7,0.9,1.15,0.9,0.3],
-               periodos:['Implantación','Macollaje','Encañazón','Grano lechoso','Madurez'],
-               dias:[20,30,35,25,20], critico:'Floración-llenado',
-               mmPorTon:120, nPorTon:28, pPorTon:5.0 },
-    Girasol: { etcMin:600, etcMax:900, etcMed:700, ky:0.95, kc:[0.35,0.7,1.15,0.85,0.5],
-               periodos:['Vegetativo','Pre-floración','Floración','Llenado','Madurez'],
-               dias:[25,25,30,30,20], critico:'Floración (R4-R6)',
-               mmPorTon:320, nPorTon:18, pPorTon:3.0 },
-    Sorgo:   { etcMin:380, etcMax:700, etcMed:520, ky:0.90, kc:[0.35,0.7,1.10,0.9,0.55],
-               periodos:['Vegetativo','Pre-floración','Floración','Llenado','Madurez'],
-               dias:[30,20,20,35,20], critico:'Floración-llenado',
-               mmPorTon:100, nPorTon:20, pPorTon:3.5 },
-  };
+/* ───────────────────────── CLAVES localStorage ───────────────────────── */
+const LS_KEY_ULTIMO       = "am_hidrico_ultimo";
+const LS_KEY_AGUA_ACTUAL  = "am_hidrico_agua_actual_mm";
+const LS_KEY_DEFICIT_ACUM = "am_hidrico_deficit_acum_mm";
+const LS_KEY_TS           = "am_hidrico_ts";
+const LS_IN_AGUA_PERFIL   = "am_fen_agua_perfil";
+const LS_IN_AWC           = "am_lote_awc_mm";
+const LS_IN_MODO          = "am_modo_global";
+const LS_IN_LAT           = "am_siembra_lat";
+const LS_IN_LON           = "am_siembra_lon";
 
-  // Ajuste ENSO para precipitaciones pampa argentina
-  // Fuente: análisis histórico INTA/ORA sobre 1970-2020
-  // Zona núcleo pampeana. Ajuste en % vs. media histórica
-  const BH_ENSO_AJUSTE = {
-    nino:  { var:+18, label:'El Niño', color:'#2A7A4A',
-             desc:'Las precipitaciones suelen superar el promedio histórico en un 15-20% en la región pampeana. Mayor riesgo de excesos hídricos en etapas vegetativas. Buen año para rendimientos de soja y maíz.' },
-    neutro:{ var:0,   label:'Neutro',  color:'#2A5A8C',
-             desc:'Precipitaciones cercanas al promedio histórico. Alta variabilidad interanual. Las decisiones deben basarse principalmente en el pronóstico de corto plazo y la reserva de agua en el perfil.' },
-    nina:  { var:-18, label:'La Niña', color:'#C94A2A',
-             desc:'Las precipitaciones suelen estar un 15-20% por debajo del promedio. Lluvias con mayor variabilidad espacial entre lotes. Mayor riesgo de déficit hídrico en floración y llenado de granos.' },
-  };
+/* ───────────────────────── CONSTANTES ────────────────────────────────── */
+const HARGREAVES_FACTOR  = 0.60;   // calibración Pampa Húmeda
+const AWC_DEFAULT_MM     = 200;    // capacidad hídrica suelo pampeano típico
+const ESTRES_UMBRAL_FRAC = 0.30;   // <30 % AWC → estrés hídrico
+const ERA5_LAG_DIAS      = 7;      // ERA5 disponible con ~7 días de rezago
 
-  // Precipitación base por mes para la región pampeana núcleo (mm/mes · promedio histórico)
-  // Se ajusta con NASA POWER si está disponible
-  const BH_PRECIP_BASE = {
-    Soja:    [55,65,75,60,40,20,15,25,40,55,65,60], // oct-sep
-    Maíz:    [55,65,75,60,40,20,15,25,40,55,65,60],
-    Trigo:   [45,55,60,55,40,30,25,30,45,55,60,55],
-    Girasol: [55,65,75,60,40,20,15,25,40,55,65,60],
-    Sorgo:   [55,65,75,60,40,20,15,25,40,55,65,60],
-  };
+/** Etapas marcadas como críticas por cultivo (intersectan con etapaPorDia) */
+const ETAPAS_CRITICAS = {
+  soja:    new Set(["r1", "r3r4", "r5"]),
+  maiz:    new Set(["vt", "r1", "r2r3"]),
+  trigo:   new Set(["espigazon", "antesis", "llenado"]),
+  girasol: new Set(["floracion", "llenado"]),
+};
 
-  // ── CONSULTA ENSO (NOAA) ──────────────────────────────
-  window.ENSO_DATA = { fase:'neutro', label:'Neutro', prob_nino:15, prob_neutro:55, prob_nina:30, sinopsis:'', ts:null };
-
-  async function consultarENSO() {
-    const panel = $('enso-panel');
-    const ts    = $('enso-ts');
-    if (panel) panel.innerHTML = '<div style="text-align:center;padding:1rem;font-size:.82rem;color:rgba(74,46,26,.5)">⟳ Consultando NOAA/CPC...</div>';
-    if (ts) ts.textContent = 'actualizando...';
-
-    try {
-      // NOAA CPC ENSO en español — parseable
-      const res = await Promise.race([
-        fetch('https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc_Sp.shtml'),
-        new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))
-      ]);
-      const html = await res.text();
-
-      // Extraer sinopsis (párrafo con "Sinopsis:")
-      const sinMatch = html.match(/Sinopsis[:\s]*<\/b>?\s*([^<]{40,600})/i);
-      const sinopsis = sinMatch ? sinMatch[1].trim().replace(/\s+/g,' ') : '';
-
-      // Detectar fase ENSO
-      let fase = 'neutro';
-      const htmlL = html.toLowerCase();
-      if (htmlL.includes('niña persiste') || htmlL.includes('la niña')) fase = 'nina';
-      else if (htmlL.includes('el niño') && !htmlL.includes('la niña')) fase = 'nino';
-      else fase = 'neutro';
-
-      // Extraer probabilidades (buscamos patrones como "75% de probabilidad")
-      const probNeutro = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?neutro/i)?.[1]) ||
-                         (html.match(/neutro.*?(\d+)%/i)?.[1]) || '55';
-      const probNina   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niña/i)?.[1])  || '25';
-      const probNino   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niño/i)?.[1])  || '20';
-
-      window.ENSO_DATA = {
-        fase, sinopsis: sinopsis || 'Ver NOAA/CPC para detalles.',
-        prob_neutro: parseInt(probNeutro), prob_nina: parseInt(probNina), prob_nino: parseInt(probNino),
-        label: fase==='nino'?'El Niño':fase==='nina'?'La Niña':'Neutro',
-        ts: new Date()
-      };
-
-    } catch(e) {
-      // Fallback con datos conocidos actuales
-      window.ENSO_DATA = {
-        fase:'neutro', label:'Neutro',
-        sinopsis:'Transición de La Niña a ENSO-neutral esperada. El Niño probable para la campaña 2026/27 con 62% de probabilidad (NOAA, marzo 2026).',
-        prob_neutro:55, prob_nina:20, prob_nino:25,
-        ts: null
-      };
-      console.warn('ENSO fetch falló — usando datos de referencia:', e.message);
-    }
-
-    renderENSO();
-    // Actualizar selector de fase en el módulo
-    const sel = $('bh-enso');
-    if (sel) sel.value = window.ENSO_DATA.fase;
-    bhActualizar();
-  }
-
-  function renderENSO() {
-    const d = window.ENSO_DATA;
-    const colors = { nino:'#2A7A4A', neutro:'#2A5A8C', nina:'#C94A2A' };
-    const icons  = { nino:'🌧️', neutro:'⚖️', nina:'☀️' };
-    const col    = colors[d.fase] || colors.neutro;
-    const ts     = d.ts ? d.ts.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'Referencia NOAA mar-2026';
-    if ($('enso-ts')) $('enso-ts').textContent = ts;
-
-    // Barras de probabilidad
-    const barra = (label, pct, color) => `
-      <div style="margin-bottom:.5rem">
-        <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.2rem">
-          <span>${label}</span><span style="font-weight:700">${pct}%</span>
-        </div>
-        <div style="height:8px;background:rgba(74,46,26,.08);border-radius:4px">
-          <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .5s"></div>
-        </div>
-      </div>`;
-
-    if ($('enso-panel')) $('enso-panel').innerHTML = `
-      <div style="display:flex;align-items:center;gap:.8rem;padding:.8rem;background:${col}18;border-radius:10px;border:1px solid ${col}44;margin-bottom:.8rem">
-        <div style="font-size:2rem">${icons[d.fase]}</div>
-        <div>
-          <div style="font-size:1rem;font-weight:700;color:${col}">${icons[d.fase]} ${d.label}</div>
-          <div style="font-size:.73rem;color:rgba(74,46,26,.55);margin-top:.2rem">Estado actual del ENSO · Fuente: NOAA/CPC</div>
-        </div>
-      </div>
-      ${barra('🌧️ El Niño', d.prob_nino, '#2A7A4A')}
-      ${barra('⚖️ Neutro', d.prob_neutro, '#2A5A8C')}
-      ${barra('☀️ La Niña', d.prob_nina, '#C94A2A')}
-      <div style="margin-top:.7rem;font-size:.75rem;color:rgba(74,46,26,.6);font-style:italic;line-height:1.5">
-        ${d.sinopsis.slice(0,250)}${d.sinopsis.length>250?'...':''}
-      </div>`;
-  }
-
-  function bhToggleRiego() {
-    const checked = $('bh-riego-check')?.checked;
-    $('bh-riego-panel').classList.toggle('hidden', !checked);
-    bhActualizar();
-  }
-
-  function bhActualizarEnsoSelector() {
-    const fase  = gv('bh-enso') || 'neutro';
-    const info  = BH_ENSO_AJUSTE[fase];
-    const precipHist = gi('bh-precip-hist') || 580;
-    const precipAjust = Math.round(precipHist * (1 + info.var/100));
-    if ($('bh-precip'))    $('bh-precip').value    = precipAjust;
-    if ($('bh-enso-var'))  $('bh-enso-var').value  = (info.var >= 0 ? '+' : '') + info.var + '%';
-    if ($('bh-enso-var'))  $('bh-enso-var').style.color = info.color;
-    if ($('bh-enso-info')) $('bh-enso-info').innerHTML =
-      `<span style="color:${info.color};font-weight:600">${info.label}:</span> ${info.desc}`;
-  }
-
-  function bhActualizar() {
-    bhActualizarEnsoSelector();
-
-    const cult      = gv('s-cultivo') || 'Soja';
-    if ($('bh-lbl-cult')) $('bh-lbl-cult').textContent = cult;
-    const suelo     = gv('s-suelo') || 'Molisol';
-    if ($('bh-lbl-suelo')) $('bh-lbl-suelo').textContent = suelo;
-    const rendObj   = gi('bh-rend-obj') || 3.5;
-    const aguaPerf  = gi('bh-agua-perfil') || 120;
-    const capMax    = gi('bh-cap-max') || 180;
-    const precipCiclo = gi('bh-precip') || 550;
-    const precipHist  = gi('bh-precip-hist') || 580;
-    const conRiego  = $('bh-riego-check')?.checked || false;
-    const rendRiego = gi('bh-rend-riego') || 5.0;
-    const eficRiego = gi('bh-efic-riego') / 100 || 0.85;
-    const m3Disp    = gi('bh-m3-disp') || 2000;
-    const ensoFase  = gv('bh-enso') || 'neutro';
-
-    const c = BH_CULTIVOS[cult] || BH_CULTIVOS.Soja;
-
-    // ── 1. AGUA TOTAL DISPONIBLE ──────────────────────────
-    // Agua inicial perfil + precipitación esperada del ciclo
-    // Se descuenta escorrentía y percolación (coef. 0.75 para precipitación efectiva)
-    const precipEfec   = precipCiclo * 0.75;   // precipitación efectiva (75% llega al perfil)
-    const aguaTotalDisp = aguaPerf + precipEfec;
-
-    // ── 2. REQUERIMIENTO HÍDRICO DEL CULTIVO ─────────────
-    // ETc = ET₀ histórica × Kc promedio × días ciclo
-    // Usamos etcMed como referencia base, ajustado por rendimiento objetivo
-    // Relación lineal: más rendimiento = más consumo de agua
-    const etcBase = c.etcMed;
-    const mmPorTon = c.mmPorTon;
-    const etcObjetivo = mmPorTon * rendObj;     // mm totales para el rendimiento objetivo
-    const etcUsar = Math.max(c.etcMin, Math.min(c.etcMax, etcObjetivo));
-
-    // ── 3. RENDIMIENTO ALCANZABLE (secano) ───────────────
-    // Función FAO Ky: (1 - Ya/Ym) = Ky × (1 - ETa/ETm)
-    // Despejando: Ya = Ym × (1 - Ky × (1 - ETa/ETm))
-    // Donde ETa = min(aguaTotalDisp, ETm), ETm = etcUsar
-    const etaSecano = Math.min(aguaTotalDisp, etcUsar);
-    const deficitFrac = Math.max(0, 1 - etaSecano/etcUsar);
-    const rendAlcanzable = Math.max(0, rendObj * (1 - c.ky * deficitFrac));
-
-    // ── 4. DÉFICIT HÍDRICO ────────────────────────────────
-    const deficit = Math.max(0, etcUsar - aguaTotalDisp);
-    const superavit = Math.max(0, aguaTotalDisp - etcUsar);
-    const coberturaPorc = Math.min(100, (aguaTotalDisp / etcUsar) * 100);
-
-    // ── 5. RIEGO SUPLEMENTARIO ────────────────────────────
-    let mmRiegoNecesario = 0, mmRiegoDisp = 0, rendConRiego = rendAlcanzable;
-    let volumenRiegoM3 = 0;
-    if (conRiego) {
-      // ETc para el rendimiento con riego
-      const etcConRiego = mmPorTon * rendRiego;
-      const aguaNecesaria = Math.max(0, etcConRiego - aguaTotalDisp);
-      mmRiegoNecesario = aguaNecesaria / eficRiego;  // mm brutos a aplicar
-      volumenRiegoM3   = mmRiegoNecesario * 10;       // 1 mm = 10 m³/ha
-      mmRiegoDisp      = Math.min(mmRiegoNecesario, m3Disp / 10);
-
-      // Rendimiento alcanzable con el agua de riego disponible
-      const etaTotalRiego = Math.min(etcConRiego, aguaTotalDisp + mmRiegoDisp * eficRiego);
-      const defRiego = Math.max(0, 1 - etaTotalRiego/etcConRiego);
-      rendConRiego = Math.max(0, rendRiego * (1 - c.ky * defRiego));
-    }
-
-    // ── 6. FERTILIZACIÓN AJUSTADA ─────────────────────────
-    // Requiem de N y P proporcional al rendimiento alcanzable
-    const rendFinal = conRiego ? rendConRiego : rendAlcanzable;
-    const nNecesario = (c.nPorTon * rendFinal).toFixed(0);
-    const pNecesario = (c.pPorTon * rendFinal).toFixed(1);
-    // Conversión a fertilizante comercial (Urea 46%N, MAP 11%N-52%P)
-    const ureaKg  = Math.round((c.nPorTon * rendFinal) / 0.46);
-    const mapKg   = Math.round((c.pPorTon * rendFinal * 2.29) / 0.52); // P→P₂O₅
-
-    // ── RENDER ────────────────────────────────────────────
-
-    // Gauge de cobertura hídrica
-    const gaugeColor = coberturaPorc >= 90 ? 'var(--ok)' : coberturaPorc >= 70 ? 'var(--caution)' : 'var(--warn)';
-    $('bh-gauge').innerHTML = `
-      <div style="margin-bottom:.8rem">
-        <div style="display:flex;justify-content:space-between;font-size:.75rem;margin-bottom:.3rem">
-          <span style="font-weight:600">Cobertura hídrica del ciclo</span>
-          <span style="font-weight:700;color:${gaugeColor}">${coberturaPorc.toFixed(0)}%</span>
-        </div>
-        <div style="height:16px;background:rgba(74,46,26,.08);border-radius:8px;overflow:hidden">
-          <div style="height:100%;width:${Math.min(100,coberturaPorc)}%;background:${gaugeColor};border-radius:8px;transition:width .6s;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">
-            <span style="font-size:.65rem;color:white;font-weight:700">${coberturaPorc.toFixed(0)}%</span>
-          </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;font-size:.68rem;color:rgba(74,46,26,.45);margin-top:.2rem">
-          <span>Agua disponible: ${aguaTotalDisp.toFixed(0)} mm</span>
-          <span>Requerimiento: ${etcUsar.toFixed(0)} mm</span>
-        </div>
-      </div>`;
-
-    // KPIs
-    const ensoInfo = BH_ENSO_AJUSTE[ensoFase];
-    $('bh-kpis').innerHTML = `
-      <div class="kc neutral">
-        <div class="kl">Agua perfil inicial</div>
-        <div class="kv">${aguaPerf}</div>
-        <div class="ku">mm útiles</div>
-      </div>
-      <div class="kc neutral">
-        <div class="kl">Precip. efectiva</div>
-        <div class="kv">${precipEfec.toFixed(0)}</div>
-        <div class="ku">mm ciclo (${ensoInfo.label})</div>
-      </div>
-      <div class="kc neutral">
-        <div class="kl">ETc ${cult}</div>
-        <div class="kv">${etcUsar.toFixed(0)}</div>
-        <div class="ku">mm requeridos</div>
-      </div>
-      <div class="kc ${deficit>80?'warn':deficit>40?'neutral':''}">
-        <div class="kl">${deficit>0?'Déficit hídrico':'Superávit'}</div>
-        <div class="kv">${deficit>0?deficit.toFixed(0):superavit.toFixed(0)}</div>
-        <div class="ku">mm ${deficit>0?'faltantes':'excedentes'}</div>
-      </div>`;
-
-    // Balance: desglose de agua
-    $('bh-balance-tabla').innerHTML = `
-      <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.5rem">Balance hídrico del ciclo</div>
-      <table class="dt">
-        <tbody>
-          <tr><td>Agua útil en perfil (inicio)</td><td class="mn">+ ${aguaPerf} mm</td></tr>
-          <tr><td>Precipitación esperada (${ensoInfo.label})</td><td class="mn">+ ${precipCiclo} mm</td></tr>
-          <tr><td>Precipitación efectiva (75%)</td><td class="mn">+ ${precipEfec.toFixed(0)} mm</td></tr>
-          <tr class="hl"><td><strong>Agua total disponible</strong></td><td class="mn"><strong>${aguaTotalDisp.toFixed(0)} mm</strong></td></tr>
-          <tr><td>Requerimiento ETc ${cult}</td><td class="mn">− ${etcUsar.toFixed(0)} mm</td></tr>
-          <tr class="${deficit>0?'warn-row':'ok-row'}" style="background:${deficit>0?'rgba(201,74,42,.06)':'rgba(42,122,74,.06)'}">
-            <td><strong>${deficit>0?'Déficit hídrico':'Superávit hídrico'}</strong></td>
-            <td class="mn" style="color:${deficit>0?'var(--warn)':'var(--ok)'};font-weight:700">
-              ${deficit>0?'− '+deficit.toFixed(0)+' mm':'+ '+superavit.toFixed(0)+' mm'}
-            </td>
-          </tr>
-          <tr><td>Momento crítico del cultivo</td><td class="mn">${c.critico}</td></tr>
-        </tbody>
-      </table>`;
-
-    // Rendimiento alcanzable
-    const rendDelta = rendAlcanzable - rendObj;
-    $('bh-rendimiento').innerHTML = `
-      <div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.5rem">Rendimiento alcanzable (secano)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.6rem">
-        <div style="background:rgba(74,46,26,.05);border-radius:10px;padding:.9rem;text-align:center">
-          <div style="font-size:.7rem;color:rgba(74,46,26,.5);margin-bottom:.3rem">Objetivo</div>
-          <div style="font-size:1.8rem;font-weight:700;font-family:'DM Serif Display',serif;color:var(--earth)">${rendObj.toFixed(1)}</div>
-          <div style="font-size:.72rem;color:rgba(74,46,26,.5)">t/ha</div>
-        </div>
-        <div style="background:${rendAlcanzable>=rendObj*0.95?'rgba(42,122,74,.08)':rendAlcanzable>=rendObj*0.8?'rgba(184,122,32,.08)':'rgba(201,74,42,.08)'};border-radius:10px;padding:.9rem;text-align:center;border:2px solid ${rendAlcanzable>=rendObj*0.95?'var(--ok)':rendAlcanzable>=rendObj*0.8?'var(--caution)':'var(--warn)'}">
-          <div style="font-size:.7rem;color:rgba(74,46,26,.5);margin-bottom:.3rem">Alcanzable (${ensoInfo.label})</div>
-          <div style="font-size:1.8rem;font-weight:700;font-family:'DM Serif Display',serif;color:${rendAlcanzable>=rendObj*0.95?'var(--ok)':rendAlcanzable>=rendObj*0.8?'var(--caution)':'var(--warn)'}">${rendAlcanzable.toFixed(2)}</div>
-          <div style="font-size:.72rem;color:rgba(74,46,26,.5)">t/ha · ${(rendAlcanzable/rendObj*100).toFixed(0)}% del objetivo</div>
-        </div>
-      </div>
-      <div class="alert ${rendAlcanzable>=rendObj*0.95?'ok':rendAlcanzable>=rendObj*0.8?'warn':'danger'}">
-        <span class="ai">${rendAlcanzable>=rendObj*0.95?'✅':rendAlcanzable>=rendObj*0.8?'⚠️':'🚫'}</span>
-        <div class="ac">
-          <div style="font-size:.68rem;color:rgba(74,46,26,.45)">kg/ha</div>
-        </div>
-      </div>
-      <div style="font-size:.72rem;color:rgba(74,46,26,.45);margin-top:.6rem">
-        ⚠️ Valores de referencia · Ajustar según análisis de suelo del lote y disponibilidad actual del perfil (SoilGrids N total: <span id="bh-n-suelo">—</span> g/kg)
-      </div>
-    </div>`;
-
-  // Actualizar N del suelo si está disponible
-  const nSuelo = window._sgDatos?.n;
-  if (nSuelo && $('bh-n-suelo')) $('bh-n-suelo').textContent = nSuelo.toFixed(2)+' g/kg';
-
-  // Si hay modulo de economia, actualizar el rendimiento
-  if ($('ec-rend') && !conRiego) {
-    // Sugerencia no obligatoria
-  }
-
-  $('bh-placeholder').classList.add('hidden');
-  $('bh-res').classList.remove('hidden');
+/* ───────────────────────── UTILIDADES FECHA ──────────────────────────── */
+function hoyISO() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-  // Exposición a global por retrocompatibilidad HTML
-  window.consultarENSO = consultarENSO;
-  window.renderENSO = renderENSO;
-  window.bhToggleRiego = bhToggleRiego;
-  window.bhActualizarEnsoSelector = bhActualizarEnsoSelector;
-  window.bhActualizar = bhActualizar;
+function restarDias(fechaISO, n) {
+  const d = new Date(fechaISO + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
 
-})();
+function sumarDias(fechaISO, n) {
+  const d = new Date(fechaISO + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function diasEntre(desde, hasta) {
+  const a = new Date(desde + "T12:00:00Z");
+  const b = new Date(hasta + "T12:00:00Z");
+  return Math.round((b - a) / 86400000);
+}
+
+function _diaDelAnio(fechaISO) {
+  const d   = new Date(fechaISO + "T12:00:00Z");
+  const ini = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.floor((d - ini) / 86400000) + 1;
+}
+
+function fmtFecha(fechaISO) {
+  const [y, m, d] = fechaISO.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/* ───────────────────────── ET0 HARGREAVES-SAMANI ─────────────────────── */
+/**
+ * @param {number} tmax  °C
+ * @param {number} tmin  °C
+ * @param {number} lat   grados decimales
+ * @param {number} doy   día del año (1-365)
+ * @returns {number}     mm/día
+ */
+function _et0Hargreaves(tmax, tmin, lat, doy) {
+  const phi = (lat * Math.PI) / 180;
+  const dr  = 1 + 0.033 * Math.cos((2 * Math.PI * doy) / 365);
+  const dec = 0.409 * Math.sin((2 * Math.PI * doy) / 365 - 1.39);
+  const ws  = Math.acos(Math.max(-1, Math.min(1, -Math.tan(phi) * Math.tan(dec))));
+  const Ra  =
+    ((24 * 60 * 0.082) / Math.PI) *
+    dr *
+    (ws * Math.sin(phi) * Math.sin(dec) +
+      Math.cos(phi) * Math.cos(dec) * Math.sin(ws));
+  const dtd = Math.max(0, tmax - tmin);
+  const tmm = (tmax + tmin) / 2;
+  const et0 = HARGREAVES_FACTOR * 0.0023 * Ra * (tmm + 17.8) * Math.sqrt(dtd);
+  return Math.max(0, et0);
+}
+
+/* ───────────────────────── FETCHES CLIMA ─────────────────────────────── */
+
+/**
+ * NASA POWER — split automático si el período cruza año calendario.
+ * @returns {Array<{fecha, tmax, tmin, precip}>}
+ */
+async function _fetchNASAPower({ lat, lon, fechaIni, fechaFin, signal }) {
+  const anioIni = parseInt(fechaIni.slice(0, 4), 10);
+  const anioFin = parseInt(fechaFin.slice(0, 4), 10);
+
+  if (anioIni !== anioFin) {
+    const [parteA, parteB] = await Promise.all([
+      _fetchNASAPower({ lat, lon, fechaIni, fechaFin: `${anioIni}-12-31`, signal }),
+      _fetchNASAPower({ lat, lon, fechaIni: `${anioFin}-01-01`, fechaFin, signal }),
+    ]);
+    return [...parteA, ...parteB];
+  }
+
+  const fmt    = (s) => s.replace(/-/g, "");
+  const params = new URLSearchParams({
+    parameters : "T2M_MAX,T2M_MIN,PRECTOTCORR",
+    community  : "AG",
+    longitude  : lon,
+    latitude   : lat,
+    start      : fmt(fechaIni),
+    end        : fmt(fechaFin),
+    format     : "JSON",
+  });
+  const url  = `https://power.larc.nasa.gov/api/temporal/daily/point?${params}`;
+  const resp = await fetch(url, { signal });
+  if (!resp.ok) throw new Error(`NASA POWER HTTP ${resp.status}`);
+  const json = await resp.json();
+
+  const tmax_map  = json.properties.parameter.T2M_MAX;
+  const tmin_map  = json.properties.parameter.T2M_MIN;
+  const prec_map  = json.properties.parameter.PRECTOTCORR;
+
+  return Object.keys(tmax_map).map((key) => {
+    const fecha = `${key.slice(0, 4)}-${key.slice(4, 6)}-${key.slice(6, 8)}`;
+    return {
+      fecha,
+      tmax  : tmax_map[key],
+      tmin  : tmin_map[key],
+      precip: Math.max(0, prec_map[key] ?? 0),
+      et0   : null,          // calculado por Hargreaves
+    };
+  });
+}
+
+/**
+ * OpenMeteo ERA5-archive + forecast — híbrido continuo.
+ * @returns {Array<{fecha, et0, precip, tmax, tmin}>}
+ */
+async function _fetchOpenMeteoSeguimiento({ lat, lon, fechaIni, fechaFin, signal }) {
+  const HOY    = hoyISO();
+  const LIMITE = restarDias(HOY, ERA5_LAG_DIAS);      // hasta dónde llega ERA5
+
+  const VARS = "et0_fao_evapotranspiration,precipitation_sum,temperature_2m_max,temperature_2m_min";
+
+  const resultados = {};
+
+  // ── ERA5 archive ──────────────────────────────────────────────────────
+  if (fechaIni <= LIMITE) {
+    const finEra5 = fechaFin < LIMITE ? fechaFin : LIMITE;
+    const p = new URLSearchParams({
+      latitude        : lat,
+      longitude       : lon,
+      start_date      : fechaIni,
+      end_date        : finEra5,
+      daily           : VARS,
+      timezone        : "auto",
+    });
+    const url  = `https://archive-api.open-meteo.com/v1/archive?${p}`;
+    const resp = await fetch(url, { signal });
+    if (!resp.ok) throw new Error(`OpenMeteo ERA5 HTTP ${resp.status}`);
+    const json = await resp.json();
+    _parsearOpenMeteo(json, resultados);
+  }
+
+  // ── Forecast (cubre rezago reciente + futuro) ─────────────────────────
+  if (fechaFin > LIMITE) {
+    const pastDays     = Math.max(0, diasEntre(LIMITE, HOY) + ERA5_LAG_DIAS + 1);
+    const forecastDays = Math.max(1, diasEntre(HOY, fechaFin) + 1);
+    const p = new URLSearchParams({
+      latitude      : lat,
+      longitude     : lon,
+      past_days     : pastDays,
+      forecast_days : Math.min(forecastDays, 16),    // límite API gratuita
+      daily         : VARS,
+      timezone      : "auto",
+    });
+    const url  = `https://api.open-meteo.com/v1/forecast?${p}`;
+    const resp = await fetch(url, { signal });
+    if (!resp.ok) throw new Error(`OpenMeteo forecast HTTP ${resp.status}`);
+    const json = await resp.json();
+    _parsearOpenMeteo(json, resultados);             // forecast pisa ERA5 si hay overlap
+  }
+
+  // Convertir mapa a array ordenado dentro del rango pedido
+  return Object.keys(resultados)
+    .filter((f) => f >= fechaIni && f <= fechaFin)
+    .sort()
+    .map((f) => resultados[f]);
+}
+
+function _parsearOpenMeteo(json, mapa) {
+  const d    = json.daily;
+  const n    = d.time.length;
+  for (let i = 0; i < n; i++) {
+    const fecha = d.time[i];
+    mapa[fecha] = {
+      fecha,
+      et0   : d.et0_fao_evapotranspiration?.[i]   ?? null,
+      precip: Math.max(0, d.precipitation_sum?.[i] ?? 0),
+      tmax  : d.temperature_2m_max?.[i]            ?? null,
+      tmin  : d.temperature_2m_min?.[i]            ?? null,
+    };
+  }
+}
+
+/* ───────────────────── BALANCE HÍDRICO DIARIO ────────────────────────── */
+
+/**
+ * Corre el balance día a día.
+ * @param {object} p
+ * @param {Array}  p.diasClima      [{fecha, et0|null, precip, tmax, tmin}]
+ * @param {Array}  p.kcPorDia       [number]  — puede ser null (standalone)
+ * @param {Array}  p.etapaPorDia    [string]  — puede ser null
+ * @param {number} p.aguaIni        mm iniciales en el perfil
+ * @param {number} p.awcMm          capacidad de agua útil total
+ * @param {string} p.modo           "planificacion" | "seguimiento"
+ * @param {number} p.lat
+ * @param {string} p.cultivo
+ * @returns {{dias:Array, totales:object}}
+ */
+function _correrBalanceDiario({ diasClima, kcPorDia, etapaPorDia, aguaIni, awcMm, modo, lat, cultivo }) {
+  const cultivoNorm  = (cultivo || "").toLowerCase();
+  const etapasCritic = ETAPAS_CRITICAS[cultivoNorm] || new Set();
+
+  let aguaActual  = Math.min(awcMm, Math.max(0, aguaIni));
+  let etcTotal    = 0;
+  let lluviaTotal = 0;
+  let deficitAcum = 0;
+  let diasEstres  = 0;
+  let diasEtCrit  = 0;
+
+  const dias = diasClima.map((clima, i) => {
+    const doy  = _diaDelAnio(clima.fecha);
+    const kc   = (kcPorDia && kcPorDia[i] != null) ? kcPorDia[i] : 1.0;
+    const etap = (etapaPorDia && etapaPorDia[i]) ? etapaPorDia[i] : "—";
+
+    // ET0: usar directo si seguimiento y disponible, sino Hargreaves
+    let et0;
+    if (modo === "seguimiento" && clima.et0 != null && clima.et0 >= 0) {
+      et0 = clima.et0;
+    } else {
+      const tmax = clima.tmax ?? 25;
+      const tmin = clima.tmin ?? 10;
+      et0 = _et0Hargreaves(tmax, tmin, lat, doy);
+    }
+
+    const etc           = et0 * kc;
+    const lluvia        = Math.max(0, clima.precip ?? 0);
+    const aguaConLluvia = Math.min(awcMm, aguaActual + lluvia);
+    const extraccion    = Math.min(aguaConLluvia, etc);       // no extrae más de lo disponible
+    const deficitDia    = Math.max(0, etc - extraccion);
+    const aguaFin       = Math.max(0, aguaConLluvia - extraccion);
+    const fracLlenado   = awcMm > 0 ? aguaFin / awcMm : 0;
+    const estresHidrico = fracLlenado < ESTRES_UMBRAL_FRAC;
+    const esCritica     = etapasCritic.has(etap);
+
+    etcTotal    += etc;
+    lluviaTotal += lluvia;
+    deficitAcum += deficitDia;
+    if (estresHidrico)              diasEstres++;
+    if (estresHidrico && esCritica) diasEtCrit++;
+
+    aguaActual = aguaFin;
+
+    return {
+      fecha       : clima.fecha,
+      etapa       : etap,
+      kc          : +kc.toFixed(3),
+      et0         : +et0.toFixed(2),
+      etc         : +etc.toFixed(2),
+      lluvia      : +lluvia.toFixed(1),
+      aguaIni     : +(aguaConLluvia - extraccion + extraccion - lluvia).toFixed(1), // aprox antes de lluvia
+      aguaFin     : +aguaFin.toFixed(1),
+      fracLlenado : +fracLlenado.toFixed(3),
+      deficitDia  : +deficitDia.toFixed(2),
+      estresHidrico,
+      esCritica,
+    };
+  });
+
+  return {
+    dias,
+    totales: {
+      etcTotal    : +etcTotal.toFixed(1),
+      lluviaTotal : +lluviaTotal.toFixed(1),
+      deficitAcum : +deficitAcum.toFixed(1),
+      aguaFinalMm : +aguaActual.toFixed(1),
+      diasEstres,
+      diasEtCritica: diasEtCrit,
+    },
+  };
+}
+
+/* ───────────────────── RESUMEN POR ETAPA ─────────────────────────────── */
+function _resumirPorEtapa(dias) {
+  const mapa = {};
+  for (const d of dias) {
+    if (!mapa[d.etapa]) {
+      mapa[d.etapa] = {
+        etapa       : d.etapa,
+        dias        : 0,
+        etcTotal    : 0,
+        lluviaTotal : 0,
+        deficitAcum : 0,
+        diasEstres  : 0,
+        esCritica   : d.esCritica,
+      };
+    }
+    const e = mapa[d.etapa];
+    e.dias++;
+    e.etcTotal    += d.etc;
+    e.lluviaTotal += d.lluvia;
+    e.deficitAcum += d.deficitDia;
+    if (d.estresHidrico) e.diasEstres++;
+  }
+  return Object.values(mapa).map((e) => ({
+    ...e,
+    etcTotal    : +e.etcTotal.toFixed(1),
+    lluviaTotal : +e.lluviaTotal.toFixed(1),
+    deficitAcum : +e.deficitAcum.toFixed(1),
+  }));
+}
+
+/* ─────────────────── FUNCIÓN PRINCIPAL ───────────────────────────────── */
+
+/**
+ * Calcula el balance hídrico diario para la campaña activa.
+ *
+ * @param {object}  p
+ * @param {number}  p.lat
+ * @param {number}  p.lon
+ * @param {string}  p.fechaIni        ISO
+ * @param {string}  p.fechaFin        ISO
+ * @param {string}  p.cultivo         "soja" | "maiz" | "trigo" | "girasol"
+ * @param {string}  p.modo            "planificacion" | "seguimiento"
+ * @param {number}  [p.awcMm]         mm (default AWC_DEFAULT_MM)
+ * @param {number}  [p.aguaIniMm]     mm al inicio (default awcMm * 0.7)
+ * @param {object}  [p.calendario]    output de fenologia.js (integración)
+ * @param {string}  [p.campanaId]
+ * @param {string}  [p.faseENSO]
+ * @param {number}  [p.factorENSO]
+ * @param {AbortSignal} [p.signal]
+ * @returns {Promise<BalanceHidrico>}
+ */
+async function calcularHidrico({
+  lat,
+  lon,
+  fechaIni,
+  fechaFin,
+  cultivo,
+  modo,
+  awcMm,
+  aguaIniMm,
+  calendario,
+  campanaId,
+  faseENSO,
+  factorENSO,
+  signal,
+} = {}) {
+  /* ── Defaults ── */
+  const _awc    = awcMm    ?? leerLS(LS_IN_AWC, AWC_DEFAULT_MM);
+  const _aguaIni= aguaIniMm ?? (_awc * 0.7);
+  const _modo   = (modo || leerLS(LS_IN_MODO, "planificacion")).toLowerCase();
+  const _lat    = lat  ?? parseFloat(leerLS(LS_IN_LAT, "-34"));
+  const _lon    = lon  ?? parseFloat(leerLS(LS_IN_LON, "-60"));
+
+  /* ── Vectores Kc / etapa / clima ── */
+  let kcPorDia    = null;
+  let etapaPorDia = null;
+  let diasClima;
+
+  let fuenteClima = _modo === "seguimiento" ? "openmeteo" : "nasa_power";
+  let fuenteEt0   = _modo === "seguimiento" ? "openmeteo_directo" : "hargreaves";
+  let fuenteKc    = "estimado";
+
+  if (calendario && Array.isArray(calendario.kcPorDia)) {
+    // ── MODO INTEGRADO: reutilizar arrays de fenologia.js ──────────────
+    kcPorDia    = calendario.kcPorDia;
+    etapaPorDia = calendario.etapaPorDia || null;
+    fuenteKc    = "fenologia";
+
+    if (_modo === "seguimiento") {
+      // Fetch OpenMeteo para ET0 directo (y completar con Hargreaves si faltan)
+      diasClima = await _fetchOpenMeteoSeguimiento({
+        lat: _lat, lon: _lon,
+        fechaIni, fechaFin,
+        signal,
+      });
+    } else {
+      // Reusar clima de fenologia si viene incluido
+      if (Array.isArray(calendario.tmaxPorDia)) {
+        diasClima = calendario.fechasPorDia.map((fecha, i) => ({
+          fecha,
+          tmax  : calendario.tmaxPorDia[i],
+          tmin  : calendario.tminPorDia[i],
+          precip: calendario.lluviaPorDia[i] ?? 0,
+          et0   : null,
+        }));
+        fuenteClima = "nasa_power_reutilizado";
+      } else {
+        diasClima = await _fetchNASAPower({ lat: _lat, lon: _lon, fechaIni, fechaFin, signal });
+      }
+    }
+  } else {
+    // ── MODO STANDALONE: fetch clima independiente, Kc estimado ────────
+    if (_modo === "seguimiento") {
+      diasClima = await _fetchOpenMeteoSeguimiento({ lat: _lat, lon: _lon, fechaIni, fechaFin, signal });
+    } else {
+      diasClima = await _fetchNASAPower({ lat: _lat, lon: _lon, fechaIni, fechaFin, signal });
+    }
+    // Kc lineal simplificado (sin etapas): 0.35 → 1.15 → 0.55
+    const n = diasClima.length;
+    kcPorDia = diasClima.map((_, i) => {
+      const frac = i / Math.max(1, n - 1);
+      if (frac < 0.25)      return 0.35 + frac * (0.7 / 0.25);
+      else if (frac < 0.75) return 1.05 + (frac - 0.25) * (0.10 / 0.50);
+      else                  return 1.15 - (frac - 0.75) * (0.60 / 0.25);
+    });
+  }
+
+  /* ── Balance ── */
+  const { dias, totales } = _correrBalanceDiario({
+    diasClima,
+    kcPorDia,
+    etapaPorDia,
+    aguaIni : _aguaIni,
+    awcMm   : _awc,
+    modo    : _modo,
+    lat     : _lat,
+    cultivo,
+  });
+
+  const etapas = _resumirPorEtapa(dias);
+  const ts     = new Date().toISOString();
+
+  const resultado = {
+    cultivo,
+    fechaIni,
+    fechaFin,
+    modo         : _modo,
+    faseENSO     : faseENSO  || null,
+    factorENSO   : factorENSO || null,
+    campanaId    : campanaId  || null,
+    aguaIniMm    : +_aguaIni.toFixed(1),
+    awcMm        : _awc,
+    ...totales,
+    dias,
+    etapas,
+    ts,
+    fuentes      : {
+      clima : fuenteClima,
+      et0   : fuenteEt0,
+      kc    : fuenteKc,
+    },
+  };
+
+  /* ── Persistir en localStorage ── */
+  guardarLS(LS_KEY_ULTIMO,       JSON.stringify(resultado));
+  guardarLS(LS_KEY_AGUA_ACTUAL,  String(resultado.aguaFinalMm));
+  guardarLS(LS_KEY_DEFICIT_ACUM, String(resultado.deficitAcum));
+  guardarLS(LS_KEY_TS,           ts);
+
+  return resultado;
+}
+
+/* ─────────────────── LECTURA / ESTADO ────────────────────────────────── */
+
+function leerUltimoHidrico() {
+  try {
+    const raw = leerLS(LS_KEY_ULTIMO, null);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function getAguaActual() {
+  return parseFloat(leerLS(LS_KEY_AGUA_ACTUAL, "0")) || 0;
+}
+
+function getDeficitAcumulado() {
+  return parseFloat(leerLS(LS_KEY_DEFICIT_ACUM, "0")) || 0;
+}
+
+function limpiarHidrico() {
+  const keys = [LS_KEY_ULTIMO, LS_KEY_AGUA_ACTUAL, LS_KEY_DEFICIT_ACUM, LS_KEY_TS];
+  keys.forEach((k) => {
+    try { localStorage.removeItem(k); } catch { /* noop */ }
+  });
+}
+
+/** Publica señales de estado para que otros módulos (alertas, decision) lean. */
+function publicarEstadoHidrico(balance) {
+  if (!balance) return;
+  guardarLS("am_hidrico_dias_estres",    String(balance.diasEstres));
+  guardarLS("am_hidrico_dias_et_crit",   String(balance.diasEtCritica));
+  guardarLS("am_hidrico_etc_total",      String(balance.etcTotal));
+  guardarLS("am_hidrico_deficit_etapas", JSON.stringify(balance.etapas));
+}
+
+/* ─────────────────── RENDERIZADO HTML ────────────────────────────────── */
+
+function renderizarResultado(balance, contenedorId = "hidrico-resultado") {
+  const el = document.getElementById(contenedorId);
+  if (!el || !balance) return;
+
+  const {
+    cultivo, fechaIni, fechaFin, modo,
+    awcMm, aguaIniMm, aguaFinalMm,
+    etcTotal, lluviaTotal, deficitAcum,
+    diasEstres, diasEtCritica,
+    etapas, ts,
+  } = balance;
+
+  const bal = lluviaTotal - etcTotal;
+  const balColor  = bal >= 0 ? "text-green-600" : "text-red-600";
+  const defColor  = deficitAcum > 80 ? "text-red-600" : deficitAcum > 40 ? "text-yellow-600" : "text-green-600";
+  const aguaColor = (aguaFinalMm / awcMm) < 0.30 ? "text-red-600" : "text-blue-700";
+
+  let etapasHtml = "";
+  for (const e of etapas) {
+    const defCls = e.deficitAcum > 30 ? "text-red-600 font-semibold" : "";
+    const critBadge = e.esCritica ? ' <span class="text-xs bg-orange-100 text-orange-700 rounded px-1">crítica</span>' : "";
+    etapasHtml += `
+      <tr class="border-t text-sm">
+        <td class="py-1 pr-3 font-medium">${e.etapa}${critBadge}</td>
+        <td class="text-right pr-3">${e.dias}</td>
+        <td class="text-right pr-3">${e.lluviaTotal.toFixed(0)}</td>
+        <td class="text-right pr-3">${e.etcTotal.toFixed(0)}</td>
+        <td class="text-right ${defCls}">${e.deficitAcum.toFixed(0)}</td>
+        <td class="text-right">${e.diasEstres}</td>
+      </tr>`;
+  }
+
+  el.innerHTML = `
+    <div class="space-y-4">
+      <!-- Encabezado resumen -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">ETc acumulada</div>
+          <div class="text-2xl font-bold text-blue-700">${etcTotal.toFixed(0)} mm</div>
+        </div>
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Lluvia acumulada</div>
+          <div class="text-2xl font-bold text-blue-600">${lluviaTotal.toFixed(0)} mm</div>
+        </div>
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Balance hídrico</div>
+          <div class="text-2xl font-bold ${balColor}">${bal >= 0 ? "+" : ""}${bal.toFixed(0)} mm</div>
+        </div>
+        <div class="bg-blue-50 rounded-lg p-3 text-center">
+          <div class="text-xs text-gray-500 mb-1">Déficit acumulado</div>
+          <div class="text-2xl font-bold ${defColor}">${deficitAcum.toFixed(0)} mm</div>
+        </div>
+      </div>
+
+      <!-- Estado actual del perfil -->
+      <div class="flex items-center gap-4 bg-gray-50 rounded-lg p-3 text-sm">
+        <div>
+          <span class="text-gray-500">Agua en perfil:</span>
+          <span class="${aguaColor} font-bold ml-1">${aguaFinalMm.toFixed(0)} mm</span>
+          <span class="text-gray-400 text-xs ml-1">(${((aguaFinalMm / awcMm) * 100).toFixed(0)} % AWC)</span>
+        </div>
+        <div class="h-4 flex-1 bg-gray-200 rounded-full overflow-hidden">
+          <div class="h-full rounded-full ${aguaColor.includes('red') ? 'bg-red-400' : 'bg-blue-500'}"
+               style="width:${Math.min(100, (aguaFinalMm / awcMm) * 100).toFixed(0)}%"></div>
+        </div>
+        <div class="text-gray-500">${awcMm} mm AWC</div>
+      </div>
+
+      <!-- Días de estrés -->
+      ${(diasEstres > 0) ? `
+      <div class="flex gap-4 text-sm">
+        <span class="text-red-600">⚠️ <b>${diasEstres}</b> días con estrés hídrico</span>
+        ${diasEtCritica > 0 ? `<span class="text-orange-600 font-semibold">🔥 <b>${diasEtCritica}</b> en etapa crítica</span>` : ""}
+      </div>` : '<div class="text-sm text-green-600">✅ Sin días de estrés hídrico</div>'}
+
+      <!-- Tabla por etapa -->
+      <div>
+        <h4 class="text-sm font-semibold text-gray-700 mb-2">Resumen por etapa</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-xs text-gray-500 text-right">
+                <th class="text-left pr-3">Etapa</th>
+                <th class="pr-3">Días</th>
+                <th class="pr-3">Lluvia (mm)</th>
+                <th class="pr-3">ETc (mm)</th>
+                <th class="pr-3">Déficit (mm)</th>
+                <th>D.Estrés</th>
+              </tr>
+            </thead>
+            <tbody>${etapasHtml}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="text-xs text-gray-400 text-right">
+        Calculado: ${new Date(ts).toLocaleString("es-AR")} · modo: ${modo}
+      </div>
+    </div>`;
+}
+
+/* ─────────────────── HELPERS localStorage ────────────────────────────── */
+function leerLS(key, def = null) {
+  try {
+    const v = localStorage.getItem(key);
+    return v !== null ? v : def;
+  } catch {
+    return def;
+  }
+}
+
+function guardarLS(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* quota exceeded u otros: silencioso */
+  }
+}
+
+/* ─────────────────── EXPORTS ─────────────────────────────────────────── */
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    calcularHidrico,
+    leerUltimoHidrico,
+    getAguaActual,
+    getDeficitAcumulado,
+    limpiarHidrico,
+    publicarEstadoHidrico,
+    renderizarResultado,
+    /* internos exportados para testing */
+    _et0Hargreaves,
+    _correrBalanceDiario,
+    _resumirPorEtapa,
+    _fetchNASAPower,
+    _fetchOpenMeteoSeguimiento,
+    _diaDelAnio,
+  };
+}
+
+if (typeof window !== "undefined") {
+  window.Hidrico = {
+    calcularHidrico,
+    leerUltimoHidrico,
+    getAguaActual,
+    getDeficitAcumulado,
+    limpiarHidrico,
+    publicarEstadoHidrico,
+    renderizarResultado,
+  };
+}
