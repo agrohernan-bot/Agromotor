@@ -1,713 +1,345 @@
-/**
- * siembra.js — AGROMOTOR v2.0
- *
- * Módulo de registro de datos de siembra: fecha, cultivo, lote y coordenadas.
- * Es el punto de entrada del flujo planificación y el proveedor de datos
- * para todos los módulos aguas abajo (fenologia, hidrico, decision, economia).
- *
- * ┌─────────────────────────────────────────────────────────────────────────────┐
- * │  ESCRIBE estas claves en localStorage:                                      │
- * │    am_siembra_fecha           → "YYYY-MM-DD"                                │
- * │    am_siembra_cultivo         → "soja"|"maiz"|"trigo"|"girasol"             │
- * │    am_siembra_lote            → string (ID o nombre del lote)               │
- * │    am_siembra_lat             → number (grados decimales)                   │
- * │    am_siembra_lon             → number (grados decimales)                   │
- * │    am_siembra_densidad        → number (plantas/m² o kg/ha)                 │
- * │    am_siembra_variedad        → string (nombre de variedad, opcional)       │
- * │    am_siembra_cultivo_ant     → "soja"|"maiz"|"trigo"|"girasol"|"pastizal"  │
- * │    am_siembra_fecha_cosecha_ant → "YYYY-MM-DD" (cosecha del antecesor)      │
- * │    am_siembra_agua_cosecha_ant_mm → number (agua perfil al cosechar ant.)   │
- * │    am_siembra_ts              → ISO timestamp del último guardado            │
- * │    am_siembra_campana_id      → string (ID campaña asociada)                │
- * ├─────────────────────────────────────────────────────────────────────────────┤
- * │  LEE estas claves de localStorage:                                          │
- * │    am_lote_activo             → JSON { id, nombre, lat, lon, awcMm, ... }   │
- * │    am_campana_activa_id       → string                                      │
- * └─────────────────────────────────────────────────────────────────────────────┘
- *
- * Integración con barbecho.js:
- *   Si se registra un cultivo antecesor con fecha de cosecha y agua al cosechar,
- *   el módulo barbecho.js puede calcular el balance hídrico del período de
- *   barbecho automáticamente. La función `getTriggerBarbecho()` devuelve el
- *   objeto de parámetros listo para pasar a `calcularBarbecho()`.
- *
- * Uso típico:
- *   import { guardarSiembra, getSiembra, getTriggerBarbecho } from './siembra.js';
- *
- *   const { ok, errores } = guardarSiembra({
- *     fecha:          "2024-11-15",
- *     cultivo:        "soja",
- *     loteId:         "lote-norte-01",
- *     lat:            -33.12,
- *     lon:            -61.45,
- *     densidad:       32,                      // plantas/m²
- *     variedad:       "DM 4.2 OL",
- *     cultivoAnt:     "maiz",
- *     fechaCosechaAnt:"2024-04-20",
- *     aguaCosechaAntMm: 180,
- *   });
- */
+// AGROMOTOR — siembra.js
+// Diagnóstico de siembra · Open-Meteo · Score 0-100 · Pronóstico 7 días · Inversión térmica
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES
-// ─────────────────────────────────────────────────────────────────────────────
+(function() {
+  window.AM = window.AM || {};
+  window.AM.siembra = {};
 
-const VERSION_SIEMBRA = "2.0.0";
+  async function buscarAPI(){
+    const[lat,lon]=parsCoord(gv('s-coord'));
+    if(lat===null){alert('Formato no reconocido.\nEjemplos:\n• 33°23\'42.55"S 60°11\'29.87"W\n• -33.395, -60.192');return}
+    const btn=$('btn-api');btn.disabled=true;btn.textContent='⟳ Consultando...';
+    setStatus('Obteniendo ubicación (OpenStreetMap)...');
+    try{
+      // 1. Nominatim
+      let ubi=`${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+      try{
+        const r=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,{headers:{'User-Agent':'AgroMotor/2.0'}});
+        const d=await r.json(),a=d.address||{};
+        const loc=a.city||a.town||a.village||a.county||'';
+        const prov=a.state||'';
+        ubi=[loc,prov].filter(Boolean).join(', ')||ubi;
+      }catch(e){}
+      $('i-ubi').textContent=ubi;
 
-// Claves escritas por este módulo
-const LS_SIEMBRA_FECHA          = "am_siembra_fecha";
-const LS_SIEMBRA_CULTIVO        = "am_siembra_cultivo";
-const LS_SIEMBRA_LOTE           = "am_siembra_lote";
-const LS_SIEMBRA_LAT            = "am_siembra_lat";
-const LS_SIEMBRA_LON            = "am_siembra_lon";
-const LS_SIEMBRA_DENSIDAD       = "am_siembra_densidad";
-const LS_SIEMBRA_VARIEDAD       = "am_siembra_variedad";
-const LS_SIEMBRA_CULTIVO_ANT    = "am_siembra_cultivo_ant";
-const LS_SIEMBRA_FECHA_COS_ANT  = "am_siembra_fecha_cosecha_ant";
-const LS_SIEMBRA_AGUA_COS_ANT   = "am_siembra_agua_cosecha_ant_mm";
-const LS_SIEMBRA_TS             = "am_siembra_ts";
-const LS_SIEMBRA_CAMPANA        = "am_siembra_campana_id";
+      // 2. Suelo auto
+      const sa=detSuelo(lat,lon);
+      if(sa){$('s-suelo').value=sa;$('i-suelo').textContent=sa+' (auto)';$('s-sbadge').textContent='← auto'}
+      else{$('i-suelo').textContent='No detectado — elegir manualmente'}
 
-// Claves leídas de otros módulos (solo lectura)
-const LS_LOTE_ACTIVO            = "am_lote_activo";
-const LS_CAMPANA_ID             = "am_campana_activa_id";
+      setStatus('Descargando datos meteorológicos y de suelo — Open-Meteo...');
 
-// Cultivos soportados (deben coincidir con fenologia.js)
-const CULTIVOS_VALIDOS = ["soja", "maiz", "trigo", "girasol"];
+      // 3. Open-Meteo — llamada única con TODAS las variables
+      const hoy=new Date();
+      const fs=gv('s-fecha');
+      const fsel=fs?new Date(fs+'T12:00:00'):hoy;
+      const fmt=d=>d.toISOString().split('T')[0];
+      const ini=new Date(fsel);ini.setDate(ini.getDate()-3);
+      const fin=new Date(fsel);fin.setDate(fin.getDate()+7);
 
-// Cultivos antecesores soportados (más amplio; incluye pastizal y barbecho desnudo)
-const CULTIVOS_ANT_VALIDOS = ["soja", "maiz", "trigo", "girasol", "girasol_sin_cosecha",
-                               "sorgo", "pastizal", "barbecho_desnudo"];
+      const url='https://api.open-meteo.com/v1/forecast?'+
+        `latitude=${lat}&longitude=${lon}&timezone=auto`+
+        `&start_date=${fmt(ini)}&end_date=${fmt(fin)}`+
+        '&hourly=soil_temperature_6cm,soil_temperature_18cm,'+
+        'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm,'+
+        'et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m'+
+        '&daily=temperature_2m_max,temperature_2m_min,'+
+        'precipitation_probability_max,precipitation_sum,'+
+        'et0_fao_evapotranspiration,growing_degree_days_base_0_limit_50,'+
+        'wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum';
 
-// Rango de densidad aceptable por cultivo (plantas/m² equivalentes)
-const DENSIDAD_RANGOS = {
-  soja:    { min: 20,  max: 60,  unidad: "plantas/m²" },
-  maiz:    { min: 4,   max: 14,  unidad: "plantas/m²" },
-  trigo:   { min: 150, max: 500, unidad: "plantas/m²" },
-  girasol: { min: 3,   max: 9,   unidad: "plantas/m²" },
-};
+      const res=await fetch(url);
+      if(!res.ok)throw new Error('Open-Meteo HTTP '+res.status);
+      const data=await res.json();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS localStorage
-// ─────────────────────────────────────────────────────────────────────────────
+      // Procesar hourly → avg diario
+      const h=data.hourly||{},ht=h.time||[];
+      const dh={};
+      ht.forEach((t,i)=>{
+        const d=t.split('T')[0];
+        if(!dh[d])dh[d]={st6:[],st18:[],sm39:[],sm927:[],sm2781:[],et0:[],vpd:[],wind:[]};
+        if(h.soil_temperature_6cm?.[i]!=null)dh[d].st6.push(h.soil_temperature_6cm[i]);
+        if(h.soil_temperature_18cm?.[i]!=null)dh[d].st18.push(h.soil_temperature_18cm[i]);
+        if(h.soil_moisture_3_to_9cm?.[i]!=null)dh[d].sm39.push(h.soil_moisture_3_to_9cm[i]*100);
+        if(h.soil_moisture_9_to_27cm?.[i]!=null)dh[d].sm927.push(h.soil_moisture_9_to_27cm[i]*100);
+        if(h.soil_moisture_27_to_81cm?.[i]!=null)dh[d].sm2781.push(h.soil_moisture_27_to_81cm[i]*100);
+        if(h.et0_fao_evapotranspiration?.[i]!=null)dh[d].et0.push(h.et0_fao_evapotranspiration[i]);
+        if(h.vapour_pressure_deficit?.[i]!=null)dh[d].vpd.push(h.vapour_pressure_deficit[i]);
+        if(h.wind_speed_10m?.[i]!=null)dh[d].wind.push(h.wind_speed_10m[i]);
+      });
+      const avg=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:null;
 
-function _lsGet(key) {
-  try { return localStorage.getItem(key); } catch (_) { return null; }
-}
+      const dd=data.daily||{},dt=dd.time||[];
+      const dias=dt.map((fecha,i)=>{
+        const x=dh[fecha]||{};
+        return{fecha,
+          tMax:dd.temperature_2m_max?.[i]??null,tMin:dd.temperature_2m_min?.[i]??null,
+          precP:dd.precipitation_probability_max?.[i]??null,precS:dd.precipitation_sum?.[i]??null,
+          et0d:dd.et0_fao_evapotranspiration?.[i]??null,
+          gdd:dd.growing_degree_days_base_0_limit_50?.[i]??null,
+          windMax:dd.wind_speed_10m_max?.[i]??null,
+          rad:dd.shortwave_radiation_sum?.[i]??null,
+          st6:avg(x.st6||[]),st18:avg(x.st18||[]),
+          sm39:avg(x.sm39||[]),sm927:avg(x.sm927||[]),sm2781:avg(x.sm2781||[]),
+          et0h:avg(x.et0||[]),vpdh:avg(x.vpd||[]),windh:avg(x.wind||[]),
+        };
+      });
 
-function _lsSet(key, value) {
-  try { localStorage.setItem(key, String(value)); return true; } catch (_) { return false; }
-}
+      const fselStr=fmt(fsel);
+      const dRef=dias.find(d=>d.fecha===fselStr)||dias.find(d=>d.fecha>=fselStr)||dias[3];
+      const iRef=dias.indexOf(dRef);
 
-function _lsGetJSON(key) {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch (_) { return null; }
-}
+      // GDD acumulados hasta fecha de siembra
+      const gddAc=dias.slice(0,iRef+1).reduce((s,d)=>s+(d.gdd||0),0);
+      window._gddAc=gddAc;
 
-function _lsRemove(key) {
-  try { localStorage.removeItem(key); } catch (_) {}
-}
+      // Lluvia 72h
+      const lluv72=Math.max(...dias.slice(iRef,iRef+3).map(d=>d.precP||0));
 
-// ─────────────────────────────────────────────────────────────────────────────
-// VALIDACIÓN
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Valida los datos de siembra. Devuelve lista de errores (vacía = OK).
- * @param {Object} datos
- * @returns {string[]}
- */
-function validarSiembra(datos) {
-  const errores = [];
-
-  // Fecha de siembra
-  if (!datos.fecha) {
-    errores.push("La fecha de siembra es obligatoria.");
-  } else {
-    const d = new Date(datos.fecha);
-    if (isNaN(d.getTime())) {
-      errores.push(`Fecha de siembra inválida: "${datos.fecha}". Usar formato YYYY-MM-DD.`);
-    } else {
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      if (d > hoy) {
-        errores.push("La fecha de siembra no puede ser futura.");
+      // Autocompletar sliders
+      if(dRef){
+        if(dRef.st6!=null)setR('s-t6',dRef.st6);
+        if(dRef.st18!=null)setR('s-t18',dRef.st18);
+        if(dRef.sm39!=null)setR('s-h1',Math.min(50,dRef.sm39));
+        if(dRef.sm927!=null)setR('s-h2',Math.min(50,dRef.sm927));
+        if(dRef.sm2781!=null)setR('s-h3',Math.min(50,dRef.sm2781));
+        if(dRef.et0d!=null)setR('s-et0',dRef.et0d,1);
+        if(dRef.vpdh!=null)setR('s-vpd',dRef.vpdh,2);
+        if(dRef.windh!=null)setR('s-viento',dRef.windh);
       }
-    }
-  }
+      setR('s-lluv',lluv72);
 
-  // Cultivo
-  if (!datos.cultivo) {
-    errores.push("El cultivo es obligatorio.");
-  } else if (!CULTIVOS_VALIDOS.includes(datos.cultivo)) {
-    errores.push(`Cultivo no reconocido: "${datos.cultivo}". Válidos: ${CULTIVOS_VALIDOS.join(", ")}.`);
-  }
+      // Panel info
+      $('i-temp').textContent=dRef?.st6!=null?dRef.st6.toFixed(1)+'°C':'—';
+      $('i-hum').textContent=dRef?.sm39!=null?dRef.sm39.toFixed(1)+'%':'—';
+      $('i-et0').textContent=dRef?.et0d!=null?dRef.et0d.toFixed(1)+' mm/d':'—';
+      $('i-vpd').textContent=dRef?.vpdh!=null?dRef.vpdh.toFixed(2)+' kPa':'—';
+      $('i-viento').textContent=dRef?.windh!=null?dRef.windh.toFixed(0)+' km/h':'—';
+      $('i-gdd').textContent=gddAc>0?gddAc.toFixed(0)+' GDD':'—';
+      const placeholder = $('api-info-placeholder');
+      if(placeholder) placeholder.classList.add('hidden');
+      $('api-info').classList.remove('hidden');
 
-  // Lote
-  if (!datos.loteId || String(datos.loteId).trim() === "") {
-    errores.push("El ID de lote es obligatorio.");
-  }
+      renderPron(dias,fselStr);
+      setStatus('✅ Open-Meteo cargado — consultando NASA POWER (histórico 30 años)...',true);
+      // Actualizar banner del asistente IA
+      setTimeout(iaActualizarContextoBanner, 500);
 
-  // Coordenadas
-  if (datos.lat === undefined || datos.lat === null) {
-    errores.push("La latitud del lote es obligatoria.");
-  } else if (typeof datos.lat !== "number" || datos.lat < -90 || datos.lat > 90) {
-    errores.push(`Latitud fuera de rango: ${datos.lat}. Debe ser entre -90 y 90.`);
-  }
+      // Guardar diaRef globalmente para usar en compactación
+      window._diaRef = dRef;
 
-  if (datos.lon === undefined || datos.lon === null) {
-    errores.push("La longitud del lote es obligatoria.");
-  } else if (typeof datos.lon !== "number" || datos.lon < -180 || datos.lon > 180) {
-    errores.push(`Longitud fuera de rango: ${datos.lon}. Debe ser entre -180 y 180.`);
-  }
+      // ── NASA POWER: llamada paralela, no bloquea si falla ──
+      const mesSimb = fsel.getMonth() + 1; // 1-12
+      buscarNASAPower(lat, lon, mesSimb)
+        .then(props => {
+          renderNASAPower(props, mesSimb, lat, lon);
+          setStatus('✅ Open-Meteo + NASA POWER cargados correctamente', false);
+        })
+        .catch(e => {
+          // Falla silenciosa — Open-Meteo ya funcionó
+          setStatus('✅ Open-Meteo cargado · NASA POWER no disponible (se puede usar igualmente)', false);
+          console.warn('NASA POWER:', e.message);
+        });
 
-  // Densidad (opcional pero si se proporciona, validar rango)
-  if (datos.densidad !== undefined && datos.densidad !== null) {
-    const cult = datos.cultivo;
-    const rango = cult ? DENSIDAD_RANGOS[cult] : null;
-    if (typeof datos.densidad !== "number" || datos.densidad <= 0) {
-      errores.push("La densidad debe ser un número positivo.");
-    } else if (rango && (datos.densidad < rango.min || datos.densidad > rango.max)) {
-      errores.push(
-        `Densidad fuera del rango esperado para ${cult}: ${datos.densidad} ` +
-        `${rango.unidad} (esperado ${rango.min}–${rango.max}).`
-      );
-    }
-  }
-
-  // Cultivo antecesor (bloque opcional — si se da uno de los campos, todos son requeridos)
-  const tieneAnt = datos.cultivoAnt || datos.fechaCosechaAnt ||
-                   (datos.aguaCosechaAntMm !== undefined && datos.aguaCosechaAntMm !== null);
-
-  if (tieneAnt) {
-    if (!datos.cultivoAnt) {
-      errores.push("Si registra datos del antecesor, el cultivo antecesor es obligatorio.");
-    } else if (!CULTIVOS_ANT_VALIDOS.includes(datos.cultivoAnt)) {
-      errores.push(`Cultivo antecesor no reconocido: "${datos.cultivoAnt}".`);
-    }
-
-    if (!datos.fechaCosechaAnt) {
-      errores.push("Si registra datos del antecesor, la fecha de cosecha del antecesor es obligatoria.");
-    } else {
-      const dAnt = new Date(datos.fechaCosechaAnt);
-      if (isNaN(dAnt.getTime())) {
-        errores.push(`Fecha de cosecha del antecesor inválida: "${datos.fechaCosechaAnt}".`);
-      } else if (datos.fecha) {
-        const dSiem = new Date(datos.fecha);
-        if (!isNaN(dSiem.getTime()) && dAnt >= dSiem) {
-          errores.push("La cosecha del antecesor debe ser anterior a la fecha de siembra.");
+      // ── SOILGRIDS: mostrar DB interna INMEDIATAMENTE, luego intentar API real ──
+      // Paso 1: mostrar datos internos de inmediato (siempre funciona)
+      const sueloTipo = detSuelo(lat, lon) || 'Molisol';
+      const datosInternos = await buscarSoilGrids(lat, lon); // tiene fallback garantizado
+      // Siempre va a devolver algo (API real o DB interna)
+      window._sgDatos = datosInternos;
+      renderSoilGrids(datosInternos);
+      renderSueloModulo(datosInternos);
+      if ($('suelo-coord') && $('s-coord')?.value) $('suelo-coord').value = $('s-coord').value;
+      if (datosInternos.textura) {
+        const sel = $('s-suelo');
+        if (sel) {
+          sel.value = datosInternos.textura;
+          $('s-sbadge').textContent = datosInternos.esFallback ? '← DB interna' : '← SoilGrids 250m';
         }
       }
-    }
-
-    if (datos.aguaCosechaAntMm === undefined || datos.aguaCosechaAntMm === null) {
-      errores.push("Si registra datos del antecesor, el agua en perfil al cosechar el antecesor es obligatoria.");
-    } else if (typeof datos.aguaCosechaAntMm !== "number" || datos.aguaCosechaAntMm < 0) {
-      errores.push("El agua en perfil al cosechar el antecesor debe ser un número ≥ 0.");
-    } else if (datos.aguaCosechaAntMm > 500) {
-      errores.push("El agua en perfil al cosechar el antecesor parece excesiva (> 500 mm). Revisar.");
-    }
-  }
-
-  return errores;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GUARDADO
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Guarda los datos de siembra en localStorage.
- *
- * Acepta coordenadas explícitas o las resuelve automáticamente desde
- * el lote activo (am_lote_activo) si no se proveen.
- *
- * @param {Object}  datos
- * @param {string}  datos.fecha               "YYYY-MM-DD"
- * @param {string}  datos.cultivo             "soja"|"maiz"|"trigo"|"girasol"
- * @param {string}  datos.loteId              ID o nombre del lote
- * @param {number}  [datos.lat]               Latitud (si omite, lee am_lote_activo)
- * @param {number}  [datos.lon]               Longitud (si omite, lee am_lote_activo)
- * @param {number}  [datos.densidad]          Densidad de siembra
- * @param {string}  [datos.variedad]          Nombre de variedad
- * @param {string}  [datos.cultivoAnt]        Cultivo antecesor
- * @param {string}  [datos.fechaCosechaAnt]   Fecha cosecha antecesor "YYYY-MM-DD"
- * @param {number}  [datos.aguaCosechaAntMm]  Agua perfil al cosechar antecesor (mm)
- *
- * @returns {{ ok: boolean, errores: string[], datos: Object|null }}
- */
-function guardarSiembra(datos) {
-  // Resolver coordenadas desde el lote activo si no se proveen
-  const datosResueltos = _resolverCoordenadas(datos);
-
-  // Validar
-  const errores = validarSiembra(datosResueltos);
-  if (errores.length > 0) {
-    return { ok: false, errores, datos: null };
-  }
-
-  const campanaId = _lsGet(LS_CAMPANA_ID) || "";
-  const ts        = new Date().toISOString();
-
-  // Escribir claves obligatorias
-  _lsSet(LS_SIEMBRA_FECHA,   datosResueltos.fecha);
-  _lsSet(LS_SIEMBRA_CULTIVO, datosResueltos.cultivo);
-  _lsSet(LS_SIEMBRA_LOTE,    String(datosResueltos.loteId).trim());
-  _lsSet(LS_SIEMBRA_LAT,     datosResueltos.lat);
-  _lsSet(LS_SIEMBRA_LON,     datosResueltos.lon);
-  _lsSet(LS_SIEMBRA_TS,      ts);
-  _lsSet(LS_SIEMBRA_CAMPANA, campanaId);
-
-  // Densidad y variedad (opcionales)
-  if (datosResueltos.densidad !== undefined && datosResueltos.densidad !== null) {
-    _lsSet(LS_SIEMBRA_DENSIDAD, datosResueltos.densidad);
-  } else {
-    _lsRemove(LS_SIEMBRA_DENSIDAD);
-  }
-
-  if (datosResueltos.variedad) {
-    _lsSet(LS_SIEMBRA_VARIEDAD, String(datosResueltos.variedad).trim());
-  } else {
-    _lsRemove(LS_SIEMBRA_VARIEDAD);
-  }
-
-  // Datos del antecesor (opcionales)
-  const tieneAnt = datosResueltos.cultivoAnt && datosResueltos.fechaCosechaAnt &&
-                   datosResueltos.aguaCosechaAntMm !== undefined &&
-                   datosResueltos.aguaCosechaAntMm !== null;
-
-  if (tieneAnt) {
-    _lsSet(LS_SIEMBRA_CULTIVO_ANT,   datosResueltos.cultivoAnt);
-    _lsSet(LS_SIEMBRA_FECHA_COS_ANT, datosResueltos.fechaCosechaAnt);
-    _lsSet(LS_SIEMBRA_AGUA_COS_ANT,  datosResueltos.aguaCosechaAntMm);
-  } else {
-    _lsRemove(LS_SIEMBRA_CULTIVO_ANT);
-    _lsRemove(LS_SIEMBRA_FECHA_COS_ANT);
-    _lsRemove(LS_SIEMBRA_AGUA_COS_ANT);
-  }
-
-  const datosGuardados = getSiembra();
-  return { ok: true, errores: [], datos: datosGuardados };
-}
-
-/**
- * Intenta completar lat/lon desde am_lote_activo si el caller no los provee.
- * @param {Object} datos
- * @returns {Object}
- */
-function _resolverCoordenadas(datos) {
-  if (datos.lat !== undefined && datos.lat !== null &&
-      datos.lon !== undefined && datos.lon !== null) {
-    return datos;
-  }
-
-  const lote = _lsGetJSON(LS_LOTE_ACTIVO);
-  if (!lote) return datos;
-
-  return {
-    ...datos,
-    lat: datos.lat !== undefined && datos.lat !== null ? datos.lat : (lote.lat ?? lote.latitud ?? null),
-    lon: datos.lon !== undefined && datos.lon !== null ? datos.lon : (lote.lon ?? lote.longitud ?? null),
-    // Si no se proporcionó loteId pero hay uno en el lote activo, usarlo
-    loteId: datos.loteId || lote.id || lote.nombre || "",
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LECTURA
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Devuelve todos los datos de siembra guardados, o null si no hay ninguno.
- * @returns {SiembraData|null}
- */
-function getSiembra() {
-  const fecha = _lsGet(LS_SIEMBRA_FECHA);
-  if (!fecha) return null;
-
-  const latRaw = _lsGet(LS_SIEMBRA_LAT);
-  const lonRaw = _lsGet(LS_SIEMBRA_LON);
-  const densRaw = _lsGet(LS_SIEMBRA_DENSIDAD);
-  const aguaRaw = _lsGet(LS_SIEMBRA_AGUA_COS_ANT);
-
-  return {
-    // Obligatorios
-    fecha,
-    cultivo:     _lsGet(LS_SIEMBRA_CULTIVO)   || null,
-    loteId:      _lsGet(LS_SIEMBRA_LOTE)       || null,
-    lat:         latRaw  !== null ? parseFloat(latRaw)  : null,
-    lon:         lonRaw  !== null ? parseFloat(lonRaw)  : null,
-    // Opcionales
-    densidad:    densRaw !== null ? parseFloat(densRaw) : null,
-    variedad:    _lsGet(LS_SIEMBRA_VARIEDAD)   || null,
-    // Antecesor
-    cultivoAnt:        _lsGet(LS_SIEMBRA_CULTIVO_ANT)   || null,
-    fechaCosechaAnt:   _lsGet(LS_SIEMBRA_FECHA_COS_ANT) || null,
-    aguaCosechaAntMm:  aguaRaw !== null ? parseFloat(aguaRaw) : null,
-    // Meta
-    ts:          _lsGet(LS_SIEMBRA_TS)         || null,
-    campanaId:   _lsGet(LS_SIEMBRA_CAMPANA)    || null,
-  };
-}
-
-/**
- * Devuelve sólo las claves que consumen los módulos de planificación.
- * Útil para verificar que siembra está completa antes de abrir fenologia.
- * @returns {{ completa: boolean, faltantes: string[] }}
- */
-function getEstadoCompletitud() {
-  const obligatorias = {
-    [LS_SIEMBRA_FECHA]:   "Fecha de siembra",
-    [LS_SIEMBRA_CULTIVO]: "Cultivo",
-    [LS_SIEMBRA_LOTE]:    "Lote",
-    [LS_SIEMBRA_LAT]:     "Latitud",
-    [LS_SIEMBRA_LON]:     "Longitud",
-  };
-
-  const faltantes = [];
-  for (const [key, label] of Object.entries(obligatorias)) {
-    if (!_lsGet(key)) faltantes.push(label);
-  }
-
-  return { completa: faltantes.length === 0, faltantes };
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// INTEGRACIÓN CON barbecho.js
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Devuelve los parámetros necesarios para llamar a `calcularBarbecho()` de
- * barbecho.js, resolviendo los datos del lote activo y del suelo.
- *
- * Retorna null si no hay datos de antecesor registrados.
- *
- * Uso:
- *   const params = getTriggerBarbecho();
- *   if (params) {
- *     const balance = await calcularBarbecho(params);
- *   }
- *
- * @returns {TriggerBarbechoParams|null}
- */
-function getTriggerBarbecho() {
-  const s = getSiembra();
-  if (!s) return null;
-
-  // Se necesitan todos los datos del antecesor
-  if (!s.cultivoAnt || !s.fechaCosechaAnt || s.aguaCosechaAntMm === null) {
-    return null;
-  }
-
-  // AWC del lote: leer de am_lote_awc_mm o del objeto lote activo
-  const awcRaw  = _lsGet("am_lote_awc_mm");
-  const lote    = _lsGetJSON(LS_LOTE_ACTIVO);
-  const awcMm   = awcRaw  ? parseFloat(awcRaw)  :
-                  lote?.awcMm ? lote.awcMm       :
-                  200;  // default pampeano si no hay dato de suelo
-
-  return {
-    lat:             s.lat,
-    lon:             s.lon,
-    aguaInicioMm:    s.aguaCosechaAntMm,
-    fechaCosechaAnt: s.fechaCosechaAnt,
-    fechaSiembra:    s.fecha,
-    awcMm,
-    fuenteAgua:      "campana_anterior",
-    cultivoAnt:      s.cultivoAnt,      // trazabilidad extra
-  };
-}
-
-/**
- * @typedef {Object} TriggerBarbechoParams
- * @property {number} lat
- * @property {number} lon
- * @property {number} aguaInicioMm
- * @property {string} fechaCosechaAnt
- * @property {string} fechaSiembra
- * @property {number} awcMm
- * @property {string} fuenteAgua
- * @property {string} cultivoAnt
- */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BORRADO / RESET
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Elimina todos los datos de siembra del localStorage.
- * Llamar al cambiar de campaña o lote.
- */
-function limpiarSiembra() {
-  [
-    LS_SIEMBRA_FECHA, LS_SIEMBRA_CULTIVO, LS_SIEMBRA_LOTE,
-    LS_SIEMBRA_LAT, LS_SIEMBRA_LON, LS_SIEMBRA_DENSIDAD, LS_SIEMBRA_VARIEDAD,
-    LS_SIEMBRA_CULTIVO_ANT, LS_SIEMBRA_FECHA_COS_ANT, LS_SIEMBRA_AGUA_COS_ANT,
-    LS_SIEMBRA_TS, LS_SIEMBRA_CAMPANA,
-  ].forEach(_lsRemove);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LOTE ACTIVO (helper de conveniencia)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Devuelve el objeto del lote activo desde localStorage, o null.
- * @returns {Object|null}
- */
-function getLoteActivo() {
-  return _lsGetJSON(LS_LOTE_ACTIVO);
-}
-
-/**
- * Verifica si hay un lote activo válido (prerequisito para abrir siembra).
- * @returns {boolean}
- */
-function hayLoteActivo() {
-  const lote = getLoteActivo();
-  return !!lote && !!(lote.id || lote.nombre);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RENDERIZADO UI
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Rellena el formulario HTML de siembra con los datos guardados.
- * Usa convención de nombres: el campo <input name="fecha"> → am_siembra_fecha.
- *
- * Si el elemento del formulario no existe en el DOM, no hace nada.
- *
- * @param {string} [formId="form-siembra"]
- */
-function precargarFormulario(formId = "form-siembra") {
-  const form = document.getElementById(formId);
-  if (!form) return;
-
-  const s = getSiembra();
-  if (!s) {
-    // Intentar precargar lote activo aunque no haya siembra guardada
-    const lote = getLoteActivo();
-    if (lote) {
-      _setFormField(form, "loteId", lote.id || lote.nombre || "");
-      _setFormField(form, "lat",    lote.lat ?? lote.latitud ?? "");
-      _setFormField(form, "lon",    lote.lon ?? lote.longitud ?? "");
-    }
-    return;
-  }
-
-  _setFormField(form, "fecha",            s.fecha        || "");
-  _setFormField(form, "cultivo",          s.cultivo      || "");
-  _setFormField(form, "loteId",           s.loteId       || "");
-  _setFormField(form, "lat",              s.lat          ?? "");
-  _setFormField(form, "lon",              s.lon          ?? "");
-  _setFormField(form, "densidad",         s.densidad     ?? "");
-  _setFormField(form, "variedad",         s.variedad     || "");
-  _setFormField(form, "cultivoAnt",       s.cultivoAnt   || "");
-  _setFormField(form, "fechaCosechaAnt",  s.fechaCosechaAnt || "");
-  _setFormField(form, "aguaCosechaAntMm", s.aguaCosechaAntMm ?? "");
-}
-
-/**
- * Lee los datos del formulario HTML y llama a guardarSiembra().
- * Devuelve el mismo resultado que guardarSiembra().
- *
- * @param {string} [formId="form-siembra"]
- * @returns {{ ok: boolean, errores: string[], datos: Object|null }}
- */
-function guardarDesdeFormulario(formId = "form-siembra") {
-  const form = document.getElementById(formId);
-  if (!form) return { ok: false, errores: ["Formulario no encontrado en el DOM."], datos: null };
-
-  const get = (name) => {
-    const el = form.elements[name];
-    return el ? el.value.trim() : "";
-  };
-
-  const latStr   = get("lat");
-  const lonStr   = get("lon");
-  const densStr  = get("densidad");
-  const aguaStr  = get("aguaCosechaAntMm");
-
-  const datos = {
-    fecha:            get("fecha"),
-    cultivo:          get("cultivo"),
-    loteId:           get("loteId"),
-    lat:              latStr  !== "" ? parseFloat(latStr)  : null,
-    lon:              lonStr  !== "" ? parseFloat(lonStr)  : null,
-    densidad:         densStr !== "" ? parseFloat(densStr) : null,
-    variedad:         get("variedad")        || null,
-    cultivoAnt:       get("cultivoAnt")      || null,
-    fechaCosechaAnt:  get("fechaCosechaAnt") || null,
-    aguaCosechaAntMm: aguaStr !== "" ? parseFloat(aguaStr) : null,
-  };
-
-  return guardarSiembra(datos);
-}
-
-/**
- * Muestra un resumen de la siembra guardada en el elemento con id="siembra-resumen".
- * @param {string} [elId="siembra-resumen"]
- */
-function renderizarResumen(elId = "siembra-resumen") {
-  const el = document.getElementById(elId);
-  if (!el) return;
-
-  const s = getSiembra();
-  if (!s) {
-    el.innerHTML = `<p style="color:#888;font-style:italic;">Sin siembra registrada.</p>`;
-    return;
-  }
-
-  const cultivoLabel = {
-    soja: "Soja", maiz: "Maíz", trigo: "Trigo", girasol: "Girasol",
-  };
-
-  const antecedente = s.cultivoAnt
-    ? `<tr><td>Antecesor</td><td>${s.cultivoAnt} — cosecha ${s.fechaCosechaAnt || "?"} — ${s.aguaCosechaAntMm ?? "?"} mm perfil</td></tr>`
-    : "";
-
-  el.innerHTML = `
-    <table style="border-collapse:collapse;width:100%;font-size:14px;">
-      <tr style="background:#F0F4F8;">
-        <td style="padding:6px 10px;font-weight:700;color:#1B4F72;" colspan="2">
-          Siembra registrada ✓
-        </td>
-      </tr>
-      <tr><td style="padding:4px 10px;color:#666;width:140px;">Cultivo</td>
-          <td style="padding:4px 10px;">${cultivoLabel[s.cultivo] || s.cultivo}</td></tr>
-      <tr><td style="padding:4px 10px;color:#666;">Fecha</td>
-          <td style="padding:4px 10px;">${s.fecha}</td></tr>
-      <tr><td style="padding:4px 10px;color:#666;">Lote</td>
-          <td style="padding:4px 10px;">${s.loteId}</td></tr>
-      <tr><td style="padding:4px 10px;color:#666;">Coordenadas</td>
-          <td style="padding:4px 10px;">${s.lat?.toFixed(4)}, ${s.lon?.toFixed(4)}</td></tr>
-      ${s.densidad ? `<tr><td style="padding:4px 10px;color:#666;">Densidad</td>
-          <td style="padding:4px 10px;">${s.densidad} ${DENSIDAD_RANGOS[s.cultivo]?.unidad || ""}</td></tr>` : ""}
-      ${s.variedad ? `<tr><td style="padding:4px 10px;color:#666;">Variedad</td>
-          <td style="padding:4px 10px;">${s.variedad}</td></tr>` : ""}
-      ${antecedente}
-    </table>
-    <p style="margin:4px 0 0;font-size:11px;color:#aaa;">Guardado: ${s.ts ? new Date(s.ts).toLocaleString("es-AR") : "?"}</p>
-  `;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HELPERS internos UI
-// ─────────────────────────────────────────────────────────────────────────────
-
-function _setFormField(form, name, value) {
-  const el = form.elements[name];
-  if (!el) return;
-  if (el.tagName === "SELECT") {
-    // Buscar la opción que coincida
-    for (let i = 0; i < el.options.length; i++) {
-      if (el.options[i].value === String(value)) {
-        el.selectedIndex = i;
-        return;
+      window._daReal = datosInternos.da;
+      // Calcular compactación con los datos disponibles
+      const humActualSG = parseFloat($('s-h1')?.value) || 22;
+      const traficoSG   = parseInt($('s-trafico')?.value) || 0;
+      const calcCompSG  = calcularCompactacion(datosInternos, humActualSG, traficoSG, window._diaRef);
+      if (calcCompSG) {
+        setR('s-compact', calcCompSG.mpaEstimado, 1);
+        $('compact-source').textContent = datosInternos.esFallback
+          ? '← estimado (DB interna pampa)'
+          : '← calculado (SoilGrids + Open-Meteo)';
+        $('compact-calc-info').textContent =
+          `Índice S: ${calcCompSG.indiceS.toFixed(3)} · DA: ${datosInternos.da?.toFixed(2)||'—'} g/cm³ · Arcilla: ${datosInternos.clay?.toFixed(0)||'—'}% · MO: ${calcCompSG.mo?.toFixed(1)||'—'}%`;
+        renderCompactacion(calcCompSG, datosInternos);
       }
-    }
-  } else {
-    el.value = value;
+      if (typeof cacheGuardar === 'function') setTimeout(cacheGuardar, 1000);
+    }catch(e){
+      setStatus('⚠️ Error al consultar la API. Podés ingresar los datos manualmente.',false);
+      console.error(e);
+    }finally{btn.disabled=false;btn.textContent='🌡️ Obtener datos'}
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DEBUG / EXPORT
-// ─────────────────────────────────────────────────────────────────────────────
+  // ── PRONÓSTICO ──
+  function renderPron(dias,fRef){
+    const cult=gv('s-cultivo'),suelo=gv('s-suelo');
+    const tMinC=DB.tMin[cult]||10,hRef=DB.hum[suelo]?.[cult];
+    const hoy=new Date().toISOString().split('T')[0];
+    const dias8=dias.filter(d=>{const df=(new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3;return df>=-2&&df<=7});
 
-/**
- * Resumen de estado del módulo para debugging.
- * @returns {string}
- */
-function exportarResumen() {
-  const s = getSiembra();
-  const { completa, faltantes } = getEstadoCompletitud();
-  const triggerBarb = getTriggerBarbecho();
-  const lines = [
-    `=== siembra.js v${VERSION_SIEMBRA} ===`,
-    `Campaña activa : ${_lsGet(LS_CAMPANA_ID) || "(ninguna)"}`,
-    `Lote activo    : ${hayLoteActivo() ? "sí" : "NO — prerequisito faltante"}`,
-    ``,
-    `Estado siembra :`,
-    `  Completa: ${completa ? "✓" : "✗ — Faltan: " + faltantes.join(", ")}`,
-  ];
-  if (s) {
-    lines.push(`  Cultivo     : ${s.cultivo}`);
-    lines.push(`  Fecha       : ${s.fecha}`);
-    lines.push(`  Lote        : ${s.loteId}`);
-    lines.push(`  Coord.      : ${s.lat}, ${s.lon}`);
-    if (s.variedad)   lines.push(`  Variedad    : ${s.variedad}`);
-    if (s.densidad)   lines.push(`  Densidad    : ${s.densidad}`);
-    if (s.cultivoAnt) lines.push(`  Antecesor   : ${s.cultivoAnt} — cosecha ${s.fechaCosechaAnt} — ${s.aguaCosechaAntMm} mm`);
+    const hdr=`<div class="pr hdr">
+      <div>Fecha</div><div class="mn">T°sue.</div><div class="mn">Hum%</div>
+      <div class="mn">ET₀</div><div class="mn">Viento</div><div class="mn">Lluv%</div><div>Estado</div>
+    </div>`;
+
+    const rows=dias8.map(d=>{
+      const esR=d.fecha===fRef,diff=Math.round((new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3);
+      const lbl=esR?'📌 Siembra':d.fecha===hoy?'Hoy':diff>0?`+${diff}d`:`${diff}d`;
+      let est='—',ch='';
+      if(d.st6!=null&&d.sm39!=null){
+        const hOk=hRef?d.sm39>=hRef.n&&d.sm39<=hRef.x:true,tOk=d.st6>=tMinC,wOk=!d.windMax||d.windMax<25;
+        if(hOk&&tOk&&wOk){est='✅ Apto';ch='ok-chip'}
+        else if(!tOk&&!hOk){est='🚫 T°+H°';ch='danger-chip'}
+        else if(!tOk){est='⚠️ T° baja';ch='warn-chip'}
+        else if(!wOk){est='⚠️ Viento';ch='warn-chip'}
+        else{est='⚠️ Humedad';ch='warn-chip'}
+      }
+      const ec=d.et0d!=null?(d.et0d>6?'color:#C94A2A':d.et0d>4?'color:#B87A20':'color:#2A7A4A'):'';
+      const wc=d.windMax!=null?(d.windMax>25?'color:#C94A2A':d.windMax>15?'color:#B87A20':''):'';
+      return`<div class="pr ${esR?'today':''}">
+        <div><span style="font-size:.65rem;color:rgba(74,46,26,.4)">${lbl}</span><br>${d.fecha.slice(5).replace('-','/')}</div>
+        <div class="mn">${d.st6!=null?d.st6.toFixed(1)+'°':'—'}</div>
+        <div class="mn">${d.sm39!=null?d.sm39.toFixed(1)+'%':'—'}</div>
+        <div class="mn" style="${ec}">${d.et0d!=null?d.et0d.toFixed(1):'—'}</div>
+        <div class="mn" style="${wc}">${d.windMax!=null?d.windMax.toFixed(0):'—'}</div>
+        <div class="mn">${d.precP!=null?d.precP+'%':'—'}</div>
+        <div><span class="chip ${ch}">${est}</span></div>
+      </div>`;
+    }).join('');
+
+    $('pron-card').classList.remove('hidden');
+    $('pron-tabla').innerHTML=hdr+rows;
   }
-  lines.push(``);
-  lines.push(`Trigger barbecho: ${triggerBarb ? "disponible ✓" : "sin datos de antecesor"}`);
-  return lines.join("\n");
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TYPEDEFS
-// ─────────────────────────────────────────────────────────────────────────────
+  // ── DIAGNÓSTICO SIEMBRA ──
+  function calcSiembra(){
+    const cult=gv('s-cultivo'),suelo=gv('s-suelo');
+    const h1=+gv('s-h1'),h2=+gv('s-h2'),h3=+gv('s-h3');
+    const lluv=+gv('s-lluv'),t6=+gv('s-t6'),t18=+gv('s-t18');
+    const rast=gv('s-rast')==='si',comp=+gv('s-compact');
+    const et0=+gv('s-et0'),vpd=+gv('s-vpd'),viento=+gv('s-viento');
 
-/**
- * @typedef {Object} SiembraData
- * @property {string}       fecha
- * @property {string}       cultivo
- * @property {string}       loteId
- * @property {number}       lat
- * @property {number}       lon
- * @property {number|null}  densidad
- * @property {string|null}  variedad
- * @property {string|null}  cultivoAnt
- * @property {string|null}  fechaCosechaAnt
- * @property {number|null}  aguaCosechaAntMm
- * @property {string|null}  ts
- * @property {string|null}  campanaId
- */
+    const hRef=DB.hum[suelo]?.[cult],sRef=DB.suelo[suelo],prof=DB.prof[suelo]?.[cult];
+    const tMin=DB.tMin[cult],tId=DB.tId[cult];
+    if(!hRef||!prof||!sRef)return;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONSTANTES EXPORTADAS
-// ─────────────────────────────────────────────────────────────────────────────
+    const tEf=rast?t6-1.5:t6;
+    const{cc,pm,da}=sRef;
 
-const CULTIVOS     = CULTIVOS_VALIDOS;
-const CULTIVOS_ANT = CULTIVOS_ANT_VALIDOS;
+    // Agua útil total en perfil 80 cm (mm)
+    const auMm=(Math.max(0,h1-pm)*6+Math.max(0,h2-pm)*18+Math.max(0,h3-pm)*56)*da/100;
+    const diasR=et0>0?Math.round(auMm/et0):999;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EXPORTS
-// ─────────────────────────────────────────────────────────────────────────────
+    // Scores
+    // HUMEDAD
+    let sH,eH,mH;
+    if(h1<hRef.n){sH=lluv>=70?55:Math.max(0,40-(hRef.n-h1)*3);eH=lluv>=70?'a':'r';mH=lluv>=70?`Humedad baja (${h1}%) pero lluvia pronosticada (${lluv}%) podría compensar. Evaluar siembra preventiva.`:`Humedad insuficiente (${h1}% < mín ${hRef.n}%). Sin lluvia prevista, no se recomienda sembrar.`}
+    else if(h1>hRef.x){sH=Math.max(20,70-(h1-hRef.x)*4);eH='r';mH=`Humedad excesiva (${h1}% > máx ${hRef.x}%). Riesgo de pudrición de semilla y problemas de apertura de surco.`}
+    else{sH=Math.min(100,100-Math.abs(h1-hRef.i)*3);eH=lluv>=80&&h1>hRef.i?'a':'v';mH=eH==='v'?`Humedad óptima (${h1}%). Condición ideal para siembra a ${prof[1]} cm.`:`Humedad adecuada (${h1}%) pero lluvia (${lluv}%) podría exceder el máximo. Sembrar a profundidad máxima (${prof[2]} cm).`}
 
-const _exports = {
-  // Guardado
-  guardarSiembra,
-  guardarDesdeFormulario,
-  // Lectura
-  getSiembra,
-  getEstadoCompletitud,
-  getLoteActivo,
-  hayLoteActivo,
-  // Validación
-  validarSiembra,
-  // Barbecho
-  getTriggerBarbecho,
-  // Reset
-  limpiarSiembra,
-  // UI
-  precargarFormulario,
-  renderizarResumen,
-  // Debug
-  exportarResumen,
-  // Constantes
-  CULTIVOS,
-  CULTIVOS_ANT,
-  DENSIDAD_RANGOS,
-  VERSION_SIEMBRA,
-};
+    // TEMPERATURA
+    let sT,eT,mT;
+    if(tEf<tMin){sT=Math.max(0,30-(tMin-tEf)*5);eT='r';mT=`Temperatura insuficiente (${tEf.toFixed(1)}°C < mín ${tMin}°C para ${cult}). Alto riesgo de falla en germinación.`}
+    else if(tEf<tId){sT=60+(tEf-tMin)/(tId-tMin)*40;eT='a';mT=`Temperatura aceptable pero subóptima (${tEf.toFixed(1)}°C). Germinación lenta. Ideal: ${tId}°C.`}
+    else{sT=100;eT='v';mT=`Temperatura óptima (${tEf.toFixed(1)}°C ≥ ${tId}°C). Germinación normal esperada.`}
+    const gradT=t6-t18;
+    if(gradT>3)mT+=` Gradiente positivo 6→18cm (+${gradT.toFixed(1)}°C) — favorable para emergencia rápida.`;
+    else if(gradT<-2)mT+=` ⚠️ INVERSIÓN TÉRMICA: suelo más frío en superficie (${gradT.toFixed(1)}°C). Riesgo de emergencia lenta o encostramiento térmico — considerar retrasar la siembra.`;
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = _exports;
-} else if (typeof window !== "undefined") {
-  window.Siembra = _exports;
-}
+    // RESERVA HÍDRICA (ET₀)
+    let sE,eE,mE;
+    if(diasR>=14){sE=100;eE='v';mE=`Reserva hídrica sólida: ${auMm.toFixed(0)} mm agua útil en el perfil → ${diasR} días antes de marchitez permanente.`}
+    else if(diasR>=7){sE=70;eE='a';mE=`Reserva moderada: ${auMm.toFixed(0)} mm → ${diasR} días de reserva a ET₀ ${et0} mm/d. Monitorear lluvia.`}
+    else{sE=25;eE='r';mE=`Reserva crítica: ${auMm.toFixed(0)} mm → solo ${diasR} días a ET₀ ${et0} mm/d. Riesgo de estrés hídrico severo.`}
+
+    // VPD
+    let sV,eV,mV;
+    if(vpd<0.4){sV=80;eV='a';mV=`VPD muy bajo (${vpd.toFixed(2)} kPa). Transpiración reducida. Riesgo de enfermedades fúngicas por alta humedad foliar.`}
+    else if(vpd<=1.6){sV=100;eV='v';mV=`VPD óptimo (${vpd.toFixed(2)} kPa). Demanda atmosférica normal — condición favorable para establecimiento del cultivo.`}
+    else if(vpd<=2.5){sV=60;eV='a';mV=`VPD elevado (${vpd.toFixed(2)} kPa). Estrés hídrico moderado. Germinación más lenta y mayor exigencia de establecimiento.`}
+    else{sV=20;eV='r';mV=`VPD muy alto (${vpd.toFixed(2)} kPa). Estrés hídrico severo — evapotranspiración máxima. Postergar siembra de ser posible.`}
+
+    // VIENTO
+    let sW,eW,mW;
+    if(viento<10){sW=100;eW='v';mW=`Viento calmo (${viento} km/h). Condiciones operativas ideales.`}
+    else if(viento<20){sW=85;eW='v';mW=`Viento moderado (${viento} km/h). Sin restricciones para siembra.`}
+    else if(viento<30){sW=50;eW='a';mW=`Viento fuerte (${viento} km/h). Puede afectar distribución de semilla en sembradoras a chorrillo. No aplicar herbicidas.`}
+    else{sW=15;eW='r';mW=`Viento muy fuerte (${viento} km/h). No se recomienda sembrar ni aplicar agroquímicos.`}
+
+    // COMPACTACIÓN
+    let sC,eC,mC;
+    if(comp<1){sC=100;eC='v';mC=`Resistencia baja (${comp} MPa). Condición ideal para penetración de raíces.`}
+    else if(comp<2){sC=90-(comp-1)*30;eC='v';mC=`Resistencia normal (${comp} MPa). Sin restricciones significativas.`}
+    else if(comp<3){sC=60-(comp-2)*30;eC='a';mC=`Resistencia moderada (${comp} MPa). Puede limitar raíces. Evaluar subsolado.`}
+    else{sC=Math.max(10,30-(comp-3)*20);eC='r';mC=`Resistencia alta (${comp} MPa). Limitación severa al crecimiento radicular. Se recomienda laboreo.`}
+
+    // SCORE GLOBAL (ponderado)
+    const sg=Math.round(sH*.30+sT*.25+sE*.15+sV*.10+sC*.15+sW*.05);
+    const[dec,dCol,dIco]=sg>=75?['APTO PARA SIEMBRA','#1A5C2A','✅']:sg>=50?['SIEMBRA CON PRECAUCIÓN','#7A4A10','⚠️']:['NO RECOMENDADO SEMBRAR','#7A1A0A','🚫'];
+
+    let profRec;
+    if(eH==='v'&&lluv<60)profRec=`${prof[1]} cm (profundidad ideal)`;
+    else if(lluv>=70||h1>hRef.i)profRec=`${prof[2]} cm (máxima — evitar pudrición por exceso hídrico)`;
+    else if(h1<hRef.n)profRec=`${prof[2]} cm (máxima — alcanzar humedad disponible)`;
+    else profRec=`${prof[1]} cm`;
+
+    const gdd=window._gddAc||0;
+    const gddTxt=gdd>0?` · ${gdd.toFixed(0)} GDD acumulados`:'';
+
+    // RENDER
+    $('s-ph').classList.add('hidden');$('s-res').classList.remove('hidden');
+
+    $('s-banner').innerHTML=`<div style="background:${dCol};border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+      <span style="font-size:1.8rem">${dIco}</span>
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:white">${dec}</div>
+        <div style="font-size:.74rem;color:rgba(255,255,255,.65);margin-top:.2rem">${cult} · ${suelo} · Score: ${sg}/100${gddTxt}</div>
+      </div>
+    </div>`;
+
+    $('s-kpis').innerHTML=`
+      <div class="kc ${sg<50?'danger':sg<75?'warn':''}"><div class="kl">Score global</div><div class="kv">${sg}</div><div class="ku">/ 100</div></div>
+      <div class="kc ${eE==='r'?'danger':eE==='a'?'warn':''}"><div class="kl">Días reserva</div><div class="kv">${diasR>99?'∞':diasR}</div><div class="ku">ET₀ ${et0} mm/d</div></div>
+      <div class="kc ${eV==='r'?'danger':eV==='a'?'warn':''}"><div class="kl">VPD</div><div class="kv">${vpd.toFixed(1)}</div><div class="ku">kPa</div></div>
+      <div class="kc ${eW==='r'?'danger':eW==='a'?'warn':''}"><div class="kl">Viento</div><div class="kv">${viento}</div><div class="ku">km/h</div></div>
+      <div class="kc neutral"><div class="kl">Agua útil</div><div class="kv">${auMm.toFixed(0)}</div><div class="ku">mm perfil</div></div>
+      <div class="kc blue"><div class="kl">Prof. rec.</div><div class="kv">${prof[1]}</div><div class="ku">cm</div></div>`;
+
+    const inds=[
+      {l:'Humedad zona activa (3-9 cm)',s:sH,e:eH,v:`${h1}%`,r:`${hRef.n}-${hRef.x}%`},
+      {l:'Temperatura suelo (6 cm)',s:sT,e:eT,v:`${tEf.toFixed(1)}°C`,r:`≥${tMin}°C`},
+      {l:'Reserva hídrica / ET₀',s:sE,e:eE,v:`${diasR>99?'∞':diasR} días`,r:`ET₀ ${et0} mm/d`},
+      {l:'VPD atmosférico',s:sV,e:eV,v:`${vpd.toFixed(2)} kPa`,r:'0.4–1.6 kPa'},
+      {l:'Compactación',s:sC,e:eC,v:`${comp} MPa`,r:'<2.0 MPa'},
+      {l:'Viento operativo',s:sW,e:eW,v:`${viento} km/h`,r:'<20 km/h'},
+    ];
+    $('s-inds').innerHTML=inds.map(x=>`
+      <div style="margin-bottom:.8rem">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.22rem">
+          <div style="font-size:.79rem;font-weight:600;color:var(--earth)">${x.l}</div>
+          <div class="sema ${x.e}"><div class="sema-dot"></div>${x.v} · ${x.r}</div>
+        </div>
+        <div class="pb"><div class="pf ${x.s<50?'danger':x.s<70?'warn':''}" style="width:${x.s}%"></div></div>
+      </div>`).join('');
+
+    const tipos={v:'ok',a:'warn',r:'danger'};
+    const iconos={v:'✅',a:'⚠️',r:'🚫'};
+    const msgs=[[mH,eH],[mT,eT],[mE,eE],[mV,eV],[mC,eC],[mW,eW]];
+    const spec=['💨','💨'];
+    $('s-recs').innerHTML=msgs.map(([m,e])=>`<div class="alert ${tipos[e]}"><span class="ai">${iconos[e]}</span><div class="ac">${m}</div></div>`).join('')+
+      `<div class="alert info"><span class="ai">📏</span><div class="ac"><strong>Profundidad de siembra:</strong> ${profRec} para ${cult} en ${suelo}</div></div>`;
+  }
+
+  // Exponer a global por retrocompatibilidad HTML
+  window.buscarAPI = buscarAPI;
+  window.calcSiembra = calcSiembra;
+
+})();

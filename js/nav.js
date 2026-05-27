@@ -1,545 +1,433 @@
-/**
- * AGROMOTOR v2.0 — nav.js
- * Navegación principal con guard de rutas.
- *
- * Responsabilidades:
- *  - Definir el árbol de rutas del pipeline
- *  - Evaluar App.verificarGuard(ruta) antes de activar/mostrar cada ítem
- *  - Renderizar nav HTML con estado: activo / habilitado / bloqueado
- *  - Publicar ruta activa en localStorage (am_nav_ruta_activa)
- *  - Escuchar cambios de estado para re-render automático
- */
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — nav.js
+// switchMod con lazy loading · DOMContentLoaded init
+// renderSueloModulo · Control de navegación principal
+// ════════════════════════════════════════════════════════
 
-"use strict";
+(function() {
+  window.AM = window.AM || {};
+  window.AM.nav = {};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Constantes
-// ─────────────────────────────────────────────────────────────────────────────
-
-const LS_RUTA_ACTIVA = "am_nav_ruta_activa";
-const LS_MODO        = "am_modo";                    // "planificacion" | "seguimiento"
-const LS_CAMPANA_ID  = "am_campana_id";
-const LS_CAMPANA_ACT = "am_campana_activa";          // "1" | "0"
-
-/**
- * Definición canónica del pipeline.
- * orden: posición en la barra
- * requiere: claves LS que deben existir (no vacías) para habilitar
- * icono: emoji / SVG id
- */
-const RUTAS = [
-  {
-    id:       "barbecho",
-    label:    "Barbecho",
-    icono:    "🌱",
-    orden:    1,
-    requiere: [],                                     // siempre accesible
-    modos:    ["planificacion", "seguimiento"],
-  },
-  {
-    id:       "fenologia",
-    label:    "Fenología",
-    icono:    "📅",
-    orden:    2,
-    requiere: ["am_campana_id"],
-    modos:    ["planificacion", "seguimiento"],
-  },
-  {
-    id:       "hidrico",
-    label:    "Hídrico",
-    icono:    "💧",
-    orden:    3,
-    requiere: ["am_campana_id", "am_fenologia_etapa_actual"],
-    modos:    ["planificacion", "seguimiento"],
-  },
-  {
-    id:       "alertas",
-    label:    "Alertas",
-    icono:    "🔔",
-    orden:    4,
-    requiere: ["am_campana_id", "am_hidrico_etc_total"],
-    modos:    ["planificacion", "seguimiento"],
-  },
-  {
-    id:       "decision",
-    label:    "Decisiones",
-    icono:    "⚖️",
-    orden:    5,
-    requiere: ["am_campana_id", "am_hidrico_etc_total"],
-    modos:    ["planificacion", "seguimiento"],
-  },
-  {
-    id:       "informe-cierre",
-    label:    "Cierre",
-    icono:    "📊",
-    orden:    6,
-    requiere: ["am_campana_id", "am_campana_activa"],
-    modos:    ["planificacion", "seguimiento"],
-  },
+// ── ORDEN DE PESTAÑAS (única fuente de verdad) ───────────
+// Coincide con el orden visual del nav en index.html.
+var AM_TAB_ORDER = [
+  'dashboard','decision','cultivares',
+  'siembra','suelo','hidrico',
+  'nutricion',
+  'economia','cosecha','maquinaria',
+  'plagas','alerta-sanitaria','pulverizacion',
+  'siembra-variable','mapa','asistente'
 ];
+var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Estado interno del módulo
-// ─────────────────────────────────────────────────────────────────────────────
+// ── LAZY LOADER ──────────────────────────────────────────
+var AM_MODULOS_CARGADOS = {};
 
-let _rutaActiva   = null;
-let _listeners    = [];
-let _navContainer = null;   // elemento DOM raíz del nav (si se usó renderizarNav)
+function amCargarModulo(archivo, callback) {
+  if (AM_MODULOS_CARGADOS[archivo]) {
+    if (callback) callback();
+    return;
+  }
+  var script = document.createElement('script');
+  script.src = 'js/' + archivo;
+  script.onload = function() {
+    AM_MODULOS_CARGADOS[archivo] = true;
+    if (callback) callback();
+  };
+  script.onerror = function() {
+    console.error('Error cargando modulo:', archivo);
+  };
+  document.head.appendChild(script);
+}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Guard de rutas
-// ─────────────────────────────────────────────────────────────────────────────
+// ── SWITCH DE MÓDULOS ─────────────────────────────────────
+function switchMod(mod) {
 
-/**
- * Evalúa si una ruta puede activarse.
- * Primero consulta App.verificarGuard (si está disponible), luego
- * aplica la lógica local basada en requiere[].
- *
- * @param {string} rutaId
- * @returns {{ habilitada: boolean, razon: string|null }}
- */
-function verificarGuard(rutaId) {
-  const ruta = RUTAS.find(r => r.id === rutaId);
-  if (!ruta) {
-    return { habilitada: false, razon: `Ruta desconocida: ${rutaId}` };
+  if (typeof amTieneAcceso === 'function' && !amTieneAcceso(mod)) {
+    if (typeof amMostrarModalUpgrade === 'function') amMostrarModalUpgrade(mod);
+    return;
   }
 
-  // ── 1. Delegar a App.verificarGuard si existe ────────────────────────────
-  if (typeof window !== "undefined" &&
-      typeof window.App !== "undefined" &&
-      typeof window.App.verificarGuard === "function") {
-    try {
-      const resultado = window.App.verificarGuard(rutaId);
-      // App.verificarGuard puede retornar bool o { habilitada, razon }
-      if (typeof resultado === "boolean") {
-        return { habilitada: resultado, razon: resultado ? null : "App guard denegó acceso" };
+  var modLazy = {
+    'hidrico':       ['hidrico.js'],
+    'cultivares':    ['cultivares.js', 'cultivares-extra.js'],
+    'mapa':          ['mapa.js'],
+    'pulverizacion': ['pulverizacion.js'],
+    'decision':      ['decision.js'],
+    'nutricion':     ['nutricion.js'],
+    'seguimiento':   ['seguimiento.js'],
+    'cosecha':       ['cosecha.js'],
+    'plagas':           ['plagas.js'],
+    'siembra-variable':  ['siembra-variable.js'],
+    'alerta-sanitaria':  ['alerta-sanitaria.js'],
+  };
+
+  var archivos = modLazy[mod];
+  if (archivos) {
+    var pendientes = archivos.filter(function(a) { return !AM_MODULOS_CARGADOS[a]; });
+    if (pendientes.length > 0) {
+      document.querySelectorAll('.module-panel').forEach(function(p) { p.classList.remove('active'); });
+      var panel = document.getElementById('mod-' + mod);
+      if (panel && !panel.children.length) {
+        panel.classList.add('active');
+        panel.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem;gap:1rem;color:rgba(237,224,196,.4)"><div style="font-size:3rem">⟳</div><div style="font-size:.9rem">Cargando...</div></div>';
+      } else if (panel) {
+        panel.classList.add('active');
       }
-      if (typeof resultado === "object" && resultado !== null &&
-          "habilitada" in resultado) {
-        return resultado;
+      document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
+      var tabs = document.querySelectorAll('.nav-tab:not(.locked)');
+      if (tabs[AM_IDX_MAP[mod]]) tabs[AM_IDX_MAP[mod]].classList.add('active');
+
+      var i = 0;
+      function cargarSiguiente() {
+        if (i >= archivos.length) { _activarModulo(mod); return; }
+        amCargarModulo(archivos[i], function() { i++; cargarSiguiente(); });
       }
-    } catch (e) {
-      console.warn("[nav] App.verificarGuard lanzó error:", e);
-      // continúa con lógica local
+      cargarSiguiente();
+      return;
     }
   }
 
-  // ── 2. Guard local: verificar claves LS requeridas ───────────────────────
-  for (const clave of ruta.requiere) {
-    const val = _lsGet(clave);
-    if (!val) {
-      return {
-        habilitada: false,
-        razon:      `Requiere completar paso previo (${clave.replace("am_", "")})`,
-      };
-    }
-    // am_campana_activa debe ser "1"
-    if (clave === LS_CAMPANA_ACT && val !== "1") {
-      return {
-        habilitada: false,
-        razon:      "No hay campaña activa",
-      };
-    }
-  }
-
-  // ── 3. Verificar modo compatible ─────────────────────────────────────────
-  const modoActual = _lsGet(LS_MODO);
-  if (modoActual && ruta.modos.length > 0 && !ruta.modos.includes(modoActual)) {
-    return {
-      habilitada: false,
-      razon:      `Módulo no disponible en modo ${modoActual}`,
-    };
-  }
-
-  return { habilitada: true, razon: null };
+  _activarModulo(mod);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Navegación activa
-// ─────────────────────────────────────────────────────────────────────────────
+function _activarModulo(mod) {
+  document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.module-panel').forEach(function(p) { p.classList.remove('active'); });
 
-/**
- * Navega a una ruta si el guard lo permite.
- * Actualiza LS, notifica listeners, re-renderiza si hay contenedor.
- *
- * @param {string} rutaId
- * @returns {{ ok: boolean, razon: string|null }}
- */
-function navegarA(rutaId) {
-  const { habilitada, razon } = verificarGuard(rutaId);
+  var tabs = document.querySelectorAll('.nav-tab:not(.locked)');
+  if (tabs[AM_IDX_MAP[mod]]) tabs[AM_IDX_MAP[mod]].classList.add('active');
+  var panel = document.getElementById('mod-' + mod);
+  if (panel) panel.classList.add('active');
 
-  if (!habilitada) {
-    console.warn(`[nav] Acceso bloqueado a "${rutaId}": ${razon}`);
-    return { ok: false, razon };
+  // Mostrar/ocultar botón "Volver al Dashboard"
+  var btnVolver = document.getElementById('btn-volver-dash');
+  if (btnVolver) {
+    if (mod === 'dashboard') btnVolver.classList.add('hidden');
+    else btnVolver.classList.remove('hidden');
   }
 
-  _rutaActiva = rutaId;
-  _lsSet(LS_RUTA_ACTIVA, rutaId);
-  _notificarListeners(rutaId);
-
-  if (_navContainer) {
-    _actualizarDOM(_navContainer);
+  // Mostrar botón "Exportar PDF" solo en módulos con generador disponible
+  var btnPDFMod = document.getElementById('btn-pdf-modulo');
+  if (btnPDFMod) {
+    var pdfModulos = ['decision','nutricion','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
+    if (pdfModulos.indexOf(mod) >= 0) btnPDFMod.classList.remove('hidden');
+    else btnPDFMod.classList.add('hidden');
   }
-
-  return { ok: true, razon: null };
-}
-
-/**
- * Retorna la ruta activa actual (desde LS como fuente de verdad).
- */
-function getRutaActiva() {
-  return _lsGet(LS_RUTA_ACTIVA) || _rutaActiva || null;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Renderizado HTML
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Construye y retorna el HTML del nav.
- * Si se pasa container (HTMLElement), lo inyecta directamente y
- * guarda referencia para re-renders automáticos.
- *
- * @param {object}      [opciones]
- * @param {HTMLElement} [opciones.container]      - elemento DOM donde inyectar
- * @param {string}      [opciones.claseNav]       - clase CSS del <nav>
- * @param {boolean}     [opciones.mostrarModo]    - mostrar badge de modo
- * @returns {string} HTML generado
- */
-function renderizarNav(opciones = {}) {
-  const {
-    container     = null,
-    claseNav      = "am-nav",
-    mostrarModo   = true,
-  } = opciones;
-
-  if (container) {
-    _navContainer = container;
+  // Refrescar estados de tarjetas al volver al Dashboard
+  if (mod === 'dashboard' && typeof dashRefreshCards === 'function') {
+    setTimeout(dashRefreshCards, 100);
   }
+  // Scroll al inicio al cambiar de módulo
+  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0,0); }
 
-  const html = _construirHTML({ claseNav, mostrarModo });
-
-  if (container) {
-    container.innerHTML = html;
-    _adjuntarEventos(container);
-  }
-
-  return html;
-}
-
-/**
- * Construye el HTML del nav (sin inyectar).
- */
-function _construirHTML({ claseNav, mostrarModo }) {
-  const rutaAct  = getRutaActiva();
-  const modo     = _lsGet(LS_MODO) || "";
-  const campanaId = _lsGet(LS_CAMPANA_ID) || "";
-
-  const modoBadge = mostrarModo && modo
-    ? `<span class="am-nav__modo am-nav__modo--${modo}">${_labelModo(modo)}</span>`
-    : "";
-
-  const items = RUTAS
-    .sort((a, b) => a.orden - b.orden)
-    .map(ruta => {
-      const { habilitada, razon } = verificarGuard(ruta.id);
-      const activo    = ruta.id === rutaAct;
-      const clases    = [
-        "am-nav__item",
-        activo      ? "am-nav__item--activo"    : "",
-        habilitada  ? "am-nav__item--habilitado" : "am-nav__item--bloqueado",
-      ].filter(Boolean).join(" ");
-
-      const tooltip = !habilitada && razon
-        ? `title="${_esc(razon)}"`
-        : "";
-
-      const iconoHtml = `<span class="am-nav__icono" aria-hidden="true">${ruta.icono}</span>`;
-      const labelHtml = `<span class="am-nav__label">${_esc(ruta.label)}</span>`;
-      const candadoHtml = !habilitada
-        ? `<span class="am-nav__lock" aria-label="bloqueado">🔒</span>`
-        : "";
-
-      // Botón (accesible): deshabilitado si bloqueado
-      return `
-        <li class="${clases}" role="none">
-          <button
-            class="am-nav__btn"
-            data-ruta="${ruta.id}"
-            ${!habilitada ? "disabled" : ""}
-            ${activo ? 'aria-current="page"' : ""}
-            ${tooltip}
-            role="menuitem"
-            type="button"
-          >
-            ${iconoHtml}${labelHtml}${candadoHtml}
-          </button>
-        </li>`.trim();
-    })
-    .join("\n");
-
-  return `
-<nav class="${claseNav}" aria-label="Navegación AGROMOTOR" role="navigation">
-  <div class="am-nav__header">
-    <span class="am-nav__logo">🌾 AGROMOTOR</span>
-    ${modoBadge}
-    ${campanaId ? `<span class="am-nav__campana">${_esc(campanaId)}</span>` : ""}
-  </div>
-  <ul class="am-nav__lista" role="menubar" aria-orientation="vertical">
-    ${items}
-  </ul>
-</nav>`.trim();
-}
-
-/**
- * Actualiza sólo los estados (activo/bloqueado) sin reconstruir todo el DOM.
- * Más eficiente para re-renders frecuentes.
- *
- * @param {HTMLElement} container
- */
-function _actualizarDOM(container) {
-  if (!container) return;
-
-  const rutaAct = getRutaActiva();
-  const btns    = container.querySelectorAll(".am-nav__btn[data-ruta]");
-
-  btns.forEach(btn => {
-    const rutaId = btn.dataset.ruta;
-    const { habilitada, razon } = verificarGuard(rutaId);
-    const activo = rutaId === rutaAct;
-    const li     = btn.closest(".am-nav__item");
-
-    // Actualizar clase del li
-    li.classList.toggle("am-nav__item--activo",     activo);
-    li.classList.toggle("am-nav__item--habilitado",  habilitada);
-    li.classList.toggle("am-nav__item--bloqueado",  !habilitada);
-
-    // Atributos del botón
-    btn.disabled = !habilitada;
-    if (activo) {
-      btn.setAttribute("aria-current", "page");
-    } else {
-      btn.removeAttribute("aria-current");
+  if (mod === 'suelo') {
+    var coord = document.getElementById('s-coord');
+    var coordVal = coord ? coord.value.trim() : '';
+    // Actualizar etiqueta del bar compacto
+    var lblCoord = document.getElementById('suelo-lbl-coord');
+    if (lblCoord && coordVal) lblCoord.textContent = coordVal;
+    if (window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+      // Datos ya cargados — renderizar directamente
+      if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
+    } else if (coordVal && typeof consultarSuelo === 'function') {
+      // Sin datos aún pero hay coordenadas — disparar consulta automática
+      setTimeout(consultarSuelo, 250);
     }
-    if (!habilitada && razon) {
-      btn.setAttribute("title", razon);
-    } else {
-      btn.removeAttribute("title");
-    }
+  }
+  // ── Sincronizar cultivo/fecha a módulos ──────────────────
+  // Lee siempre desde el DOM master (s-cultivo / s-fecha), que es la fuente
+  // más actualizada. El Store puede estar desincronizado si cacheCargar()
+  // asignó .value sin disparar el evento change.
+  var _getMasterCultivo = function() {
+    var sc = document.getElementById('s-cultivo');
+    if (sc && sc.value) return sc.value;
+    if (typeof AM !== 'undefined' && AM.store) return AM.store.getState().cultivo || 'Soja';
+    return 'Soja';
+  };
+  var _getMasterFecha = function() {
+    var sf = document.getElementById('s-fecha');
+    if (sf && sf.value) return sf.value;
+    if (typeof AM !== 'undefined' && AM.store) return AM.store.getState().fecha || '';
+    return '';
+  };
+  // destId: ID del select destino. Si el elemento no existe, no hace nada.
+  var _syncCultivo = function(destId) {
+    var d = document.getElementById(destId);
+    if (d) d.value = _getMasterCultivo();
+  };
+  var _syncFecha = function(destId) {
+    var d = document.getElementById(destId);
+    if (d) d.value = _getMasterFecha();
+  };
+  // Cosecha usa id="cultivo" con valores en minúscula sin acentos
+  var _syncCultivoNorm = function(destId) {
+    var d = document.getElementById(destId);
+    if (!d) return;
+    d.value = _getMasterCultivo().toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  };
 
-    // Ícono de candado
-    let candado = btn.querySelector(".am-nav__lock");
-    if (!habilitada && !candado) {
-      const span = document.createElement("span");
-      span.className  = "am-nav__lock";
-      span.setAttribute("aria-label", "bloqueado");
-      span.textContent = "🔒";
-      btn.appendChild(span);
-    } else if (habilitada && candado) {
-      candado.remove();
+  if (mod === 'economia') {
+    _syncCultivo('ec-cultivo');
+    if (typeof ecActualizarDolar === 'function' && !window._ecDolarCargado) {
+      ecActualizarDolar(); window._ecDolarCargado = true;
     }
+    if (typeof ecRenderDolar === 'function') ecRenderDolar();
+    if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  }
+  if (mod === 'maquinaria') {
+    if (typeof loadMaq === 'function' && !window._fertMaqCargado) {
+      loadMaq(); window._fertMaqCargado = true;
+    }
+  }
+  if (mod === 'decision') {
+    _syncCultivo('dec-cultivo');
+    _syncFecha('dec-fecha');
+  }
+  if (mod === 'cosecha') {
+    _syncCultivoNorm('cultivo'); // cosecha.js usa id="cultivo" con valores lowercase
+    _syncFecha('cos-fecha');     // si existe; si no, no hace nada
+  }
+  if (mod === 'siembra-variable') {
+    _syncCultivo('sv-cultivo');
+  }
+  if (mod === 'hidrico') {
+    // hidrico.js lee gv('s-cultivo') directamente; no hay select bh-cultivo
+    _syncFecha('bh-fecha');
+    var bhs = document.getElementById('bh-suelo');
+    var ss = document.getElementById('s-suelo');
+    if (bhs && ss) bhs.value = ss.value || 'Molisol';
+    var h1 = parseFloat((document.getElementById('s-h1') || {}).value) || 0;
+    var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
+    var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
+    if (h1 > 0 && document.getElementById('bh-agua-perfil'))
+      document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));
+    if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
+      document.getElementById('bh-enso').value = ENSO_DATA.fase;
+    if (typeof bhActualizar === 'function') bhActualizar();
+  }
+  if (mod === 'cultivares') {
+    _syncCultivo('cv-cultivo');
+    _syncFecha('cv-fecha');
+    if (typeof cvActualizar === 'function') cvActualizar();
+    setTimeout(function() { if (typeof dsRender === 'function') dsRender(); }, 300);
+  }
+  if (mod === 'nutricion') {
+    if (typeof ncActualizar === 'function') ncActualizar();
+  }
+  if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
+  if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
+  if (mod === 'pulverizacion') {
+    _syncCultivo('pulv-cultivo');
+    setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);
+    setTimeout(function() {
+      if (typeof pulvRenderHistorial === 'function') pulvRenderHistorial();
+      if (typeof pulvRenderHRAC      === 'function') pulvRenderHRAC();
+      if (typeof pulvCalcAgua        === 'function') pulvCalcAgua();
+    }, 300);
+  }
+  if (mod === 'seguimiento' && typeof segInit === 'function') segInit();
+  if (mod === 'cosecha' && typeof cosInit === 'function') cosInit();
+  if (mod === 'siembra-variable'  && typeof svInit === 'function') svInit();
+  if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') asInit();
+  if (mod === 'plagas') {
+    _syncCultivo('plagas-cultivo');
+    _syncFecha('plagas-siembra');
+    // Mostrar panel estacional inmediatamente al entrar
+    setTimeout(function() {
+      if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
+    }, 150);
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var hoy = new Date().toISOString().split('T')[0];
+  ['s-fecha','bh-fecha','cv-fecha'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = hoy;
   });
-}
 
-/**
- * Adjunta event listeners a los botones del nav inyectado.
- *
- * @param {HTMLElement} container
- */
-function _adjuntarEventos(container) {
-  container.querySelectorAll(".am-nav__btn[data-ruta]").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      const rutaId = e.currentTarget.dataset.ruta;
-      const { ok, razon } = navegarA(rutaId);
-      if (!ok) {
-        // Feedback visual efímero en el botón
-        const li = e.currentTarget.closest(".am-nav__item");
-        li.classList.add("am-nav__item--shake");
-        setTimeout(() => li.classList.remove("am-nav__item--shake"), 600);
+  // Vincular inputs maestros con el Store
+  var sc = document.getElementById('s-cultivo');
+  var sf = document.getElementById('s-fecha');
+  var scoord = document.getElementById('s-coord');
+  
+  // ── Propagación de cultivo a módulos con select propio ──
+  // Cuando el usuario cambia s-cultivo directamente, sincronizar
+  // los selects de módulos que tienen su propio control de cultivo.
+  function _propagarCultivo(val) {
+    // Cultivares
+    var cv = document.getElementById('cv-cultivo');
+    if (cv) cv.value = val;
+    // Cosecha (lowercase, sin acentos)
+    var cos = document.getElementById('cultivo');
+    if (cos) cos.value = val.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    // Nutrición: sync select balance + re-render contexto lote
+    if (typeof ncActualizar === 'function') {
+      var nb = document.getElementById('nc-bn-cultivo');
+      if (nb) {
+        var map = {'Maíz':'Maiz','Maiz':'Maiz','Soja':'Soja','Trigo':'Trigo',
+                   'Girasol':'Girasol','Sorgo':'Sorgo','Cebada':'Cebada','Colza':'Colza'};
+        nb.value = map[val] || val;
+      }
+      ncActualizar();
+    }
+    // Actualizar ec-lbl-cult (Economía)
+    if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  }
+
+  if (typeof AM !== 'undefined' && AM.store) {
+    // Escuchar DOM y actualizar Store
+    if (sc) sc.addEventListener('change', function() {
+      AM.store.update({ cultivo: this.value });
+      _propagarCultivo(this.value);
+    });
+    if (sf) sf.addEventListener('change', function() { AM.store.update({ fecha: this.value }); });
+    if (scoord) scoord.addEventListener('input', function() { AM.store.update({ coordenadas: this.value }); });
+
+    // Escuchar Store y actualizar DOM (bidi)
+    AM.store.subscribe('cultivo', function(val) {
+      if(sc && sc.value !== val) sc.value = val;
+      _propagarCultivo(val);
+    });
+    AM.store.subscribe('fecha', function(val) { if(sf && sf.value !== val) sf.value = val; });
+    AM.store.subscribe('coordenadas', function(val) { if(scoord && scoord.value !== val) scoord.value = val; });
+  }
+  if (typeof amCargarSesion    === 'function') amCargarSesion();
+  if (typeof amActualizarUI    === 'function') amActualizarUI();
+  // ENSO se consulta una vez en background (datos compartidos por hidrico, siembra)
+  setTimeout(function() {
+    if (typeof consultarENSO === 'function' && !window._ensoCargado) {
+      consultarENSO(); window._ensoCargado = true;
+    }
+  }, 1500);
+  
+  setTimeout(function() { amCargarModulo('hidrico.js'); amCargarModulo('cultivares.js'); }, 2000);
+  setTimeout(function() { amCargarModulo('cultivares-extra.js'); amCargarModulo('mapa.js'); amCargarModulo('pulverizacion.js'); }, 5000);
+  var trafico = document.getElementById('s-trafico');
+  if (trafico) {
+    trafico.addEventListener('change', function() {
+      var sg = window._sgDatos; if (!sg) return;
+      var hum = parseFloat((document.getElementById('s-h1')||{}).value) || 22;
+      var traf = parseInt(this.value) || 0;
+      if (typeof calcularCompactacion === 'function') {
+        var calc = calcularCompactacion(sg, hum, traf, window._diaRef);
+        if (calc) {
+          if (typeof setR === 'function') setR('s-compact', calc.mpaEstimado, 1);
+          var cs = document.getElementById('compact-source');
+          if (cs) cs.textContent = '← recalculado (tráfico actualizado)';
+          if (typeof renderCompactacion === 'function') renderCompactacion(calc, sg);
+        }
       }
     });
-  });
-}
+  }
+  
+  // Custom scroll horizontal
+  var navInner = document.querySelector('.nav-inner');
+  if(navInner) {
+    navInner.addEventListener('wheel', function(e) {
+      if(e.deltaY !== 0) { e.preventDefault(); navInner.scrollLeft += e.deltaY; }
+    });
+  }
+});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Listeners externos
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Registra callback para cambios de ruta.
- * @param {(rutaId: string) => void} fn
- * @returns {() => void} función de desregistro
- */
-function onNavegacion(fn) {
-  if (typeof fn !== "function") return () => {};
-  _listeners.push(fn);
-  return () => {
-    _listeners = _listeners.filter(l => l !== fn);
+// ── RENDER SUELO ──────────────────────────────────────────
+function renderSueloModulo(d) {
+  if (!d || Object.keys(d).length === 0) return;
+  var mo = d.soc != null ? d.soc * 1.724 / 10 : null;
+  var map = {
+    'sg-ph':      d.ph   != null ? d.ph.toFixed(1)   : null,
+    'sg-soc':     d.soc  != null ? d.soc.toFixed(1)  : null,
+    'sg-n':       d.n    != null ? d.n.toFixed(2)     : null,
+    'sg-da':      d.da   != null ? d.da.toFixed(2)   : null,
+    'sg-cec':     d.cec  != null ? d.cec.toFixed(1)  : null,
+    'sg-mo':      mo     != null ? mo.toFixed(1)      : null,
+    'sg-textura': d.textura || null,
   };
-}
-
-function _notificarListeners(rutaId) {
-  _listeners.forEach(fn => {
-    try { fn(rutaId); } catch (e) { console.error("[nav] listener error:", e); }
+  Object.keys(map).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && map[id]) el.textContent = map[id];
   });
-}
+  var kpis = document.getElementById('suelo-kpis');
+  var ph = document.getElementById('suelo-placeholder');
+  if (kpis) kpis.classList.remove('hidden');
+  if (ph) ph.classList.add('hidden');
+  var alertas = [];
+  if (d.ph != null && d.ph < 5.5)
+    alertas.push('<div class="alert danger"><span class="ai">⚗️</span><div class="ac"><strong>pH muy ácido (' + d.ph.toFixed(1) + ')</strong> — Aplicar cal agrícola para elevar a pH 6.2.</div></div>');
+  else if (d.ph != null && d.ph <= 7.5)
+    alertas.push('<div class="alert ok"><span class="ai">⚗️</span><div class="ac"><strong>pH óptimo (' + d.ph.toFixed(1) + ')</strong> — Rango ideal para cultivos pampeanos.</div></div>');
+  else if (d.ph != null)
+    alertas.push('<div class="alert warn"><span class="ai">⚗️</span><div class="ac"><strong>pH alcalino (' + d.ph.toFixed(1) + ')</strong> — Monitorear P, Fe y Zn.</div></div>');
+  if (mo != null && mo < 2.0)
+    alertas.push('<div class="alert danger"><span class="ai">🌱</span><div class="ac"><strong>MO baja (' + mo.toFixed(1) + '%)</strong> — Priorizar cobertura y SD.</div></div>');
+  else if (mo != null && mo < 3.5)
+    alertas.push('<div class="alert warn"><span class="ai">🌱</span><div class="ac"><strong>MO media (' + mo.toFixed(1) + '%)</strong> — Mantener manejo de rastrojos.</div></div>');
+  else if (mo != null)
+    alertas.push('<div class="alert ok"><span class="ai">🌱</span><div class="ac"><strong>MO alta (' + mo.toFixed(1) + '%)</strong> — Buena estructura y reservas.</div></div>');
+  if (d.da != null && d.da > 1.45)
+    alertas.push('<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>DA alta (' + d.da.toFixed(2) + ' g/cm³)</strong> — Verificar compactación con penetrómetro.</div></div>');
+  if (d.cec != null && d.cec < 10)
+    alertas.push('<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (' + d.cec.toFixed(1) + ' cmol/kg)</strong> — Fraccionar aplicaciones de K y Ca.</div></div>');
+  var alertasEl = document.getElementById('suelo-alertas');
+  if (alertasEl) alertasEl.innerHTML = alertas.join('');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reacción a cambios de estado externos (localStorage)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Llama esto cuando el estado externo cambie (p.ej. después de calcularHidrico).
- * Re-evalúa guards y actualiza el nav si hay contenedor activo.
- */
-function refrescarNav() {
-  if (_navContainer) {
-    _actualizarDOM(_navContainer);
+  // ── COMPOSICIÓN GRANULOMÉTRICA Y TEXTURA ─────────────────
+  var texEl = document.getElementById('suelo-textura-contenido');
+  if (texEl && (d.clay != null || d.sand != null || d.silt != null)) {
+    var clay = d.clay != null ? d.clay : (100 - (d.sand||0) - (d.silt||0));
+    var sand = d.sand != null ? d.sand : 0;
+    var silt = d.silt != null ? d.silt : Math.max(0, 100 - clay - sand);
+    var bar = function(label, val, color) {
+      var pct = Math.max(0, Math.min(100, val));
+      return '<div style="margin-bottom:.55rem"><div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.2rem"><span style="font-weight:600;color:#3D2210">' + label + '</span><span style="font-family:\'DM Mono\',monospace;font-weight:700;color:' + color + '">' + pct.toFixed(0) + '%</span></div><div style="background:#f1ebe0;height:10px;border-radius:5px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + color + ';transition:width .4s ease"></div></div></div>';
+    };
+    var html = '<div style="font-size:.74rem;color:#5a4a32;margin-bottom:.7rem">Análisis textural en los primeros 0–5 cm</div>';
+    html += bar('🏖️ Arena', sand, '#C8A255');
+    html += bar('🪨 Limo',  silt, '#8b6f47');
+    html += bar('🏺 Arcilla', clay, '#a3543b');
+    html += '<div style="margin-top:.9rem;padding:.6rem .85rem;background:#fbf6e9;border:1px solid rgba(200,162,85,.3);border-radius:8px;font-size:.78rem;color:#3D2210"><strong>Textura USDA:</strong> ' + (d.textura || '—') + (d.fuente ? '<div style="font-size:.7rem;color:#6b5b45;margin-top:.25rem">' + d.fuente + '</div>' : '') + '</div>';
+    texEl.innerHTML = html;
   }
-}
 
-/**
- * Escucha eventos 'storage' para re-renders automáticos entre pestañas.
- * Solo activo en contexto browser.
- */
-function iniciarEscuchaStorage() {
-  if (typeof window === "undefined") return;
-  window.addEventListener("storage", (e) => {
-    if (e.key && e.key.startsWith("am_")) {
-      refrescarNav();
+  // ── PROPIEDADES DEL SUELO — TABLA ─────────────────────────
+  var tblEl = document.getElementById('suelo-tabla');
+  if (tblEl) {
+    var rows = [
+      ['⚗️ pH (H₂O)',          d.ph != null ? d.ph.toFixed(1) : '—',           'Acidez/alcalinidad del suelo · óptimo 6.0–7.5'],
+      ['🌱 C orgánico',         d.soc != null ? d.soc.toFixed(1) + ' g/kg' : '—', 'Carbono orgánico — base de la fertilidad biológica'],
+      ['🌿 Materia orgánica',   mo != null ? mo.toFixed(1) + ' %' : '—',           'MO = SOC × 1.724 — reservas y agregación'],
+      ['🔬 Nitrógeno total',    d.n != null ? d.n.toFixed(2) + ' g/kg' : '—',     'N total del suelo — mineralización potencial'],
+      ['⚖️ Densidad aparente',  d.da != null ? d.da.toFixed(2) + ' g/cm³' : '—',  'Compactación · normal 1.0–1.4 g/cm³'],
+      ['🧲 CEC',                d.cec != null ? d.cec.toFixed(1) + ' cmol/kg' : '—', 'Capacidad de intercambio catiónico'],
+      ['🏺 Arcilla',            d.clay != null ? d.clay + ' %' : '—',             'Fracción fina · retención de agua y cationes'],
+      ['🏖️ Arena',              d.sand != null ? d.sand + ' %' : '—',             'Fracción gruesa · drenaje'],
+      ['🪨 Limo',               d.silt != null ? d.silt + ' %' : '—',             'Fracción media · agua disponible'],
+      ['🗺️ Tipo de suelo',      d.textura || '—',                                 'Clasificación textural'],
+    ];
+    var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
+    html += '<thead><tr style="background:#f3ede0"><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Propiedad</th><th style="text-align:right;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Valor</th><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Interpretación</th></tr></thead><tbody>';
+    rows.forEach(function(r, i) {
+      var bg = i % 2 === 0 ? '#fbf8f1' : '#ffffff';
+      html += '<tr style="background:' + bg + ';border-bottom:1px solid rgba(74,46,26,.06)"><td style="padding:.55rem .8rem;font-weight:600;color:#3D2210">' + r[0] + '</td><td style="padding:.55rem .8rem;text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;color:#1b3d28">' + r[1] + '</td><td style="padding:.55rem .8rem;font-size:.73rem;color:#5a4a32">' + r[2] + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+    if (d.fuente) {
+      html += '<div style="margin-top:.7rem;font-size:.7rem;color:#6b5b45;padding:.5rem .8rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:6px">' + (d.esFallback ? '⚠️ ' : '✅ ') + d.fuente + '</div>';
     }
-  });
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Utilidades
-// ─────────────────────────────────────────────────────────────────────────────
-
-function _lsGet(clave) {
-  try {
-    return localStorage.getItem(clave) || null;
-  } catch (_) {
-    return null;
+    tblEl.innerHTML = html;
   }
 }
 
-function _lsSet(clave, valor) {
-  try {
-    localStorage.setItem(clave, valor);
-  } catch (_) {}
-}
+  // Exposición a global
+  window.AM_TAB_ORDER = AM_TAB_ORDER;
+  window.AM_IDX_MAP = AM_IDX_MAP;
+  window.AM_MODULOS_CARGADOS = AM_MODULOS_CARGADOS;
+  window.amCargarModulo = amCargarModulo;
+  window.switchMod = switchMod;
+  window._activarModulo = _activarModulo;
+  window.renderSueloModulo = renderSueloModulo;
 
-function _labelModo(modo) {
-  return modo === "planificacion" ? "Planificación" : "Seguimiento";
-}
-
-function _esc(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CSS mínimo (inyectable si no hay hoja externa)
-// ─────────────────────────────────────────────────────────────────────────────
-
-const NAV_CSS = `
-.am-nav { font-family: inherit; user-select: none; }
-.am-nav__header { display: flex; align-items: center; gap: 8px; padding: 12px 16px;
-  border-bottom: 1px solid #e5e7eb; }
-.am-nav__logo { font-weight: 700; font-size: 1.1rem; }
-.am-nav__modo { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.05em; }
-.am-nav__modo--planificacion { background: #dbeafe; color: #1e40af; }
-.am-nav__modo--seguimiento   { background: #d1fae5; color: #065f46; }
-.am-nav__campana { font-size: 0.75rem; color: #6b7280; margin-left: auto; }
-.am-nav__lista { list-style: none; margin: 0; padding: 8px 0; }
-.am-nav__item { margin: 2px 0; }
-.am-nav__btn { width: 100%; display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border: none; background: transparent; cursor: pointer;
-  text-align: left; border-radius: 6px; transition: background 0.15s; font-size: 0.9rem; }
-.am-nav__btn:hover:not(:disabled) { background: #f3f4f6; }
-.am-nav__item--activo .am-nav__btn { background: #eff6ff; color: #2563eb; font-weight: 600; }
-.am-nav__item--bloqueado .am-nav__btn { color: #9ca3af; cursor: not-allowed; }
-.am-nav__icono { font-size: 1.1rem; flex-shrink: 0; }
-.am-nav__label { flex: 1; }
-.am-nav__lock  { font-size: 0.75rem; opacity: 0.6; }
-@keyframes am-shake {
-  0%,100% { transform: translateX(0); }
-  20%,60%  { transform: translateX(-4px); }
-  40%,80%  { transform: translateX(4px); }
-}
-.am-nav__item--shake .am-nav__btn { animation: am-shake 0.4s ease; }
-`;
-
-/**
- * Inyecta el CSS del nav en el <head> si no está ya presente.
- */
-function inyectarCSS() {
-  if (typeof document === "undefined") return;
-  if (document.getElementById("am-nav-css")) return;
-  const style = document.createElement("style");
-  style.id = "am-nav-css";
-  style.textContent = NAV_CSS;
-  document.head.appendChild(style);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Init
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Inicializa el módulo nav.
- * - Recupera ruta activa de LS
- * - Inicia escucha de storage
- * - Inyecta CSS (opcional)
- *
- * @param {object}  [opciones]
- * @param {boolean} [opciones.css=true]         - inyectar CSS embebido
- * @param {boolean} [opciones.escuchaStorage=true]
- */
-function inicializar(opciones = {}) {
-  const {
-    css           = true,
-    escuchaStorage = true,
-  } = opciones;
-
-  // Restaurar ruta activa desde LS
-  const rutaLS = _lsGet(LS_RUTA_ACTIVA);
-  if (rutaLS) {
-    _rutaActiva = rutaLS;
-  }
-
-  if (css)            inyectarCSS();
-  if (escuchaStorage) iniciarEscuchaStorage();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Exports duales
-// ─────────────────────────────────────────────────────────────────────────────
-
-const _public = {
-  inicializar,
-  navegarA,
-  verificarGuard,
-  getRutaActiva,
-  renderizarNav,
-  refrescarNav,
-  onNavegacion,
-  inyectarCSS,
-  RUTAS,
-  // internals expuestos para testing
-  _construirHTML,
-  _actualizarDOM,
-  _notificarListeners,
-};
-
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = _public;
-}
-
-if (typeof window !== "undefined") {
-  window.Nav = _public;
-}
+})();

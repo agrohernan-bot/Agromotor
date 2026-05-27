@@ -1,328 +1,412 @@
-/**
- * decision.js — Soporte de decisiones agronómicas AGROMOTOR v2.0
- *
- * Sintetiza señales de hidrico.js, alertas.js y fenologia.js para
- * generar recomendaciones accionables:
- *   · Riego (oportunidad, lámina sugerida, prioridad)
- *   · Fungicidas / protección de cultivo
- *   · Ajuste de estrategia (densidad, fecha, variedad)
- *   · Señales para cierre anticipado de campaña
- *
- * Prioridad: "alta" | "media" | "baja"
- *
- * Exports (dual): CommonJS module.exports + window.Decision
- */
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — decision.js
+// Selector de cultivo: rentable vs recomendable
+// Conecta agua disponible + ENSO + precios + suelo
+// para rankear cultivos antes de sembrar
+// ════════════════════════════════════════════════════════
 
-"use strict";
+(function() {
+  window.AM = window.AM || {};
+  window.AM.decision = {};
 
-/* ──────────────────────────── LS KEYS ──────────────────────────────────── */
-const LS_KEY_DECISIONES  = "am_decision_ultima";
-const LS_KEY_TS          = "am_decision_ts";
+// ── BASE DE DATOS DE CULTIVOS ─────────────────────────
+var DEC_CULTIVOS = {
+  Soja: {
+    nombre: 'Soja',
+    emoji: '🟡',
+    // Requerimientos hídricos (mm ciclo completo)
+    aguaMin: 300, aguaOpt: 500, aguaMax: 700,
+    // Temperatura óptima germinación
+    tMinGerm: 10, tOptGerm: 18,
+    // Coeficiente de respuesta al agua FAO
+    ky: 0.85,
+    // Extracción de nutrientes (kg/t grano)
+    extN: 75, extP: 18, extK: 50,
+    // Retenciones export Argentina (%)
+    retencion: 33,
+    // Costos base orientativos USD/ha campaña 24/25
+    costoBase: 580,
+    // Rotación: penalización si es el mismo cultivo consecutivo
+    penalizacionRotacion: 15,
+    // Respuesta ENSO
+    ensoNino: +10,   // % sobre rendimiento base
+    ensoNina: -15,
+    ensoNeutro: 0,
+    // Rango de fechas óptimas (mes inicio)
+    mesInicioOpt: 10, mesFinOpt: 12,
+    // Requerimiento suelo
+    phMin: 5.5, phMax: 7.5,
+    moMin: 1.5,
+    // Rendimiento base pampa (t/ha)
+    rendBase: 3.2,
+    rendOpt: 4.5,
+  },
+  Maiz: {
+    nombre: 'Maíz',
+    emoji: '🟠',
+    aguaMin: 400, aguaOpt: 600, aguaMax: 800,
+    tMinGerm: 10, tOptGerm: 16,
+    ky: 1.25,
+    extN: 120, extP: 22, extK: 80,
+    retencion: 12,
+    costoBase: 850,
+    penalizacionRotacion: 8,
+    ensoNino: +15,
+    ensoNina: -20,
+    ensoNeutro: 0,
+    mesInicioOpt: 9, mesFinOpt: 12,
+    phMin: 5.5, phMax: 7.5,
+    moMin: 1.8,
+    rendBase: 8.0,
+    rendOpt: 12.0,
+  },
+  Trigo: {
+    nombre: 'Trigo',
+    emoji: '🟤',
+    aguaMin: 250, aguaOpt: 400, aguaMax: 550,
+    tMinGerm: 3, tOptGerm: 10,
+    ky: 1.15,
+    extN: 30, extP: 10, extK: 25,
+    retencion: 12,
+    costoBase: 450,
+    penalizacionRotacion: 5,
+    ensoNino: +5,
+    ensoNina: -8,
+    ensoNeutro: 0,
+    mesInicioOpt: 5, mesFinOpt: 7,
+    phMin: 6.0, phMax: 7.5,
+    moMin: 1.5,
+    rendBase: 3.5,
+    rendOpt: 5.5,
+  },
+  Girasol: {
+    nombre: 'Girasol',
+    emoji: '🌻',
+    aguaMin: 300, aguaOpt: 500, aguaMax: 650,
+    tMinGerm: 8, tOptGerm: 12,
+    ky: 0.95,
+    extN: 50, extP: 20, extK: 120,
+    retencion: 7,
+    costoBase: 480,
+    penalizacionRotacion: 10,
+    ensoNino: +8,
+    ensoNina: -12,
+    ensoNeutro: 0,
+    mesInicioOpt: 8, mesFinOpt: 10,
+    phMin: 5.5, phMax: 7.0,
+    moMin: 1.5,
+    rendBase: 2.2,
+    rendOpt: 3.5,
+  },
+  Sorgo: {
+    nombre: 'Sorgo',
+    emoji: '🔴',
+    aguaMin: 200, aguaOpt: 400, aguaMax: 600,
+    tMinGerm: 12, tOptGerm: 18,
+    ky: 0.90,
+    extN: 55, extP: 15, extK: 65,
+    retencion: 12,
+    costoBase: 420,
+    penalizacionRotacion: 5,
+    ensoNino: +8,
+    ensoNina: -10,
+    ensoNeutro: 0,
+    mesInicioOpt: 10, mesFinOpt: 12,
+    phMin: 5.5, phMax: 8.0,
+    moMin: 1.2,
+    rendBase: 6.0,
+    rendOpt: 9.0,
+  },
+};
 
-const LS_IN_AWC          = "am_lote_awc_mm";
-const LS_IN_AGUA_ACTUAL  = "am_hidrico_agua_actual_mm";
-const LS_IN_DEFICIT_ACUM = "am_hidrico_deficit_acum_mm";
-const LS_IN_DIAS_ESTRES  = "am_hidrico_dias_estres";
-const LS_IN_DIAS_ET_CRIT = "am_hidrico_dias_et_crit";
-const LS_IN_ETC_TOTAL    = "am_hidrico_etc_total";
-const LS_IN_CULTIVO      = "am_cultivo";
-const LS_IN_ETAPA_ACTUAL = "am_fen_etapa_actual";
-const LS_IN_ENSO_FASE    = "am_enso_fase";
-const LS_IN_ENSO_FACTOR  = "am_enso_factor";
-const LS_IN_MODO         = "am_modo_global";
+// ── FUNCIÓN PRINCIPAL ─────────────────────────────────
+function decAnalizar() {
+  // Leer datos del motor
+  var aguaPerfil  = parseFloat((document.getElementById('bh-agua-perfil')  || {}).value) || 120;
+  var precipCiclo = parseFloat((document.getElementById('bh-precip')        || {}).value) || 350;
+  var aguaTotal   = aguaPerfil + precipCiclo * 0.75;
 
-/* ──────────────────────────── UMBRALES ──────────────────────────────────── */
-const RIEGO_UMBRAL_DEFICIT  = 30;   // mm → recomendar riego
-const RIEGO_UMBRAL_FRAC_AWC = 0.45; // 45 % AWC → evaluación riego
-const RIEGO_LAMINA_REPONER  = 0.80; // llenar hasta 80 % AWC
-const FUNGICIDA_HUMEDAD_MIN = 0.70; // >70 % AWC + etapa crít → revisar fungi
-const DIAS_ESTRES_RIESGO    = 3;    // 3+ días de estrés → prioridad riego alta
+  var t6 = parseFloat(((document.getElementById('s-t6') || {}).textContent  || '').replace('°','')) || 18;
+  var ph = window._sgDatos && window._sgDatos.ph ? window._sgDatos.ph : null;
+  var mo = window._sgDatos && window._sgDatos.soc ? window._sgDatos.soc * 1.724 / 10 : null;
 
-/** Etapas donde el riego tiene mayor impacto relativo */
-const ETAPAS_RIEGO_ALTO_IMPACTO = new Set([
-  "r1","r3r4","r5",
-  "vt","r1","r2r3",
-  "espigazon","antesis","llenado",
-  "floracion","llenado",
-]);
+  var ensoFase = (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase) ? ENSO_DATA.fase : 'neutro';
 
-/* ──────────────────────────── UTILIDADES ───────────────────────────────── */
-function leerLS(key, def = null) {
-  try {
-    const v = typeof localStorage !== "undefined" ? localStorage.getItem(key) : null;
-    return v !== null ? v : def;
-  } catch { return def; }
-}
+  var precioSoja    = parseFloat((document.getElementById('ec-precio-disp') || {}).value) || 300;
+  var precioMaiz    = precioSoja * 0.72;
+  var precioTrigo   = precioSoja * 0.68;
+  var precioGirasol = precioSoja * 1.10;
+  var precioSorgo   = precioSoja * 0.58;
 
-function guardarLS(key, value) {
-  try {
-    if (typeof localStorage !== "undefined") localStorage.setItem(key, value);
-  } catch { /* noop */ }
-}
+  var precios = {
+    Soja: precioSoja,
+    Maiz: precioMaiz,
+    Trigo: precioTrigo,
+    Girasol: precioGirasol,
+    Sorgo: precioSorgo,
+  };
 
-function redondear(n, dec = 1) {
-  return Math.round(n * 10 ** dec) / 10 ** dec;
-}
+  var cultAnterior = (document.getElementById('dec-cult-anterior') || {}).value || '';
 
-/* ──────────────────────── GENERADORES DE RECOMENDACIONES ─────────────── */
+  var resultados = [];
+  var cultivos = Object.keys(DEC_CULTIVOS);
 
-function _recomendacion_Riego(ctx) {
-  const recs = [];
-  const { awcMm, aguaMm, deficitAcum, diasEstres, diasEtCrit, etapaActual } = ctx;
+  cultivos.forEach(function(nombre) {
+    var c = DEC_CULTIVOS[nombre];
+    var precio = precios[nombre] || 300;
 
-  const fracAgua   = awcMm > 0 ? aguaMm / awcMm : 1;
-  const metaAgua   = awcMm * RIEGO_LAMINA_REPONER;
-  const laminaRec  = Math.max(0, metaAgua - aguaMm);
-  const etapaAlta  = ETAPAS_RIEGO_ALTO_IMPACTO.has((etapaActual || "").toLowerCase());
+    // ── SCORE AGRONÓMICO (0-100) ──
+    var scoreAgro = 0;
+    var factoresAgro = [];
 
-  const necesitaRiego =
-    fracAgua < RIEGO_UMBRAL_FRAC_AWC ||
-    deficitAcum >= RIEGO_UMBRAL_DEFICIT ||
-    diasEstres >= DIAS_ESTRES_RIESGO;
+    // Factor agua (40 puntos)
+    var scoreAgua = 0;
+    if (aguaTotal < c.aguaMin) {
+      scoreAgua = Math.max(0, 20 * (aguaTotal / c.aguaMin));
+      factoresAgro.push({label: 'Agua insuficiente', valor: Math.round(aguaTotal) + ' mm vs ' + c.aguaMin + ' mm mín', color: 'warn'});
+    } else if (aguaTotal <= c.aguaOpt) {
+      scoreAgua = 20 + 20 * ((aguaTotal - c.aguaMin) / (c.aguaOpt - c.aguaMin));
+      factoresAgro.push({label: 'Agua adecuada', valor: Math.round(aguaTotal) + ' mm', color: 'ok'});
+    } else {
+      scoreAgua = 40;
+      factoresAgro.push({label: 'Agua óptima o excedente', valor: Math.round(aguaTotal) + ' mm', color: 'ok'});
+    }
+    scoreAgro += scoreAgua;
 
-  if (!necesitaRiego) return recs;
+    // Factor temperatura (20 puntos)
+    var scoreTemp = 0;
+    if (t6 >= c.tOptGerm) {
+      scoreTemp = 20;
+      factoresAgro.push({label: 'Temperatura óptima', valor: t6 + '°C', color: 'ok'});
+    } else if (t6 >= c.tMinGerm) {
+      scoreTemp = 10 + 10 * ((t6 - c.tMinGerm) / (c.tOptGerm - c.tMinGerm));
+      factoresAgro.push({label: 'Temperatura aceptable', valor: t6 + '°C', color: 'caution'});
+    } else {
+      scoreTemp = 0;
+      factoresAgro.push({label: 'Temperatura insuficiente', valor: t6 + '°C vs ' + c.tMinGerm + '°C mín', color: 'warn'});
+    }
+    scoreAgro += scoreTemp;
 
-  let prioridad = "media";
-  if (diasEtCrit > 0 || (diasEstres >= DIAS_ESTRES_RIESGO && etapaAlta)) prioridad = "alta";
-  if (fracAgua > RIEGO_UMBRAL_FRAC_AWC && deficitAcum < RIEGO_UMBRAL_DEFICIT)  prioridad = "baja";
+    // Factor ENSO (15 puntos)
+    var scoreEnso = 8;
+    if (ensoFase === 'nino' && c.ensoNino > 0) { scoreEnso = 15; factoresAgro.push({label: 'ENSO Niño — favorable', valor: '+' + c.ensoNino + '% rendimiento', color: 'ok'}); }
+    else if (ensoFase === 'nino' && c.ensoNino <= 0) { scoreEnso = 3; factoresAgro.push({label: 'ENSO Niño — desfavorable', valor: c.ensoNino + '% rendimiento', color: 'warn'}); }
+    else if (ensoFase === 'nina' && c.ensoNina < -10) { scoreEnso = 2; factoresAgro.push({label: 'ENSO Niña — muy desfavorable', valor: c.ensoNina + '% rendimiento', color: 'warn'}); }
+    else if (ensoFase === 'nina') { scoreEnso = 5; factoresAgro.push({label: 'ENSO Niña — moderadamente desfavorable', valor: c.ensoNina + '% rendimiento', color: 'caution'}); }
+    else { factoresAgro.push({label: 'ENSO Neutro', valor: 'Sin ajuste', color: 'ok'}); }
+    scoreAgro += scoreEnso;
 
-  recs.push({
-    categoria : "RIEGO",
-    codigo    : "RIEGO_DEFICITARIO",
-    prioridad,
-    accion    : `Aplicar riego: lámina sugerida ${redondear(laminaRec, 0)} mm`,
-    fundamento: `Agua en perfil: ${redondear(aguaMm, 0)} mm (${(fracAgua * 100).toFixed(0)} % AWC). ` +
-                `Déficit acumulado: ${redondear(deficitAcum, 0)} mm. ` +
-                (diasEstres > 0 ? `${diasEstres} días de estrés.` : "") +
-                (diasEtCrit > 0 ? ` ⚠️ ${diasEtCrit} días en etapa crítica.` : ""),
-    valorClave : redondear(laminaRec, 0),
-    unidad     : "mm",
+    // Factor suelo pH (10 puntos)
+    if (ph !== null) {
+      if (ph >= c.phMin && ph <= c.phMax) {
+        scoreAgro += 10;
+        factoresAgro.push({label: 'pH óptimo', valor: ph.toFixed(1), color: 'ok'});
+      } else {
+        scoreAgro += 3;
+        factoresAgro.push({label: 'pH subóptimo', valor: ph.toFixed(1) + ' (óptimo ' + c.phMin + '-' + c.phMax + ')', color: 'caution'});
+      }
+    } else {
+      scoreAgro += 7;
+    }
+
+    // Factor MO (5 puntos)
+    if (mo !== null) {
+      if (mo >= c.moMin) { scoreAgro += 5; }
+      else { scoreAgro += 2; factoresAgro.push({label: 'MO baja', valor: mo.toFixed(1) + '% vs ' + c.moMin + '% mín', color: 'caution'}); }
+    } else {
+      scoreAgro += 4;
+    }
+
+    // Factor rotación (10 puntos)
+    if (cultAnterior && cultAnterior === nombre) {
+      scoreAgro += Math.max(0, 10 - c.penalizacionRotacion);
+      factoresAgro.push({label: 'Mismo cultivo año anterior', valor: '-' + c.penalizacionRotacion + ' pts rotación', color: 'warn'});
+    } else if (cultAnterior) {
+      scoreAgro += 10;
+      factoresAgro.push({label: 'Rotación correcta', valor: 'vs ' + cultAnterior, color: 'ok'});
+    } else {
+      scoreAgro += 8;
+    }
+
+    scoreAgro = Math.min(100, Math.max(0, Math.round(scoreAgro)));
+
+    // ── RENDIMIENTO ESTIMADO ──
+    var factorAgua = Math.min(1, aguaTotal / c.aguaOpt);
+    var factorEnso = 1 + (ensoFase === 'nino' ? c.ensoNino : ensoFase === 'nina' ? c.ensoNina : 0) / 100;
+    var rendEstim = c.rendBase * factorAgua * factorEnso;
+    if (aguaTotal >= c.aguaOpt) rendEstim = c.rendOpt * factorEnso;
+    rendEstim = Math.max(c.rendBase * 0.4, Math.round(rendEstim * 10) / 10);
+
+    // ── SCORE ECONÓMICO ──
+    var ingresosBruto = rendEstim * precio * (1 - c.retencion / 100);
+    var costoTotal = c.costoBase;
+    var margenBruto = ingresosBruto - costoTotal;
+    var relInsumoProd = precio > 0 ? (c.costoBase / precio).toFixed(1) : '—';
+
+    // Score económico 0-100 basado en margen bruto relativo
+    var scoreEco = Math.min(100, Math.max(0, Math.round(50 + margenBruto / 10)));
+
+    resultados.push({
+      nombre: nombre,
+      emoji: c.emoji,
+      scoreAgro: scoreAgro,
+      scoreEco: scoreEco,
+      rendEstim: rendEstim,
+      margenBruto: Math.round(margenBruto),
+      ingresosBruto: Math.round(ingresosBruto),
+      costoTotal: costoTotal,
+      precio: precio.toFixed(2),
+      relInsumoProd: relInsumoProd,
+      factoresAgro: factoresAgro,
+      retencion: c.retencion,
+    });
   });
 
-  return recs;
+  // Ordenar por score agronómico para ranking
+  var rankAgro = resultados.slice().sort(function(a,b) { return b.scoreAgro - a.scoreAgro; });
+  var rankEco  = resultados.slice().sort(function(a,b) { return b.margenBruto - a.margenBruto; });
+
+  resultados.forEach(function(r) {
+    r.posAgro = rankAgro.findIndex(function(x) { return x.nombre === r.nombre; }) + 1;
+    r.posEco  = rankEco.findIndex(function(x)  { return x.nombre === r.nombre; }) + 1;
+  });
+
+  decRender(resultados, aguaTotal, ensoFase);
 }
 
-function _recomendacion_Fungicida(ctx) {
-  const recs = [];
-  const { awcMm, aguaMm, etapaActual, cultivo } = ctx;
+// ── RENDER ────────────────────────────────────────────
+function decRender(resultados, aguaTotal, ensoFase) {
+  var container = document.getElementById('dec-resultado');
+  if (!container) return;
 
-  const fracAgua = awcMm > 0 ? aguaMm / awcMm : 1;
-  const etapaAlta = ETAPAS_RIEGO_ALTO_IMPACTO.has((etapaActual || "").toLowerCase());
+  var rankAgro = resultados.slice().sort(function(a,b) { return b.scoreAgro - a.scoreAgro; });
+  var rankEco  = resultados.slice().sort(function(a,b) { return b.margenBruto - a.margenBruto; });
 
-  // Condición favorable para enfermedades: alta humedad del suelo + etapa sensible
-  if (fracAgua >= FUNGICIDA_HUMEDAD_MIN && etapaAlta) {
-    let motivo = "";
-    const c = (cultivo || "").toLowerCase();
-    if (c === "soja")    motivo = "Roya, Mancha ojo de rana";
-    else if (c === "maiz")  motivo = "Tizón, Mancha foliar";
-    else if (c === "trigo") motivo = "Roya amarilla, Fusarium en espigas";
-    else if (c === "girasol") motivo = "Sclerotinia, Phomopsis";
-    else motivo = "enfermedades fúngicas";
+  var mejorAgro = rankAgro[0];
+  var mejorEco  = rankEco[0];
+  var coinciden = mejorAgro.nombre === mejorEco.nombre;
 
-    recs.push({
-      categoria : "FUNGICIDA",
-      codigo    : "FUNGI_CONDICIONES_FAVORABLES",
-      prioridad : "media",
-      accion    : `Monitorear y evaluar aplicación fungicida preventiva (${motivo})`,
-      fundamento: `Perfil con ${(fracAgua * 100).toFixed(0)} % AWC y cultivo en etapa ${etapaActual}. ` +
-                  "Condiciones favorables para desarrollo de enfermedades fúngicas.",
-      valorClave : fracAgua,
-      unidad     : "frac AWC",
-    });
+  // ── VEREDICTO PRINCIPAL ──
+  var veredictoHtml = '<div style="background:linear-gradient(135deg,#0E2016,#1A3A25);border-radius:18px;padding:1.4rem 1.6rem;margin-bottom:1.2rem;border:1px solid rgba(109,191,130,.15)">';
+  veredictoHtml += '<div style="font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.4);margin-bottom:.8rem">⚖️ Análisis de decisión · ' + new Date().toLocaleDateString('es-AR') + '</div>';
+
+  if (coinciden) {
+    veredictoHtml += '<div style="font-family:\'DM Serif Display\',serif;font-size:1.5rem;color:white;margin-bottom:.4rem">';
+    veredictoHtml += mejorAgro.emoji + ' ' + mejorAgro.nombre + ' — la mejor opción en ambos criterios</div>';
+    veredictoHtml += '<div style="font-size:.84rem;color:rgba(237,224,196,.6);line-height:1.5">Es el cultivo más recomendable agronómicamente Y el más rentable para esta campaña. Condiciones del lote y precios actuales apuntan en la misma dirección.</div>';
+  } else {
+    veredictoHtml += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.75rem;margin-bottom:.8rem">';
+    veredictoHtml += '<div style="background:rgba(42,122,74,.15);border-radius:12px;padding:.9rem;border:1px solid rgba(42,122,74,.3)">';
+    veredictoHtml += '<div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(109,191,130,.6);margin-bottom:.3rem">🌱 Más recomendable agronómicamente</div>';
+    veredictoHtml += '<div style="font-size:1.3rem;font-weight:700;color:white">' + mejorAgro.emoji + ' ' + mejorAgro.nombre + '</div>';
+    veredictoHtml += '<div style="font-size:.75rem;color:rgba(237,224,196,.5);margin-top:.2rem">Score agronómico: ' + mejorAgro.scoreAgro + '/100</div></div>';
+    veredictoHtml += '<div style="background:rgba(200,162,85,.12);border-radius:12px;padding:.9rem;border:1px solid rgba(200,162,85,.25)">';
+    veredictoHtml += '<div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(200,162,85,.6);margin-bottom:.3rem">💰 Más rentable este año</div>';
+    veredictoHtml += '<div style="font-size:1.3rem;font-weight:700;color:white">' + mejorEco.emoji + ' ' + mejorEco.nombre + '</div>';
+    veredictoHtml += '<div style="font-size:.75rem;color:rgba(237,224,196,.5);margin-top:.2rem">Margen: USD ' + mejorEco.margenBruto + '/ha</div></div></div>';
+    veredictoHtml += '<div style="font-size:.82rem;color:rgba(237,224,196,.55);line-height:1.5">El análisis muestra una tensión entre rentabilidad y aptitud agronómica. Considerá el riesgo climático y la sustentabilidad del sistema antes de decidir.</div>';
+  }
+  veredictoHtml += '</div>';
+
+  // ── TABLA COMPARATIVA ──
+  var tablaHtml = '<div style="background:#fff;border-radius:14px;border:1px solid rgba(74,46,26,.12);box-shadow:0 2px 10px rgba(0,0,0,.15);overflow:hidden">';
+  tablaHtml += '<div style="padding:1rem 1.1rem .4rem"><div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--earth);margin-bottom:.4rem">Comparación completa de cultivos</div></div>';
+  tablaHtml += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch"><table style="width:100%;min-width:520px;border-collapse:collapse;font-size:.82rem">';
+  tablaHtml += '<thead><tr style="background:#f3ede0">';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:left;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Cultivo</th>';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(42,122,74,.7)">Score<br>Agronómico</th>';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Rend.<br>estimado</th>';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(200,162,85,.8)">Margen<br>bruto</th>';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Relación<br>ins/prod</th>';
+  tablaHtml += '<th style="padding:.6rem .8rem;text-align:center;font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(74,46,26,.45)">Decisión</th>';
+  tablaHtml += '</tr></thead><tbody>';
+
+  rankAgro.forEach(function(r, i) {
+    var esMejorAgro = i === 0;
+    var esMejorEco  = r.posEco === 1;
+    var bg = i % 2 === 0 ? '#fbf8f1' : '#ffffff';
+    if (esMejorAgro && esMejorEco) bg = '#e0f0e6';
+    else if (esMejorAgro) bg = '#ecf6ef';
+    else if (esMejorEco) bg = '#f7eed4';
+
+    var scoreColor = r.scoreAgro >= 70 ? 'var(--ok)' : r.scoreAgro >= 50 ? 'var(--caution)' : 'var(--warn)';
+    var margenColor = r.margenBruto > 200 ? 'var(--ok)' : r.margenBruto > 0 ? 'var(--caution)' : 'var(--warn)';
+    var medalAgro = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i+1);
+    var medalEco  = r.posEco === 1 ? '💰' : '';
+
+    tablaHtml += '<tr style="background:' + bg + ';border-bottom:1px solid rgba(74,46,26,.06)">';
+    tablaHtml += '<td style="padding:.7rem .8rem"><div style="display:flex;align-items:center;gap:.5rem"><span style="font-size:1.1rem">' + r.emoji + '</span><div><div style="font-weight:600;color:var(--ink)">' + r.nombre + '</div><div style="font-size:.68rem;color:rgba(74,46,26,.4)">Precio ref: USD ' + r.precio + '/t · Ret. ' + r.retencion + '%</div></div></div></td>';
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><div style="font-size:.8rem;margin-bottom:.2rem">' + medalAgro + '</div><div style="font-size:1.1rem;font-weight:700;color:' + scoreColor + '">' + r.scoreAgro + '</div><div style="font-size:.65rem;color:rgba(74,46,26,.4)">/100</div></td>';
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center;font-family:\'DM Mono\',monospace;font-weight:600">' + r.rendEstim.toFixed(1) + '<span style="font-size:.7rem;color:rgba(74,46,26,.4);font-family:inherit"> t/ha</span></td>';
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><div style="font-size:.8rem;margin-bottom:.1rem">' + medalEco + '</div><div style="font-size:1rem;font-weight:700;color:' + margenColor + '">USD ' + r.margenBruto + '</div><div style="font-size:.65rem;color:rgba(74,46,26,.4)">/ha</div></td>';
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center;font-family:\'DM Mono\',monospace">' + r.relInsumoProd + '<span style="font-size:.7rem;color:rgba(74,46,26,.4);font-family:inherit"> qq/' + r.nombre.substring(0,3) + '</span></td>';
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><button onclick="decElegir(\'' + r.nombre + '\')" style="background:linear-gradient(135deg,var(--canopy),var(--leaf));color:white;border:none;border-radius:8px;padding:.4rem .9rem;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Elegir</button></td>';
+    tablaHtml += '</tr>';
+  });
+
+  tablaHtml += '</tbody></table></div></div>'; // cierra overflow-x:auto + card
+
+  // ── NOTA METODOLÓGICA ──
+  var notaHtml = '<div style="margin-top:.8rem;font-size:.72rem;color:#6b5b45;padding:.6rem .9rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.15);border-radius:8px;line-height:1.5">';
+  notaHtml += '📊 Score agronómico: agua disponible (' + Math.round(aguaTotal) + ' mm) · temperatura · ENSO (' + ensoFase + ') · pH y MO del suelo · rotación · ';
+  notaHtml += 'Margen bruto estimado con costos de referencia campaña 2024/25 · Precios base desde módulo Economía · ';
+  notaHtml += 'Rendimiento estimado con función respuesta FAO. Validar con asesor antes de decidir.</div>';
+
+  container.innerHTML = veredictoHtml + tablaHtml + notaHtml;
+  container.classList.remove('hidden');
+  // Ocultar placeholder cuando hay resultado
+  var ph = document.getElementById('dec-placeholder');
+  if (ph) ph.classList.add('hidden');
+  container.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+}
+
+// ── ELEGIR CULTIVO ────────────────────────────────────
+function decElegir(cultivo) {
+  // 1. Actualizar el select maestro (s-cultivo) siempre
+  var selSiembra = document.getElementById('s-cultivo');
+  if (selSiembra) selSiembra.value = cultivo;
+
+  // 2. Propagar vía Store (notifica a todos los subscribers)
+  if (typeof AM !== 'undefined' && AM.store) {
+    AM.store.update({ cultivo: cultivo });
   }
 
-  return recs;
-}
-
-function _recomendacion_Estrategia(ctx) {
-  const recs = [];
-  const { deficitAcum, diasEtCrit, faseENSO, factorENSO, modo, cultivo } = ctx;
-
-  // Campaña con alto déficit en etapas críticas → posible impacto en rendimiento
-  if (diasEtCrit >= 3) {
-    recs.push({
-      categoria : "ESTRATEGIA",
-      codigo    : "ESTRAT_RENDIMIENTO_RIESGO",
-      prioridad : diasEtCrit >= 6 ? "alta" : "media",
-      accion    : "Revisar expectativa de rendimiento y ajustar presupuesto de cosecha",
-      fundamento: `${diasEtCrit} días de estrés hídrico en etapas críticas. ` +
-                  `Déficit acumulado: ${redondear(deficitAcum, 0)} mm.`,
-      valorClave : diasEtCrit,
-      unidad     : "días críticos",
-    });
+  // 3. Sincronizar selects propios de módulos ya cargados
+  //    - Cultivares
+  var selCV = document.getElementById('cv-cultivo');
+  if (selCV) selCV.value = cultivo;
+  //    - Cosecha usa id="cultivo" con valores en minúscula sin acentos
+  var selCos = document.getElementById('cultivo');
+  if (selCos) {
+    selCos.value = cultivo.toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '');
   }
 
-  // ENSO Niña → planificación campaña siguiente
-  if ((faseENSO || "").toLowerCase().includes("niña") && Math.abs(factorENSO || 0) > 0.15) {
-    recs.push({
-      categoria : "ESTRATEGIA",
-      codigo    : "ESTRAT_NINA_SEGUIMIENTO",
-      prioridad : "baja",
-      accion    : "Para próxima campaña: considerar variedades tolerantes a sequía y ajustar fechas de siembra",
-      fundamento: `La Niña activa con impacto ${(factorENSO * 100).toFixed(0)} % en precipitaciones. ` +
-                  "Planificar campaña siguiente con mayor buffer hídrico.",
-      valorClave : factorENSO,
-      unidad     : "factor ENSO",
-    });
+  // 4. Guardar en el lote activo (para que persista entre navegaciones)
+  if (typeof cacheGuardar === 'function') cacheGuardar();
+
+  // Guardar elección
+  var elegido = document.getElementById('dec-cult-elegido');
+  if (elegido) elegido.textContent = cultivo;
+
+  // Feedback visual
+  var btn = document.getElementById('dec-cult-elegido-banner');
+  if (btn) {
+    btn.textContent = '✅ Elegiste ' + DEC_CULTIVOS[cultivo].emoji + ' ' + cultivo + ' — los módulos del motor se actualizaron';
+    btn.classList.remove('hidden');
   }
 
-  // Modo seguimiento con alto déficit → señal de cierre si es fin de ciclo
-  if (modo === "seguimiento" && deficitAcum >= 80) {
-    recs.push({
-      categoria : "ESTRATEGIA",
-      codigo    : "ESTRAT_ANTICIPAR_COSECHA",
-      prioridad : "baja",
-      accion    : "Evaluar adelanto de cosecha si el cultivo está en madurez fisiológica",
-      fundamento: `Déficit acumulado elevado (${redondear(deficitAcum, 0)} mm). ` +
-                  "En madurez fisiológica, la demora puede empeorar calidad de grano.",
-      valorClave : deficitAcum,
-      unidad     : "mm déficit",
-    });
-  }
+  if (typeof amToast === 'function') amToast('✅ ' + cultivo + ' seleccionado — motor actualizado', 'ok');
 
-  return recs;
+  // 5. Forzar refresco en módulos ya cargados
+  if (typeof cvActualizar        === 'function') cvActualizar();
+  if (typeof bhActualizar        === 'function') bhActualizar();
+  if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
+  if (typeof ncActualizar        === 'function') ncActualizar();
 }
 
-/* ──────────────────────── FUNCIÓN PRINCIPAL ──────────────────────────── */
+  // Exponer a window para onclick en HTML
+  window.decAnalizar = decAnalizar;
+  window.decElegir = decElegir;
 
-/**
- * Genera lista de recomendaciones basadas en el estado actual de la campaña.
- *
- * @param {object}  [opciones]
- * @param {object}  [opciones.balanceHidrico]   output de calcularHidrico()
- * @param {object}  [opciones.estadoFenologia]  { etapaActual, cultivo }
- * @param {Array}   [opciones.alertasActivas]   output de evaluarAlertas()
- * @returns {Promise<Array<Recomendacion>>}
- */
-async function generarDecisiones({
-  balanceHidrico   = null,
-  estadoFenologia  = null,
-  alertasActivas   = null,
-} = {}) {
-  // Construir contexto unificado
-  const awcMm      = balanceHidrico?.awcMm      ?? parseFloat(leerLS(LS_IN_AWC, "200")) || 200;
-  const aguaMm     = balanceHidrico?.aguaFinalMm ?? parseFloat(leerLS(LS_IN_AGUA_ACTUAL, "140")) || 0;
-  const deficitAcum= balanceHidrico?.deficitAcum ?? parseFloat(leerLS(LS_IN_DEFICIT_ACUM, "0")) || 0;
-  const diasEstres = balanceHidrico?.diasEstres  ?? parseInt(leerLS(LS_IN_DIAS_ESTRES, "0"), 10) || 0;
-  const diasEtCrit = balanceHidrico?.diasEtCritica ?? parseInt(leerLS(LS_IN_DIAS_ET_CRIT, "0"), 10) || 0;
-  const cultivo    = estadoFenologia?.cultivo    ?? leerLS(LS_IN_CULTIVO, "soja");
-  const etapaActual= estadoFenologia?.etapaActual ?? leerLS(LS_IN_ETAPA_ACTUAL, "");
-  const faseENSO   = leerLS(LS_IN_ENSO_FASE, "neutro");
-  const factorENSO = parseFloat(leerLS(LS_IN_ENSO_FACTOR, "0")) || 0;
-  const modo       = (leerLS(LS_IN_MODO, "planificacion") || "planificacion").toLowerCase();
-
-  const ctx = {
-    awcMm, aguaMm, deficitAcum, diasEstres, diasEtCrit,
-    cultivo, etapaActual, faseENSO, factorENSO, modo,
-  };
-
-  const recs = [
-    ..._recomendacion_Riego(ctx),
-    ..._recomendacion_Fungicida(ctx),
-    ..._recomendacion_Estrategia(ctx),
-  ];
-
-  // Ordenar: alta → media → baja
-  const orden = { alta: 0, media: 1, baja: 2 };
-  recs.sort((a, b) => (orden[a.prioridad] ?? 3) - (orden[b.prioridad] ?? 3));
-
-  const ts    = new Date().toISOString();
-  const final = recs.map((r) => ({ ...r, ts }));
-
-  guardarLS(LS_KEY_DECISIONES, JSON.stringify(final));
-  guardarLS(LS_KEY_TS,         ts);
-
-  return final;
-}
-
-/* ──────────────────────── LECTURA ────────────────────────────────────── */
-function leerDecisiones() {
-  try {
-    const raw = leerLS(LS_KEY_DECISIONES, "[]");
-    return JSON.parse(raw);
-  } catch { return []; }
-}
-
-function limpiarDecisiones() {
-  try {
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(LS_KEY_DECISIONES);
-      localStorage.removeItem(LS_KEY_TS);
-    }
-  } catch { /* noop */ }
-}
-
-/* ──────────────────────── RENDERIZADO HTML ───────────────────────────── */
-
-const ICONO_CAT = {
-  RIEGO     : "💧",
-  FUNGICIDA : "🍃",
-  ESTRATEGIA: "🎯",
-};
-
-const COLOR_PRIO = {
-  alta  : "border-red-400 bg-red-50",
-  media : "border-yellow-400 bg-yellow-50",
-  baja  : "border-gray-300 bg-gray-50",
-};
-
-const BADGE_PRIO = {
-  alta  : "bg-red-100 text-red-700",
-  media : "bg-yellow-100 text-yellow-700",
-  baja  : "bg-gray-100 text-gray-600",
-};
-
-function renderizarDecisiones(decisiones, contenedorId = "decision-resultado") {
-  const el = document.getElementById(contenedorId);
-  if (!el) return;
-
-  if (!decisiones || decisiones.length === 0) {
-    el.innerHTML = `
-      <div class="flex items-center gap-2 text-green-700 bg-green-50 border border-green-300 rounded-lg p-4">
-        <span class="text-xl">✅</span>
-        <span class="font-medium">Sin recomendaciones de acción inmediata.</span>
-      </div>`;
-    return;
-  }
-
-  const items = decisiones.map((r) => `
-    <div class="border-l-4 ${COLOR_PRIO[r.prioridad]} rounded-lg p-3 flex gap-3">
-      <div class="text-2xl leading-none">${ICONO_CAT[r.categoria] || "📋"}</div>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center gap-2 mb-1 flex-wrap">
-          <span class="text-xs font-bold uppercase tracking-wide text-gray-500">${r.categoria}</span>
-          <span class="text-xs px-2 py-0.5 rounded-full font-medium ${BADGE_PRIO[r.prioridad]}">${r.prioridad}</span>
-        </div>
-        <div class="text-sm font-semibold text-gray-800 mb-1">${r.accion}</div>
-        <div class="text-xs text-gray-600">${r.fundamento}</div>
-      </div>
-    </div>`).join("");
-
-  const ts = decisiones[0]?.ts
-    ? `<div class="text-xs text-gray-400 text-right mt-2">Generado: ${new Date(decisiones[0].ts).toLocaleString("es-AR")}</div>`
-    : "";
-
-  el.innerHTML = `<div class="space-y-2">${items}${ts}</div>`;
-}
-
-/* ──────────────────────── EXPORTS ────────────────────────────────────── */
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    generarDecisiones,
-    leerDecisiones,
-    limpiarDecisiones,
-    renderizarDecisiones,
-    _recomendacion_Riego,
-    _recomendacion_Fungicida,
-    _recomendacion_Estrategia,
-  };
-}
-
-if (typeof window !== "undefined") {
-  window.Decision = {
-    generarDecisiones,
-    leerDecisiones,
-    limpiarDecisiones,
-    renderizarDecisiones,
-  };
-}
+})();
