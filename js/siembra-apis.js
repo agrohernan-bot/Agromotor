@@ -15,7 +15,7 @@ async function buscarNASAPower(lat, lon, mes) {
     'PRECTOTCORR',        // Precipitación (mm/día)
     'RH2M',               // Humedad relativa 2m (%)
     'WS2M',               // Velocidad viento 2m (m/s)
-    'ET0',                // ET₀ de referencia (mm/día)
+    'EVPTRNS',            // Evapotranspiración de referencia (mm/día) — reemplaza ET0
     'ALLSKY_SFC_LW_DWN',  // Radiación onda larga (W/m²)
   ].join(',');
 
@@ -35,7 +35,9 @@ async function buscarNASAPower(lat, lon, mes) {
 
 function renderNASAPower(props, mes, lat, lon) {
   // mes: 1-12
-  const mIdx = String(mes).padStart(2, '0'); // "01" a "12"
+  // NASA POWER usa claves 'JAN'-'DEC' (no '01'-'12')
+  const _nasaClavesMes = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const mIdx = _nasaClavesMes[mes - 1]; // mes 1-12 → 'JAN'-'DEC'
   const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
   const get = (key) => props[key]?.[mIdx] ?? null;
@@ -47,7 +49,7 @@ function renderNASAPower(props, mes, lat, lon) {
   const precD  = get('PRECTOTCORR');        // mm/día → * 30 para mensual
   const rh     = get('RH2M');
   const ws     = get('WS2M');
-  const et0    = get('ET0');
+  const et0    = get('EVPTRNS');
   const precM  = precD != null ? precD * 30 : null;    // mm/mes aprox
   const et0M   = et0  != null ? et0  * 30 : null;      // mm/mes aprox
   const balHid = (precM != null && et0M != null) ? precM - et0M : null;
@@ -69,7 +71,7 @@ function renderNASAPower(props, mes, lat, lon) {
 
   // Tabla mensual completa — los 12 meses + anual
   const mesesNombres = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic','Anual'];
-  const claves = ['01','02','03','04','05','06','07','08','09','10','11','12','ANN'];
+  const claves = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC','ANN'];
 
   // Balance hídrico mensual para gráfico de barras
   const filaHeader = `
@@ -94,7 +96,7 @@ function renderNASAPower(props, mes, lat, lon) {
     const tx  = props['T2M_MAX']?.[k];
     const tn  = props['T2M_MIN']?.[k];
     const pd  = props['PRECTOTCORR']?.[k];
-    const e   = props['ET0']?.[k];
+    const e   = props['EVPTRNS']?.[k];
     const h   = props['RH2M']?.[k];
     const pm  = pd != null ? (esAnual ? pd * 365 : pd * 30) : null;
     const em  = e  != null ? (esAnual ? e  * 365 : e  * 30) : null;
@@ -124,7 +126,7 @@ function renderNASAPower(props, mes, lat, lon) {
   // Mini gráfico de barras del balance hídrico (ASCII visual con CSS)
   const balMeses = claves.slice(0,12).map(k => {
     const pd = props['PRECTOTCORR']?.[k];
-    const e  = props['ET0']?.[k];
+    const e  = props['EVPTRNS']?.[k];
     if (pd == null || e == null) return null;
     return (pd - e) * 30;
   });
@@ -165,17 +167,17 @@ function renderNASAPower(props, mes, lat, lon) {
     if (balMesVal > 30) {
       interp = `<div class="alert ok" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente superavitario</strong>
-        En ${mesesNombres[parseInt(mIdx)-1]}, este lote recibe históricamente más lluvia (${precMesVal.toFixed(0)} mm) que lo que pierde por ET₀ (${et0MesVal.toFixed(0)} mm). Balance promedio: +${balMesVal.toFixed(0)} mm. Condición típicamente favorable para establecimiento del cultivo.
+        En ${meses[mes]}, este lote recibe históricamente más lluvia (${precMesVal.toFixed(0)} mm) que lo que pierde por ET₀ (${et0MesVal.toFixed(0)} mm). Balance promedio: +${balMesVal.toFixed(0)} mm. Condición típicamente favorable para establecimiento del cultivo.
       </div></div>`;
     } else if (balMesVal < -30) {
       interp = `<div class="alert danger" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente deficitario</strong>
-        En ${mesesNombres[parseInt(mIdx)-1]}, la demanda hídrica (ET₀: ${et0MesVal.toFixed(0)} mm) supera históricamente a la lluvia (${precMesVal.toFixed(0)} mm). Déficit promedio: ${balMesVal.toFixed(0)} mm. El establecimiento depende fuertemente de la reserva de agua en el perfil.
+        En ${meses[mes]}, la demanda hídrica (ET₀: ${et0MesVal.toFixed(0)} mm) supera históricamente a la lluvia (${precMesVal.toFixed(0)} mm). Déficit promedio: ${balMesVal.toFixed(0)} mm. El establecimiento depende fuertemente de la reserva de agua en el perfil.
       </div></div>`;
     } else {
       interp = `<div class="alert warn" style="margin-top:.8rem"><span class="ai">📊</span><div class="ac">
         <strong>Mes históricamente en equilibrio hídrico</strong>
-        Balance promedio en ${mesesNombres[parseInt(mIdx)-1]}: ${balMesVal>=0?'+':''}${balMesVal.toFixed(0)} mm. Las condiciones del lote en esta época son variables — el pronóstico de corto plazo (Open-Meteo) tiene mayor peso para la decisión de siembra que el histórico.
+        Balance promedio en ${meses[mes]}: ${balMesVal>=0?'+':''}${balMesVal.toFixed(0)} mm. Las condiciones del lote en esta época son variables — el pronóstico de corto plazo (Open-Meteo) tiene mayor peso para la decisión de siembra que el histórico.
       </div></div>`;
     }
   }
@@ -929,7 +931,7 @@ function sueloFusionar() {
   if (sg.zn != null) sd.zn = { valor: sg.zn, fuente: pkzId || 'soilgrids' };
 
   // Override campo a campo con datos de laboratorio (máxima prioridad)
-  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da, zn: lab.zn, ce: lab.ce };
+  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da };
   Object.keys(labCampos).forEach(function(k) {
     const v = labCampos[k];
     if (v != null && v !== '' && !isNaN(parseFloat(v))) {
@@ -991,7 +993,7 @@ function sueloRenderResumenLab() {
 // Rellena los inputs del panel lab con _labDatos guardados
 function sueloRestaurarLabInputs() {
   const lab = window._labDatos || {};
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
     if (el && lab[k] != null) el.value = lab[k];
@@ -1025,7 +1027,7 @@ window.sueloLabAutoguardar = function() {
 
 // Aplica el análisis de laboratorio
 window.sueloAplicarLab = function(silencioso) {
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
   const labData = {};
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
@@ -1055,7 +1057,7 @@ window.sueloAplicarLab = function(silencioso) {
 window.sueloLimpiarLab = function() {
   window._labDatos = {};
   sueloFusionar();
-  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da','lab-zn','lab-ce'].forEach(function(id) {
+  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -1064,168 +1066,6 @@ window.sueloLimpiarLab = function() {
   if (badge)   badge.style.display = 'none';
   if (resumen) { resumen.style.display = 'none'; document.getElementById('lab-resumen-content').innerHTML = ''; }
   if (typeof cacheGuardar === 'function') cacheGuardar();
-};
-
-// ── ANÁLISIS POR PDF / FOTO ──────────────────────────────
-
-// Tab switcher del panel lab
-window.sueloLabTab = function(tab) {
-  ['manual','pdf','foto'].forEach(function(t) {
-    var btn  = document.getElementById('lab-tab-' + t);
-    var sect = document.getElementById('lab-sect-' + t);
-    var activo = t === tab;
-    if (btn) {
-      btn.style.background  = activo ? '#2D5A30' : 'transparent';
-      btn.style.color       = activo ? '#fff' : 'rgba(74,46,26,.65)';
-      btn.style.fontWeight  = activo ? '700' : '500';
-    }
-    if (sect) sect.style.display = activo ? '' : 'none';
-  });
-};
-
-// Muestra el nombre del archivo seleccionado
-window.sueloLabArchivoSeleccionado = function(tipo) {
-  var input  = document.getElementById('lab-' + tipo + '-input');
-  var label  = document.getElementById('lab-' + tipo + '-nombre');
-  var status = document.getElementById('lab-' + tipo + '-status');
-  if (!input || !input.files[0]) return;
-  if (label)  label.textContent = input.files[0].name;
-  if (status) status.style.display = 'none';
-};
-
-// Convierte un File a base64 puro (sin prefijo data:)
-function sueloLabArchivoABase64(file) {
-  return new Promise(function(resolve, reject) {
-    var reader = new FileReader();
-    reader.onload  = function(e) { resolve(e.target.result.split(',')[1]); };
-    reader.onerror = function()  { reject(new Error('Error leyendo el archivo')); };
-    reader.readAsDataURL(file);
-  });
-}
-
-// Llamada compartida al proxy de Claude
-async function sueloLabLlamarIA(blocks) {
-  var sesionData = await AM_SB.auth.getSession();
-  var session    = sesionData.data && sesionData.data.session;
-  if (!session) throw new Error('Sesión no activa. Iniciá sesión primero.');
-
-  var prompt = 'Analizá este análisis de suelo agrícola y extraé los valores nutricionales. '
-    + 'Respondé ÚNICAMENTE con un objeto JSON sin texto adicional ni backticks:\n'
-    + '{"ph":<número o null>,"mo":<MO % o null>,"n":<N total g/kg o null>,'
-    + '"p":<P disponible ppm Bray/Olsen o null>,"k":<K intercambiable ppm o null>,'
-    + '"cec":<CEC cmol/kg o null>,"da":<densidad aparente g/cm³ o null>,'
-    + '"zn":<Zn disponible DTPA ppm o null>,"ce":<conductividad eléctrica dS/m o null>}\n'
-    + 'Si K viene en meq/100g, multiplicar por 391 para convertir a ppm. '
-    + 'Si algún valor no está presente o no es claro, poner null.';
-
-  var resp = await fetch(AM_CONFIG.claudeProxy, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + session.access_token
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: blocks.concat([{ type:'text', text: prompt }]) }]
-    })
-  });
-
-  if (resp.status === 401 || resp.status === 403) {
-    var err = await resp.json().catch(function() { return {}; });
-    throw new Error(err.error || 'Sin acceso — verificá tu plan.');
-  }
-  if (resp.status === 429) {
-    var err2 = await resp.json().catch(function() { return {}; });
-    throw new Error(err2.error || 'Límite de uso alcanzado. Intentá más tarde.');
-  }
-  if (!resp.ok) throw new Error('Error ' + resp.status + ' del servidor.');
-
-  var data   = await resp.json();
-  var texto  = (data.content && data.content[0] && data.content[0].text) || '';
-  var clean  = texto.replace(/```json|```/g, '').trim();
-  return JSON.parse(clean);
-}
-
-// Rellena los inputs del form manual y aplica
-function sueloLabRellenarCampos(extraido) {
-  var map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k',
-              cec:'lab-cec', da:'lab-da', zn:'lab-zn', ce:'lab-ce' };
-  var detectados = [], noDetect = [];
-  Object.keys(map).forEach(function(k) {
-    var el = document.getElementById(map[k]);
-    if (!el) return;
-    if (extraido[k] != null) { el.value = extraido[k]; detectados.push(k); }
-    else noDetect.push(k);
-  });
-  sueloAplicarLab(true);
-  return { detectados: detectados, noDetect: noDetect };
-}
-
-// Construye el mensaje de resultado de la extracción
-function sueloLabMsgResultado(detectados, noDetect) {
-  var msg = '✅ ' + detectados.length + ' valor' + (detectados.length !== 1 ? 'es' : '') + ' extraído' + (detectados.length !== 1 ? 's' : '');
-  if (detectados.length > 0) msg += ' (' + detectados.join(', ') + ')';
-  if (noDetect.filter(function(k) { return ['p','k','ph','mo'].indexOf(k) >= 0; }).length > 0) {
-    msg += '. No detectados: ' + noDetect.filter(function(k) { return ['p','k','ph','mo','n','cec','zn','ce'].indexOf(k) >= 0; }).join(', ');
-  }
-  msg += '. Revisá y editá los campos antes de confirmar.';
-  return msg;
-}
-
-// Procesar PDF
-window.sueloLabProcesarPDF = async function() {
-  var input  = document.getElementById('lab-pdf-input');
-  var file   = input && input.files[0];
-  if (!file) { alert('Seleccioná un archivo PDF primero.'); return; }
-
-  var btn    = document.getElementById('lab-pdf-btn');
-  var status = document.getElementById('lab-pdf-status');
-  if (btn)    { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
-  if (status) { status.style.color = 'rgba(74,46,26,.6)'; status.textContent = '🤖 Claude analizando el PDF...'; status.style.display = ''; }
-
-  try {
-    var b64    = await sueloLabArchivoABase64(file);
-    var blocks = [{ type:'document', source:{ type:'base64', media_type:'application/pdf', data:b64 } }];
-    var extraido = await sueloLabLlamarIA(blocks);
-    var resultado = sueloLabRellenarCampos(extraido);
-    sueloLabTab('manual');
-    if (status) {
-      status.style.color = '#1b5e35';
-      status.textContent = sueloLabMsgResultado(resultado.detectados, resultado.noDetect);
-    }
-  } catch(err) {
-    if (status) { status.style.color = '#C0392B'; status.textContent = '❌ ' + err.message; }
-  }
-  if (btn) { btn.disabled = false; btn.textContent = '🔍 Procesar PDF'; }
-};
-
-// Procesar foto
-window.sueloLabProcesarFoto = async function() {
-  var input  = document.getElementById('lab-foto-input');
-  var file   = input && input.files[0];
-  if (!file) { alert('Seleccioná o tomá una foto primero.'); return; }
-
-  var btn    = document.getElementById('lab-foto-btn');
-  var status = document.getElementById('lab-foto-status');
-  if (btn)    { btn.disabled = true; btn.textContent = '⏳ Procesando...'; }
-  if (status) { status.style.color = 'rgba(74,46,26,.6)'; status.textContent = '🤖 Claude analizando la imagen...'; status.style.display = ''; }
-
-  try {
-    var b64    = await sueloLabArchivoABase64(file);
-    var mime   = file.type || 'image/jpeg';
-    var blocks = [{ type:'image', source:{ type:'base64', media_type:mime, data:b64 } }];
-    var extraido = await sueloLabLlamarIA(blocks);
-    var resultado = sueloLabRellenarCampos(extraido);
-    sueloLabTab('manual');
-    if (status) {
-      status.style.color = '#1b5e35';
-      status.textContent = sueloLabMsgResultado(resultado.detectados, resultado.noDetect);
-    }
-  } catch(err) {
-    if (status) { status.style.color = '#C0392B'; status.textContent = '❌ ' + err.message; }
-  }
-  if (btn) { btn.disabled = false; btn.textContent = '📷 Procesar imagen'; }
 };
 
 // Exposición interna
