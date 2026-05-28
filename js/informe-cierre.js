@@ -244,10 +244,13 @@ async function cerrarCampana({
         || (typeof require !== "undefined" ? require("./barbecho.js") : null);
       if (Barbecho && typeof Barbecho.iniciarBarbechoPostCosecha === "function") {
         Barbecho.iniciarBarbechoPostCosecha({
-          fechaCosecha: est.fechaCosecha,
-          cultivo      : est.cultivo,
-          aguaActualMm : est.aguaFinalMm,
-          awcMm        : est.awcMm,
+          fechaIni  : est.fechaCosecha,   // fecha cosecha = inicio del barbecho
+          aguaIniMm : est.aguaFinalMm,    // agua al cosechar
+          lat       : est.lat,
+          lon       : est.lon,
+          awcMm     : est.awcMm,
+          cultivo   : est.cultivo,
+          campanaId : est.campanaId,
         });
       }
     } catch (err) {

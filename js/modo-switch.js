@@ -178,18 +178,20 @@ function getLogCambios() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Emite "am:modo-cambio" en window para que componentes UI puedan escuchar.
+ * Emite "am:modo-cambio" y "am:modo-changed" en window.
  * @param {Modo}   anterior
  * @param {Modo}   nuevo
  * @param {Object} meta
  */
 function _emitirEvento(anterior, nuevo, meta) {
   try {
-    const evento = new CustomEvent(EVENTO_CAMBIO, {
-      detail: { anterior, nuevo, meta },
+    const detail = { anterior, nuevo, meta };
+    window.dispatchEvent(new CustomEvent(EVENTO_CAMBIO, { detail, bubbles: true }));
+    // Alias solicitado por la UI (nombre en inglés, detail simplificado)
+    window.dispatchEvent(new CustomEvent("am:modo-changed", {
+      detail: { modo: nuevo, anterior, meta },
       bubbles: true,
-    });
-    window.dispatchEvent(evento);
+    }));
   } catch (_) { /* Node o contexto sin window */ }
 }
 
@@ -286,6 +288,36 @@ function getEstado() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// API SIMPLIFICADA — alias y wrappers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Inicializa el badge y el listener de cambios. Llamar una vez al cargar. */
+function modoSwitchInit() {
+  inicializarBadge();
+}
+
+/** Alterna entre planificación y seguimiento. Alias de toggleModo(). */
+function modoSwitch(meta) {
+  return toggleModo(meta);
+}
+
+/** Devuelve el modo activo. Alias de getModo(). */
+function modoActual() {
+  return getModo();
+}
+
+/**
+ * Cambia el modo y actualiza la UI inmediatamente.
+ * Emite "am:modo-changed" con { modo, anterior } vía setModo → _emitirEvento.
+ * @param {Modo}   modo
+ * @param {Object} [meta]
+ */
+function modoSetUI(modo, meta) {
+  setModo(modo, meta);
+  renderizarBadge();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -311,6 +343,11 @@ if (typeof module !== "undefined" && module.exports) {
     sincronizarModulosLegacy,
     // Debug
     getEstado,
+    // API simplificada
+    modoSwitchInit,
+    modoSwitch,
+    modoActual,
+    modoSetUI,
     // Constantes expuestas
     MODOS_VALIDOS,
     EVENTO_CAMBIO,
@@ -330,5 +367,10 @@ if (typeof module !== "undefined" && module.exports) {
     onModoCambio,
     sincronizarModulosLegacy,
     getEstado,
+    // API simplificada
+    modoSwitchInit,
+    modoSwitch,
+    modoActual,
+    modoSetUI,
   };
 }

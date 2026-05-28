@@ -192,6 +192,10 @@ async function crearCampana(datos) {
     barbecho_fin:         null,
     barbecho_agua_mm:     null,
     estado:               "planificado",
+    // Campos de encadenamiento (heredables de campaña anterior)
+    cultivo_anterior:     null,
+    suelo_textura:        null,
+    agua_perfil_cierre:   null,
     // Sobreescribir con datos provistos
     ...datos,
     // Campos de sistema (no sobreescribibles por el llamador)
@@ -606,6 +610,91 @@ async function importarCampanas(json) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// API SIMPLIFICADA — alias y wrappers con nombres más cortos
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Inicializa la base de datos IndexedDB (llama en background al cargar). */
+async function campanasInit() {
+  try { await abrirDB(); } catch (_) {}
+}
+
+/**
+ * Campaña activa del lote: primero busca por sesión, luego por estado "activo".
+ * @param {string} loteId
+ * @returns {Promise<Campana|null>}
+ */
+async function campanaActual(loteId) {
+  const idSesion = (() => { try { return localStorage.getItem(LS_ACTIVA); } catch (_) { return null; } })();
+  if (idSesion) {
+    const c = await obtenerCampana(idSesion);
+    if (c && c.lote_id === loteId) return c;
+  }
+  const activas = await listarCampanas({ lote_id: loteId, estado: "activo" });
+  return activas[0] ?? null;
+}
+
+/**
+ * Crea una nueva campaña para el lote, heredando datos de la campaña anterior.
+ * @param {string}           loteId
+ * @param {Partial<Campana>} datos
+ * @returns {Promise<Campana>}
+ */
+async function campanaNueva(loteId, datos) {
+  const anterior = await campanaActual(loteId);
+  const base = {
+    lote_id: loteId,
+    modo:    "planificacion",
+    estado:  "planificado",
+    ...datos,
+  };
+  if (anterior) {
+    if (!base.campana_anterior_id) base.campana_anterior_id = anterior.id;
+    if (!base.cultivo_anterior)    base.cultivo_anterior    = anterior.cultivo;
+    if (!base.suelo_textura && anterior.suelo_textura)
+      base.suelo_textura = anterior.suelo_textura;
+  }
+  return crearCampana(base);
+}
+
+/** Alias corto de activarCampana(). */
+async function campanaActivar(id) {
+  return activarCampana(id);
+}
+
+/**
+ * Cierra la campaña con resultados finales: rendimiento, agua de perfil, fecha.
+ * @param {string} id
+ * @param {{ rendimiento_real?: number, agua_perfil_cierre?: number, fecha_cosecha?: string }} resultados
+ * @returns {Promise<Campana>}
+ */
+async function campanaCerrar(id, resultados = {}) {
+  const cambios = { estado: "cosechado" };
+  if (resultados.fecha_cosecha)
+    cambios.fecha_cosecha_real  = resultados.fecha_cosecha;
+  if (typeof resultados.rendimiento_real === "number")
+    cambios.rendimiento_real    = +resultados.rendimiento_real.toFixed(2);
+  if (typeof resultados.agua_perfil_cierre === "number")
+    cambios.agua_perfil_cierre  = resultados.agua_perfil_cierre;
+  return actualizarCampana(id, cambios);
+}
+
+/** Lista campañas del lote de más reciente a más antigua. */
+function campanaListar(loteId) {
+  return listarCampanas({ lote_id: loteId });
+}
+
+/**
+ * Campaña anterior encadenada a la dada (por campana_anterior_id).
+ * @param {string} id
+ * @returns {Promise<Campana|null>}
+ */
+async function campanaAnterior(id) {
+  const c = await obtenerCampana(id);
+  if (!c?.campana_anterior_id) return null;
+  return obtenerCampana(c.campana_anterior_id);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -635,6 +724,14 @@ if (typeof module !== "undefined" && module.exports) {
     // Backup
     exportarCampanas,
     importarCampanas,
+    // API simplificada
+    campanasInit,
+    campanaNueva,
+    campanaActivar,
+    campanaCerrar,
+    campanaListar,
+    campanaActual,
+    campanaAnterior,
     // Internals expuestos para tests
     _uuidv4:    uuidv4,
     _validar:   validar,
@@ -642,6 +739,7 @@ if (typeof module !== "undefined" && module.exports) {
   };
 } else if (typeof window !== "undefined") {
   window.Campanas = {
+    // CRUD completo
     crearCampana,
     obtenerCampana,
     listarCampanas,
@@ -659,5 +757,13 @@ if (typeof module !== "undefined" && module.exports) {
     getAguaInicioCampanaActiva,
     exportarCampanas,
     importarCampanas,
+    // API simplificada
+    campanasInit,
+    campanaNueva,
+    campanaActivar,
+    campanaCerrar,
+    campanaListar,
+    campanaActual,
+    campanaAnterior,
   };
 }
