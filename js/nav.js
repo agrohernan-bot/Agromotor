@@ -204,6 +204,17 @@ function _activarModulo(mod) {
     var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
     if (h1 > 0 && document.getElementById('bh-agua-perfil'))
       document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));
+    // Si no hay datos de suelo, usar agua calculada por fenología si está disponible
+    if (h1 <= 0) {
+      var fenAgua = localStorage.getItem('am_fen_agua_perfil');
+      if (fenAgua && document.getElementById('bh-agua-perfil'))
+        document.getElementById('bh-agua-perfil').value = fenAgua;
+    }
+    // Precargar precipitación histórica base desde fenología (NASA, sin ajuste ENSO)
+    // hidrico.js aplica su propio factor ENSO sobre bh-precip-hist → bh-precip
+    var fenPrecipNasa = localStorage.getItem('am_fen_precip_nasa');
+    if (fenPrecipNasa && document.getElementById('bh-precip-hist'))
+      document.getElementById('bh-precip-hist').value = fenPrecipNasa;
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
@@ -461,4 +472,3 @@ function renderSueloModulo(d) {
   window.renderSueloModulo = renderSueloModulo;
 
 })();
-                                                            

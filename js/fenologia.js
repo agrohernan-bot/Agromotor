@@ -657,6 +657,99 @@ function _construirResumenEtapas(etapasDef, gddAcum, kcs, fechas, etapaIdsPorDia
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HUMEDAD DE SUELO — Open-Meteo (modo Seguimiento)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Descarga datos de humedad de suelo de Open-Meteo (ERA5 / forecast).
+ * Agrega los datos horarios en medias diarias.
+ *
+ * @param {number} lat
+ * @param {number} lon
+ * @param {Date}   fechaInicio
+ * @param {Date}   fechaFin
+ * @returns {Promise<{ fecha:string, sm_0_7:number|null, sm_7_28:number|null, sm_28_100:number|null }[]>}
+ */
+async function omHumedadSuelo(lat, lon, fechaInicio, fechaFin) {
+  const hoy        = new Date();
+  const limiteArch = _addDays(hoy, -OPENMETEO_ARCHIVE_LAG_DIAS);
+  const baseUrl    = fechaFin < limiteArch ? OPENMETEO_ARCHIVE_BASE : OPENMETEO_FORECAST_BASE;
+
+  const params = new URLSearchParams({
+    latitude:   String(lat),
+    longitude:  String(lon),
+    hourly:     "soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm",
+    timezone:   "America/Argentina/Buenos_Aires",
+    start_date: _formatISO(fechaInicio),
+    end_date:   _formatISO(fechaFin),
+  });
+
+  const resp = await fetch(`${baseUrl}?${params}`, { signal: AbortSignal.timeout(20000) });
+  if (!resp.ok) throw new Error(`OpenMeteo humedad suelo HTTP ${resp.status}`);
+
+  const json  = await resp.json();
+  const times = json.hourly?.time ?? [];
+  const sm0   = json.hourly?.soil_moisture_0_to_7cm    ?? [];
+  const sm1   = json.hourly?.soil_moisture_7_to_28cm   ?? [];
+  const sm2   = json.hourly?.soil_moisture_28_to_100cm ?? [];
+
+  // Agregar horas → medias diarias
+  const diarios = Object.create(null);
+  for (let i = 0; i < times.length; i++) {
+    const fecha = times[i].slice(0, 10);
+    if (!diarios[fecha]) diarios[fecha] = { sm0: [], sm1: [], sm2: [] };
+    if (sm0[i] != null) diarios[fecha].sm0.push(sm0[i]);
+    if (sm1[i] != null) diarios[fecha].sm1.push(sm1[i]);
+    if (sm2[i] != null) diarios[fecha].sm2.push(sm2[i]);
+  }
+
+  const _media = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+  return Object.entries(diarios)
+    .map(([fecha, v]) => ({
+      fecha,
+      sm_0_7:    _media(v.sm0),
+      sm_7_28:   _media(v.sm1),
+      sm_28_100: _media(v.sm2),
+    }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
+}
+
+/**
+ * Convierte humedad volumétrica Open-Meteo (m³/m³) a mm de agua aprovechable.
+ * Usa CC y PMP estimados por textura (Saxton & Rawls referencia INTA).
+ *
+ * @param {number} smM3M3        Humedad volumétrica (m³/m³)
+ * @param {number} profundidadCm Profundidad de la capa (cm)
+ * @param {string} [textura]     Textura del suelo ("franco", "arcillosa", etc.)
+ * @returns {number}             mm de agua aprovechable en esa capa
+ */
+function omSmAAgua(smM3M3, profundidadCm, textura) {
+  const TEX = {
+    "arenosa":           { cc: 0.18, pmp: 0.06 },
+    "franco-arenosa":    { cc: 0.24, pmp: 0.10 },
+    "franca":            { cc: 0.35, pmp: 0.14 },
+    "franco":            { cc: 0.35, pmp: 0.14 },
+    "franco-limosa":     { cc: 0.38, pmp: 0.16 },
+    "limosa":            { cc: 0.42, pmp: 0.18 },
+    "franco-arcillosa":  { cc: 0.40, pmp: 0.20 },
+    "arcillo-limosa":    { cc: 0.44, pmp: 0.23 },
+    "arcillosa":         { cc: 0.45, pmp: 0.22 },
+    "molisol":           { cc: 0.37, pmp: 0.16 },
+    "vertisol":          { cc: 0.43, pmp: 0.21 },
+  };
+
+  const key = (textura || "franca")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/\s+/g, "-");
+  const t = TEX[key] || TEX["franca"];
+
+  const smDisp = Math.max(0, Math.min(t.cc, smM3M3) - t.pmp);
+  return Math.max(0, smDisp * profundidadCm * 10);  // mm
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // PERSISTENCIA EN localStorage
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -668,6 +761,7 @@ const LS_KEY_FEN_GDD_ACUM = "am_fen_gdd_acum";
 /**
  * Persiste el resultado de fenología en localStorage para que hidrico.js
  * y otros módulos accedan al Kc actual sin recomputar.
+ * También sincroniza el DOM del módulo hídrico si está en la página.
  * @private
  */
 function _persistirResultado(res) {
@@ -696,6 +790,58 @@ function _persistirResultado(res) {
       localStorage.setItem(LS_KEY_FEN_KC_HOY,    String(res.kcPorDia[idxHoy]));
       localStorage.setItem(LS_KEY_FEN_ETAPA_HOY, res.etapaPorDia[idxHoy]);
       localStorage.setItem(LS_KEY_FEN_GDD_ACUM,  String(res.gddAcumPorDia[idxHoy]));
+    }
+
+    // ── Totales del ciclo para módulo hídrico ─────────────────────────────
+    const precipTotal = res.lluviaPorDia.reduce((a, b) => a + b, 0);
+    // Precipitación base NASA sin ajuste ENSO → va a bh-precip-hist
+    // (hidrico.js aplica su propio factor ENSO sobre este valor base)
+    const precipNasa = (res.modo === "planificacion" && res.factorENSO && res.factorENSO !== 1)
+      ? precipTotal / res.factorENSO
+      : precipTotal;
+
+    // ETc total — Hargreaves-Samani simplificado (Ra promedio pampa ≈ 25 MJ/m²/día)
+    let etcTotal = 0;
+    for (let i = 0; i < res.kcPorDia.length; i++) {
+      const tmax  = res.tmaxPorDia[i] ?? 25;
+      const tmin  = res.tminPorDia[i] ?? 15;
+      const tmean = (tmax + tmin) / 2;
+      const dt    = Math.max(0, tmax - tmin);
+      const et0   = Math.max(0, 0.0023 * (tmean + 17.8) * Math.sqrt(dt) * 25 * 0.408);
+      etcTotal   += res.kcPorDia[i] * et0;
+    }
+
+    localStorage.setItem("am_fen_etc_total",    String(Math.round(etcTotal)));
+    localStorage.setItem("am_fen_precip_total", String(Math.round(precipTotal)));
+    localStorage.setItem("am_fen_precip_nasa",  String(Math.round(precipNasa)));
+
+    // ── Sincronizar DOM del módulo hídrico si está activo en la página ────
+    if (typeof document !== "undefined") {
+      const elPrecipHist = document.getElementById("bh-precip-hist");
+      if (elPrecipHist) elPrecipHist.value = Math.round(precipNasa);
+
+      // Agua en perfil: usar barbecho si ya lo calculó; si no, calcular de s-h1/h2/h3
+      const yaHayBarbecho = localStorage.getItem("am_fen_agua_perfil_fuente") === "barbecho_planificacion";
+      if (!yaHayBarbecho) {
+        const h1v = parseFloat((document.getElementById("s-h1") || {}).value) || 0;
+        const h2v = parseFloat((document.getElementById("s-h2") || {}).value) || 0;
+        const h3v = parseFloat((document.getElementById("s-h3") || {}).value) || 0;
+        if (h1v > 0) {
+          const aguaPerfil = Math.max(20, Math.min(350,
+            Math.round((h1v * 0.06 + h2v * 0.18 + h3v * 0.54) * 10 * 2)
+          ));
+          localStorage.setItem("am_fen_agua_perfil", String(aguaPerfil));
+          const elAgua = document.getElementById("bh-agua-perfil");
+          if (elAgua) elAgua.value = aguaPerfil;
+        }
+      } else {
+        // Barbecho ya calculó el agua; solo sincronizar al DOM si bh-agua-perfil está vacío
+        const elAgua = document.getElementById("bh-agua-perfil");
+        const aguaBarbecho = localStorage.getItem("am_fen_agua_perfil");
+        if (elAgua && aguaBarbecho && !parseFloat(elAgua.value)) elAgua.value = aguaBarbecho;
+      }
+
+      if (typeof bhActualizar === "function") bhActualizar();
     }
   } catch (_) { /* Silencioso: contexto sin localStorage (Node/tests) */ }
 }
@@ -832,6 +978,9 @@ if (typeof module !== "undefined" && module.exports) {
     // Catálogo
     getCultivosDisponibles,
     getEtapasCultivo,
+    // Humedad de suelo (modo Seguimiento)
+    omHumedadSuelo,
+    omSmAAgua,
     // Bajo nivel (util para tests)
     calcularGDD,
     kcParaGDD,
@@ -851,6 +1000,8 @@ if (typeof module !== "undefined" && module.exports) {
     getKcParaFecha,
     getCultivosDisponibles,
     getEtapasCultivo,
+    omHumedadSuelo,
+    omSmAAgua,
     calcularGDD,
     kcParaGDD,
     etapaParaGDD,
