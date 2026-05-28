@@ -30,10 +30,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=49">
-  <link rel="stylesheet" href="css/cosecha.css?v=49">
-  <link rel="stylesheet" href="css/siembra-variable.css?v=49">
-  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=49">
+  <link rel="stylesheet" href="css/agromotor.css?v=50">
+  <link rel="stylesheet" href="css/cosecha.css?v=50">
+  <link rel="stylesheet" href="css/siembra-variable.css?v=50">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=50">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -258,6 +258,7 @@
     <div class="mod-card-grid">
       <div class="mod-card mc-plan" onclick="switchMod('decision')"><div class="mc-ico">⚖️</div><div class="mc-name">¿Qué sembrar?</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Comparación económica entre cultivos</div></div>
       <div class="mod-card mc-plan" onclick="switchMod('cultivares')"><div class="mc-ico">🌾</div><div class="mc-name">Cultivares</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Selección de variedades · GM · densidad</div></div>
+      <div class="mod-card mc-plan" onclick="switchMod('fen-plan')"><div class="mc-ico">📅</div><div class="mc-name">Fen. Planificación</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Estadios fenológicos · ETc · hídrico</div></div>
     </div>
 
     <div class="mod-group-title">2 · Implantación</div>
@@ -265,6 +266,7 @@
       <div class="mod-card mc-imp" onclick="switchMod('siembra')"><div class="mc-ico">🌱</div><div class="mc-name">Siembra</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Compactación · humedad · pronóstico</div></div>
       <div class="mod-card mc-imp" onclick="switchMod('suelo')"><div class="mc-ico">🌍</div><div class="mc-name">Suelo</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">SoilGrids · pH · MO · CEC</div></div>
       <div class="mod-card mc-imp" onclick="switchMod('hidrico')"><div class="mc-ico">💧</div><div class="mc-name">Hídrico</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico · ENSO · perfil</div></div>
+      <div class="mod-card mc-imp" onclick="switchMod('fen-seg')"><div class="mc-ico">🌿</div><div class="mc-name">Fen. Seguimiento</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico con datos reales</div></div>
     </div>
 
     <div class="mod-group-title">3 · Nutrición</div>
@@ -290,9 +292,7 @@
     <div class="mod-card-grid">
       <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
       <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
-      <div class="mod-card mc-adv" onclick="switchMod('fen-plan')"><div class="mc-ico">📅</div><div class="mc-name">Fen. Planificación</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Estadios fenológicos · ETc · hídrico</div></div>
-      <div class="mod-card mc-adv" onclick="switchMod('fen-seg')"><div class="mc-ico">🌿</div><div class="mc-name">Fen. Seguimiento</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico con datos reales</div></div>
-      <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
+<div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
     </div>
   </div>
 
@@ -3629,12 +3629,21 @@
 // FENOLOGÍA · PLANIFICACIÓN
 // ════════════════════════════════════════════════
 function fpUsarLote() {
-  var latSrc = document.getElementById('s-lat') || document.getElementById('h-lat') || document.getElementById('as-lat');
-  var lonSrc = document.getElementById('s-lon') || document.getElementById('h-lon') || document.getElementById('as-lon');
-  var fecSrc = document.getElementById('s-fecha') || document.getElementById('as-siembra');
-  if (latSrc && latSrc.value) document.getElementById('fp-lat').value = latSrc.value;
-  if (lonSrc && lonSrc.value) document.getElementById('fp-lon').value = lonSrc.value;
+  var coordSrc = document.getElementById('s-coord');
+  if (coordSrc && coordSrc.value) {
+    var parts = coordSrc.value.split(',');
+    if (parts.length === 2) {
+      document.getElementById('fp-lat').value = parseFloat(parts[0].trim());
+      document.getElementById('fp-lon').value = parseFloat(parts[1].trim());
+    }
+  }
+  var fecSrc = document.getElementById('s-fecha');
   if (fecSrc && fecSrc.value) document.getElementById('fp-fecha').value = fecSrc.value;
+  var cultSrc = document.getElementById('s-cultivo');
+  if (cultSrc && cultSrc.value) {
+    var norm = cultSrc.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    document.getElementById('fp-cultivo').value = norm;
+  }
 }
 
 var _fpChart = null;
@@ -3726,12 +3735,21 @@ function _fpRender(res) {
 // FENOLOGÍA · SEGUIMIENTO
 // ════════════════════════════════════════════════
 function fsUsarLote() {
-  var latSrc = document.getElementById('s-lat') || document.getElementById('h-lat') || document.getElementById('as-lat');
-  var lonSrc = document.getElementById('s-lon') || document.getElementById('h-lon') || document.getElementById('as-lon');
-  var fecSrc = document.getElementById('s-fecha') || document.getElementById('as-siembra');
-  if (latSrc && latSrc.value) document.getElementById('fs-lat').value = latSrc.value;
-  if (lonSrc && lonSrc.value) document.getElementById('fs-lon').value = lonSrc.value;
+  var coordSrc = document.getElementById('s-coord');
+  if (coordSrc && coordSrc.value) {
+    var parts = coordSrc.value.split(',');
+    if (parts.length === 2) {
+      document.getElementById('fs-lat').value = parseFloat(parts[0].trim());
+      document.getElementById('fs-lon').value = parseFloat(parts[1].trim());
+    }
+  }
+  var fecSrc = document.getElementById('s-fecha');
   if (fecSrc && fecSrc.value) document.getElementById('fs-fecha').value = fecSrc.value;
+  var cultSrc = document.getElementById('s-cultivo');
+  if (cultSrc && cultSrc.value) {
+    var norm = cultSrc.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    document.getElementById('fs-cultivo').value = norm;
+  }
 }
 
 var _fsChart = null;
@@ -3878,28 +3896,28 @@ function _fsRender(res, diasTranscurridos) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
-<script src="js/store.js?v=49"></script>
-<script src="js/core.js?v=49"></script>
-<script src="js/config.js?v=49"></script>
-<script src="js/login.js?v=49"></script>
-<script src="js/cache.js?v=49"></script>
+<script src="js/store.js?v=50"></script>
+<script src="js/core.js?v=50"></script>
+<script src="js/config.js?v=50"></script>
+<script src="js/login.js?v=50"></script>
+<script src="js/cache.js?v=50"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=49"></script>
+<script src="js/nav.js?v=50"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=49"></script>
-<script src="js/siembra-apis.js?v=49"></script>
-<script src="js/economia.js?v=49"></script>
-<script src="js/maquinaria.js?v=49"></script>
-<script src="js/asistente.js?v=49"></script>
-<script src="js/pdf.js?v=49"></script>
-<script src="js/pdf-modulo.js?v=49"></script>
-<script src="js/onboarding.js?v=49"></script>
-<script src="js/alerta-sanitaria.js?v=49"></script>
-<script src="js/dashboard-ux.js?v=49"></script>
+<script src="js/siembra.js?v=50"></script>
+<script src="js/siembra-apis.js?v=50"></script>
+<script src="js/economia.js?v=50"></script>
+<script src="js/maquinaria.js?v=50"></script>
+<script src="js/asistente.js?v=50"></script>
+<script src="js/pdf.js?v=50"></script>
+<script src="js/pdf-modulo.js?v=50"></script>
+<script src="js/onboarding.js?v=50"></script>
+<script src="js/alerta-sanitaria.js?v=50"></script>
+<script src="js/dashboard-ux.js?v=50"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
@@ -3942,15 +3960,3 @@ if ('serviceWorker' in navigator) {
               if (typeof amToast === 'function') {
                 amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
               }
-              newSW.postMessage('skipWaiting');
-            }
-          });
-        });
-      })
-      .catch(err => console.warn('[AgroMotor] SW no registrado:', err));
-  });
-}
-</script>
-
-</body>
-</html>

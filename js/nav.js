@@ -255,17 +255,17 @@ function _activarModulo(mod) {
         if (mod === 'fen-plan') {
           var fpLat = document.getElementById('fp-lat');
           var fpLon = document.getElementById('fp-lon');
-          if (fpLat && !fpLat.value) fpLat.value = lat;
-          if (fpLon && !fpLon.value) fpLon.value = lon;
+          if (fpLat) fpLat.value = lat;
+          if (fpLon) fpLon.value = lon;
         } else {
           var fsLat = document.getElementById('fs-lat');
           var fsLon = document.getElementById('fs-lon');
-          if (fsLat && !fsLat.value) fsLat.value = lat;
-          if (fsLon && !fsLon.value) fsLon.value = lon;
+          if (fsLat) fsLat.value = lat;
+          if (fsLon) fsLon.value = lon;
         }
       }
     }
-    _syncCultivo(mod === 'fen-plan' ? 'fp-cultivo' : 'fs-cultivo');
+    _syncCultivoNorm(mod === 'fen-plan' ? 'fp-cultivo' : 'fs-cultivo');
     _syncFecha(mod === 'fen-plan' ? 'fp-fecha' : 'fs-fecha');
   }
 }
@@ -461,3 +461,4 @@ function renderSueloModulo(d) {
   window.renderSueloModulo = renderSueloModulo;
 
 })();
+                                                            
