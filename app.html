@@ -9,12 +9,12 @@
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
-  <meta name="description" content="Motor agronómico de decisión: 17 módulos con datos satelitales en tiempo real, IA con criterio INTA, exclusivo para ingenieros agrónomos matriculados.">
+  <meta name="description" content="Motor agronómico de decisión: 15 módulos con datos satelitales en tiempo real, IA con criterio INTA, exclusivo para ingenieros agrónomos matriculados.">
 
   <!-- OG / Twitter -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="AgroMotor — La herramienta del Ingeniero Agrónomo argentino">
-  <meta property="og:description" content="17 módulos agronómicos · Datos NASA, Open-Meteo, SoilGrids · IA con criterio INTA · Para profesionales matriculados.">
+  <meta property="og:description" content="15 módulos agronómicos · Datos NASA, Open-Meteo, SoilGrids · IA con criterio INTA · Para profesionales matriculados.">
   <meta property="og:url" content="https://agromotor.com.ar/app.html">
   <meta property="og:image" content="https://agromotor.com.ar/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -30,10 +30,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css">
-  <link rel="stylesheet" href="css/cosecha.css">
-  <link rel="stylesheet" href="css/siembra-variable.css">
-  <link rel="stylesheet" href="css/alerta-sanitaria.css">
+  <link rel="stylesheet" href="css/agromotor.css?v=49">
+  <link rel="stylesheet" href="css/cosecha.css?v=49">
+  <link rel="stylesheet" href="css/siembra-variable.css?v=49">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=49">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -85,14 +85,14 @@
         </select>
         <button onclick="amCrearLoteGlobal()" style="background:rgba(122,174,245,.15);border:none;color:#7AAEF5;width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem;font-weight:bold;transition:all .2s;" title="Crear nuevo lote">+</button>
       </div>
-      <div class="header-badge">v3.8 · Balance Nutricional</div>
+      <div class="header-badge">v3.9 · Acceso profesional</div>
     </div>
   </div>
 </header>
 
 <!-- ══ BANNER PROMOCIÓN LANZAMIENTO ══ -->
 <div id="am-promo-banner" style="background: linear-gradient(90deg, #1E4D2B, #6DBF82); color: white; text-align: center; font-size: 0.8rem; padding: 0.4rem; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-  🎉 Lanzamiento Especial Conferencia: ¡Todos los módulos premium habilitados gratis hasta el 1º de Agosto!
+  🎉 Lanzamiento especial: acceso profesional gratuito hasta el 1° de agosto de 2026 · 5 lotes · login obligatorio
 </div>
 
 <nav class="module-nav">
@@ -124,7 +124,8 @@
     <div class="nav-tab" data-mod="siembra-variable" onclick="switchMod('siembra-variable')"><span class="dot"></span>🗺 Siembra Variable</div>
     <div class="nav-tab" data-mod="mapa" onclick="switchMod('mapa')"><span class="dot"></span>🗺️ Distribuidores</div>
     <div class="nav-tab nav-tab-ia" data-mod="asistente" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
-    <div class="nav-tab locked" title="Próximamente">📅 Fenología</div>
+    <div class="nav-tab" data-mod="fen-plan" onclick="switchMod('fen-plan')"><span class="dot"></span>📅 Fen. Planificación</div>
+    <div class="nav-tab" data-mod="fen-seg" onclick="switchMod('fen-seg')"><span class="dot"></span>🌿 Fen. Seguimiento</div>
   </div>
 </nav>
 
@@ -289,6 +290,8 @@
     <div class="mod-card-grid">
       <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
       <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
+      <div class="mod-card mc-adv" onclick="switchMod('fen-plan')"><div class="mc-ico">📅</div><div class="mc-name">Fen. Planificación</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Estadios fenológicos · ETc · hídrico</div></div>
+      <div class="mod-card mc-adv" onclick="switchMod('fen-seg')"><div class="mc-ico">🌿</div><div class="mc-name">Fen. Seguimiento</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Balance hídrico con datos reales</div></div>
       <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
     </div>
   </div>
@@ -530,114 +533,52 @@
 
     <!-- Panel de entrada -->
     <div id="lab-panel" style="display:none;margin-top:.7rem;background:#fff;border:1.5px solid rgba(200,162,85,.3);border-radius:12px;padding:1.1rem">
-
-      <!-- Tabs de entrada -->
-      <div style="display:flex;gap:.3rem;margin-bottom:.9rem;background:rgba(74,46,26,.05);border-radius:9px;padding:.25rem">
-        <button id="lab-tab-manual" onclick="sueloLabTab('manual')" style="flex:1;background:#2D5A30;color:#fff;font-weight:700;border:none;border-radius:7px;padding:.42rem .4rem;font-size:.78rem;cursor:pointer;font-family:inherit">✏️ Manual</button>
-        <button id="lab-tab-pdf"    onclick="sueloLabTab('pdf')"    style="flex:1;background:transparent;color:rgba(74,46,26,.65);font-weight:500;border:none;border-radius:7px;padding:.42rem .4rem;font-size:.78rem;cursor:pointer;font-family:inherit">📄 PDF</button>
-        <button id="lab-tab-foto"   onclick="sueloLabTab('foto')"   style="flex:1;background:transparent;color:rgba(74,46,26,.65);font-weight:500;border:none;border-radius:7px;padding:.42rem .4rem;font-size:.78rem;cursor:pointer;font-family:inherit">📷 Foto</button>
+      <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.9rem;line-height:1.5">
+        Completá solo los campos que tengas del análisis. Dejá vacíos los que no tenés.<br>
+        <strong>P disponible</strong> (Bray I) y <strong>K intercambiable</strong> no están en SoilGrids — son exclusivos del laboratorio y esenciales para el plan de fertilización.
       </div>
-
-      <!-- ── Sección: Ingreso manual ── -->
-      <div id="lab-sect-manual">
-        <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.9rem;line-height:1.5">
-          Completá solo los campos que tengas. Dejá vacíos los que no tenés.<br>
-          <strong>P</strong> y <strong>K</strong> no están en SoilGrids — son exclusivos del laboratorio y esenciales para el plan de fertilización.
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.65rem">
+        <div class="fg" style="margin-bottom:0">
+          <label>pH <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(H₂O)</span></label>
+          <input type="number" id="lab-ph" placeholder="ej: 6.2" min="3" max="10" step="0.1" oninput="sueloLabAutoguardar()">
         </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.65rem">
-          <div class="fg" style="margin-bottom:0">
-            <label>pH <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(H₂O)</span></label>
-            <input type="number" id="lab-ph" placeholder="ej: 6.2" min="3" max="10" step="0.1" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>MO <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(%)</span></label>
-            <input type="number" id="lab-mo" placeholder="ej: 3.1" min="0" max="20" step="0.1" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>N total <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/kg)</span></label>
-            <input type="number" id="lab-n" placeholder="ej: 1.8" min="0" max="10" step="0.1" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label style="display:flex;align-items:center;gap:.3rem">P disponible <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
-            <input type="number" id="lab-p" placeholder="ej: 18" min="0" max="200" step="0.1" oninput="sueloLabAutoguardar()">
-            <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm Bray I · 0-20 cm</div>
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label style="display:flex;align-items:center;gap:.3rem">K intercambiable <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
-            <input type="number" id="lab-k" placeholder="ej: 180" min="0" max="1000" step="1" oninput="sueloLabAutoguardar()">
-            <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm · 0-20 cm</div>
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>CEC <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(cmol/kg)</span></label>
-            <input type="number" id="lab-cec" placeholder="ej: 18.5" min="0" max="60" step="0.1" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>DA <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/cm³)</span></label>
-            <input type="number" id="lab-da" placeholder="ej: 1.25" min="0.8" max="2.0" step="0.01" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>Zn disponible <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(ppm DTPA)</span></label>
-            <input type="number" id="lab-zn" placeholder="ej: 1.2" min="0" max="50" step="0.01" oninput="sueloLabAutoguardar()">
-          </div>
-          <div class="fg" style="margin-bottom:0">
-            <label>CE <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(dS/m)</span></label>
-            <input type="number" id="lab-ce" placeholder="ej: 0.8" min="0" max="30" step="0.01" oninput="sueloLabAutoguardar()">
-          </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>MO <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(%)</span></label>
+          <input type="number" id="lab-mo" placeholder="ej: 3.1" min="0" max="20" step="0.1" oninput="sueloLabAutoguardar()">
         </div>
-        <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
-          <button onclick="sueloAplicarLab()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
-            🔬 Aplicar análisis
-          </button>
-          <button onclick="sueloLimpiarLab()" style="background:rgba(74,46,26,.07);color:#5A3A10;border:1px solid rgba(74,46,26,.2);border-radius:8px;padding:.48rem .9rem;font-size:.78rem;cursor:pointer;font-family:inherit">
-            ✕ Limpiar
-          </button>
-          <span id="lab-aplicado-msg" style="display:none;font-size:.75rem;color:#1b5e35;font-weight:600">✅ Datos aplicados — usados en todos los módulos</span>
+        <div class="fg" style="margin-bottom:0">
+          <label>N total <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/kg)</span></label>
+          <input type="number" id="lab-n" placeholder="ej: 1.8" min="0" max="10" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:.3rem">P disponible <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
+          <input type="number" id="lab-p" placeholder="ej: 18" min="0" max="200" step="0.1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm Bray I · 0-20 cm</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label style="display:flex;align-items:center;gap:.3rem">K intercambiable <span style="font-size:.6rem;font-weight:700;background:rgba(74,140,92,.15);color:#1b5e35;padding:.07rem .35rem;border-radius:4px">Solo lab</span></label>
+          <input type="number" id="lab-k" placeholder="ej: 180" min="0" max="1000" step="1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">ppm · 0-20 cm</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>CEC <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(cmol/kg)</span></label>
+          <input type="number" id="lab-cec" placeholder="ej: 18.5" min="0" max="60" step="0.1" oninput="sueloLabAutoguardar()">
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Densidad aparente <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/cm³)</span></label>
+          <input type="number" id="lab-da" placeholder="ej: 1.25" min="0.8" max="2.0" step="0.01" oninput="sueloLabAutoguardar()">
         </div>
       </div>
-
-      <!-- ── Sección: Subir PDF ── -->
-      <div id="lab-sect-pdf" style="display:none">
-        <div style="font-size:.75rem;color:rgba(74,46,26,.6);margin-bottom:1rem;line-height:1.6">
-          Subí el PDF del análisis de suelo. Claude extraerá automáticamente los valores nutricionales y completará el formulario. Podés revisar y editar antes de confirmar.
-        </div>
-        <div style="display:flex;flex-direction:column;gap:.7rem">
-          <label style="display:flex;align-items:center;gap:.65rem;cursor:pointer;padding:.65rem .9rem;background:rgba(74,46,26,.04);border:1.5px dashed rgba(74,46,26,.2);border-radius:9px">
-            <span style="font-size:1.4rem">📄</span>
-            <div>
-              <div style="font-size:.82rem;font-weight:600;color:#3A2A12">Seleccionar PDF</div>
-              <div id="lab-pdf-nombre" style="font-size:.7rem;color:rgba(74,46,26,.5);margin-top:.1rem">Sin archivo seleccionado</div>
-            </div>
-            <input type="file" id="lab-pdf-input" accept=".pdf,application/pdf" style="display:none" onchange="sueloLabArchivoSeleccionado('pdf')">
-          </label>
-          <button id="lab-pdf-btn" onclick="sueloLabProcesarPDF()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.55rem 1.2rem;font-size:.84rem;font-weight:700;cursor:pointer;font-family:inherit;align-self:flex-start">
-            🔍 Procesar PDF
-          </button>
-          <div id="lab-pdf-status" style="display:none;font-size:.77rem;padding:.5rem .7rem;background:rgba(74,46,26,.04);border-radius:7px;line-height:1.5"></div>
-        </div>
+      <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
+        <button onclick="sueloAplicarLab()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
+          🔬 Aplicar análisis
+        </button>
+        <button onclick="sueloLimpiarLab()" style="background:rgba(74,46,26,.07);color:#5A3A10;border:1px solid rgba(74,46,26,.2);border-radius:8px;padding:.48rem .9rem;font-size:.78rem;cursor:pointer;font-family:inherit">
+          ✕ Limpiar
+        </button>
+        <span id="lab-aplicado-msg" style="display:none;font-size:.75rem;color:#1b5e35;font-weight:600">✅ Datos aplicados — usados en todos los módulos</span>
       </div>
-
-      <!-- ── Sección: Fotografiar ── -->
-      <div id="lab-sect-foto" style="display:none">
-        <div style="font-size:.75rem;color:rgba(74,46,26,.6);margin-bottom:1rem;line-height:1.6">
-          Tomá una foto al análisis de suelo o seleccioná una imagen del dispositivo. Claude usará visión para extraer los valores y completar el formulario.
-        </div>
-        <div style="display:flex;flex-direction:column;gap:.7rem">
-          <label style="display:flex;align-items:center;gap:.65rem;cursor:pointer;padding:.65rem .9rem;background:rgba(74,46,26,.04);border:1.5px dashed rgba(74,46,26,.2);border-radius:9px">
-            <span style="font-size:1.4rem">📷</span>
-            <div>
-              <div style="font-size:.82rem;font-weight:600;color:#3A2A12">Sacar foto o seleccionar imagen</div>
-              <div id="lab-foto-nombre" style="font-size:.7rem;color:rgba(74,46,26,.5);margin-top:.1rem">Sin imagen seleccionada</div>
-            </div>
-            <input type="file" id="lab-foto-input" accept="image/*" capture="environment" style="display:none" onchange="sueloLabArchivoSeleccionado('foto')">
-          </label>
-          <button id="lab-foto-btn" onclick="sueloLabProcesarFoto()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.55rem 1.2rem;font-size:.84rem;font-weight:700;cursor:pointer;font-family:inherit;align-self:flex-start">
-            📷 Procesar imagen
-          </button>
-          <div id="lab-foto-status" style="display:none;font-size:.77rem;padding:.5rem .7rem;background:rgba(74,46,26,.04);border-radius:7px;line-height:1.5"></div>
-        </div>
-      </div>
-
-      <!-- Resumen datos efectivos (siempre visible) -->
+      <!-- Resumen datos efectivos -->
       <div id="lab-resumen" style="display:none;margin-top:.9rem;padding:.8rem;background:#f4faf6;border:1px solid rgba(74,140,92,.22);border-radius:10px">
         <div style="font-size:.64rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#1b5e35;margin-bottom:.5rem">📊 Datos efectivos del lote</div>
         <div id="lab-resumen-content" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.35rem;font-size:.75rem"></div>
@@ -673,8 +614,6 @@
       <span>📍 <span id="nc-lbl-lote" style="color:rgba(237,224,196,.75)">Sin lote activo</span></span>
       <span id="nc-lbl-fuente-badge" style="font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;background:rgba(74,46,26,.35);color:rgba(237,224,196,.6)">Sin datos de suelo</span>
     </div>
-
-    <div id="nc-modo-selector"></div>
 
     <div class="grid-2">
       <!-- Parámetros -->
@@ -3009,7 +2948,7 @@
 
 <!-- ══ MODAL DE SUGERENCIAS (FEEDBACK) ══ -->
 <div id="am-modal-feedback" class="hidden" style="
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
+  position:fixed;inset:0;z-index:9999;
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
   display:flex;align-items:center;justify-content:center;
@@ -3025,7 +2964,7 @@
     padding: 2.5rem 2rem;
     text-align:center;">
 
-    <button onclick="amCerrarModalFeedback()" style="
+    <button onclick="document.getElementById('am-modal-feedback').classList.add('hidden')" style="
       position:absolute;top:1rem;right:1rem;
       width:32px;height:32px;border-radius:50%;
       border:none;background:rgba(61,34,16,.1);
@@ -3057,34 +2996,29 @@
 <script>
   function amMostrarModalSugerencias() {
     document.getElementById('am-modal-feedback').classList.remove('hidden');
-    document.documentElement.classList.add('modal-open');
-    document.body.classList.add('modal-open');
-  }
-  function amCerrarModalFeedback() {
-    document.getElementById('am-modal-feedback').classList.add('hidden');
-    document.documentElement.classList.remove('modal-open');
-    document.body.classList.remove('modal-open');
   }
 </script>
 
 <!-- ══ MODAL SISTEMA DE PLANES ══ -->
 <div id="am-modal" class="hidden" style="
-  position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;
+  position:fixed;inset:0;z-index:2147483000;
+  display:flex;align-items:flex-start;justify-content:center;
   background:rgba(10,18,12,.85);
   backdrop-filter:blur(12px);
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
-  padding:1.5rem 1rem 3rem;
+  padding:clamp(.6rem,2vh,1.5rem) 1rem 2rem;
   overflow-y:auto;
   -webkit-overflow-scrolling:touch">
 
   <div style="
     background:var(--panel-bg);
-    border-radius:24px;
+    border-radius:18px;
     max-width:680px;width:100%;
     box-shadow:0 24px 80px rgba(0,0,0,.4);
     border:1px solid var(--border);
     position:relative;
-    padding-bottom:2rem;
+    max-height:calc(100vh - 1.2rem);
+    overflow-y:auto;
+    overscroll-behavior:contain;
     margin:0 auto;">
 
     <!-- Cerrar -->
@@ -3129,10 +3063,10 @@
       </div>
 
       <!-- Cards de planes -->
-      <div class="planes-grid" style="padding:0 1.5rem 1.5rem;display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem">
+      <div class="planes-grid" style="padding:0 1.5rem 1.5rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem">
 
         <!-- DEMO -->
-        <div style="border:1.5px solid rgba(58,122,74,.3);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f4faf6;display:flex;flex-direction:column">
+        <div style="display:none;border:1.5px solid rgba(58,122,74,.3);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f4faf6;flex-direction:column">
           <div style="font-size:1.6rem;margin-bottom:.3rem">🌱</div>
           <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Demo</div>
           <div style="font-size:1.3rem;font-weight:700;color:var(--canopy);margin-bottom:0">Gratis</div>
@@ -3174,7 +3108,7 @@
             box-shadow:0 3px 8px rgba(58,122,74,.3);transition:all .2s"
             onmouseenter="this.style.transform='translateY(-1px)'"
             onmouseleave="this.style.transform='translateY(0)'">
-            14 días gratis
+            Gratis hasta agosto
           </button>
         </div>
 
@@ -3199,7 +3133,7 @@
             box-shadow:0 4px 12px rgba(200,162,85,.4);transition:all .2s"
             onmouseenter="this.style.transform='translateY(-1px)'"
             onmouseleave="this.style.transform='translateY(0)'">
-            14 días gratis
+            Gratis hasta agosto
           </button>
         </div>
 
@@ -3207,7 +3141,7 @@
         <div style="border:1.5px solid rgba(42,90,140,.35);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f3f7fd;display:flex;flex-direction:column">
           <div style="font-size:1.6rem;margin-bottom:.3rem">🏢</div>
           <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Empresa</div>
-          <div style="font-size:1.3rem;font-weight:700;color:#1A4A7A;margin-bottom:0">USD 250</div>
+          <div style="font-size:1.3rem;font-weight:700;color:#1A4A7A;margin-bottom:0">USD 230</div>
           <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 75 lotes</div>
           <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
             <li>✅ Todo de Pro +</li>
@@ -3261,10 +3195,7 @@
           <input type="password" id="am-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')amLogin()">
         </div>
         <button id="am-btn-login-submit" onclick="amLogin()" class="btn btn-p btn-full btn-lg">Iniciar sesión</button>
-        <div style="text-align:center;margin-top:.5rem">
-          <button onclick="amOlvidarContrasena()" style="background:none;border:none;color:rgba(61,34,16,.4);font-size:.73rem;cursor:pointer;font-family:inherit">¿Olvidaste tu contraseña?</button>
-        </div>
-        <div style="text-align:center;margin-top:.75rem;display:flex;gap:1rem;justify-content:center">
+        <div style="text-align:center;margin-top:1rem;display:flex;gap:1rem;justify-content:center">
           <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
           <button onclick="amCambiarVista('planes')" style="display:none;background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">← Ver planes</button>
           <button onclick="amCambiarVista('registro')" style="background:none;border:none;color:var(--canopy);font-size:.78rem;cursor:pointer;font-family:inherit;text-decoration:underline">Crear cuenta nueva</button>
@@ -3273,16 +3204,16 @@
     </div>
 
     <!-- ── VISTA REGISTRO ── -->
-    <div id="am-vista-registro" class="hidden" style="padding-bottom: 2rem;">
-      <div style="padding:1.6rem 1.8rem">
-        <div style="text-align:center;margin-bottom:1.2rem">
-          <div style="font-size:1.8rem;margin-bottom:.3rem">🎓</div>
-          <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;color:var(--earth)">Crear cuenta profesional</div>
-          <div style="font-size:.74rem;color:rgba(61,34,16,.55);margin-top:.3rem;line-height:1.5">
+    <div id="am-vista-registro" class="hidden">
+      <div style="padding:1rem 1.35rem 1.25rem">
+        <div style="text-align:center;margin-bottom:.75rem">
+          <div style="font-size:1.35rem;margin-bottom:.15rem">🎓</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--earth)">Crear cuenta profesional</div>
+          <div style="font-size:.7rem;color:rgba(61,34,16,.55);margin-top:.15rem;line-height:1.35">
             AgroMotor es exclusivo para Ingenieros Agrónomos matriculados<br>y estudiantes avanzados de Agronomía
           </div>
         </div>
-        <div id="am-reg-err" class="hidden alert danger" style="margin-bottom:1rem"></div>
+        <div id="am-reg-err" class="hidden alert danger" style="margin-bottom:.7rem"></div>
 
         <div class="fg">
           <label>Nombre completo (como figura en la matrícula)</label>
@@ -3298,12 +3229,12 @@
         </div>
 
         <!-- ── BLOQUE PROFESIONAL ── -->
-        <div style="background:#f4faf6;border:1px solid rgba(74,140,92,.3);border-radius:10px;padding:.9rem 1rem;margin:.9rem 0;font-size:.78rem">
-          <div style="font-weight:700;color:#1b5e35;margin-bottom:.6rem;display:flex;align-items:center;gap:.4rem">
+        <div style="background:#f4faf6;border:1px solid rgba(74,140,92,.3);border-radius:10px;padding:.75rem .85rem;margin:.65rem 0;font-size:.76rem">
+          <div style="font-weight:700;color:#1b5e35;margin-bottom:.45rem;display:flex;align-items:center;gap:.4rem">
             🎯 Acreditación profesional
           </div>
 
-          <div class="fg" style="margin-bottom:.7rem">
+          <div class="fg" style="margin-bottom:.5rem">
             <label style="font-size:.7rem">Categoría</label>
             <select id="am-reg-rol" onchange="amRegToggleRol()">
               <option value="agronomo" selected>Ingeniero Agrónomo matriculado</option>
@@ -3312,7 +3243,7 @@
           </div>
 
           <div id="am-reg-block-agronomo">
-            <div class="fg" style="margin-bottom:.7rem">
+            <div class="fg" style="margin-bottom:.5rem">
               <label style="font-size:.7rem">Consejo Profesional (CPIA)</label>
               <select id="am-reg-cpia">
                 <option value="">Seleccioná tu jurisdicción…</option>
@@ -3339,7 +3270,7 @@
                 <option value="OTRO">Otro / Internacional</option>
               </select>
             </div>
-            <div class="fg" style="margin-bottom:.4rem">
+            <div class="fg" style="margin-bottom:.25rem">
               <label style="font-size:.7rem">Número de matrícula</label>
               <input type="text" id="am-reg-matricula" placeholder="Ej: 12345" inputmode="numeric">
             </div>
@@ -3361,42 +3292,23 @@
             </div>
           </div>
 
-          <label style="display:flex;gap:.5rem;align-items:flex-start;margin-top:.7rem;font-size:.7rem;color:rgba(61,34,16,.7);line-height:1.5;cursor:pointer">
+          <label style="display:flex;gap:.5rem;align-items:flex-start;margin-top:.55rem;font-size:.66rem;color:rgba(61,34,16,.7);line-height:1.35;cursor:pointer">
             <input type="checkbox" id="am-reg-jura" style="margin-top:.15rem;flex-shrink:0;cursor:pointer">
             <span>Declaro bajo juramento que los datos profesionales son verdaderos y vigentes, y acepto los <a href="/terminos.html" target="_blank" style="color:var(--canopy);text-decoration:underline">Términos y Condiciones</a> y la <a href="/privacidad.html" target="_blank" style="color:var(--canopy);text-decoration:underline">Política de Privacidad</a> de AgroMotor.</span>
           </label>
         </div>
         <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar selector de planes con precios -->
-        <input type="hidden" id="am-reg-plan" value="pro">
-        <div style="background:linear-gradient(135deg,#1b5e35 0%,#2d7a4a 100%);border-radius:12px;padding:1rem 1.1rem;margin:.9rem 0;text-align:center">
-          <div style="font-size:1.3rem;margin-bottom:.3rem">🎉</div>
-          <div style="color:#fff;font-weight:700;font-size:.9rem;margin-bottom:.25rem">Período de lanzamiento — Acceso completo gratuito</div>
-          <div style="color:rgba(255,255,255,.85);font-size:.76rem;line-height:1.6">Todas las funciones habilitadas <strong style="color:#AFFFD4">sin costo hasta el 1° de agosto de 2026</strong>.<br>Sin tarjeta de crédito · Sin compromiso · Cancelá cuando quieras.</div>
+        <input type="hidden" id="am-reg-plan" value="free">
+        <div style="background:linear-gradient(135deg,#1b5e35 0%,#2d7a4a 100%);border-radius:10px;padding:.8rem 1rem;margin:.65rem 0;text-align:center">
+          <div style="font-size:1.05rem;margin-bottom:.15rem">🎉</div>
+          <div style="color:#fff;font-weight:700;font-size:.86rem;margin-bottom:.2rem">Lanzamiento — acceso completo gratuito</div>
+          <div style="color:rgba(255,255,255,.85);font-size:.72rem;line-height:1.4">Todas las funciones habilitadas <strong style="color:#AFFFD4">hasta el 1° de agosto de 2026</strong>.<br>Incluye 5 lotes y 15 consultas IA/mes durante la promoción.</div>
         </div>
         <button id="am-btn-reg-submit" onclick="amRegistrar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Crear cuenta</button>
         <div style="text-align:center;margin-top:.8rem">
           <button onclick="amCambiarVista('login')" style="background:none;border:none;color:rgba(61,34,16,.5);font-size:.78rem;cursor:pointer;font-family:inherit">Ya tengo cuenta → Iniciar sesión</button>
         </div>
       </div>
-    </div>
-
-    <!-- ── Vista: Recovery (nueva contraseña) ── -->
-    <div id="am-vista-recovery" class="hidden">
-      <div style="text-align:center;margin-bottom:1.2rem">
-        <div style="font-size:2rem;margin-bottom:.4rem">🔑</div>
-        <h2 style="font-size:1.15rem;font-weight:700;color:var(--soil);margin:0 0 .25rem">Nueva contraseña</h2>
-        <p style="font-size:.8rem;color:rgba(61,34,16,.55);margin:0">Elegí una contraseña segura de al menos 8 caracteres.</p>
-      </div>
-      <div id="am-rec-err" class="am-form-err hidden"></div>
-      <div class="fg">
-        <label>Nueva contraseña</label>
-        <input type="password" id="am-rec-pass1" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
-      </div>
-      <div class="fg">
-        <label>Confirmar contraseña</label>
-        <input type="password" id="am-rec-pass2" placeholder="Repetí la contraseña" autocomplete="new-password">
-      </div>
-      <button id="am-rec-btn" onclick="amConfirmarNuevaContrasena()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Guardar nueva contraseña</button>
     </div>
   </div>
 </div>
@@ -3614,7 +3526,335 @@
 </div>
 <!-- ══ FIN MÓDULO ALERTA SANITARIA ══════════════════════ -->
 
-  <div class="footer-note" style="margin-top:4rem">AgroMotor v3.8 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
+
+<!-- ══ MÓDULO FENOLOGÍA · PLANIFICACIÓN ══════════════════ -->
+<div id="mod-fen-plan" class="module-panel">
+  <div class="module-title">Fenología · <em>Planificación</em></div>
+  <div class="module-subtitle">Proyectá estadios fenológicos, ETc y balance hídrico con datos climáticos históricos · Elegí la mejor fecha de siembra</div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="grid-3">
+      <div class="fg">
+        <label>Cultivo</label>
+        <select id="fp-cultivo">
+          <option value="soja">Soja</option>
+          <option value="maiz">Maíz</option>
+          <option value="trigo">Trigo</option>
+          <option value="girasol">Girasol</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Latitud</label>
+        <input type="number" id="fp-lat" placeholder="-33.0000" step="0.0001">
+      </div>
+      <div class="fg">
+        <label>Longitud</label>
+        <input type="number" id="fp-lon" placeholder="-63.0000" step="0.0001">
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:1rem">
+      <div class="fg">
+        <label>Fecha de siembra proyectada</label>
+        <input type="date" id="fp-fecha">
+      </div>
+      <div class="fg">
+        <label>Duración del ciclo (días)</label>
+        <input type="number" id="fp-duracion" value="150" min="60" max="280">
+      </div>
+    </div>
+    <div style="margin-top:1.2rem;display:flex;gap:.8rem;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-p" id="fp-btn" onclick="fpCalcular()">📊 Calcular</button>
+      <button class="btn" onclick="fpUsarLote()" style="opacity:.7;font-size:.84rem">📍 Copiar datos del lote</button>
+    </div>
+  </div>
+
+  <div id="fp-resultado">
+    <div class="dash-ph-card">
+      <div class="dash-ph-icon">📅</div>
+      <div class="dash-ph-text">Ingresá los datos del cultivo y hacé clic en <strong>Calcular</strong> para proyectar el ciclo fenológico completo con datos históricos NASA POWER y ajuste ENSO.</div>
+    </div>
+  </div>
+</div>
+<!-- ══ FIN MÓDULO FENOLOGÍA PLANIFICACIÓN ════════════════ -->
+
+<!-- ══ MÓDULO FENOLOGÍA · SEGUIMIENTO ════════════════════ -->
+<div id="mod-fen-seg" class="module-panel">
+  <div class="module-title">Fenología · <em>Seguimiento</em></div>
+  <div class="module-subtitle">Estado actual del cultivo implantado · ERA5 histórico real + pronóstico Open-Meteo 16 días · Estadio, Kc y días a eventos críticos</div>
+
+  <div class="card" style="margin-bottom:1.5rem">
+    <div class="grid-3">
+      <div class="fg">
+        <label>Cultivo</label>
+        <select id="fs-cultivo">
+          <option value="soja">Soja</option>
+          <option value="maiz">Maíz</option>
+          <option value="trigo">Trigo</option>
+          <option value="girasol">Girasol</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Latitud</label>
+        <input type="number" id="fs-lat" placeholder="-33.0000" step="0.0001">
+      </div>
+      <div class="fg">
+        <label>Longitud</label>
+        <input type="number" id="fs-lon" placeholder="-63.0000" step="0.0001">
+      </div>
+    </div>
+    <div class="grid-2" style="margin-top:1rem">
+      <div class="fg">
+        <label>Fecha de siembra real</label>
+        <input type="date" id="fs-fecha">
+      </div>
+      <div></div>
+    </div>
+    <div style="margin-top:1.2rem;display:flex;gap:.8rem;flex-wrap:wrap;align-items:center">
+      <button class="btn btn-p" id="fs-btn" onclick="fsCalcular()">🌿 Analizar</button>
+      <button class="btn" onclick="fsUsarLote()" style="opacity:.7;font-size:.84rem">📍 Copiar datos del lote</button>
+    </div>
+  </div>
+
+  <div id="fs-resultado">
+    <div class="dash-ph-card">
+      <div class="dash-ph-icon">🌿</div>
+      <div class="dash-ph-text">Ingresá la fecha de siembra real y hacé clic en <strong>Analizar</strong> para ver en qué estadio está el cultivo hoy y proyectar con pronóstico de 16 días.</div>
+    </div>
+  </div>
+</div>
+<!-- ══ FIN MÓDULO FENOLOGÍA SEGUIMIENTO ══════════════════ -->
+
+<script>
+// ════════════════════════════════════════════════
+// FENOLOGÍA · PLANIFICACIÓN
+// ════════════════════════════════════════════════
+function fpUsarLote() {
+  var latSrc = document.getElementById('s-lat') || document.getElementById('h-lat') || document.getElementById('as-lat');
+  var lonSrc = document.getElementById('s-lon') || document.getElementById('h-lon') || document.getElementById('as-lon');
+  var fecSrc = document.getElementById('s-fecha') || document.getElementById('as-siembra');
+  if (latSrc && latSrc.value) document.getElementById('fp-lat').value = latSrc.value;
+  if (lonSrc && lonSrc.value) document.getElementById('fp-lon').value = lonSrc.value;
+  if (fecSrc && fecSrc.value) document.getElementById('fp-fecha').value = fecSrc.value;
+}
+
+var _fpChart = null;
+
+async function fpCalcular() {
+  if (!window.Fenologia) { alert('Módulo de fenología no disponible'); return; }
+  var cultivo = document.getElementById('fp-cultivo').value;
+  var lat = parseFloat(document.getElementById('fp-lat').value);
+  var lon = parseFloat(document.getElementById('fp-lon').value);
+  var fechaSiembra = document.getElementById('fp-fecha').value;
+  var duracion = parseInt(document.getElementById('fp-duracion').value) || 150;
+  if (!fechaSiembra || isNaN(lat) || isNaN(lon)) { alert('Completá todos los campos obligatorios'); return; }
+
+  var btn = document.getElementById('fp-btn');
+  btn.disabled = true; btn.textContent = '⏳ Calculando…';
+  document.getElementById('fp-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">⏳ Descargando datos climáticos históricos (NASA POWER)…</p>';
+
+  try {
+    var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: 'planificacion' });
+    _fpRender(res);
+  } catch(e) {
+    document.getElementById('fp-resultado').innerHTML = '<div class="card" style="border-left:3px solid #e74c3c;padding:1.2rem"><p style="color:#e74c3c;margin:0">❌ Error: ' + e.message + '</p></div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '📊 Calcular';
+  }
+}
+
+function _fpRender(res) {
+  var ensoText = res.faseENSO === 'niño' ? '🌊 El Niño (+18%)' : res.faseENSO === 'niña' ? '🌵 La Niña (−18%)' : '⚖️ Neutro';
+  var etapas = res.etapas || [];
+  var rows = etapas.map(function(e) {
+    return '<tr style="background:' + (e.esCritica ? 'rgba(255,193,7,.07)' : 'transparent') + '">'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">' + (e.esCritica ? '⭐ ' : '') + e.nombre + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.fechaInicio || '—') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.diasDesdeSiembra != null ? e.diasDesdeSiembra : '—') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + Math.round(e.gddAlcanzado || 0) + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.kcMedio != null ? e.kcMedio.toFixed(2) : '—') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var html = '<div class="card" style="margin-bottom:1rem">'
+    + '<div style="display:flex;flex-wrap:wrap;gap:1.8rem;align-items:flex-end">'
+    + '<div><div style="font-size:1.7rem;font-weight:700;color:var(--accent)">' + Math.round(res.gddTotal || 0) + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">GDD Totales</div></div>'
+    + '<div><div style="font-size:1.7rem;font-weight:700;color:var(--accent)">' + etapas.length + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Estadios</div></div>'
+    + '<div><div style="font-size:1.05rem;font-weight:600">' + ensoText + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">ENSO</div></div>'
+    + '<div><div style="font-size:1.05rem;font-weight:600">' + (res.llegaMadurez ? '✅ Ciclo completo' : '⚠️ Ciclo incompleto') + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Madurez</div></div>'
+    + (res.fechaFin ? '<div><div style="font-size:1.05rem;font-weight:600">' + res.fechaFin + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Fecha fin estimada</div></div>' : '')
+    + '</div></div>'
+    + '<div class="card" style="margin-bottom:1rem;overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:.86rem">'
+    + '<thead><tr style="background:rgba(255,255,255,.05)">'
+    + '<th style="padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.12)">Estadio</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Fecha inicio</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Día</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">GDD</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Kc</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div class="card" style="margin-bottom:.5rem"><canvas id="fp-canvas" height="110"></canvas></div>'
+    + (res.advertencia ? '<p style="font-size:.82rem;color:#e67e22;margin-top:.5rem">⚠️ ' + res.advertencia + '</p>' : '')
+    + '<p style="font-size:.72rem;color:var(--c2);margin-top:.4rem">Fuentes: ' + ((res.fuentes || []).join(' · ') || 'NASA POWER') + ' · Modo planificación</p>';
+
+  document.getElementById('fp-resultado').innerHTML = html;
+
+  if (_fpChart) { _fpChart.destroy(); _fpChart = null; }
+  var canvas = document.getElementById('fp-canvas');
+  if (!canvas || !res.fechasPorDia || !res.fechasPorDia.length) return;
+  var step = Math.max(1, Math.floor(res.fechasPorDia.length / 80));
+  var labels = res.fechasPorDia.filter(function(_,i){ return i%step===0; });
+  var gdd = (res.gddAcumPorDia||[]).filter(function(_,i){ return i%step===0; });
+  var lluvia = (res.lluviaPorDia||[]).filter(function(_,i){ return i%step===0; });
+  _fpChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: labels, datasets: [
+      { label: 'GDD Acum.', data: gdd, borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,.08)', borderWidth: 2, pointRadius: 0, yAxisID: 'y' },
+      { label: 'Lluvia (mm)', data: lluvia, borderColor: 'rgba(100,220,120,.65)', backgroundColor: 'rgba(100,220,120,.1)', borderWidth: 1, pointRadius: 0, type: 'bar', yAxisID: 'y1' }
+    ]},
+    options: { responsive: true, interaction: { mode:'index', intersect:false },
+      plugins: { legend: { labels: { color:'#bbb', font:{ size:11 } } } },
+      scales: {
+        x: { ticks:{ color:'#888', maxTicksLimit:8, font:{size:10} }, grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { position:'left', ticks:{ color:'#888' }, grid:{ color:'rgba(255,255,255,.04)' }, title:{ display:true, text:'GDD °C', color:'#888', font:{size:10} } },
+        y1: { position:'right', ticks:{ color:'#888' }, grid:{ drawOnChartArea:false }, title:{ display:true, text:'mm lluvia', color:'#888', font:{size:10} } }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════
+// FENOLOGÍA · SEGUIMIENTO
+// ════════════════════════════════════════════════
+function fsUsarLote() {
+  var latSrc = document.getElementById('s-lat') || document.getElementById('h-lat') || document.getElementById('as-lat');
+  var lonSrc = document.getElementById('s-lon') || document.getElementById('h-lon') || document.getElementById('as-lon');
+  var fecSrc = document.getElementById('s-fecha') || document.getElementById('as-siembra');
+  if (latSrc && latSrc.value) document.getElementById('fs-lat').value = latSrc.value;
+  if (lonSrc && lonSrc.value) document.getElementById('fs-lon').value = lonSrc.value;
+  if (fecSrc && fecSrc.value) document.getElementById('fs-fecha').value = fecSrc.value;
+}
+
+var _fsChart = null;
+
+async function fsCalcular() {
+  if (!window.Fenologia) { alert('Módulo de fenología no disponible'); return; }
+  var cultivo = document.getElementById('fs-cultivo').value;
+  var lat = parseFloat(document.getElementById('fs-lat').value);
+  var lon = parseFloat(document.getElementById('fs-lon').value);
+  var fechaSiembra = document.getElementById('fs-fecha').value;
+  if (!fechaSiembra || isNaN(lat) || isNaN(lon)) { alert('Completá todos los campos'); return; }
+
+  var hoy = new Date();
+  var siembra = new Date(fechaSiembra + 'T00:00:00');
+  if (siembra > hoy) { alert('La fecha de siembra no puede ser futura.\nUsá "Fen. Planificación" para proyecciones.'); return; }
+  var diasTranscurridos = Math.max(0, Math.floor((hoy - siembra) / 86400000));
+
+  var btn = document.getElementById('fs-btn');
+  btn.disabled = true; btn.textContent = '⏳ Calculando…';
+  document.getElementById('fs-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">⏳ Descargando datos reales ERA5 + pronóstico 16 días…</p>';
+
+  try {
+    var duracion = Math.max(diasTranscurridos + 18, 60);
+    var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: 'seguimiento' });
+    _fsRender(res, diasTranscurridos);
+  } catch(e) {
+    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #e74c3c;padding:1.2rem"><p style="color:#e74c3c;margin:0">❌ Error: ' + e.message + '</p></div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '🌿 Analizar';
+  }
+}
+
+function _fsRender(res, diasTranscurridos) {
+  var etapas = res.etapas || [];
+  // Estadio actual: el último que ya alcanzó
+  var etapaActual = null;
+  for (var i = etapas.length - 1; i >= 0; i--) {
+    if ((etapas[i].diasDesdeSiembra || 0) <= diasTranscurridos) { etapaActual = etapas[i]; break; }
+  }
+  if (!etapaActual && etapas.length) etapaActual = etapas[0];
+
+  var idxHoy = Math.min(diasTranscurridos, (res.kcPorDia || []).length - 1);
+  var kcHoy = res.kcPorDia && res.kcPorDia[idxHoy] != null ? res.kcPorDia[idxHoy].toFixed(2) : '—';
+  var gddHoy = res.gddAcumPorDia && res.gddAcumPorDia[idxHoy] != null ? Math.round(res.gddAcumPorDia[idxHoy]) : '—';
+
+  // Próximos estadios críticos
+  var proximos = etapas.filter(function(e){ return e.esCritica && (e.diasDesdeSiembra || 0) > diasTranscurridos; }).slice(0, 3);
+  var proximosHtml = proximos.length ? proximos.map(function(e) {
+    var diasRest = (e.diasDesdeSiembra || 0) - diasTranscurridos;
+    return '<div style="display:flex;align-items:center;gap:.6rem;padding:.6rem .8rem;background:rgba(255,193,7,.07);border-radius:6px">'
+      + '<span style="font-size:1.1rem">⭐</span>'
+      + '<div><div style="font-weight:600;font-size:.9rem">' + e.nombre + '</div>'
+      + '<div style="font-size:.76rem;color:var(--c2)">en ' + diasRest + ' día' + (diasRest !== 1 ? 's' : '') + (e.fechaInicio ? ' · ' + e.fechaInicio : '') + '</div></div>'
+      + '</div>';
+  }).join('') : '<span style="color:var(--c2);font-size:.85rem">Sin estadios críticos próximos en el período analizado</span>';
+
+  var rows = etapas.map(function(e) {
+    var esPasado = (e.diasDesdeSiembra || 0) < diasTranscurridos;
+    var esActual = e === etapaActual;
+    return '<tr style="background:' + (esActual ? 'rgba(79,195,247,.12)' : esPasado ? 'rgba(255,255,255,.02)' : 'transparent') + ';opacity:' + (esPasado && !esActual ? '.55' : '1') + '">'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">' + (esActual ? '<span style="color:#4fc3f7">▶ </span>' : '') + (e.esCritica ? '⭐ ' : '') + e.nombre + (esActual ? ' <span style="font-size:.7rem;color:#4fc3f7">(hoy)</span>' : '') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.fechaInicio || '—') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.diasDesdeSiembra != null ? e.diasDesdeSiembra : '—') + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + Math.round(e.gddAlcanzado || 0) + '</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);text-align:center">' + (e.kcMedio != null ? e.kcMedio.toFixed(2) : '—') + '</td>'
+      + '</tr>';
+  }).join('');
+
+  var html = '<div class="card" style="margin-bottom:1rem">'
+    + '<div style="display:flex;flex-wrap:wrap;gap:1.8rem;align-items:flex-end">'
+    + '<div><div style="font-size:.76rem;color:var(--c2);margin-bottom:.2rem">Estadio actual</div><div style="font-size:1.2rem;font-weight:700;color:var(--accent)">' + (etapaActual ? etapaActual.nombre : '—') + '</div></div>'
+    + '<div style="width:1px;height:38px;background:rgba(255,255,255,.1)"></div>'
+    + '<div><div style="font-size:.76rem;color:var(--c2)">Kc hoy</div><div style="font-size:1.7rem;font-weight:700">' + kcHoy + '</div></div>'
+    + '<div><div style="font-size:.76rem;color:var(--c2)">Días desde siembra</div><div style="font-size:1.7rem;font-weight:700">' + diasTranscurridos + '</div></div>'
+    + '<div><div style="font-size:.76rem;color:var(--c2)">GDD acumulado</div><div style="font-size:1.7rem;font-weight:700">' + gddHoy + '</div></div>'
+    + '</div></div>'
+    + '<div class="card" style="margin-bottom:1rem"><div style="font-size:.82rem;font-weight:600;color:var(--c2);margin-bottom:.8rem">Próximos estadios críticos</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:.6rem">' + proximosHtml + '</div></div>'
+    + '<div class="card" style="margin-bottom:1rem;overflow-x:auto">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:.86rem">'
+    + '<thead><tr style="background:rgba(255,255,255,.05)">'
+    + '<th style="padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,.12)">Estadio</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Fecha</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Día</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">GDD</th>'
+    + '<th style="padding:10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.12)">Kc</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div class="card" style="margin-bottom:.5rem"><canvas id="fs-canvas" height="110"></canvas></div>'
+    + '<p style="font-size:.72rem;color:var(--c2);margin-top:.4rem">Fuentes: ' + ((res.fuentes || []).join(' · ') || 'ERA5 + Open-Meteo') + ' · Modo seguimiento</p>';
+
+  document.getElementById('fs-resultado').innerHTML = html;
+
+  if (_fsChart) { _fsChart.destroy(); _fsChart = null; }
+  var canvas = document.getElementById('fs-canvas');
+  if (!canvas || !res.fechasPorDia || !res.fechasPorDia.length) return;
+  var step = Math.max(1, Math.floor(res.fechasPorDia.length / 80));
+  var labels = res.fechasPorDia.filter(function(_,i){ return i%step===0; });
+  var gdd = (res.gddAcumPorDia||[]).filter(function(_,i){ return i%step===0; });
+  var kcs = (res.kcPorDia||[]).filter(function(_,i){ return i%step===0; });
+  var hoyIdx = Math.round(diasTranscurridos / step);
+  // Separar datos pasados y futuros para el GDD
+  var gddPasado = gdd.map(function(v, i){ return i <= hoyIdx ? v : null; });
+  var gddFuturo = gdd.map(function(v, i){ return i >= hoyIdx ? v : null; });
+  _fsChart = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: labels, datasets: [
+      { label: 'GDD (real)', data: gddPasado, borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,.08)', borderWidth: 2.5, pointRadius: 0, spanGaps: false, yAxisID: 'y' },
+      { label: 'GDD (proyectado)', data: gddFuturo, borderColor: '#4fc3f7', backgroundColor: 'rgba(79,195,247,.03)', borderWidth: 1.5, pointRadius: 0, spanGaps: false, borderDash:[5,4], yAxisID: 'y' },
+      { label: 'Kc', data: kcs, borderColor: '#ffd54f', backgroundColor: 'rgba(255,213,79,.04)', borderWidth: 2, pointRadius: 0, borderDash:[3,3], yAxisID: 'y1' }
+    ]},
+    options: { responsive: true, interaction: { mode:'index', intersect:false },
+      plugins: { legend: { labels: { color:'#bbb', font:{ size:11 } } } },
+      scales: {
+        x: { ticks:{ color:'#888', maxTicksLimit:8, font:{size:10} }, grid:{ color:'rgba(255,255,255,.04)' } },
+        y: { position:'left', ticks:{ color:'#888' }, grid:{ color:'rgba(255,255,255,.04)' }, title:{ display:true, text:'GDD', color:'#888', font:{size:10} } },
+        y1: { position:'right', ticks:{ color:'#888' }, grid:{ drawOnChartArea:false }, title:{ display:true, text:'Kc', color:'#888', font:{size:10} }, min:0, max:1.5 }
+      }
+    }
+  });
+}
+</script>
+
+  <div class="footer-note" style="margin-top:4rem">AgroMotor v3.9 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
 
 </main>
 
@@ -3638,29 +3878,28 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
-<script src="js/store.js"></script>
-<script src="js/core.js"></script>
-<script src="js/config.js"></script>
-<script src="js/login.js"></script>
-<script src="js/cache.js"></script>
+<script src="js/store.js?v=49"></script>
+<script src="js/core.js?v=49"></script>
+<script src="js/config.js?v=49"></script>
+<script src="js/login.js?v=49"></script>
+<script src="js/cache.js?v=49"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js"></script>
+<script src="js/nav.js?v=49"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js"></script>
-<script src="js/siembra-apis.js"></script>
-<script src="js/economia.js"></script>
-<script src="js/fertilizacion.js"></script>
-<script src="js/maquinaria.js"></script>
-<script src="js/asistente.js"></script>
-<script src="js/pdf.js"></script>
-<script src="js/pdf-modulo.js"></script>
-<script src="js/onboarding.js"></script>
-<script src="js/alerta-sanitaria.js"></script>
-<script src="js/dashboard-ux.js"></script>
+<script src="js/siembra.js?v=49"></script>
+<script src="js/siembra-apis.js?v=49"></script>
+<script src="js/economia.js?v=49"></script>
+<script src="js/maquinaria.js?v=49"></script>
+<script src="js/asistente.js?v=49"></script>
+<script src="js/pdf.js?v=49"></script>
+<script src="js/pdf-modulo.js?v=49"></script>
+<script src="js/onboarding.js?v=49"></script>
+<script src="js/alerta-sanitaria.js?v=49"></script>
+<script src="js/dashboard-ux.js?v=49"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():

@@ -16,7 +16,8 @@ var AM_TAB_ORDER = [
   'nutricion',
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
-  'siembra-variable','mapa','asistente'
+  'siembra-variable','mapa','asistente',
+  'fen-plan','fen-seg'
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
@@ -239,6 +240,34 @@ function _activarModulo(mod) {
       if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
     }, 150);
   }
+  if (mod === 'fen-plan' || mod === 'fen-seg') {
+    // Asegurar carga si aún no se completó el lazy-load de 8s
+    if (typeof fpCalcular !== 'function') {
+      amCargarModulo('fenologia.js');
+    }
+    // Sincronizar coordenadas del lote
+    var coord = document.getElementById('s-coord');
+    if (coord && coord.value) {
+      var parts = coord.value.split(',');
+      if (parts.length === 2) {
+        var lat = parseFloat(parts[0].trim());
+        var lon = parseFloat(parts[1].trim());
+        if (mod === 'fen-plan') {
+          var fpLat = document.getElementById('fp-lat');
+          var fpLon = document.getElementById('fp-lon');
+          if (fpLat && !fpLat.value) fpLat.value = lat;
+          if (fpLon && !fpLon.value) fpLon.value = lon;
+        } else {
+          var fsLat = document.getElementById('fs-lat');
+          var fsLon = document.getElementById('fs-lon');
+          if (fsLat && !fsLat.value) fsLat.value = lat;
+          if (fsLon && !fsLon.value) fsLon.value = lon;
+        }
+      }
+    }
+    _syncCultivo(mod === 'fen-plan' ? 'fp-cultivo' : 'fs-cultivo');
+    _syncFecha(mod === 'fen-plan' ? 'fp-fecha' : 'fs-fecha');
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────
@@ -306,6 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
   
   setTimeout(function() { amCargarModulo('hidrico.js'); amCargarModulo('cultivares.js'); }, 2000);
   setTimeout(function() { amCargarModulo('cultivares-extra.js'); amCargarModulo('mapa.js'); amCargarModulo('pulverizacion.js'); }, 5000);
+  setTimeout(function() { amCargarModulo('fenologia.js'); }, 8000);
   var trafico = document.getElementById('s-trafico');
   if (trafico) {
     trafico.addEventListener('change', function() {
