@@ -1237,6 +1237,131 @@
   </div>
 </div>
 
+<!-- ══ COMPARADOR DE CAMPAÑAS ══ -->
+<div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(200,162,85,.35);background:#fffdf6">
+  <div class="card-title" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+    ⚖️ Comparador de campañas
+    <button onclick="ccToggle()" id="cc-toggle-btn" class="btn btn-s"
+      style="margin-left:auto;font-size:.7rem;padding:.25rem .7rem">Abrir comparador</button>
+  </div>
+
+  <div id="cc-panel" style="display:none;margin-top:.9rem">
+    <div style="font-size:.73rem;color:rgba(74,46,26,.5);margin-bottom:.9rem">
+      Compará dos escenarios — distintos cultivos, precios o tecnologías — y visualizá las diferencias de margen.
+    </div>
+
+    <!-- Dos columnas de inputs -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
+
+      <!-- ESCENARIO A -->
+      <div style="background:rgba(74,138,196,.07);border:1px solid rgba(74,138,196,.25);border-radius:8px;padding:.75rem">
+        <div style="font-size:.78rem;font-weight:700;color:#1a3a6c;margin-bottom:.6rem">
+          Escenario A
+          <button onclick="ccCopiarEconomia('a')"
+            style="float:right;font-size:.65rem;padding:.15rem .45rem;border:1px solid rgba(74,138,196,.4);
+                   border-radius:4px;background:rgba(74,138,196,.1);color:#1a3a6c;cursor:pointer">
+            ↙ Copiar de Economía
+          </button>
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Nombre / etiqueta</label>
+          <input type="text" id="cc-lbl-a" value="Escenario base" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Cultivo</label>
+          <input type="text" id="cc-cult-a" value="Soja" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Precio (USD/t)</label>
+          <input type="number" id="cc-precio-a" value="290" min="50" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Rendimiento (t/ha)</label>
+          <input type="number" id="cc-rend-a" value="3.2" step="0.1" min="0.5" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Costos directos (USD/ha)</label>
+          <input type="number" id="cc-costo-a" value="295" min="0" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Flete (USD/ha)</label>
+          <input type="number" id="cc-flete-a" value="25" min="0" style="font-size:.8rem">
+        </div>
+        <div class="fg">
+          <label style="font-size:.7rem">Arrendamiento (qq/ha)</label>
+          <input type="number" id="cc-arriendo-a" value="10" step="0.5" min="0" style="font-size:.8rem">
+        </div>
+      </div>
+
+      <!-- ESCENARIO B -->
+      <div style="background:rgba(74,46,26,.04);border:1px solid rgba(74,46,26,.15);border-radius:8px;padding:.75rem">
+        <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.6rem">
+          Escenario B
+          <button onclick="ccCopiarEconomia('b')"
+            style="float:right;font-size:.65rem;padding:.15rem .45rem;border:1px solid rgba(74,46,26,.3);
+                   border-radius:4px;background:rgba(74,46,26,.07);color:#4a2e1a;cursor:pointer">
+            ↙ Copiar de Economía
+          </button>
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Nombre / etiqueta</label>
+          <input type="text" id="cc-lbl-b" value="Escenario alternativo" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Cultivo</label>
+          <input type="text" id="cc-cult-b" value="Maíz" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Precio (USD/t)</label>
+          <input type="number" id="cc-precio-b" value="200" min="50" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Rendimiento (t/ha)</label>
+          <input type="number" id="cc-rend-b" value="7.0" step="0.1" min="0.5" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Costos directos (USD/ha)</label>
+          <input type="number" id="cc-costo-b" value="380" min="0" style="font-size:.8rem">
+        </div>
+        <div class="fg" style="margin-bottom:.45rem">
+          <label style="font-size:.7rem">Flete (USD/ha)</label>
+          <input type="number" id="cc-flete-b" value="30" min="0" style="font-size:.8rem">
+        </div>
+        <div class="fg">
+          <label style="font-size:.7rem">Arrendamiento (qq/ha)</label>
+          <input type="number" id="cc-arriendo-b" value="10" step="0.5" min="0" style="font-size:.8rem">
+        </div>
+      </div>
+    </div>
+
+    <!-- Botón comparar -->
+    <button onclick="ccComparar()" class="btn btn-p"
+      style="width:100%;margin-top:.9rem;background:linear-gradient(135deg,#5A3A10,#8B5E2A)">
+      ⚖️ Comparar escenarios
+    </button>
+
+    <!-- Resultado -->
+    <div id="cc-resultado" style="display:none;margin-top:1rem">
+
+      <!-- Tabla comparativa -->
+      <div style="overflow-x:auto;margin-bottom:.9rem">
+        <div id="cc-tabla-res"></div>
+      </div>
+
+      <!-- Gráfico -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
+        <span style="font-size:.76rem;font-weight:700;color:#4a2e1a">Comparación visual</span>
+        <button onclick="ccExportar()"
+          style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
+                 background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
+      </div>
+      <div style="position:relative;height:240px" class="cc-chart-wrap">
+        <canvas id="cc-chart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ MÓDULO BALANCE HÍDRICO ══ -->
 <div id="mod-hidrico" class="module-panel">
   <div class="module-title">Balance <em>Hídrico</em> y Escenario Climático
@@ -4143,6 +4268,20 @@ function _fsRender(res, diasTranscurridos) {
     .gh-chart-wrap { height:190px !important; }
   }
 
+  /* Comparador de campañas */
+  .cc-cmp-tbl { width:100%; border-collapse:collapse; font-size:.76rem; }
+  .cc-cmp-tbl th { background:#f5f0e8; color:#5A3A10; font-weight:700; padding:.35rem .6rem; text-align:right; border-bottom:2px solid rgba(200,162,85,.4); }
+  .cc-cmp-tbl th:first-child { text-align:left; }
+  .cc-cmp-tbl td { padding:.3rem .6rem; text-align:right; border-bottom:1px solid rgba(74,46,26,.07); }
+  .cc-cmp-tbl .cc-lbl { text-align:left; color:rgba(74,46,26,.7); font-size:.73rem; }
+  .cc-cmp-tbl tr:last-child td { border-bottom:none; }
+  .cc-pos { color:#2e7d32; font-weight:600; }
+  .cc-neg { color:#c62828; font-weight:600; }
+  @media (max-width:480px) {
+    .cc-chart-wrap { height:190px !important; }
+    .cc-cmp-tbl { font-size:.68rem; }
+    .cc-cmp-tbl th, .cc-cmp-tbl td { padding:.25rem .35rem; }
+  }
 </style>
 
 <script>
@@ -4181,6 +4320,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/dashboard-ux.js?v=52"></script>
 <script src="js/dashboard.js?v=52"></script>
 <script src="js/graficos-hidrico.js?v=52"></script>
+<script src="js/comparador-campana.js?v=52"></script>
 <script src="js/graficos-economia.js?v=52"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
