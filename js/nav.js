@@ -1,4 +1,4 @@
-﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // AGROMOTOR â€” nav.js
 // switchMod con lazy loading Â· DOMContentLoaded init
 // renderSueloModulo Â· Control de navegaciÃ³n principal
@@ -13,7 +13,7 @@
 var AM_TAB_ORDER = [
   'dashboard','decision','cultivares',
   'siembra','suelo','hidrico',
-  'nutricion',
+  'nutricion','rotacion',
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
   'siembra-variable','mapa','asistente',
@@ -56,6 +56,7 @@ function switchMod(mod) {
     'pulverizacion': ['pulverizacion.js'],
     'decision':      ['decision.js'],
     'nutricion':     ['nutricion.js'],
+    'rotacion':      ['rotacion.js'],
     'seguimiento':   ['seguimiento.js'],
     'cosecha':       ['cosecha.js'],
     'plagas':           ['plagas.js'],

@@ -113,6 +113,7 @@
     <div class="nav-sep"></div>
     <!-- 3. NUTRICIÓN -->
     <div class="nav-tab" data-mod="nutricion" onclick="switchMod('nutricion')"><span class="dot"></span>🌿 Nutrición</div>
+    <div class="nav-tab" data-mod="rotacion" onclick="switchMod('rotacion')"><span class="dot"></span>🔄 Rotación</div>
     <div class="nav-sep"></div>
     <!-- 4. ECONOMÍA -->
     <div class="nav-tab" data-mod="economia" onclick="switchMod('economia')"><span class="dot"></span>💰 Economía</div>
@@ -757,6 +758,82 @@
 
 <!-- (mod-fertilizacion, mod-fertoptima, mod-balancenut migrados a mod-nutricion) -->
 <div id="mod-fertilizacion" style="display:none"></div>
+
+<!-- ══ MÓDULO ROTACIÓN DE CULTIVOS ══ -->
+<div id="mod-rotacion" class="module-panel" style="display:none">
+  <div class="module-title">Planificador de <em>Rotación</em>
+    <span id="mod-lote-badge-rotacion" class="am-lote-badge" style="display:none"></span>
+  </div>
+  <div class="module-subtitle">Planificación y sustentabilidad de suelos a 5 años · Balance de Nitrógeno y alertas sanitarias pampeanas</div>
+
+  <div class="grid-2">
+    <!-- Configuración Secuencia -->
+    <div>
+      <div class="card">
+        <div class="card-title">🚜 Secuencia de Cultivos</div>
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          <div class="tr" style="padding:.5rem 0;border-bottom:1px solid rgba(74,46,26,.08)">
+            <label style="font-weight:700;color:#5A3A10" id="rot-anio-lbl-0">Año 1</label>
+            <select id="rot-cult-0" onchange="rotActualizar()"></select>
+          </div>
+          <div class="tr" style="padding:.5rem 0;border-bottom:1px solid rgba(74,46,26,.08)">
+            <label style="font-weight:700;color:#5A3A10" id="rot-anio-lbl-1">Año 2</label>
+            <select id="rot-cult-1" onchange="rotActualizar()"></select>
+          </div>
+          <div class="tr" style="padding:.5rem 0;border-bottom:1px solid rgba(74,46,26,.08)">
+            <label style="font-weight:700;color:#5A3A10" id="rot-anio-lbl-2">Año 3</label>
+            <select id="rot-cult-2" onchange="rotActualizar()"></select>
+          </div>
+          <div class="tr" style="padding:.5rem 0;border-bottom:1px solid rgba(74,46,26,.08)">
+            <label style="font-weight:700;color:#5A3A10" id="rot-anio-lbl-3">Año 4</label>
+            <select id="rot-cult-3" onchange="rotActualizar()"></select>
+          </div>
+          <div class="tr" style="padding:.5rem 0;border-bottom:1px solid rgba(74,46,26,.08)">
+            <label style="font-weight:700;color:#5A3A10" id="rot-anio-lbl-4">Año 5</label>
+            <select id="rot-cult-4" onchange="rotActualizar()"></select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Score e Impacto -->
+      <div class="card gap-top">
+        <div class="card-title">📊 Score de Rotación Pampeana</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+          <span id="rot-score-lbl" style="font-weight:700;font-size:1.1rem;">Aceptable</span>
+          <span id="rot-score-val" style="font-family:'DM Mono',monospace;font-weight:700;font-size:1.2rem;">60/100</span>
+        </div>
+        <div style="width:100%;height:10px;background:rgba(0,0,0,.08);border-radius:5px;overflow:hidden">
+          <div id="rot-score-bar" style="width:60%;height:100%;background:#e65100;transition:all 0.3s"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráfico y Diagnósticos -->
+    <div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem">
+          <div class="card-title" style="margin:0">⚖️ Balance de Nitrógeno Proyectado</div>
+          <button class="btn btn-s" onclick="rotExportar()">⬇️ PNG</button>
+        </div>
+        <div style="position:relative;width:100%;height:220px;">
+          <canvas id="rot-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Alertas y Recomendaciones -->
+      <div class="card gap-top">
+        <div class="card-title">⚠️ Diagnóstico de Sustentabilidad y Malezas</div>
+        <div id="rot-obs" style="display:flex;flex-direction:column;gap:0.35rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detalle del Plan de Rotaciones -->
+  <div class="card gap-top">
+    <div class="card-title">📋 Matriz Técnica de Rotaciones</div>
+    <div id="rot-tabla" style="overflow-x:auto"></div>
+  </div>
+</div>
 
 <!-- ══ MÓDULO 3 ══ -->
 <div id="mod-maquinaria" class="module-panel">

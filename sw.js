@@ -1,11 +1,11 @@
-﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // AGROMOTOR â€” Service Worker v1.0
 // Estrategia: Cache-First para assets locales
 //             Network-First para APIs externas
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v55';
+const CACHE_NAME    = 'agromotor-v56';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales â€” se pre-cachean en el install
@@ -37,6 +37,7 @@ const ASSETS_LOCAL = [
   './js/seguimiento.js',
   './js/mapa.js',
   './js/siembra-variable.js',
+  './js/rotacion.js',
   './css/siembra-variable.css',
   './js/alerta-sanitaria.js',
   './js/dashboard-ux.js',
