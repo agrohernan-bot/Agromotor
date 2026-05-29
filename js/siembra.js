@@ -36,7 +36,7 @@
       const fsel=fs?new Date(fs+'T12:00:00'):hoy;
       const fmt=d=>d.toISOString().split('T')[0];
       const ini=new Date(fsel);ini.setDate(ini.getDate()-3);
-      const fin=new Date(fsel);fin.setDate(fin.getDate()+7);
+      const fin=new Date(fsel);fin.setDate(fin.getDate()+16);
 
       const url='https://api.open-meteo.com/v1/forecast?'+
         `latitude=${lat}&longitude=${lon}&timezone=auto`+
@@ -184,14 +184,14 @@
     const cult=gv('s-cultivo'),suelo=gv('s-suelo');
     const tMinC=DB.tMin[cult]||10,hRef=DB.hum[suelo]?.[cult];
     const hoy=new Date().toISOString().split('T')[0];
-    const dias8=dias.filter(d=>{const df=(new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3;return df>=-2&&df<=7});
+    const dias17=dias.filter(d=>{const df=(new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3;return df>=-2&&df<=16});
 
     const hdr=`<div class="pr hdr">
       <div>Fecha</div><div class="mn">T°sue.</div><div class="mn">Hum%</div>
       <div class="mn">ET₀</div><div class="mn">Viento</div><div class="mn">Lluv%</div><div>Estado</div>
     </div>`;
 
-    const rows=dias8.map(d=>{
+    const rows=dias17.map(d=>{
       const esR=d.fecha===fRef,diff=Math.round((new Date(d.fecha+'T12:00')-new Date(fRef+'T12:00'))/86400e3);
       const lbl=esR?'📌 Siembra':d.fecha===hoy?'Hoy':diff>0?`+${diff}d`:`${diff}d`;
       let est='—',ch='';

@@ -647,6 +647,18 @@
     }
     dl(lines.join('\n'), 'prescripcion_' + hoy() + '.csv', 'text/csv');
   }
+  function exportarCSVMonitor() {
+    if (!svZonaData) return;
+    var lines = ['Latitude,Longitude,Seed_Rate_m2,Seed_Rate_ha,Fert_Rate_ha,Zone_Name'];
+    svZonaData.gridInfo.points.forEach(function (p, i) {
+      var z = svZonaData.assignments[i];
+      var seedM2 = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
+      var seedHa = Math.round(seedM2 * 10000);
+      var fertHa = +(document.getElementById('sv-fer-' + z) || { value: 0 }).value || 0;
+      lines.push([p[1].toFixed(6), p[0].toFixed(6), seedM2, seedHa, fertHa, ZONE_NAMES[z]].join(','));
+    });
+    dl(lines.join('\n'), 'prescripcion_monitor_' + hoy() + '.csv', 'text/csv');
+  }
   function exportarShapefile() {
     if (!svZonaData) return;
     var geojson = { type: 'FeatureCollection', features: _features() };
@@ -711,6 +723,7 @@
   window.svCalcTotales     = function () { calcTotales(); };
   window.svExportarGeoJSON  = function () { exportarGeoJSON(); };
   window.svExportarCSVPresc = function () { exportarCSVPresc(); };
+  window.svExportarCSVMonitor = function () { exportarCSVMonitor(); };
   window.svExportarShapefile= function () { exportarShapefile(); };
   window.svTogglePanel     = function (h) { svTogglePanel(h); };
 

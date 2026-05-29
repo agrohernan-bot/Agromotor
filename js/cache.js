@@ -279,6 +279,38 @@ window.amCambiarLoteGlobal = function() {
     const activeLote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
     amToast('Cargado: ' + (activeLote ? activeLote.nombre : AM_LOTE_ACTIVO), 'ok');
   }
+
+  // Refrescar el Dashboard e indicadores de la UI al instante
+  if (typeof window.dashCampanaRefresh === 'function') {
+    window.dashCampanaRefresh();
+  }
+  if (typeof window.dashRefreshCards === 'function') {
+    window.dashRefreshCards();
+  }
+
+  // Integración de Arquitectura v2.0 al cambiar de lote
+  if (window.ModoSwitch) {
+    window.ModoSwitch.sincronizarModulosLegacy();
+    window.ModoSwitch.renderizarBadge();
+  }
+  if (window.Campanas) {
+    window.Campanas.campanaActual(AM_LOTE_ACTIVO).then(c => {
+      if (c) {
+        localStorage.setItem('am_campana_id', c.id);
+        localStorage.setItem('am_campana_activa_id', c.id);
+      } else {
+        localStorage.removeItem('am_campana_id');
+        localStorage.removeItem('am_campana_activa_id');
+      }
+      if (window.Alertas) {
+        window.Alertas.evaluarAlertas({ incluirForecast: true }).then(() => {
+          if (typeof window.dashCampanaRefresh === 'function') {
+            window.dashCampanaRefresh();
+          }
+        });
+      }
+    });
+  }
   
   // Refrescar módulo actual si es necesario
   if(typeof switchMod === 'function') {
@@ -289,9 +321,10 @@ window.amCambiarLoteGlobal = function() {
     }
   }
   
-  // Auto-fetch data para el lote cargado
+  // Auto-fetch data para el lote cargado SOLO si no tiene datos climáticos guardados en caché
   const coordVal = document.getElementById('s-coord')?.value;
-  if(coordVal && typeof buscarAPI === 'function') {
+  const hasCachedSuelo = window._sgDatos && Object.keys(window._sgDatos).length > 0;
+  if(coordVal && !hasCachedSuelo && typeof buscarAPI === 'function') {
     setTimeout(buscarAPI, 300);
   }
   
@@ -302,6 +335,16 @@ window.amCambiarLoteGlobal = function() {
 function amGuardarLotesEstado() {
   localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
 }
+
+const CALC_KEYS = [
+  'am_siembra_fecha', 'am_siembra_cultivo', 'am_siembra_lat', 'am_siembra_lon', 'am_siembra_suelo',
+  'am_lote_awc_mm', 'am_lote_nombre',
+  'am_fen_kc_hoy', 'am_fen_etapa_hoy', 'am_fen_gdd_acum', 'am_fen_fecha_etapa_fin', 'am_fen_duracion_ciclo',
+  'am_fen_agua_perfil', 'am_fen_precip_nasa', 'am_fen_agua_perfil_fuente',
+  'am_hidrico_agua_actual_mm', 'am_hidrico_deficit_acum_mm', 'am_hidrico_dias_estres', 'am_hidrico_cap_max_mm',
+  'am_enso_fase', 'am_enso_factor', 'am_alertas_activas', 'am_campana_id', 'am_campana_activa_id',
+  'am_modo_global', 'am_modo_hidrico', 'am_modo_fenologia', 'am_cosecha_fecha', 'am_cultivo'
+];
 
 function cacheGuardar() {
   try {
@@ -339,8 +382,17 @@ function cacheGuardar() {
       bhRendObj:   document.getElementById('bh-rend-obj')?.value,
       sgDatos:  window._sgDatos  || null,
       labDatos: window._labDatos || null,
+      calcKeys: {}
     };
     
+    // Guardar estados de cálculo en localStorage
+    CALC_KEYS.forEach(k => {
+      try {
+        const val = localStorage.getItem(k);
+        if (val !== null) lote.data.calcKeys[k] = val;
+      } catch(_) {}
+    });
+
     // Almacenar también la data de los info badges si queremos
     const badgeIds = ['i-ubi', 'i-suelo', 'i-temp', 'i-hum', 'i-et0', 'i-vpd', 'i-viento', 'np-rad', 'np-prec', 'np-tmax', 'np-tmin', 'np-et0', 'np-rh', 'np-drd', 'np-bal', 'sg-ph', 'sg-soc', 'sg-n', 'sg-da', 'sg-cec', 'sg-mo', 'sg-textura'];
     badgeIds.forEach(id => {
@@ -365,6 +417,18 @@ function cacheCargar() {
     if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
     if (datos.fecha   && document.getElementById('s-fecha'))   document.getElementById('s-fecha').value   = datos.fecha;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
+
+    // ── Restaurar o limpiar claves de localStorage correspondientes a este lote ──
+    const calcKeys = datos.calcKeys || {};
+    CALC_KEYS.forEach(k => {
+      try {
+        if (calcKeys[k] !== undefined && calcKeys[k] !== null) {
+          localStorage.setItem(k, calcKeys[k]);
+        } else {
+          localStorage.removeItem(k); // Limpiar para evitar fuga de contexto
+        }
+      } catch(_) {}
+    });
 
     // ── Sincronizar AM.store con el lote cargado ──────────
     // cacheCargar() asigna .value directamente (sin disparar el evento change),
@@ -485,6 +549,19 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
     cacheCargar();
     amActualizarBadgesLote();
+
+    // Inicializar badge de modo y evaluar alertas al arrancar
+    if (window.ModoSwitch) {
+      window.ModoSwitch.inicializarBadge();
+      window.ModoSwitch.sincronizarModulosLegacy();
+    }
+    if (window.Alertas) {
+      window.Alertas.evaluarAlertas({ incluirForecast: true }).then(() => {
+        if (typeof window.dashCampanaRefresh === 'function') {
+          window.dashCampanaRefresh();
+        }
+      });
+    }
   }, 500);
 });
 

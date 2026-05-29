@@ -1101,4 +1101,148 @@
       function fila(etiqueta, valor, alt) {
         checkPage(ctx, 7);
         if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
-        doc.setFont('helvetica','normal'); doc.setTextColor(...ct
+        doc.setFont('helvetica','normal'); doc.setTextColor(...ctx.COL.GRIS);
+        doc.setFontSize(8.5);
+        doc.text(String(etiqueta), ctx.ML+3, ctx.y+4);
+        doc.setFont('helvetica','bold'); doc.setTextColor(...ctx.COL.NEGRO);
+        doc.text(String(valor ?? '—'), ctx.ML+ctx.W-3, ctx.y+4, {align:'right'});
+        ctx.y += 6;
+      }
+
+      // ── 1. Datos del lote ──────────────────────────────
+      seccion(ctx, '📍 IDENTIFICACIÓN DE LA CAMPAÑA', ctx.COL.VERDE);
+      var alt = false;
+      var filas1 = [
+        ['Lote',             d.lote || '—'],
+        ['Cultivo',          (d.cultivo||'—').toUpperCase()],
+        ['Modo',             d.modo === 'produccion' ? 'Producción propia' : 'Planificación'],
+        ['Fecha de siembra', d.fechaSiembra || '—'],
+        ['Fecha de cosecha', d.fechaCosecha || '—'],
+        ['Coordenadas',      d.lat && d.lon ? d.lat.toFixed(4)+'°, '+d.lon.toFixed(4)+'°' : '—'],
+        ['ENSO activo',      d.faseENSO ? d.faseENSO.charAt(0).toUpperCase()+d.faseENSO.slice(1) : '—'],
+      ];
+      if (d.rendimientoReal) filas1.push(['Rendimiento real', d.rendimientoReal + ' kg/ha']);
+      filas1.forEach(function(r) { fila(r[0], r[1], alt); alt = !alt; });
+      ctx.y += 4;
+
+      // ── 2. Balance hídrico de campaña ─────────────────
+      seccion(ctx, '💧 BALANCE HÍDRICO DE CAMPAÑA', ctx.COL.AZUL);
+      var cal = d.calificacion || '—';
+      var calColor = cal === 'Excelente' ? ctx.COL.OK :
+                     cal === 'Buena'     ? ctx.COL.VERDE2 :
+                     cal === 'Regular'   ? ctx.COL.WARN : ctx.COL.DANGER;
+
+      // Calificación destacada
+      doc.setFillColor(...calColor);
+      doc.rect(ctx.ML, ctx.y, ctx.W, 10, 'F');
+      doc.setTextColor(255,255,255);
+      doc.setFontSize(12);
+      doc.setFont('helvetica','bold');
+      doc.text('Campaña ' + cal.toUpperCase(), ctx.ML+3, ctx.y+7);
+      ctx.y += 13;
+
+      alt = false;
+      var prec = function(n, d2) { return n != null && !isNaN(n) ? parseFloat(n).toFixed(d2||0) : '—'; };
+      var filas2 = [
+        ['ETc total campaña (mm)',          prec(d.etcTotal, 1) + (d.etcTotal ? ' mm' : '')],
+        ['Lluvia total campaña (mm)',        prec(d.lluviaTotal, 1) + (d.lluviaTotal ? ' mm' : '')],
+        ['Balance lluvia - ETc (mm)',        prec(d.balanceMm, 1) + (d.balanceMm != null ? ' mm' : '')],
+        ['Déficit acumulado (mm)',           prec(d.deficitAcum, 1) + (d.deficitAcum ? ' mm' : '')],
+        ['Días de estrés hídrico',          d.diasEstres != null ? d.diasEstres + ' días' : '—'],
+        ['Días estrés en etapas críticas',  d.diasEtCrit != null ? d.diasEtCrit + ' días' : '—'],
+        ['Agua en perfil al cierre (mm)',    prec(d.aguaFinalMm, 0) + (d.aguaFinalMm != null ? ' mm' : '')],
+        ['EUH (eficiencia uso del agua)',    d.euh != null ? (d.euh*100).toFixed(0)+'%' : '—'],
+        ['Reserva AWC del lote (mm)',        prec(d.awcMm) + (d.awcMm ? ' mm' : '')],
+      ];
+      filas2.forEach(function(r) { fila(r[0], r[1], alt); alt = !alt; });
+      ctx.y += 4;
+
+      // ── 3. Notas automáticas ──────────────────────────
+      var notas = d.notas || [];
+      if (notas.length > 0) {
+        checkPage(ctx, 20);
+        seccion(ctx, '📋 OBSERVACIONES AUTOMÁTICAS', ctx.COL.WARN);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        notas.forEach(function(nota) {
+          checkPage(ctx, 10);
+          var lines = doc.splitTextToSize('• ' + nota, ctx.W - 6);
+          lines.forEach(function(l) {
+            doc.text(l, ctx.ML+3, ctx.y);
+            ctx.y += 4.5;
+          });
+          ctx.y += 1;
+        });
+        ctx.y += 4;
+      }
+
+      // ── 4. Decisiones tomadas ─────────────────────────
+      var decs = d.decisiones || [];
+      if (decs.length > 0) {
+        checkPage(ctx, 20);
+        seccion(ctx, '⚖️ DECISIONES DE LA CAMPAÑA', ctx.COL.VERDE2);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        decs.forEach(function(dec, i) {
+          checkPage(ctx, 8);
+          var texto = typeof dec === 'string' ? dec : (dec.descripcion || dec.texto || JSON.stringify(dec));
+          var lines = doc.splitTextToSize((i+1)+'. ' + texto, ctx.W - 6);
+          lines.forEach(function(l) {
+            doc.text(l, ctx.ML+3, ctx.y);
+            ctx.y += 4.5;
+          });
+          ctx.y += 1;
+        });
+        ctx.y += 4;
+      }
+
+      // ── 5. Nota de pie ────────────────────────────────
+      checkPage(ctx, 16);
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica','italic');
+      doc.setTextColor(...ctx.COL.GRIS);
+      doc.text(
+        'Informe generado por AgroMotor · Datos consolidados de campaña · ' +
+        'Metodología FAO-56 · ENSO: NOAA/CPC · NASA POWER',
+        ctx.ML, ctx.y
+      );
+      ctx.y += 8;
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('InformeCierre'));
+      amToast('✅ Informe de cierre exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfInformeCierre error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
+  // ── Botón flotante context-aware ─────────────────────
+  // Detecta el módulo activo y dispara el generador correspondiente.
+  window.amExportarPDFModulo = function() {
+    if (!window.AM_SESION) {
+      amToast('Iniciá sesión primero — el PDF se firma con tu matrícula profesional.', 'err');
+      if (typeof amMostrarModal === 'function') amMostrarModal('login');
+      return;
+    }
+    var activePanel = document.querySelector('.module-panel.active');
+    var modId = activePanel?.id?.replace('mod-','');
+    var fns = {
+      'decision':       window.pdfDecision,
+      'nutricion':      window.pdfNutricion,
+      'suelo':          window.pdfSuelo,
+      'hidrico':        window.pdfHidrico,
+      'cosecha':        window.pdfCosecha,
+      'plagas':         window.pdfPlagas,
+      'pulverizacion':  window.pdfPulverizacion,
+      'cultivares':     window.pdfCultivares,
+      'economia':       window.pdfEconomia,
+    };
+    var fn = fns[modId];
+    if (typeof fn === 'function') fn();
+    else amToast('Este módulo aún no soporta exportar PDF.', 'err');
+  };
+
+})();

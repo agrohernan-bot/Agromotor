@@ -421,4 +421,110 @@
     ).join('');
   }
 
-  // ─── Actualizar todo ──�
+  // ─── Actualizar todo ──────────────────────────────────────────────────────
+  function geActualizar() {
+    const panel = $('ge-panel');
+    if (!panel || panel.style.display === 'none') return;
+    try {
+      const d = leerInputs();
+      const alertas = validarInputs(d);
+      mostrarAlertas(alertas);
+      if (alertas.some(a => a.nivel === 'error')) return;
+      renderCurvaMargen(d);
+      renderTabSensibilidad(d);
+      renderWaterfall(d);
+    } catch (e) {
+      console.warn('graficos-economia error:', e);
+    }
+  }
+
+  // ─── Toggle panel ─────────────────────────────────────────────────────────
+  window.geTogglePanel = function () {
+    const panel = $('ge-panel');
+    const btn   = $('ge-toggle-btn');
+    if (!panel) return;
+    const visible = panel.style.display !== 'none';
+    panel.style.display = visible ? 'none' : 'block';
+    if (btn) btn.textContent = visible ? '📊 Ver gráficos económicos' : '✖ Ocultar gráficos';
+    if (!visible) {
+      // Pequeño delay para que el canvas tenga dimensiones
+      setTimeout(geActualizar, 80);
+    }
+  };
+
+  // ─── Instalar observadores de cambio en inputs ────────────────────────────
+  function instalarObservadores() {
+    const ids = [
+      'ec-precio-disp', 'ec-precio-fut', 'ec-rend', 'ec-rend-fut', 'ec-sup',
+      'ec-semilla', 'ec-fertil', 'ec-agroquim', 'ec-siembra', 'ec-cosecha', 'ec-otros',
+      'ec-km', 'ec-flete-tar', 'ec-comision', 'ec-secado', 'ec-arriendo-qq', 'ec-tenencia',
+    ];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(geActualizar, 350);
+      });
+      el.addEventListener('change', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(geActualizar, 350);
+      });
+    });
+
+    // También escuchar cuando economia.js emite cambios de cultivo/dólar
+    document.addEventListener('ecActualizado', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(geActualizar, 400);
+    });
+  }
+
+  // ─── Exportar PNG ─────────────────────────────────────────────────────────
+  window.geExportar = function(canvasId, filename) {
+    const canvas = $(canvasId);
+    if (!canvas) return;
+    const tmp = document.createElement('canvas');
+    tmp.width  = canvas.width;
+    tmp.height = canvas.height;
+    const ctx  = tmp.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tmp.width, tmp.height);
+    ctx.drawImage(canvas, 0, 0);
+    const link = document.createElement('a');
+    link.download = filename + '.png';
+    link.href = tmp.toDataURL('image/png');
+    link.click();
+  };
+
+  // ─── Exportar tabla sensibilidad como CSV ─────────────────────────────────
+  window.geExportarTabla = function() {
+    const cont = $('ge-sens-table');
+    if (!cont) return;
+    const rows = cont.querySelectorAll('tr');
+    const csv  = [];
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('th,td');
+      csv.push(Array.from(cells).map(c => c.textContent.trim()).join(','));
+    });
+    const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = 'sensibilidad-agromotor.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+  function init() {
+    instalarObservadores();
+    // No render inicial — esperar a que el usuario abra el panel
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+})();

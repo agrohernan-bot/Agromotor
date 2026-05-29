@@ -77,6 +77,16 @@
       var el = document.getElementById(id);
       if (el) el.addEventListener('change', dashRefreshCards);
     });
+    document.addEventListener('click', function(e) {
+      var card = e.target.closest && e.target.closest('.mod-card');
+      if (!card) return;
+      var oc = card.getAttribute('onclick') || '';
+      var m = oc.match(/switchMod\('([^']+)'\)/);
+      if (!m || typeof window.switchMod !== 'function') return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.switchMod(m[1]);
+    }, true);
     setTimeout(dashRefreshCards, 600);
   });
 

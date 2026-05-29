@@ -309,4 +309,35 @@
     ctx.fillRect(0, 0, tmp.width, tmp.height);
     ctx.drawImage(canvas, 0, 0);
     var a = document.createElement('a');
-    a.download 
+    a.download = 'balance-hidrico.png';
+    a.href = tmp.toDataURL('image/png');
+    a.click();
+  };
+
+  // ── LEGADO (compat) ───────────────────────────────────
+  window.bhGraficoMostrar = function () {
+    var panel = document.getElementById('gh-hidrico-panel');
+    if (panel) { panel.style.display = 'block'; setTimeout(window.ghGraficoRender, 60); }
+  };
+  window.bhGraficoOcultar = function () {
+    var panel = document.getElementById('gh-hidrico-panel');
+    if (panel) panel.style.display = 'none';
+  };
+
+  // Reactualizar si el balance hídrico se recalculó
+  window.addEventListener('storage', function (e) {
+    if (e.key !== 'am_hidrico_ultimo') return;
+    var panel = document.getElementById('gh-hidrico-panel');
+    if (panel && panel.style.display !== 'none') {
+      setTimeout(window.ghGraficoRender, 120);
+    }
+  });
+
+  document.addEventListener('am:hidrico-actualizado', function () {
+    var panel = document.getElementById('gh-hidrico-panel');
+    if (panel && panel.style.display !== 'none') {
+      setTimeout(window.ghGraficoRender, 120);
+    }
+  });
+
+})();

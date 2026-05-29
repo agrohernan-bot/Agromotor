@@ -1,14 +1,14 @@
-// ════════════════════════════════════════════════════════
-// AGROMOTOR — Service Worker v1.0
+﻿// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// AGROMOTOR â€” Service Worker v1.0
 // Estrategia: Cache-First para assets locales
 //             Network-First para APIs externas
 //             Offline fallback para uso en campo
-// ════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v49';
+const CACHE_NAME    = 'agromotor-v55';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
-// Assets locales — se pre-cachean en el install
+// Assets locales â€” se pre-cachean en el install
 const ASSETS_LOCAL = [
   './',
   './index.html',
@@ -46,7 +46,7 @@ const ASSETS_LOCAL = [
   './manifest.json',
 ];
 
-// CDN externos — se cachean en primer uso (Stale While Revalidate)
+// CDN externos â€” se cachean en primer uso (Stale While Revalidate)
 const CDN_HOSTS = [
   'cdn.jsdelivr.net',
   'fonts.googleapis.com',
@@ -55,7 +55,7 @@ const CDN_HOSTS = [
   'unpkg.com',
 ];
 
-// APIs de datos — siempre Network First (datos en tiempo real)
+// APIs de datos â€” siempre Network First (datos en tiempo real)
 const API_HOSTS = [
   'api.open-meteo.com',
   'power.larc.nasa.gov',
@@ -67,11 +67,11 @@ const API_HOSTS = [
   'monitorsiogranos.magyp.gob.ar',       // cosecha: precio FOB granos
   'api.estadisticasbcra.com',            // cosecha: tipo de cambio + tasas BCRA
   'api.openlandmap.org',                 // suelo: P/K/Zn OpenLandMap
-  'idecor-ws.mapascordoba.gob.ar',       // suelo: P IDECOR Córdoba
+  'idecor-ws.mapascordoba.gob.ar',       // suelo: P IDECOR CÃ³rdoba
   'infra.datos.gob.ar',                  // cosecha: BADLAR + plazo fijo (CSV SSPM)
 ];
 
-// ── INSTALL: pre-cachear assets locales ───────────────
+// â”€â”€ INSTALL: pre-cachear assets locales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -81,7 +81,7 @@ self.addEventListener('install', event => {
   );
 });
 
-// ── ACTIVATE: limpiar caches viejos ───────────────────
+// â”€â”€ ACTIVATE: limpiar caches viejos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
@@ -94,7 +94,7 @@ self.addEventListener('activate', event => {
   );
 });
 
-// ── FETCH: estrategia según origen ────────────────────
+// â”€â”€ FETCH: estrategia segÃºn origen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
@@ -102,25 +102,41 @@ self.addEventListener('fetch', event => {
   // Solo interceptar GET
   if (request.method !== 'GET') return;
 
-  // APIs de datos → Network First (con fallback offline)
+  // Permite forzar una limpieza total visitando /app.html?clear-sw=1.
+  if (url.searchParams.has('clear-sw')) {
+    event.respondWith((async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      return fetch(request);
+    })());
+    return;
+  }
+
+  // HTML y navegaciones â†’ Network First para no dejar la app clavada en un shell viejo.
+  if (request.mode === 'navigate' || url.pathname.endsWith('/') || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/app.html')) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // APIs de datos â†’ Network First (con fallback offline)
   if (API_HOSTS.some(h => url.hostname.includes(h))) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // CDN externos → Stale While Revalidate
+  // CDN externos â†’ Stale While Revalidate
   if (CDN_HOSTS.some(h => url.hostname.includes(h))) {
     event.respondWith(staleWhileRevalidate(request, CACHE_CDN));
     return;
   }
 
-  // Assets locales → Cache First
+  // Assets locales â†’ Cache First
   event.respondWith(cacheFirst(request));
 });
 
-// ── ESTRATEGIAS ───────────────────────────────────────
+// â”€â”€ ESTRATEGIAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-// Cache First: sirve del cache, si no está busca en red y cachea
+// Cache First: sirve del cache, si no estÃ¡ busca en red y cachea
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) return cached;
@@ -172,32 +188,35 @@ async function networkFirst(request) {
 }
 
 // Fallback offline: respuesta JSON informativa para APIs,
-// o el index.html para navegación
+// o el index.html para navegaciÃ³n
 async function offlineFallback(request) {
   const url = new URL(request.url);
 
-  // Si es navegación → devolver app shell cacheada
+  // Si es navegaciÃ³n â†’ devolver app shell cacheada
   if (request.mode === 'navigate') {
     const cached = await caches.match('./index.html');
-    return cached || new Response('AgroMotor — Sin conexión', {
+    return cached || new Response('AgroMotor â€” Sin conexiÃ³n', {
       status: 503,
       headers: { 'Content-Type': 'text/html' }
     });
   }
 
-  // Si es una API → JSON con mensaje de offline
+  // Si es una API â†’ JSON con mensaje de offline
   if (request.headers.get('accept')?.includes('application/json') ||
       API_HOSTS.some(h => url.hostname.includes(h))) {
     return new Response(
-      JSON.stringify({ error: 'offline', message: 'Sin conexión. Los datos en tiempo real no están disponibles.' }),
+      JSON.stringify({ error: 'offline', message: 'Sin conexiÃ³n. Los datos en tiempo real no estÃ¡n disponibles.' }),
       { status: 503, headers: { 'Content-Type': 'application/json' } }
     );
   }
 
-  return new Response('Sin conexión', { status: 503 });
+  return new Response('Sin conexiÃ³n', { status: 503 });
 }
 
-// ── MENSAJE desde la app (para forzar update) ─────────
+// â”€â”€ MENSAJE desde la app (para forzar update) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('message', event => {
   if (event.data === 'skipWaiting') self.skipWaiting();
 });
+
+
+

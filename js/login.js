@@ -434,20 +434,10 @@ window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 // — Post-promo: mostrar solo la primera vez por dispositivo (am_seen_welcome)
 // TODO: restaurar el 1° de agosto de 2026 — usar solo el bloque post-promo
 window.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() {
-    if (localStorage.getItem('am_god') === 'true') return;
-    if (_modoRecovery) return; // flujo de reset de contraseña (hash puede estar limpio a los 1500ms)
-    if (AM_SESION) return; // ya logueado → no mostrar
-    if (new Date() < new Date('2026-08-02')) {
-      // Promo: mostrar login (ya registrado) o nuevo usuario puede ir a registro desde allí
-      amMostrarModal('login');
-      return;
-    }
-    // Post-promo: solo la primera vez por dispositivo
-    if (localStorage.getItem('am_seen_welcome') === '1') return;
-    localStorage.setItem('am_seen_welcome', '1');
-    amMostrarModal('planes');
-  }, 1500);
+  // No abrir modales automáticamente: si el usuario toca un módulo restringido,
+  // amTieneAcceso/amMostrarModalUpgrade muestran el login en ese momento.
+  if (localStorage.getItem('am_god') === 'true') return;
+  if (_modoRecovery) return;
 });
 
 // Toggle bloques agronomo/estudiante en el form de registro

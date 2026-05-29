@@ -6,113 +6,6 @@
     if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
       location.replace('https://' + location.hostname + location.pathname + location.search);
     }
-    if (location.search.includes('clear-sw=1')) {
-      (async function() {
-        try {
-          if ('serviceWorker' in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(r => r.unregister()));
-          }
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map(k => caches.delete(k)));
-          }
-          const clean = location.pathname + '?v=' + Date.now();
-          location.replace(clean);
-        } catch (_) {}
-      })();
-    }
-    (function() {
-      var order = [
-        'dashboard','decision','cultivares',
-        'siembra','suelo','hidrico',
-        'nutricion',
-        'economia','cosecha','maquinaria',
-        'plagas','alerta-sanitaria','pulverizacion',
-        'siembra-variable','mapa','asistente',
-        'fen-plan','fen-seg'
-      ];
-      window.AM_TAB_ORDER = window.AM_TAB_ORDER || order;
-      window.AM_IDX_MAP = window.AM_IDX_MAP || order.reduce(function(acc, m, i) {
-        acc[m] = i;
-        return acc;
-      }, {});
-      window.AM_MODULOS_CARGADOS = window.AM_MODULOS_CARGADOS || {};
-
-      window.amCargarModulo = window.amCargarModulo || function(archivo, callback) {
-        if (window.AM_MODULOS_CARGADOS[archivo]) {
-          if (callback) callback();
-          return;
-        }
-        var script = document.createElement('script');
-        script.src = 'js/' + archivo + '?v=52';
-        script.onload = function() {
-          window.AM_MODULOS_CARGADOS[archivo] = true;
-          if (callback) callback();
-        };
-        script.onerror = function() {
-          console.error('Error cargando modulo:', archivo);
-          if (callback) callback();
-        };
-        document.head.appendChild(script);
-      };
-
-      window._activarModulo = window._activarModulo || function(mod) {
-        document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
-        document.querySelectorAll('.module-panel').forEach(function(p) { p.classList.remove('active'); });
-        var panel = document.getElementById('mod-' + mod);
-        if (panel) panel.classList.add('active');
-        var tab = document.querySelector('.nav-tab[data-mod="' + mod + '"]');
-        if (tab) tab.classList.add('active');
-        var btnVolver = document.getElementById('btn-volver-dash');
-        if (btnVolver) btnVolver.classList.toggle('hidden', mod === 'dashboard');
-        var btnPDFMod = document.getElementById('btn-pdf-modulo');
-        if (btnPDFMod) {
-          var pdfModulos = ['decision','nutricion','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
-          btnPDFMod.classList.toggle('hidden', pdfModulos.indexOf(mod) < 0);
-        }
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0, 0); }
-        if (mod === 'dashboard' && typeof window.dashRefreshCards === 'function') setTimeout(window.dashRefreshCards, 100);
-        if (mod === 'economia' && typeof window.ecActualizarDolar === 'function' && !window._ecDolarCargado) {
-          window.ecActualizarDolar();
-          window._ecDolarCargado = true;
-        }
-        if (mod === 'maquinaria' && typeof window.loadMaq === 'function' && !window._fertMaqCargado) {
-          window.loadMaq();
-          window._fertMaqCargado = true;
-        }
-      };
-
-      window.switchMod = window.switchMod || function(mod) {
-        if (typeof window.amTieneAcceso === 'function' && !window.amTieneAcceso(mod)) {
-          if (typeof window.amMostrarModalUpgrade === 'function') window.amMostrarModalUpgrade(mod);
-          return;
-        }
-        var lazy = {
-          'hidrico': ['hidrico.js'],
-          'cultivares': ['cultivares.js', 'cultivares-extra.js'],
-          'mapa': ['mapa.js'],
-          'pulverizacion': ['pulverizacion.js'],
-          'decision': ['decision.js'],
-          'nutricion': ['nutricion.js'],
-          'seguimiento': ['seguimiento.js'],
-          'cosecha': ['cosecha.js'],
-          'plagas': ['plagas.js'],
-          'siembra-variable': ['siembra-variable.js'],
-          'alerta-sanitaria': ['alerta-sanitaria.js']
-        };
-        var archivos = lazy[mod] || [];
-        var i = 0;
-        function next() {
-          if (i >= archivos.length) {
-            window._activarModulo(mod);
-            return;
-          }
-          window.amCargarModulo(archivos[i++], next);
-        }
-        next();
-      };
-    })();
   </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
@@ -137,11 +30,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=52">
-  <link rel="stylesheet" href="css/cosecha.css?v=52">
-  <link rel="stylesheet" href="css/siembra-variable.css?v=52">
-  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=52">
-  <link rel="stylesheet" href="css/dashboard.css?v=52">
+  <link rel="stylesheet" href="css/agromotor.css?v=50">
+  <link rel="stylesheet" href="css/cosecha.css?v=50">
+  <link rel="stylesheet" href="css/siembra-variable.css?v=50">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=50">
+  <link rel="stylesheet" href="css/dashboard.css?v=50">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -186,6 +79,9 @@
       <button onclick="amMostrarModal('registro')" id="am-btn-registro" class="btn-hdr btn-hdr-green">✨ Registrarse gratis</button>
       <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
       <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
+      <!-- INTERRUPTOR GLOBAL DE MODO (PLANIFICACIÓN vs SEGUIMIENTO) -->
+      <div id="am-modo-badge" onclick="if(window.ModoSwitch) { window.ModoSwitch.toggleModo({motivo: 'Click en cabecera'}); if(typeof window.dashCampanaRefresh === 'function') window.dashCampanaRefresh(); }" style="cursor:pointer; transition:transform 0.2s; display:inline-flex;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1.0)'" title="Hacé click para cambiar de modo global"></div>
+      
       <!-- GESTOR GLOBAL DE LOTES -->
       <div style="display:flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.05);padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(255,255,255,.1);">
         <select id="am-global-lotes" onchange="amCambiarLoteGlobal()" style="background:url('data:image/svg+xml;utf8,<svg fill=%22%237AAEF5%22 height=%2224%22 viewBox=%220 0 24 24%22 width=%2224%22 xmlns=%22http://www.w3.org/2000/svg%22><path d=%22M7 10l5 5 5-5z%22/></svg>') no-repeat right .2rem center;border:none;color:#7AAEF5;font-size:.75rem;font-weight:600;padding-right:1.5rem;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;background-size:16px;">
@@ -537,7 +433,7 @@
       </div>
 
       <div class="card gap-top hidden" id="pron-card">
-        <div class="card-title">📅 Pronóstico 7 días — datos reales Open-Meteo
+        <div class="card-title">📅 Pronóstico Extendido 16 días — datos reales Open-Meteo
           <span style="font-size:.68rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">por coordenada del lote</span>
         </div>
         <div id="pron-tabla"></div>
@@ -872,58 +768,11 @@
       <div class="fg"><label>Modelo de máquina</label>
         <select id="m-maq" onchange="loadMaq()">
           <option value="mixia">Crucianelli Mixia 13.5 m</option>
-          <option value="plantor">Crucianelli Plantor 18.9 m</option>
-          <option value="drilor">Crucianelli Drilor 10 m</option>
-          <option value="pionera">Crucianelli Pionera 16.38 m</option>
-          <option value="gringa">Crucianelli Gringa 18.9 m</option>
-          <option value="domina">Crucianelli Dómina 10.5 m</option>
-          <option value="agrometalApx">Agrometal APX Seed Pro 12.6 m</option>
-          <option value="agrometalApxl">Agrometal APX-L 19 m</option>
-          <option value="agrometalTxPivot">Agrometal TX Pivot 2 9.8 m</option>
-          <option value="agrometalTxMega">Agrometal TX Mega Gen 3 20.47 m</option>
-          <option value="agrometalAdx">Agrometal ADX Magna 13 m</option>
-          <option value="agrometalMx">Agrometal MX Max 15 m</option>
-          <option value="apache54000">Apache 54000 Max 15 m</option>
-          <option value="apache27000">Apache 27000+ 21 m</option>
-          <option value="apache99000">Apache 99000 12.4 m</option>
-          <option value="tanzi9200evox">Tanzi 9200 Air Drill Gen 3 + EVOX 20 18.4 m</option>
-          <option value="tanziSpecial3Evox">Tanzi Special 3 Air Drill + EVOX 20 14 m</option>
-          <option value="tanziSpecial4">Tanzi Special 4 Air Drill 12 m</option>
-          <option value="tanziSpecial5">Tanzi Special 5 Air Planter 18.9 m</option>
-          <option value="superWalterW650Imperial">Súper Wálter W650 Imperial 16 m</option>
-          <option value="superWalterW650Autotrailer">Súper Wálter W650 Autotrailer</option>
-          <option value="superWalterW650AirDrill">Súper Wálter W650 Air Drill</option>
-          <option value="superWalterW4500">Súper Wálter W4500 Finos/Arroz</option>
-          <option value="ercaPfPremium">ERCA PF Premium 14.7 m</option>
-          <option value="ercaLinea7g">ERCA Línea 7 G / Serie 6G 18 m</option>
-          <option value="ercaLinea7f">ERCA Serie 6F / Línea 7 F 15.21 m</option>
-          <option value="ercaAirDrillTi13500">ERCA Air Drill Ti 13.500 14 m</option>
-          <option value="monumentalAd8300">Monumental AD-8300 8.3 m</option>
-          <option value="monumentalAd12000">Monumental AD-10000/12000 11.5 m</option>
-          <option value="monumentalAd16000">Monumental AD-16000 16 m</option>
+          <option value="plantor">Crucianelli Plantor 9 m</option>
+          <option value="drilor">Crucianelli Drilor GF 7.5 m</option>
           <option value="custom">Máquina personalizada</option>
         </select>
       </div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:-.35rem 0 .8rem">
-        <button type="button" class="btn btn-s" onclick="maqNuevaPropia()">➕ Cargar máquina propia</button>
-        <button type="button" class="btn btn-s" onclick="maqEliminarPropia()">🗑️ Quitar propia seleccionada</button>
-      </div>
-      <div id="m-custom-panel" class="hidden" style="padding:.85rem;border:1px solid var(--border);border-radius:8px;background:rgba(46,125,50,.04);margin-bottom:.9rem">
-        <div class="sl">Nueva máquina propia</div>
-        <div class="grid-2">
-          <div class="fg"><label>Nombre / modelo</label><input type="text" id="mc-nombre" placeholder="Ej: Mi sembradora 12 m"></div>
-          <div class="fg"><label>Ancho de labor (m)</label><input type="number" id="mc-ancho" value="9" min="1" max="36" step="0.1"></div>
-        </div>
-        <div class="fg"><label>Ficha técnica / notas</label><input type="text" id="mc-ficha" placeholder="Distanciamiento, tipo de chasis, observaciones..."></div>
-        <div class="sl">Tolvas</div>
-        <div id="mc-tolvas"></div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.6rem">
-          <button type="button" class="btn btn-s" onclick="maqAgregarTolva()">➕ Agregar tolva</button>
-          <button type="button" class="btn btn-p" onclick="maqGuardarPropia()">💾 Guardar máquina</button>
-          <button type="button" class="btn btn-s" onclick="maqCancelarPropia()">Cancelar</button>
-        </div>
-      </div>
-      <div id="m-ficha" class="alert info" style="margin-top:-.25rem"></div>
       <div class="grid-3">
         <div class="fg"><label>Ancho (m)</label><input type="number" id="m-ancho" value="13.5" step="0.5" min="3" max="36"></div>
         <div class="fg"><label>Velocidad (km/h)</label><input type="number" id="m-vel" value="7.5" step="0.1" min="3" max="15"></div>
@@ -1169,194 +1018,12 @@
           <!-- PUNTO DE EQUILIBRIO -->
           <div id="ec-breakeven" style="margin-top:.8rem"></div>
 
-          <!-- GRÁFICOS ECONÓMICOS -->
-          <div style="margin-top:1rem">
-            <button id="ge-toggle-btn" onclick="geTogglePanel()"
-              style="width:100%;padding:.6rem 1rem;background:#e8f5e9;border:1.5px solid #81c784;border-radius:8px;
-                     font-size:.82rem;font-weight:600;color:#2e7d32;cursor:pointer;text-align:left">
-              📊 Ver gráficos económicos
-            </button>
-            <div id="ge-panel" style="display:none;margin-top:.8rem">
-
-              <!-- Break-even info -->
-              <div id="ge-be-info" style="padding:.5rem .85rem;background:#e3f2fd;border-radius:7px;
-                   font-size:.78rem;color:#1565c0;margin-bottom:.9rem"></div>
-
-              <!-- 1. Curva margen vs precio -->
-              <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">📈 Curva margen vs precio</span>
-                  <button onclick="geExportar('ge-curva-canvas','margen-precio')"
-                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
-                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
-                </div>
-                <div style="height:220px;position:relative">
-                  <canvas id="ge-curva-canvas"></canvas>
-                </div>
-              </div>
-
-              <!-- 2. Tabla de sensibilidad -->
-              <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem;overflow-x:auto">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">🗂 Sensibilidad rendimiento × precio (USD/ha)</span>
-                  <button onclick="geExportarTabla()"
-                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
-                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4;white-space:nowrap">⬇ CSV</button>
-                </div>
-                <div id="ge-sens-table"></div>
-                <div id="ge-sens-leyenda" style="font-size:.68rem;color:#888;margin-top:.4rem"></div>
-              </div>
-
-              <!-- 3. Waterfall de costos -->
-              <div class="card" style="padding:.85rem 1rem">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">🏗 Descomposición de costos (waterfall)</span>
-                  <button onclick="geExportar('ge-waterfall-canvas','waterfall-costos')"
-                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
-                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
-                </div>
-                <div style="height:220px;position:relative">
-                  <canvas id="ge-waterfall-canvas"></canvas>
-                </div>
-                <div id="ge-wf-resumen" style="display:flex;flex-wrap:wrap;gap:.35rem .9rem;
-                     font-size:.73rem;color:#555;margin-top:.6rem;padding-top:.5rem;
-                     border-top:1px solid #eee"></div>
-              </div>
-
-            </div>
-          </div>
-
           <!-- NOTA METODOLÓGICA -->
           <div style="margin-top:.8rem;padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
             <strong>Etapa 2:</strong> precios en tiempo real desde API Matba-Rofex.
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ COMPARADOR DE CAMPAÑAS ══ -->
-<div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(200,162,85,.35);background:#fffdf6">
-  <div class="card-title" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
-    ⚖️ Comparador de campañas
-    <button onclick="ccToggle()" id="cc-toggle-btn" class="btn btn-s"
-      style="margin-left:auto;font-size:.7rem;padding:.25rem .7rem">Abrir comparador</button>
-  </div>
-
-  <div id="cc-panel" style="display:none;margin-top:.9rem">
-    <div style="font-size:.73rem;color:rgba(74,46,26,.5);margin-bottom:.9rem">
-      Compará dos escenarios — distintos cultivos, precios o tecnologías — y visualizá las diferencias de margen.
-    </div>
-
-    <!-- Dos columnas de inputs -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem">
-
-      <!-- ESCENARIO A -->
-      <div style="background:rgba(74,138,196,.07);border:1px solid rgba(74,138,196,.25);border-radius:8px;padding:.75rem">
-        <div style="font-size:.78rem;font-weight:700;color:#1a3a6c;margin-bottom:.6rem">
-          Escenario A
-          <button onclick="ccCopiarEconomia('a')"
-            style="float:right;font-size:.65rem;padding:.15rem .45rem;border:1px solid rgba(74,138,196,.4);
-                   border-radius:4px;background:rgba(74,138,196,.1);color:#1a3a6c;cursor:pointer">
-            ↙ Copiar de Economía
-          </button>
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Nombre / etiqueta</label>
-          <input type="text" id="cc-lbl-a" value="Escenario base" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Cultivo</label>
-          <input type="text" id="cc-cult-a" value="Soja" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Precio (USD/t)</label>
-          <input type="number" id="cc-precio-a" value="290" min="50" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Rendimiento (t/ha)</label>
-          <input type="number" id="cc-rend-a" value="3.2" step="0.1" min="0.5" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Costos directos (USD/ha)</label>
-          <input type="number" id="cc-costo-a" value="295" min="0" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Flete (USD/ha)</label>
-          <input type="number" id="cc-flete-a" value="25" min="0" style="font-size:.8rem">
-        </div>
-        <div class="fg">
-          <label style="font-size:.7rem">Arrendamiento (qq/ha)</label>
-          <input type="number" id="cc-arriendo-a" value="10" step="0.5" min="0" style="font-size:.8rem">
-        </div>
-      </div>
-
-      <!-- ESCENARIO B -->
-      <div style="background:rgba(74,46,26,.04);border:1px solid rgba(74,46,26,.15);border-radius:8px;padding:.75rem">
-        <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.6rem">
-          Escenario B
-          <button onclick="ccCopiarEconomia('b')"
-            style="float:right;font-size:.65rem;padding:.15rem .45rem;border:1px solid rgba(74,46,26,.3);
-                   border-radius:4px;background:rgba(74,46,26,.07);color:#4a2e1a;cursor:pointer">
-            ↙ Copiar de Economía
-          </button>
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Nombre / etiqueta</label>
-          <input type="text" id="cc-lbl-b" value="Escenario alternativo" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Cultivo</label>
-          <input type="text" id="cc-cult-b" value="Maíz" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Precio (USD/t)</label>
-          <input type="number" id="cc-precio-b" value="200" min="50" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Rendimiento (t/ha)</label>
-          <input type="number" id="cc-rend-b" value="7.0" step="0.1" min="0.5" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Costos directos (USD/ha)</label>
-          <input type="number" id="cc-costo-b" value="380" min="0" style="font-size:.8rem">
-        </div>
-        <div class="fg" style="margin-bottom:.45rem">
-          <label style="font-size:.7rem">Flete (USD/ha)</label>
-          <input type="number" id="cc-flete-b" value="30" min="0" style="font-size:.8rem">
-        </div>
-        <div class="fg">
-          <label style="font-size:.7rem">Arrendamiento (qq/ha)</label>
-          <input type="number" id="cc-arriendo-b" value="10" step="0.5" min="0" style="font-size:.8rem">
-        </div>
-      </div>
-    </div>
-
-    <!-- Botón comparar -->
-    <button onclick="ccComparar()" class="btn btn-p"
-      style="width:100%;margin-top:.9rem;background:linear-gradient(135deg,#5A3A10,#8B5E2A)">
-      ⚖️ Comparar escenarios
-    </button>
-
-    <!-- Resultado -->
-    <div id="cc-resultado" style="display:none;margin-top:1rem">
-
-      <!-- Tabla comparativa -->
-      <div style="overflow-x:auto;margin-bottom:.9rem">
-        <div id="cc-tabla-res"></div>
-      </div>
-
-      <!-- Gráfico -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem">
-        <span style="font-size:.76rem;font-weight:700;color:#4a2e1a">Comparación visual</span>
-        <button onclick="ccExportar()"
-          style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
-                 background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
-      </div>
-      <div style="position:relative;height:240px" class="cc-chart-wrap">
-        <canvas id="cc-chart"></canvas>
       </div>
     </div>
   </div>
@@ -1550,21 +1217,17 @@
 
   <!-- ── PANEL GRÁFICO BALANCE HÍDRICO ── -->
   <div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(42,90,140,.25);background:#f3f7fd">
-    <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+    <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center">
       📊 Evolución del Balance Hídrico por Etapa Fenológica
-      <div style="margin-left:auto;display:flex;gap:.4rem">
-        <button onclick="ghExportar()" class="btn btn-s"
-          style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
-                 background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
-        <button id="gh-toggle-btn" onclick="ghTogglePanel()" class="btn btn-s"
-          style="font-size:.7rem;padding:.25rem .7rem">Mostrar gráfico</button>
-      </div>
+      <button id="gh-toggle-btn" onclick="ghTogglePanel()" class="btn btn-s" style="margin-left:auto;font-size:.7rem;padding:.25rem .7rem">
+        Mostrar gráfico
+      </button>
     </div>
     <div id="gh-hidrico-panel" style="display:none;margin-top:.8rem">
       <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.6rem">
         Precipitación acumulada y ETc por etapa · Agua en perfil vs. Capacidad de Campo y Punto de Marchitez
       </div>
-      <div style="position:relative;height:260px" class="gh-chart-wrap">
+      <div style="position:relative;height:300px">
         <canvas id="gh-hidrico-chart"></canvas>
       </div>
       <div id="gh-no-data" style="display:none;text-align:center;padding:2rem;color:rgba(74,46,26,.4);font-size:.85rem">
@@ -3262,25 +2925,9 @@
     <div class="card card-dark" id="resumen-campaña-card" style="display:none">
       <div class="card-hdr">
         <div class="card-title">🌾 Resumen de Campaña</div>
-        <button onclick="pdfInformeCierre()" class="btn btn-s"
-          style="font-size:.75rem;padding:.3rem .7rem;background:rgba(200,162,85,.2);
-                 border:1px solid rgba(200,162,85,.5);color:rgba(237,224,196,.85)">
-          📄 PDF informe
-        </button>
       </div>
       <div class="card-body">
         <div class="kpi-grid" id="kpi-campaña"></div>
-      </div>
-    </div>
-
-    <!-- Botón PDF informe de cierre (siempre visible) -->
-    <div style="margin-top:1rem;text-align:center">
-      <button onclick="pdfInformeCierre()" class="btn btn-p"
-        style="background:linear-gradient(135deg,#1E4D2B,#2e7d32);font-size:.83rem;padding:.5rem 1.4rem">
-        📄 Exportar informe de cierre PDF
-      </button>
-      <div style="font-size:.68rem;color:rgba(237,224,196,.35);margin-top:.4rem">
-        Requiere haber cerrado la campaña activa
       </div>
     </div>
 
@@ -3841,6 +3488,7 @@
         <button class="sv-btn sv-btn-primary sv-btn-full" onclick="svExportarShapefile()">📦 Shapefile (.zip)</button>
         <button class="sv-btn sv-btn-sec sv-btn-full" onclick="svExportarGeoJSON()" style="margin-top:5px">🌐 GeoJSON</button>
         <button class="sv-btn sv-btn-sec sv-btn-full" onclick="svExportarCSVPresc()" style="margin-top:5px">📊 CSV prescripción</button>
+        <button class="sv-btn sv-btn-sec sv-btn-full" onclick="svExportarCSVMonitor()" style="margin-top:5px; background:rgba(26,107,60,.12); border-color:rgba(26,107,60,.4); color:#1a6b3c;" title="Exportar grilla punto por punto para cargadores de sembradoras">🚜 Exportar CSV Monitor (VRA)</button>
         <p class="sv-hint" style="margin-top:4px">Compatible con QGIS · John Deere Ops Center · Ag Leader · mapshaper.org</p>
       </div>
     </div>
@@ -4263,41 +3911,6 @@ function _fsRender(res, diasTranscurridos) {
 @keyframes amSlideUp { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 .am-locked::after { content:'🔒' !important; opacity:1 !important; }
 .nav-tab.am-locked { opacity:.45; }
-  /* ── Gráficos economía ── */
-  .ge-sens-tbl { border-collapse:collapse; width:100%; font-size:.72rem; }
-  .ge-sens-tbl th, .ge-sens-tbl td { padding:.28rem .5rem; text-align:center; border:1px solid #ddd; white-space:nowrap; }
-  .ge-sens-tbl th { background:#f5f5f5; font-weight:700; color:#555; }
-  .ge-sens-tbl tr.ge-base-row td:first-child { background:#e3f2fd; }
-  .wf-pos { color:#2e7d32; font-weight:600; } .wf-neg { color:#c62828; font-weight:600; }
-  .text-success { color:#2e7d32; } .text-danger { color:#c62828; }
-  /* Alertas de validación */
-  .ge-alerta { display:flex; align-items:flex-start; gap:.4rem; font-size:.77rem; padding:.4rem .65rem; border-radius:6px; margin-bottom:.3rem; line-height:1.4; }
-  .ge-alerta-error { background:#ffebee; border:1px solid #ef9a9a; color:#b71c1c; }
-  .ge-alerta-aviso { background:#fff8e1; border:1px solid #ffe082; color:#6d4c00; }
-  /* Tabla sensibilidad — mobile */
-  @media (max-width:480px) {
-    .ge-sens-tbl { font-size:.62rem; }
-    .ge-sens-tbl th, .ge-sens-tbl td { padding:.18rem .28rem; }
-  }
-  /* Gráfico hídrico — mobile */
-  @media (max-width:480px) {
-    .gh-chart-wrap { height:190px !important; }
-  }
-
-  /* Comparador de campañas */
-  .cc-cmp-tbl { width:100%; border-collapse:collapse; font-size:.76rem; }
-  .cc-cmp-tbl th { background:#f5f0e8; color:#5A3A10; font-weight:700; padding:.35rem .6rem; text-align:right; border-bottom:2px solid rgba(200,162,85,.4); }
-  .cc-cmp-tbl th:first-child { text-align:left; }
-  .cc-cmp-tbl td { padding:.3rem .6rem; text-align:right; border-bottom:1px solid rgba(74,46,26,.07); }
-  .cc-cmp-tbl .cc-lbl { text-align:left; color:rgba(74,46,26,.7); font-size:.73rem; }
-  .cc-cmp-tbl tr:last-child td { border-bottom:none; }
-  .cc-pos { color:#2e7d32; font-weight:600; }
-  .cc-neg { color:#c62828; font-weight:600; }
-  @media (max-width:480px) {
-    .cc-chart-wrap { height:190px !important; }
-    .cc-cmp-tbl { font-size:.68rem; }
-    .cc-cmp-tbl th, .cc-cmp-tbl td { padding:.25rem .35rem; }
-  }
 </style>
 
 <script>
@@ -4312,32 +3925,38 @@ function _fsRender(res, diasTranscurridos) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
-<script src="js/store.js?v=52"></script>
-<script src="js/core.js?v=52"></script>
-<script src="js/config.js?v=52"></script>
-<script src="js/login.js?v=52"></script>
-<script src="js/cache.js?v=52"></script>
+<script src="js/store.js?v=50"></script>
+<script src="js/core.js?v=50"></script>
+<script src="js/config.js?v=50"></script>
+<script src="js/login.js?v=50"></script>
+<script src="js/cache.js?v=50"></script>
+
+<!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
+<script src="js/modo-switch.js?v=50"></script>
+<script src="js/campanas.js?v=50"></script>
+<script src="js/enso.js?v=50"></script>
+<script src="js/alertas.js?v=50"></script>
+<script src="js/barbecho.js?v=50"></script>
+<script src="js/informe-cierre.js?v=50"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=52"></script>
+<script src="js/nav.js?v=50"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=52"></script>
-<script src="js/siembra-apis.js?v=52"></script>
-<script src="js/economia.js?v=52"></script>
-<script src="js/maquinaria.js?v=52"></script>
-<script src="js/asistente.js?v=52"></script>
-<script src="js/pdf.js?v=52"></script>
-<script src="js/pdf-modulo.js?v=52"></script>
-<script src="js/onboarding.js?v=52"></script>
-<script src="js/alerta-sanitaria.js?v=52"></script>
-<script src="js/dashboard-ux.js?v=52"></script>
-<script src="js/dashboard.js?v=52"></script>
-<script src="js/graficos-hidrico.js?v=52"></script>
-<script src="js/comparador-campana.js?v=52"></script>
-<script src="js/graficos-economia.js?v=52"></script>
+<script src="js/siembra.js?v=50"></script>
+<script src="js/siembra-apis.js?v=50"></script>
+<script src="js/economia.js?v=50"></script>
+<script src="js/maquinaria.js?v=50"></script>
+<script src="js/asistente.js?v=50"></script>
+<script src="js/pdf.js?v=50"></script>
+<script src="js/pdf-modulo.js?v=50"></script>
+<script src="js/onboarding.js?v=50"></script>
+<script src="js/alerta-sanitaria.js?v=50"></script>
+<script src="js/dashboard-ux.js?v=50"></script>
+<script src="js/dashboard.js?v=50"></script>
+<script src="js/graficos-hidrico.js?v=50"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
@@ -4349,13 +3968,14 @@ function _fsRender(res, diasTranscurridos) {
   • seguimiento.js        → Campaña + NDVI + GDD en tiempo real
   • cosecha.js            → Decisión cosecha + BCRA + escenarios
   • plagas.js             → Alertas Plagas + Red Comunitaria INTA
-  • alerta-sanitaria.js   → Riesgo enfermedades · 14 patógenos · heatmap 7 días
+  • alerta-sanitaria.js  → Riesgo enfermedades · 14 patógenos · heatmap 7 días
 ══ -->
 
 <script>
 // ── Service Worker — PWA offline · auto-update ────────
 if ('serviceWorker' in navigator) {
   let _amReloading = false;
+  // Cuando el nuevo SW toma control, recargar la página una vez
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (_amReloading) return;
     _amReloading = true;
@@ -4365,14 +3985,17 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js')
       .then(reg => {
+        // Buscar updates inmediatamente al cargar
         reg.update();
+        // Verificar updates cada 60s mientras la pestaña está abierta
         setInterval(() => reg.update(), 60000);
-      })
-      .catch(err => console.warn('SW no registrado:', err));
-  });
-}
-</script>
 
-</body>
-</html>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              // Hay un SW viejo activo y uno nuevo esperando → forzar el cambio
+              if (typeof amToast === 'function') {
+                amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
+              }
