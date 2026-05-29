@@ -1015,6 +1015,54 @@
           <!-- PUNTO DE EQUILIBRIO -->
           <div id="ec-breakeven" style="margin-top:.8rem"></div>
 
+          <!-- GRÁFICOS ECONÓMICOS -->
+          <div style="margin-top:1rem">
+            <button id="ge-toggle-btn" onclick="geTogglePanel()"
+              style="width:100%;padding:.6rem 1rem;background:#e8f5e9;border:1.5px solid #81c784;border-radius:8px;
+                     font-size:.82rem;font-weight:600;color:#2e7d32;cursor:pointer;text-align:left">
+              📊 Ver gráficos económicos
+            </button>
+            <div id="ge-panel" style="display:none;margin-top:.8rem">
+
+              <!-- Break-even info -->
+              <div id="ge-be-info" style="padding:.5rem .85rem;background:#e3f2fd;border-radius:7px;
+                   font-size:.78rem;color:#1565c0;margin-bottom:.9rem"></div>
+
+              <!-- 1. Curva margen vs precio -->
+              <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem">
+                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
+                  📈 Curva margen vs precio
+                </div>
+                <div style="height:220px;position:relative">
+                  <canvas id="ge-curva-canvas"></canvas>
+                </div>
+              </div>
+
+              <!-- 2. Tabla de sensibilidad -->
+              <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem;overflow-x:auto">
+                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
+                  🗂 Sensibilidad rendimiento × precio (USD/ha)
+                </div>
+                <div id="ge-sens-table"></div>
+                <div id="ge-sens-leyenda" style="font-size:.68rem;color:#888;margin-top:.4rem"></div>
+              </div>
+
+              <!-- 3. Waterfall de costos -->
+              <div class="card" style="padding:.85rem 1rem">
+                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
+                  🏗 Descomposición de costos (waterfall)
+                </div>
+                <div style="height:220px;position:relative">
+                  <canvas id="ge-waterfall-canvas"></canvas>
+                </div>
+                <div id="ge-wf-resumen" style="display:flex;flex-wrap:wrap;gap:.35rem .9rem;
+                     font-size:.73rem;color:#555;margin-top:.6rem;padding-top:.5rem;
+                     border-top:1px solid #eee"></div>
+              </div>
+
+            </div>
+          </div>
+
           <!-- NOTA METODOLÓGICA -->
           <div style="margin-top:.8rem;padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
             📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
@@ -3907,6 +3955,14 @@ function _fsRender(res, diasTranscurridos) {
 @keyframes amSlideUp { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
 .am-locked::after { content:'🔒' !important; opacity:1 !important; }
 .nav-tab.am-locked { opacity:.45; }
+  /* ── Gráficos economía ── */
+  .ge-sens-tbl { border-collapse:collapse; width:100%; font-size:.72rem; }
+  .ge-sens-tbl th, .ge-sens-tbl td { padding:.28rem .5rem; text-align:center; border:1px solid #ddd; white-space:nowrap; }
+  .ge-sens-tbl th { background:#f5f5f5; font-weight:700; color:#555; }
+  .ge-sens-tbl tr.ge-base-row td:first-child { background:#e3f2fd; }
+  .wf-pos { color:#2e7d32; } .wf-neg { color:#c62828; }
+  .text-success { color:#2e7d32; } .text-danger { color:#c62828; }
+
 </style>
 
 <script>
@@ -3945,6 +4001,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/dashboard-ux.js?v=50"></script>
 <script src="js/dashboard.js?v=50"></script>
 <script src="js/graficos-hidrico.js?v=50"></script>
+<script src="js/graficos-economia.js?v=1"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
@@ -3953,37 +4010,4 @@ function _fsRender(res, diasTranscurridos) {
   • cultivares-extra.js   → Comparador + Stress test + GDD + Densidad
   • mapa.js               → OpenStreetMap + distribuidores
   • pulverizacion.js      → Semáforo + Delta T + HRAC + Caldo
-  • seguimiento.js        → Campaña + NDVI + GDD en tiempo real
-  • cosecha.js            → Decisión cosecha + BCRA + escenarios
-  • plagas.js             → Alertas Plagas + Red Comunitaria INTA
-  • alerta-sanitaria.js  → Riesgo enfermedades · 14 patógenos · heatmap 7 días
-══ -->
-
-<script>
-// ── Service Worker — PWA offline · auto-update ────────
-if ('serviceWorker' in navigator) {
-  let _amReloading = false;
-  // Cuando el nuevo SW toma control, recargar la página una vez
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (_amReloading) return;
-    _amReloading = true;
-    window.location.reload();
-  });
-
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
-      .then(reg => {
-        // Buscar updates inmediatamente al cargar
-        reg.update();
-        // Verificar updates cada 60s mientras la pestaña está abierta
-        setInterval(() => reg.update(), 60000);
-
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              // Hay un SW viejo activo y uno nuevo esperando → forzar el cambio
-              if (typeof amToast === 'function') {
-                amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
-              }
+  • seguimiento.js        → Cam
