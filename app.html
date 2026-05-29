@@ -34,6 +34,7 @@
   <link rel="stylesheet" href="css/cosecha.css?v=50">
   <link rel="stylesheet" href="css/siembra-variable.css?v=50">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=50">
+  <link rel="stylesheet" href="css/dashboard.css?v=50">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -149,6 +150,9 @@
       <button class="btn btn-s dash-btn-del" onclick="amEliminarLoteGlobal()" title="Eliminar lote actual">🗑️</button>
     </div>
   </div>
+
+  <!-- ── PANEL CAMPAÑA ACTIVA ──────────────────────────── -->
+  <div id="dash-campana-panel" class="dash-campana-panel hidden"></div>
 
   <!-- ── CUERPO PRINCIPAL ───────────────────────────────── -->
   <div class="dash-main-grid">
@@ -1204,6 +1208,27 @@
           <div id="bh-gdd" class="hidden" style="margin-top:.9rem"></div>
 
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PANEL GRÁFICO BALANCE HÍDRICO ── -->
+  <div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(42,90,140,.25);background:#f3f7fd">
+    <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center">
+      📊 Evolución del Balance Hídrico por Etapa Fenológica
+      <button id="gh-toggle-btn" onclick="ghTogglePanel()" class="btn btn-s" style="margin-left:auto;font-size:.7rem;padding:.25rem .7rem">
+        Mostrar gráfico
+      </button>
+    </div>
+    <div id="gh-hidrico-panel" style="display:none;margin-top:.8rem">
+      <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.6rem">
+        Precipitación acumulada y ETc por etapa · Agua en perfil vs. Capacidad de Campo y Punto de Marchitez
+      </div>
+      <div style="position:relative;height:300px">
+        <canvas id="gh-hidrico-chart"></canvas>
+      </div>
+      <div id="gh-no-data" style="display:none;text-align:center;padding:2rem;color:rgba(74,46,26,.4);font-size:.85rem">
+        ⚠️ Calculá el balance hídrico primero para ver el gráfico.
       </div>
     </div>
   </div>
@@ -3918,6 +3943,8 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/onboarding.js?v=50"></script>
 <script src="js/alerta-sanitaria.js?v=50"></script>
 <script src="js/dashboard-ux.js?v=50"></script>
+<script src="js/dashboard.js?v=50"></script>
+<script src="js/graficos-hidrico.js?v=50"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():

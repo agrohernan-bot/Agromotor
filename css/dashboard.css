@@ -1,0 +1,282 @@
+/* ════════════════════════════════════════════════════════
+   AGROMOTOR — dashboard.css  v1.0
+   Estilos del Panel de Campaña Activa (dcp-*)
+   ════════════════════════════════════════════════════════ */
+
+/* ── Contenedor raíz ──────────────────────────────────── */
+.dash-campana-panel {
+  margin: 0 0 1rem 0;
+  background: var(--panel-bg, rgba(252,249,242,.97));
+  border: 1px solid var(--border, rgba(60,34,16,.10));
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(15,31,20,.07);
+  transition: opacity .25s;
+}
+.dash-campana-panel.hidden {
+  display: none;
+}
+
+.dcp-inner {
+  padding: 1rem 1.15rem .9rem;
+}
+
+/* ── CABECERA ────────────────────────────────────────── */
+.dcp-header {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  margin-bottom: .85rem;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border, rgba(60,34,16,.10));
+}
+
+.dcp-lote {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+
+.dcp-lote-ico {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.dcp-lote-nombre {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.05rem;
+  color: var(--field, #0F1F14);
+  font-weight: 600;
+}
+
+.dcp-campana-badge {
+  font-family: 'DM Mono', monospace;
+  font-size: .68rem;
+  background: var(--canopy, #1E4D2B);
+  color: #fff;
+  border-radius: 4px;
+  padding: .1em .45em;
+  letter-spacing: .04em;
+  opacity: .82;
+}
+
+.dcp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+  align-items: center;
+}
+
+/* ── Chips ───────────────────────────────────────────── */
+.dcp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .25rem;
+  font-size: .75rem;
+  font-family: 'DM Sans', sans-serif;
+  padding: .2em .65em;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.dcp-chip-green {
+  background: rgba(58,122,74,.12);
+  color: var(--leaf, #3A7A4A);
+  border-color: rgba(58,122,74,.22);
+}
+
+.dcp-chip-earth {
+  background: rgba(200,162,85,.12);
+  color: var(--grain, #C8A255);
+  border-color: rgba(200,162,85,.22);
+}
+
+.dcp-chip-muted {
+  background: rgba(60,34,16,.06);
+  color: rgba(28,18,8,.55);
+  border-color: rgba(60,34,16,.10);
+}
+
+/* ── Grid de widgets ─────────────────────────────────── */
+.dcp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: .75rem;
+}
+
+/* ── Widget base ─────────────────────────────────────── */
+.dcp-widget {
+  background: rgba(255,253,248,.6);
+  border: 1px solid var(--border, rgba(60,34,16,.10));
+  border-radius: 10px;
+  padding: .75rem .9rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+
+.dcp-widget-title {
+  font-size: .72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: rgba(28,18,8,.45);
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+.dcp-widget-empty {
+  font-size: .8rem;
+  color: rgba(28,18,8,.4);
+  font-style: italic;
+  line-height: 1.4;
+  padding: .25rem 0;
+}
+
+/* ── Widget fenológico ───────────────────────────────── */
+.dcp-fen-etapa {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: var(--canopy, #1E4D2B);
+  line-height: 1.2;
+}
+
+/* ── Progress bar ────────────────────────────────────── */
+.dcp-progress-wrap {
+  height: 7px;
+  background: rgba(60,34,16,.09);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.dcp-progress-bar {
+  height: 100%;
+  border-radius: 10px;
+  transition: width .6s ease;
+  min-width: 2px;
+}
+
+.dcp-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .73rem;
+  color: rgba(28,18,8,.5);
+  font-family: 'DM Sans', sans-serif;
+  gap: .5rem;
+}
+
+.dcp-progress-meta strong {
+  color: var(--canopy, #1E4D2B);
+}
+
+/* ── Widget hídrico ──────────────────────────────────── */
+.dcp-hidro-row {
+  display: flex;
+  align-items: baseline;
+  gap: .45rem;
+}
+
+.dcp-hidro-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.dcp-hidro-lbl {
+  font-size: .72rem;
+  color: rgba(28,18,8,.45);
+  font-family: 'DM Sans', sans-serif;
+}
+
+.dcp-hidro-deficit {
+  font-size: .75rem;
+  color: var(--warn, #D4522A);
+  font-family: 'DM Sans', sans-serif;
+  background: rgba(212,82,42,.07);
+  border-radius: 6px;
+  padding: .25em .55em;
+}
+
+/* ── Widget alertas ──────────────────────────────────── */
+.dcp-alerta-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--warn, #D4522A);
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 700;
+  border-radius: 50%;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  line-height: 1;
+}
+
+.dcp-alertas-list {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.dcp-alerta-item {
+  border-left: 3px solid;
+  border-radius: 0 6px 6px 0;
+  padding: .3em .6em;
+}
+
+.dcp-alerta-txt {
+  font-size: .76rem;
+  font-family: 'DM Sans', sans-serif;
+  color: rgba(28,18,8,.75);
+  line-height: 1.35;
+}
+
+.dcp-ver-todas-btn {
+  margin-top: .2rem;
+  background: none;
+  border: 1px solid rgba(60,34,16,.15);
+  border-radius: 6px;
+  padding: .3em .7em;
+  font-size: .72rem;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--canopy, #1E4D2B);
+  cursor: pointer;
+  text-align: left;
+  transition: background .15s;
+}
+.dcp-ver-todas-btn:hover {
+  background: rgba(30,77,43,.07);
+}
+
+/* ── Estado vacío ────────────────────────────────────── */
+.dcp-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .6rem;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  color: rgba(28,18,8,.4);
+  font-size: .83rem;
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 600px) {
+  .dcp-grid {
+    grid-template-columns: 1fr;
+  }
+  .dcp-inner {
+    padding: .8rem .85rem .7rem;
+  }
+  .dcp-hidro-val {
+    font-size: .95rem;
+  }
+}
