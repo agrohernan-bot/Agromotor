@@ -176,7 +176,7 @@ function amInitMapaInline() {
   ndviToggle.style.transition = 'all 0.2s';
   ndviToggle.innerHTML = `
     <input type="checkbox" id="am-chk-ndvi-sat" style="margin:0; cursor:pointer;"/>
-    <span>🛰️ Capa NDVI Satelital</span>
+    <span>🛰️ NDVI estimado (simulado)</span>
   `;
   container.appendChild(ndviToggle);
 
