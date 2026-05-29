@@ -129,9 +129,13 @@
   }
 
   // ── RENDER DEL GRÁFICO ────────────────────────────────
-  window.bhGraficoRender = function () {
-    var canvas = document.getElementById('bh-grafico-canvas');
+  window.ghGraficoRender = window.bhGraficoRender = function () {
+    var canvas = document.getElementById('gh-hidrico-chart');
     if (!canvas) return;
+    // Ocultar mensaje "sin datos"
+    var noData = document.getElementById('gh-no-data');
+    if (noData) noData.style.display = 'none';
+    canvas.style.display = '';
     if (typeof Chart === 'undefined') {
       console.warn('graficos-hidrico: Chart.js no disponible');
       return;
@@ -277,39 +281,32 @@
     });
   };
 
-  // ── MOSTRAR / OCULTAR PANEL ───────────────────────────
-  window.bhGraficoMostrar = function () {
-    var wrap = document.getElementById('bh-grafico-wrap');
-    var btn  = document.getElementById('btn-bh-grafico');
-    if (!wrap) return;
-    wrap.classList.remove('hidden');
-    if (btn) btn.style.display = 'none';
-    // Render con pequeño delay para que el canvas esté pintado
-    setTimeout(window.bhGraficoRender, 60);
+  // ── TOGGLE PANEL ─────────────────────────────────────
+  window.ghTogglePanel = function () {
+    var panel = document.getElementById('gh-hidrico-panel');
+    var btn   = document.getElementById('gh-toggle-btn');
+    if (!panel) return;
+    var visible = panel.style.display !== 'none';
+    if (visible) {
+      panel.style.display = 'none';
+      if (btn) btn.textContent = 'Mostrar gráfico';
+    } else {
+      panel.style.display = 'block';
+      if (btn) btn.textContent = 'Ocultar gráfico';
+      setTimeout(window.ghGraficoRender, 60);
+    }
   };
 
-  window.bhGraficoOcultar = function () {
-    var wrap = document.getElementById('bh-grafico-wrap');
-    var btn  = document.getElementById('btn-bh-grafico');
-    if (wrap) wrap.classList.add('hidden');
-    if (btn) btn.style.display = '';
-  };
-
-  // Reactualizar si el balance hídrico se recalculó desde otra pestaña
-  window.addEventListener('storage', function (e) {
-    if (e.key !== 'am_hidrico_ultimo') return;
-    var wrap = document.getElementById('bh-grafico-wrap');
-    if (wrap && !wrap.classList.contains('hidden')) {
-      setTimeout(window.bhGraficoRender, 120);
-    }
-  });
-
-  // También escuchar evento interno cuando hidrico.js termina su render
-  document.addEventListener('am:hidrico-actualizado', function () {
-    var wrap = document.getElementById('bh-grafico-wrap');
-    if (wrap && !wrap.classList.contains('hidden')) {
-      setTimeout(window.bhGraficoRender, 120);
-    }
-  });
-
-})();
+  // ── EXPORTAR PNG ──────────────────────────────────────
+  window.ghExportar = function () {
+    var canvas = document.getElementById('gh-hidrico-chart');
+    if (!canvas) return;
+    var tmp = document.createElement('canvas');
+    tmp.width  = canvas.width;
+    tmp.height = canvas.height;
+    var ctx = tmp.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tmp.width, tmp.height);
+    ctx.drawImage(canvas, 0, 0);
+    var a = document.createElement('a');
+    a.download 
