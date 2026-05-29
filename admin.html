@@ -70,10 +70,6 @@
 </div>
 
 <script>
-const AM_SB = window.supabase.createClient(AM_CONFIG.supabase.url, AM_CONFIG.supabase.anonKey, {
-  auth: { persistSession: true, autoRefreshToken: true }
-});
-
 let SESS = null;
 let USERS = [];
 let FILTER = 'pending';

@@ -252,6 +252,8 @@ function activarCampana(id) {
   const anterior = _campanaActiva;
   _campanaActiva = campana;
   _lsSet(LS_CAMPANA_ACTIVA, id);
+  // Alias para informe-cierre.js
+  _lsSet("am_campana_id", id);
 
   // Si el lote de la campaña es diferente al lote activo, sincronizar
   if (campana.loteId && campana.loteId !== _loteActivo?.id) {
@@ -312,6 +314,10 @@ function _aplicarLote(lote) {
   _lsSet(LS_ULTIMO_LOTE_ID, lote.id);
   // Sincronizar AWC para barbecho.js
   if (lote.awcMm) _lsSet("am_lote_awc_mm", String(lote.awcMm));
+  // Alias para informe-cierre.js y alertas.js
+  if (lote.nombre) _lsSet("am_lote_nombre", lote.nombre);
+  if (lote.lat != null) _lsSet("am_siembra_lat", String(lote.lat));
+  if (lote.lon != null) _lsSet("am_siembra_lon", String(lote.lon));
 }
 
 /**

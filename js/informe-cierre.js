@@ -98,11 +98,11 @@ function _leerEstados() {
 
     // Hídrico
     hidrico,
-    aguaFinalMm : hidrico?.aguaFinalMm  ?? parseFloat(leerLS(LS_IN_AGUA_FINAL, "0")) || 0,
-    deficitAcum : hidrico?.deficitAcum  ?? parseFloat(leerLS(LS_IN_DEFICIT, "0")) || 0,
-    diasEstres  : hidrico?.diasEstres   ?? parseInt(leerLS(LS_IN_DIAS_ESTRES, "0"), 10) || 0,
-    diasEtCrit  : hidrico?.diasEtCritica ?? parseInt(leerLS(LS_IN_DIAS_ET_CRIT, "0"), 10) || 0,
-    etcTotal    : hidrico?.etcTotal     ?? parseFloat(leerLS(LS_IN_ETC_TOTAL, "0")) || 0,
+    aguaFinalMm : hidrico?.aguaFinalMm  ?? (parseFloat(leerLS(LS_IN_AGUA_FINAL, "0")) || 0),
+    deficitAcum : hidrico?.deficitAcum  ?? (parseFloat(leerLS(LS_IN_DEFICIT, "0")) || 0),
+    diasEstres  : hidrico?.diasEstres   ?? (parseInt(leerLS(LS_IN_DIAS_ESTRES, "0"), 10) || 0),
+    diasEtCrit  : hidrico?.diasEtCritica ?? (parseInt(leerLS(LS_IN_DIAS_ET_CRIT, "0"), 10) || 0),
+    etcTotal    : hidrico?.etcTotal     ?? (parseFloat(leerLS(LS_IN_ETC_TOTAL, "0")) || 0),
     lluviaTotal : hidrico?.lluviaTotal  ?? 0,
     etapas      : hidrico?.etapas       ?? parseJSON(leerLS(LS_IN_ETAPAS_JSON, "[]"), []),
 
@@ -183,6 +183,8 @@ async function cerrarCampana({
   });
 
   if (fechaCosecha) est.fechaCosecha = fechaCosecha;
+  // Persistir la fecha resuelta para que barbecho.js y alertas.js la lean correctamente
+  guardarLS(LS_IN_FECHA_COS, est.fechaCosecha);
 
   const kpis = _calcularKPIs(est);
   const ts   = new Date().toISOString();

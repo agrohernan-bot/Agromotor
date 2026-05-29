@@ -8,6 +8,7 @@
   async function buscarAPI(){
     const[lat,lon]=parsCoord(gv('s-coord'));
     if(lat===null){alert('Formato no reconocido.\nEjemplos:\n• 33°23\'42.55"S 60°11\'29.87"W\n• -33.395, -60.192');return}
+    try{localStorage.setItem('am_siembra_lat',String(lat));localStorage.setItem('am_siembra_lon',String(lon));}catch(_){}
     const btn=$('btn-api');btn.disabled=true;btn.textContent='⟳ Consultando...';
     setStatus('Obteniendo ubicación (OpenStreetMap)...');
     try{
@@ -293,6 +294,20 @@
 
     const gdd=window._gddAc||0;
     const gddTxt=gdd>0?` · ${gdd.toFixed(0)} GDD acumulados`:'';
+
+    // Persistir datos de siembra para módulos dependientes (fenologia, alertas, informe-cierre)
+    try{
+      const fecha=gv('s-fecha');
+      if(fecha)localStorage.setItem('am_siembra_fecha',fecha);
+      localStorage.setItem('am_siembra_cultivo',cult);
+      localStorage.setItem('am_cultivo',cult);
+      // Coordenadas: refrescar desde el campo por si no pasaron por buscarAPI
+      const coordParsed=parsCoord(gv('s-coord'));
+      if(coordParsed[0]!==null){
+        localStorage.setItem('am_siembra_lat',String(coordParsed[0]));
+        localStorage.setItem('am_siembra_lon',String(coordParsed[1]));
+      }
+    }catch(_){}
 
     // RENDER
     $('s-ph').classList.add('hidden');$('s-res').classList.remove('hidden');

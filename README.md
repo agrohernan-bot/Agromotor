@@ -9,7 +9,7 @@
 
 ## 📋 Qué es
 
-AgroMotor es una **SPA (single page app)** con 17 módulos del flujo agronómico completo:
+AgroMotor es una **SPA (single page app)** con 15 módulos del flujo agronómico completo:
 
 ```
 Planificación  →  Implantación  →  Nutrición  →  Economía  →  Sanidad  →  Avanzado
@@ -25,8 +25,8 @@ Datos en tiempo real desde 7 APIs externas (Open-Meteo, NASA POWER, SoilGrids IS
 | Capa | Tecnología | Por qué |
 |---|---|---|
 | **Frontend** | Vanilla JS + HTML + CSS, sin framework | App de 18k LOC, 100% lazy modular, ~50 KB JS inicial |
-| **Hosting** | GitHub Pages | Gratis, simple, suficiente para el escenario actual |
-| **DNS / SSL** | Vercel DNS + GitHub Pages SSL (Let's Encrypt) | Gratis, configurado vía CLI |
+| **Hosting** | Vercel | Deploy estático, headers y dominio centralizados |
+| **DNS / SSL** | Vercel DNS + SSL automático | Dominio `agromotor.com.ar` gestionado desde Vercel |
 | **Auth + DB** | Supabase (Postgres) | RLS policies, Auth con email + magic link |
 | **Edge Functions** | Supabase Edge (Deno) | `claude-proxy`, `mp-crear-suscripcion`, `mp-webhook` |
 | **PWA** | Service Worker propio | Cache-first local + Network-first APIs + auto-update |
@@ -39,11 +39,11 @@ Datos en tiempo real desde 7 APIs externas (Open-Meteo, NASA POWER, SoilGrids IS
 
 ```
 /                       → landing pública (index.html)
-/app.html               → la app (SPA con 17 módulos)
+/app.html               → la app (SPA con 15 módulos)
 /css/                   → CSS
 /js/                    → módulos JS (lazy-loaded por nav.js)
   ├── core.js, login.js, cache.js, nav.js
-  ├── siembra.js, suelo.js, hidrico.js, ...  (17 módulos)
+  ├── siembra.js, suelo.js, hidrico.js, ...  (15 módulos)
   ├── pdf.js + pdf-modulo.js                 (reportes brandeable)
   ├── onboarding.js                          (tutorial primer uso)
   └── dashboard-ux.js                        (status badges + offline banner + PWA install)
@@ -111,10 +111,10 @@ Configuración pública (no secret):
 Demo        Gratis · 1 lote · solo Siembra
 Asesor      USD 35/mes · 5 lotes · IA 30 cons/mes
 Pro     ⭐  USD 90/mes · 25 lotes · IA 100 cons/mes · PDF brandeable
-Empresa     USD 250/mes · 75 lotes · IA 300 cons/mes · NDVI · API
+Empresa     USD 230/mes · 75 lotes · IA 300 cons/mes · NDVI · API
 ```
 
-Trial 14 días gratis al registrarse en cualquier plan pago. Cobro automático mensual via Mercado Pago Preapproval.
+Acceso gratuito de lanzamiento hasta el 1 de agosto de 2026 para cuentas registradas. Luego, continuidad mediante plan pago con cobro automático mensual via Mercado Pago Preapproval.
 
 ## 🧠 Lógica agronómica de referencia
 

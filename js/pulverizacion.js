@@ -11,6 +11,22 @@ let STATE = {
   hourly: null,      // pronóstico horario
 };
 
+async function pulvClaude(payload) {
+  if (typeof AM_SB === 'undefined' || typeof AM_CONFIG === 'undefined') {
+    throw new Error('Config IA no disponible');
+  }
+  const { data: { session } } = await AM_SB.auth.getSession();
+  if (!session) throw new Error('login_required');
+  return fetch(AM_CONFIG.claudeProxy, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + session.access_token
+    },
+    body: JSON.stringify(payload)
+  });
+}
+
 // ─── TABS ─────────────────────────────────────────────────
 function showTab(id) {
   document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
@@ -580,6 +596,7 @@ function guardarRegistro() {
 
 function renderHistorial() {
   const tbody = document.getElementById('historial-body');
+  if (!tbody) return;
   if (historial.length === 0) {
     tbody.innerHTML = '<tr><td colspan="5" class="txt-muted" style="text-align:center;padding:2rem">Sin registros aún</td></tr>';
     return;
@@ -594,8 +611,10 @@ function renderHistorial() {
     </tr>`).join('');
 
   const totalHa = historial.reduce((s,r) => s+(r.ha||0), 0);
-  document.getElementById('res-apps').textContent = historial.length;
-  document.getElementById('res-ha').textContent = totalHa.toLocaleString('es-AR');
+  const resApps = document.getElementById('res-apps');
+  const resHa = document.getElementById('res-ha');
+  if (resApps) resApps.textContent = historial.length;
+  if (resHa) resHa.textContent = totalHa.toLocaleString('es-AR');
 }
 
 function limpiarHistorial() {
@@ -745,15 +764,11 @@ async function enviarMensaje() {
   document.getElementById('chat-send-btn').disabled = true;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: chatHistory
-      })
+    const response = await pulvClaude({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1000,
+      system: SYSTEM_PROMPT,
+      messages: chatHistory
     });
 
     const data = await response.json();
@@ -1261,7 +1276,8 @@ let hracFiltroActual = 'todos';
 let hracBusqueda = '';
 
 function renderHRAC() {
-  const grid = document.getElementById('hrac-grid');
+  const grid = document.getElementById('pulv-hrac-grid');
+  if (!grid) return;
   const busq = hracBusqueda.toLowerCase();
 
   const filtrados = HRAC_DB.filter(m => {
@@ -1291,7 +1307,7 @@ function renderHRAC() {
       `<span class="hrac-grupo-chip ${g.nivel === 'parcial' ? 'parcial' : ''}">${g.hrac}</span>`
     ).join('');
 
-    return `<div class="hrac-card" onclick="abrirHRACModal(${m.id})">
+    return `<div class="hrac-card" onclick="pulvAbrirHRACModal(${m.id})">
       <div class="hrac-card-header">
         <div>
           <div class="hrac-nombre">${m.alta_peligrosidad ? '⚠ ' : ''}${m.nombre}</div>
@@ -1322,7 +1338,7 @@ function renderHRAC() {
 }
 
 function filtrarHRAC() {
-  hracBusqueda = document.getElementById('hrac-search-input').value;
+  hracBusqueda = document.getElementById('pulv-hrac-search')?.value || '';
   renderHRAC();
 }
 
@@ -1337,14 +1353,14 @@ function abrirHRACModal(id) {
   const m = HRAC_DB.find(x => x.id === id);
   if (!m) return;
 
-  document.getElementById('modal-nombre').textContent = m.nombre;
-  document.getElementById('modal-cientifico').textContent = m.cientifico;
+  document.getElementById('pulv-hrac-modal-titulo').textContent = m.nombre;
+  document.getElementById('pulv-hrac-modal-sub').textContent = m.cientifico;
 
   const chips = m.grupos_resistentes.map(g =>
     `<span class="hrac-grupo-chip ${g.nivel === 'parcial' ? 'parcial' : ''}" style="font-size:.72rem;padding:.25rem .65rem">${g.hrac} — ${g.nombre} <em style="font-weight:400;font-style:normal">(${g.nivel})</em></span>`
   ).join(' ');
 
-  document.getElementById('modal-body').innerHTML = `
+  document.getElementById('pulv-hrac-modal-body').innerHTML = `
     <div class="hrac-stat-row">
       <div class="hrac-stat">
         <div class="hrac-stat-val">${m.primer_caso}</div>
@@ -1393,13 +1409,13 @@ function abrirHRACModal(id) {
     </div>
   `;
 
-  document.getElementById('hrac-modal').style.display = 'flex';
+  document.getElementById('pulv-hrac-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
 
 function cerrarHRACModal(e) {
-  if (e && e.target !== document.getElementById('hrac-modal')) return;
-  document.getElementById('hrac-modal').style.display = 'none';
+  if (e && e.target !== document.getElementById('pulv-hrac-modal')) return;
+  document.getElementById('pulv-hrac-modal')?.classList.add('hidden');
   document.body.style.overflow = '';
 }
 
@@ -2642,17 +2658,13 @@ async function analizarTodoCanopeo() {
       const prompt = 'Analizá esta tarjeta hidrosensible. Posición: ' + posLabel + '. Tipo de aplicación: ' + obj.label + ' (objetivo FAO: ' + obj.min + '-' + obj.max + ' gotas/cm²). ' + condMeteo + ' Respondé SOLO con JSON: {"impactos_cm2":<int>,"vmd_estimado":<int>,"cobertura_pct":<float>,"distribucion":"<uniforme|irregular|muy_irregular>","confianza":"<alta|media|baja>","cumple_objetivo":<bool>}';
 
       try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 300,
-            messages: [{ role: 'user', content: [
-              { type: 'image', source: { type: 'base64', media_type: rep.mimeType || 'image/jpeg', data: rep.base64 } },
-              { type: 'text', text: prompt }
-            ]}]
-          })
+        const response = await pulvClaude({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 300,
+          messages: [{ role: 'user', content: [
+            { type: 'image', source: { type: 'base64', media_type: rep.mimeType || 'image/jpeg', data: rep.base64 } },
+            { type: 'text', text: prompt }
+          ]}]
         });
         const data = await response.json();
         const texto = data.content?.[0]?.text || '';
@@ -3007,27 +3019,23 @@ Por favor analizá la imagen y respondé ÚNICAMENTE con un objeto JSON con esta
 }`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: fotoMimeType,
-                data: fotoBase64
-              }
-            },
-            { type: 'text', text: prompt }
-          ]
-        }]
-      })
+    const response = await pulvClaude({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: fotoMimeType,
+              data: fotoBase64
+            }
+          },
+          { type: 'text', text: prompt }
+        ]
+      }]
     });
 
     const data = await response.json();
@@ -3859,20 +3867,16 @@ async function analizarRep(posicion, idx, tipoAplic) {
     '"lha_estimado":<float>}';
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        messages:[{
-          role:'user',
-          content:[
-            { type:'image', source:{ type:'base64', media_type:rep.mime, data:rep.base64 } },
-            { type:'text', text:prompt }
-          ]
-        }]
-      })
+    const res = await pulvClaude({
+      model:'claude-sonnet-4-5',
+      max_tokens:400,
+      messages:[{
+        role:'user',
+        content:[
+          { type:'image', source:{ type:'base64', media_type:rep.mime, data:rep.base64 } },
+          { type:'text', text:prompt }
+        ]
+      }]
     });
     const data = await res.json();
     const txt = data.content?.[0]?.text || '';
@@ -4245,6 +4249,8 @@ window.pulvFuentePH        = (el, val) => setFuente(el, val);
 window.pulvSetProdAgua     = (el, prod) => setProductoAgua(el, prod);
 window.pulvRenderHistorial = () => renderHistorial();
 if(typeof renderHRAC === 'function') window.pulvRenderHRAC      = () => renderHRAC();
+window.pulvFiltrarHRAC = () => filtrarHRAC();
+window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);
 
   // Otras funciones globales que pueden ser necesarias
   window.showTab = showTab;

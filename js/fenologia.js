@@ -185,6 +185,12 @@ function _addDays(date, n) {
   return d;
 }
 
+function _addYears(date, n) {
+  const d = new Date(date);
+  d.setUTCFullYear(d.getUTCFullYear() + n);
+  return d;
+}
+
 function _dayOfYear(date) {
   const start = new Date(Date.UTC(date.getUTCFullYear(), 0, 0));
   return Math.floor((date - start) / 86400000);
@@ -464,7 +470,10 @@ async function calcularFenologia(opts) {
   }
 
   if (diasClima.length === 0) {
-    throw new Error("No se obtuvieron datos climáticos para calcular la fenología.");
+    // API sin datos (período futuro o servicio inaccesible). El loop de simulación
+    // usa valores por defecto (tmax=25, tmin=15, precip=0) para cada día faltante.
+    advertencias.push("Sin datos climáticos de API; se usaron valores climatológicos por defecto.");
+    fuenteClima = "fallback";
   }
 
   // ── ENSO (solo planificación) ────────────────────────────────────────────
@@ -594,27 +603,52 @@ async function calcularFenologia(opts) {
 
 /**
  * Obtiene datos de NASA POWER histórico.
+ * Si el período incluye fechas futuras (NASA POWER tiene lag ~5 días), usa el mismo
+ * período del año anterior como referencia climática histórica y re-etiqueta las fechas.
  * Si el período cruza un año calendario, realiza dos llamadas.
  * @private
  */
 async function _obtenerClimaHistoricoNASA(lat, lon, fechaInicio, fechaFin) {
-  const anioIni = fechaInicio.getUTCFullYear();
-  const anioFin = fechaFin.getUTCFullYear();
+  const NASA_LAG_DIAS = 5;
+  const limiteDisponible = _addDays(new Date(), -NASA_LAG_DIAS);
 
-  if (anioIni === anioFin) {
-    return fetchNASAPower(lat, lon, fechaInicio, fechaFin);
+  // Si fechaFin está más allá de los datos disponibles, trabajar sobre el año anterior
+  let iniReq    = fechaInicio;
+  let finReq    = fechaFin;
+  let yearShift = 0;
+
+  if (fechaFin > limiteDisponible) {
+    yearShift = 1;
+    iniReq    = _addYears(fechaInicio, -1);
+    finReq    = _addYears(fechaFin,    -1);
   }
 
-  // Año cruzado: split en 31 dic del año de siembra
-  const finAnioUno = _parseDate(`${anioIni}-12-31`);
-  const iniAnioDos = _parseDate(`${anioFin}-01-01`);
+  const anioIni = iniReq.getUTCFullYear();
+  const anioFin = finReq.getUTCFullYear();
 
-  const [parte1, parte2] = await Promise.all([
-    fetchNASAPower(lat, lon, fechaInicio, finAnioUno),
-    fetchNASAPower(lat, lon, iniAnioDos, fechaFin),
-  ]);
+  let datos;
+  if (anioIni === anioFin) {
+    datos = await fetchNASAPower(lat, lon, iniReq, finReq);
+  } else {
+    // Año cruzado: split en 31 dic del año de siembra
+    const finAnioUno = _parseDate(`${anioIni}-12-31`);
+    const iniAnioDos = _parseDate(`${anioFin}-01-01`);
+    const [parte1, parte2] = await Promise.all([
+      fetchNASAPower(lat, lon, iniReq,     finAnioUno),
+      fetchNASAPower(lat, lon, iniAnioDos, finReq),
+    ]);
+    datos = [...parte1, ...parte2];
+  }
 
-  return [...parte1, ...parte2];
+  // Re-etiquetar fechas al año real si se usó el año anterior como referencia
+  if (yearShift > 0) {
+    datos = datos.map(d => ({
+      ...d,
+      fecha: _formatISO(_addYears(_parseDate(d.fecha), yearShift)),
+    }));
+  }
+
+  return datos;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -790,7 +824,17 @@ function _persistirResultado(res) {
       localStorage.setItem(LS_KEY_FEN_KC_HOY,    String(res.kcPorDia[idxHoy]));
       localStorage.setItem(LS_KEY_FEN_ETAPA_HOY, res.etapaPorDia[idxHoy]);
       localStorage.setItem(LS_KEY_FEN_GDD_ACUM,  String(res.gddAcumPorDia[idxHoy]));
+
+      // Fecha fin de la etapa actual → usado por alertas.js para proximidad de cambio
+      const etapaHoy = res.etapaPorDia[idxHoy];
+      let fechaFinEtapa = res.fechaFin;
+      for (let j = idxHoy + 1; j < res.etapaPorDia.length; j++) {
+        if (res.etapaPorDia[j] !== etapaHoy) { fechaFinEtapa = res.fechasPorDia[j - 1]; break; }
+      }
+      localStorage.setItem("am_fen_fecha_etapa_fin", fechaFinEtapa);
     }
+    // Duración total del ciclo para informe-cierre.js
+    localStorage.setItem("am_fen_duracion_ciclo", String(res.dias));
 
     // ── Totales del ciclo para módulo hídrico ─────────────────────────────
     const precipTotal = res.lluviaPorDia.reduce((a, b) => a + b, 0);

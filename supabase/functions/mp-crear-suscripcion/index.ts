@@ -18,7 +18,7 @@ const CORS = {
 const PLANES_AR = {
   asesor:  { ars: 50000,  usd: 35,  nombre: 'AgroMotor Asesor' },
   pro:     { ars: 130000, usd: 90,  nombre: 'AgroMotor Pro ⭐' },
-  empresa: { ars: 360000, usd: 250, nombre: 'AgroMotor Empresa' },
+  empresa: { ars: 320000, usd: 230, nombre: 'AgroMotor Empresa' },
 };
 
 serve(async (req: Request) => {

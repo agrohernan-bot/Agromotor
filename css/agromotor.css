@@ -1109,7 +1109,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 .hrac-mecanismo{font-size:.75rem;color:rgba(28,18,8,.55);line-height:1.4;margin-bottom:.5rem}
 .hrac-ias{display:flex;flex-wrap:wrap;gap:.3rem}
 .hrac-ia{font-size:.68rem;background:rgba(74,46,26,.06);color:rgba(28,18,8,.6);padding:.12rem .45rem;border-radius:6px}
-.hrac-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;background:rgba(10,18,12,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem}
+.hrac-modal-overlay{position:fixed;inset:0;z-index:9998;background:rgba(10,18,12,.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem}
 .hrac-modal{background:var(--panel-bg);border-radius:20px;max-width:560px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,.4);border:1px solid var(--border)}
 .hrac-modal-hdr{padding:1.3rem 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between}
 .agua-g2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
@@ -1745,44 +1745,83 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
   pointer-events: none;
 }
 
-/* ── MODAL: z-index y scroll lock ────────────────────── */
-
-/* Garantizar que los overlays siempre queden encima de todo.
-   El !important gana contra reglas específicas y compositing bugs de Safari
-   donde backdrop-filter en .module-nav puede adelantar su capa. */
-#am-modal,
-#am-modal-feedback {
-  z-index: 9999 !important;
-  overscroll-behavior: contain;
+/* Auth modal: one reliable scroll surface, above header/nav on all viewports */
+body.am-modal-open {
+  overflow: hidden !important;
 }
 
-/* Cuando un modal está abierto: bajar el header, nav y banners
-   por debajo del overlay. Esto soluciona el bug de compositing
-   de backdrop-filter en Safari/iOS donde el nav puede quedar encima
-   del overlay a pesar de tener un z-index CSS menor. */
-html.modal-open header,
-html.modal-open .module-nav,
-html.modal-open #am-promo-banner,
-html.modal-open .am-net-banner {
-  z-index: 0 !important;
+body.am-modal-open main {
+  z-index: 2147482900 !important;
 }
 
-/* Bloquear scroll del body mientras hay un modal abierto.
-   Solo en html (no en body) para evitar el bug de Safari donde
-   overflow:hidden en body convierte al body en el containing block
-   de elementos position:fixed, descolocando el overlay. */
-html.modal-open {
-  overflow: hidden;
-}
-body.modal-open {
-  overflow: hidden;
+#am-modal {
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 12px !important;
+  overflow: hidden !important;
 }
 
-/* Cuando el tour de onboarding está activo: bajar header/nav/banners
-   por debajo del overlay del tour (mismo fix que modal-open). */
-html.onb-active header,
-html.onb-active .module-nav,
-html.onb-active #am-promo-banner,
-html.onb-active .am-net-banner {
-  z-index: 0 !important;
+#am-modal > div {
+  width: min(680px, 100%) !important;
+  max-height: calc(100dvh - 24px) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+#am-modal > div > button[onclick="amCerrarModal()"] {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  z-index: 3 !important;
+}
+
+#am-vista-planes:not(.hidden),
+#am-vista-login:not(.hidden),
+#am-vista-registro:not(.hidden) {
+  flex: 1 1 auto !important;
+  max-height: calc(100dvh - 24px) !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+#am-vista-registro:not(.hidden) > div {
+  padding: 1rem 1.35rem 1.2rem !important;
+}
+
+#am-vista-registro .fg {
+  margin-bottom: .55rem;
+}
+
+#am-vista-registro input,
+#am-vista-registro select {
+  min-height: 42px;
+}
+
+@media (max-width: 640px) {
+  #am-modal {
+    padding: 0 !important;
+    align-items: stretch !important;
+  }
+
+  #am-modal > div {
+    width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+  }
+
+  #am-vista-planes:not(.hidden),
+  #am-vista-login:not(.hidden),
+  #am-vista-registro:not(.hidden) {
+    max-height: 100dvh !important;
+  }
+
+  #am-vista-registro:not(.hidden) > div,
+  #am-vista-login:not(.hidden) > div {
+    padding: .85rem .95rem 1rem !important;
+  }
 }

@@ -111,6 +111,13 @@
       console.warn('ENSO fetch falló — usando datos de referencia:', e.message);
     }
 
+    // Publicar fase y factor para alertas.js e informe-cierre.js
+    try {
+      const _factorMap = { nino: 0.18, neutro: 0, nina: -0.18 };
+      localStorage.setItem('am_enso_fase',   window.ENSO_DATA.fase);
+      localStorage.setItem('am_enso_factor', String(_factorMap[window.ENSO_DATA.fase] ?? 0));
+    } catch (_) {}
+
     renderENSO();
     // Actualizar selector de fase en el módulo
     const sel = $('bh-enso');
@@ -348,6 +355,30 @@
 
   $('bh-placeholder').classList.add('hidden');
   $('bh-res').classList.remove('hidden');
+
+  // ── Publicar estado para alertas.js e informe-cierre.js ──────────────────
+  try {
+    const cicloTotal = c.periodos[c.periodos.length - 1] === 'Total'
+      ? c.dias[c.dias.length - 1]
+      : c.dias.reduce((s, d) => s + d, 0);
+    const aguaFinalMm = Math.max(0, aguaTotalDisp - etcUsar);
+    const diasEst     = deficit > 0 ? Math.round((deficit / etcUsar) * cicloTotal) : 0;
+    const hidricoObj  = {
+      aguaFinalMm,
+      deficitAcum:   Math.round(deficit),
+      diasEstres:    diasEst,
+      diasEtCritica: diasEst,
+      etcTotal:      Math.round(etcUsar),
+      lluviaTotal:   precipCiclo,
+      etapas:        [],
+    };
+    localStorage.setItem("am_hidrico_agua_actual_mm",  String(Math.round(aguaFinalMm)));
+    localStorage.setItem("am_hidrico_deficit_acum_mm", String(Math.round(deficit)));
+    localStorage.setItem("am_hidrico_dias_estres",     String(diasEst));
+    localStorage.setItem("am_hidrico_dias_et_crit",    String(diasEst));
+    localStorage.setItem("am_hidrico_etc_total",       String(Math.round(etcUsar)));
+    localStorage.setItem("am_hidrico_ultimo",          JSON.stringify(hidricoObj));
+  } catch (_) {}
 }
 
   // Exposición a global por retrocompatibilidad HTML

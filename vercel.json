@@ -1,4 +1,36 @@
 {
+  "redirects": [
+    {
+      "source": "/agromotor-pulverizacion.html",
+      "destination": "/app.html",
+      "permanent": true
+    },
+    {
+      "source": "/cosecha-decide.html",
+      "destination": "/app.html",
+      "permanent": true
+    },
+    {
+      "source": "/agromotor-alerta-sanitaria.html",
+      "destination": "/app.html",
+      "permanent": true
+    },
+    {
+      "source": "/agromotor-alertas-plagas.html",
+      "destination": "/app.html",
+      "permanent": true
+    },
+    {
+      "source": "/agromotor-seguimiento-v2.html",
+      "destination": "/app.html",
+      "permanent": true
+    },
+    {
+      "source": "/agromotor-siembra-variable.html",
+      "destination": "/app.html",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/(.*\\.html)",

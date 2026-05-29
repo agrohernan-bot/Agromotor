@@ -669,12 +669,13 @@ async function campanaActivar(id) {
  */
 async function campanaCerrar(id, resultados = {}) {
   const cambios = { estado: "cosechado" };
-  if (resultados.fecha_cosecha)
-    cambios.fecha_cosecha_real  = resultados.fecha_cosecha;
+  const fechaCosecha = resultados.fecha_cosecha || new Date().toISOString().slice(0, 10);
+  cambios.fecha_cosecha_real = fechaCosecha;
   if (typeof resultados.rendimiento_real === "number")
     cambios.rendimiento_real    = +resultados.rendimiento_real.toFixed(2);
   if (typeof resultados.agua_perfil_cierre === "number")
     cambios.agua_perfil_cierre  = resultados.agua_perfil_cierre;
+  try { localStorage.setItem("am_cosecha_fecha", fechaCosecha); } catch (_) {}
   return actualizarCampana(id, cambios);
 }
 

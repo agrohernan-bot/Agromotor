@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // ════════════════════════════════════════════════════════
 
-const CACHE_NAME    = 'agromotor-v53';
+const CACHE_NAME    = 'agromotor-v49';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales — se pre-cachean en el install
@@ -24,7 +24,6 @@ const ASSETS_LOCAL = [
   './js/siembra.js',
   './js/siembra-apis.js',
   './js/economia.js',
-  './js/fertilizacion.js',
   './js/nutricion.js',
   './js/maquinaria.js',
   './js/hidrico.js',
@@ -36,8 +35,6 @@ const ASSETS_LOCAL = [
   './js/pulverizacion.js',
   './js/cosecha.js',
   './js/seguimiento.js',
-  './js/fertilizacion-optima.js',
-  './js/balance-nutricional.js',
   './js/mapa.js',
   './js/siembra-variable.js',
   './css/siembra-variable.css',
@@ -67,7 +64,6 @@ const API_HOSTS = [
   'dolarapi.com',
   'api.bcra.gob.ar',
   'supabase.co',
-  'api.anthropic.com',
   'monitorsiogranos.magyp.gob.ar',       // cosecha: precio FOB granos
   'api.estadisticasbcra.com',            // cosecha: tipo de cambio + tasas BCRA
   'api.openlandmap.org',                 // suelo: P/K/Zn OpenLandMap
