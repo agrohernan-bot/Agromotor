@@ -89,6 +89,12 @@
     const canvas = $('ge-curva-canvas');
     if (!canvas) return;
 
+    // Altura responsiva según ancho de pantalla
+    const mobile = window.innerWidth <= 480;
+    canvas.parentElement.style.height = (mobile ? 175 : 220) + 'px';
+    const fSm = mobile ? 9 : 10;
+    const fMd = mobile ? 10 : 11;
+
     const base   = d.pDisp || 200;
     const step   = base * 0.05;
     const precios = [];
@@ -135,13 +141,20 @@
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { position: 'top', labels: { boxWidth: 14, font: { size: 11 } } },
+          legend: { position: 'top', labels: { boxWidth: 14, font: { size: fMd } } },
           tooltip: {
             callbacks: {
               label: ctx => {
                 const v = ctx.parsed.y;
-                return ` ${ctx.dataset.label}: USD ${v >= 0 ? '+' : ''}${v.toFixed(0)}/ha`;
+                if (ctx.datasetIndex === 1) return null; // ocultar break-even en tooltip
+                const pLabel = ctx.label;
+                return [
+                  ` Margen: ${v >= 0 ? '+' : ''}USD ${v.toFixed(0)}/ha`,
+                  ` Precio: USD ${pLabel}/t`,
+                  ` BE: USD ${d.peDisp.toFixed(2)}/t`,
+                ];
               },
+              filter: item => item.datasetIndex !== 1,
             },
           },
           annotation: {
@@ -154,10 +167,10 @@
                 borderWidth: 2,
                 borderDash: [4, 3],
                 label: {
-                  content: `Precio actual $${d.pDisp}`,
-                  enabled: true,
+                  content: `P. actual $${d.pDisp}`,
+                  display: !mobile,
                   position: 'start',
-                  font: { size: 10 },
+                  font: { size: fSm },
                   color: '#1565c0',
                   backgroundColor: 'rgba(21,101,192,0.08)',
                 },
@@ -167,13 +180,13 @@
         },
         scales: {
           x: {
-            title: { display: true, text: 'Precio (USD/t)', font: { size: 11 } },
-            ticks: { font: { size: 10 } },
+            title: { display: !mobile, text: 'Precio (USD/t)', font: { size: fMd } },
+            ticks: { font: { size: fSm }, maxTicksLimit: mobile ? 6 : 10 },
           },
           y: {
-            title: { display: true, text: 'Margen (USD/ha)', font: { size: 11 } },
+            title: { display: !mobile, text: 'Margen (USD/ha)', font: { size: fMd } },
             ticks: {
-              font: { size: 10 },
+              font: { size: fSm },
               callback: v => (v >= 0 ? '+' : '') + v.toFixed(0),
             },
             grid: { color: 'rgba(0,0,0,0.06)' },
@@ -264,6 +277,12 @@
     const canvas = $('ge-waterfall-canvas');
     if (!canvas) return;
 
+    // Altura responsiva
+    const mobile = window.innerWidth <= 480;
+    canvas.parentElement.style.height = (mobile ? 175 : 220) + 'px';
+    const fSm = mobile ? 9 : 10;
+    const fMd = mobile ? 10 : 11;
+
     // Componentes del waterfall (orden: ingreso → costos → margen)
     const ingreso     = d.ingBrutDisp;
     const costoDir    = d.costoDir;
@@ -333,11 +352,11 @@
           },
         },
         scales: {
-          x: { stacked: true, ticks: { font: { size: 10 } } },
+          x: { stacked: true, ticks: { font: { size: fSm } } },
           y: {
             stacked: true,
-            title: { display: true, text: 'USD/ha', font: { size: 11 } },
-            ticks: { font: { size: 10 }, callback: v => v.toFixed(0) },
+            title: { display: !mobile, text: 'USD/ha', font: { size: fMd } },
+            ticks: { font: { size: fSm }, callback: v => v.toFixed(0) },
             grid: { color: 'rgba(0,0,0,0.06)' },
           },
         },
@@ -359,71 +378,47 @@
     }
   }
 
-  // ─── Actualizar todo ──────────────────────────────────────────────────────
-  function geActualizar() {
-    const panel = $('ge-panel');
-    if (!panel || panel.style.display === 'none') return;
-    try {
-      const d = leerInputs();
-      renderCurvaMargen(d);
-      renderTabSensibilidad(d);
-      renderWaterfall(d);
-    } catch (e) {
-      console.warn('graficos-economia error:', e);
+  // ─── Validaciones de inputs ───────────────────────────────────────────────
+  function validarInputs(d) {
+    const alertas = [];
+    if (!d.pDisp) {
+      alertas.push({ nivel: 'error', msg: 'Ingresá un precio disponible (USD/t) para ver los gráficos.' });
     }
+    if (!d.rendDisp) {
+      alertas.push({ nivel: 'error', msg: 'Ingresá un rendimiento (t/ha) para calcular.' });
+    }
+    if (d.pDisp > 1200) {
+      alertas.push({ nivel: 'aviso', msg: `Precio ${d.pDisp} USD/t parece alto. ¿Ingresaste qq en lugar de t? (1 t = 10 qq)` });
+    }
+    if (d.rendDisp > 25) {
+      alertas.push({ nivel: 'aviso', msg: `Rendimiento ${d.rendDisp} t/ha muy alto. Verificar unidades (1 t = 10 qq).` });
+    }
+    if (d.comision > 0.20) {
+      alertas.push({ nivel: 'aviso', msg: `Comisión del ${(d.comision * 100).toFixed(1)}%: verificar si ingresaste el valor como porcentaje (ej: 3) o fracción (0.03).` });
+    }
+    if (d.pDisp && d.rendDisp && d.costoDir === 0) {
+      alertas.push({ nivel: 'aviso', msg: 'Costos directos en cero. Completá semilla, fertilizantes y labores para un análisis real.' });
+    }
+    return alertas;
   }
 
-  // ─── Toggle panel ─────────────────────────────────────────────────────────
-  window.geTogglePanel = function () {
+  function mostrarAlertas(alertas) {
     const panel = $('ge-panel');
-    const btn   = $('ge-toggle-btn');
     if (!panel) return;
-    const visible = panel.style.display !== 'none';
-    panel.style.display = visible ? 'none' : 'block';
-    if (btn) btn.textContent = visible ? '📊 Ver gráficos económicos' : '✖ Ocultar gráficos';
-    if (!visible) {
-      // Pequeño delay para que el canvas tenga dimensiones
-      setTimeout(geActualizar, 80);
+    let cont = $('ge-alertas');
+    if (!cont) {
+      cont = document.createElement('div');
+      cont.id = 'ge-alertas';
+      cont.style.marginBottom = '.6rem';
+      const firstCard = panel.querySelector('.card') || panel.firstElementChild;
+      panel.insertBefore(cont, firstCard);
     }
-  };
-
-  // ─── Instalar observadores de cambio en inputs ────────────────────────────
-  function instalarObservadores() {
-    const ids = [
-      'ec-precio-disp', 'ec-precio-fut', 'ec-rend', 'ec-rend-fut', 'ec-sup',
-      'ec-semilla', 'ec-fertil', 'ec-agroquim', 'ec-siembra', 'ec-cosecha', 'ec-otros',
-      'ec-km', 'ec-flete-tar', 'ec-comision', 'ec-secado', 'ec-arriendo-qq', 'ec-tenencia',
-    ];
-    ids.forEach(id => {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('input', () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(geActualizar, 350);
-      });
-      el.addEventListener('change', () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(geActualizar, 350);
-      });
-    });
-
-    // También escuchar cuando economia.js emite cambios de cultivo/dólar
-    document.addEventListener('ecActualizado', () => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(geActualizar, 400);
-    });
+    if (!alertas.length) { cont.innerHTML = ''; return; }
+    cont.innerHTML = alertas.map(a =>
+      `<div class="ge-alerta ge-alerta-${a.nivel}">` +
+      `<span>${a.nivel === 'error' ? '⛔' : '⚠️'}</span>` +
+      `<span>${a.msg}</span></div>`
+    ).join('');
   }
 
-  // ─── Init ─────────────────────────────────────────────────────────────────
-  function init() {
-    instalarObservadores();
-    // No render inicial — esperar a que el usuario abra el panel
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
-})();
+  // ─── Actualizar todo ──�

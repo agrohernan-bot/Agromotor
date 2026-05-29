@@ -3960,8 +3960,17 @@ function _fsRender(res, diasTranscurridos) {
   .ge-sens-tbl th, .ge-sens-tbl td { padding:.28rem .5rem; text-align:center; border:1px solid #ddd; white-space:nowrap; }
   .ge-sens-tbl th { background:#f5f5f5; font-weight:700; color:#555; }
   .ge-sens-tbl tr.ge-base-row td:first-child { background:#e3f2fd; }
-  .wf-pos { color:#2e7d32; } .wf-neg { color:#c62828; }
+  .wf-pos { color:#2e7d32; font-weight:600; } .wf-neg { color:#c62828; font-weight:600; }
   .text-success { color:#2e7d32; } .text-danger { color:#c62828; }
+  /* Alertas de validación */
+  .ge-alerta { display:flex; align-items:flex-start; gap:.4rem; font-size:.77rem; padding:.4rem .65rem; border-radius:6px; margin-bottom:.3rem; line-height:1.4; }
+  .ge-alerta-error { background:#ffebee; border:1px solid #ef9a9a; color:#b71c1c; }
+  .ge-alerta-aviso { background:#fff8e1; border:1px solid #ffe082; color:#6d4c00; }
+  /* Tabla sensibilidad — mobile */
+  @media (max-width:480px) {
+    .ge-sens-tbl { font-size:.62rem; }
+    .ge-sens-tbl th, .ge-sens-tbl td { padding:.18rem .28rem; }
+  }
 
 </style>
 
@@ -4000,14 +4009,4 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=50"></script>
 <script src="js/dashboard-ux.js?v=50"></script>
 <script src="js/dashboard.js?v=50"></script>
-<script src="js/graficos-hidrico.js?v=50"></script>
-<script src="js/graficos-economia.js?v=1"></script>
-
-<!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
-  Gestionados por nav.js con amCargarModulo():
-  • hidrico.js            → Balance hídrico FAO-56 + ENSO
-  • cultivares.js         → DB RECSO/INTA + ranking + zonas
-  • cultivares-extra.js   → Comparador + Stress test + GDD + Densidad
-  • mapa.js               → OpenStreetMap + distribuidores
-  • pulverizacion.js      → Semáforo + Delta T + HRAC + Caldo
-  • seguimiento.js        → Cam
+<script src="js/graficos
