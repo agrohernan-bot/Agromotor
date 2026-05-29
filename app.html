@@ -1030,8 +1030,11 @@
 
               <!-- 1. Curva margen vs precio -->
               <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem">
-                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
-                  📈 Curva margen vs precio
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">📈 Curva margen vs precio</span>
+                  <button onclick="geExportar('ge-curva-canvas','margen-precio')"
+                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
+                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
                 </div>
                 <div style="height:220px;position:relative">
                   <canvas id="ge-curva-canvas"></canvas>
@@ -1040,8 +1043,11 @@
 
               <!-- 2. Tabla de sensibilidad -->
               <div class="card" style="margin-bottom:1rem;padding:.85rem 1rem;overflow-x:auto">
-                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
-                  🗂 Sensibilidad rendimiento × precio (USD/ha)
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">🗂 Sensibilidad rendimiento × precio (USD/ha)</span>
+                  <button onclick="geExportarTabla()"
+                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
+                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4;white-space:nowrap">⬇ CSV</button>
                 </div>
                 <div id="ge-sens-table"></div>
                 <div id="ge-sens-leyenda" style="font-size:.68rem;color:#888;margin-top:.4rem"></div>
@@ -1049,8 +1055,11 @@
 
               <!-- 3. Waterfall de costos -->
               <div class="card" style="padding:.85rem 1rem">
-                <div style="font-size:.78rem;font-weight:700;color:#4a2e1a;margin-bottom:.5rem">
-                  🏗 Descomposición de costos (waterfall)
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+                  <span style="font-size:.78rem;font-weight:700;color:#4a2e1a">🏗 Descomposición de costos (waterfall)</span>
+                  <button onclick="geExportar('ge-waterfall-canvas','waterfall-costos')"
+                    style="font-size:.68rem;padding:.18rem .55rem;border:1px solid #b0bec5;border-radius:5px;
+                           background:#f5f5f5;color:#555;cursor:pointer;line-height:1.4">⬇ PNG</button>
                 </div>
                 <div style="height:220px;position:relative">
                   <canvas id="ge-waterfall-canvas"></canvas>
@@ -3982,31 +3991,4 @@ function _fsRender(res, diasTranscurridos) {
 
 <!-- ══ LIBRERÍAS EXTERNAS ══ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-<!-- ══ CAPA 1: CORE — primero siempre ══ -->
-<script src="js/store.js?v=50"></script>
-<script src="js/core.js?v=50"></script>
-<script src="js/config.js?v=50"></script>
-<script src="js/login.js?v=50"></script>
-<script src="js/cache.js?v=50"></script>
-
-<!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=50"></script>
-
-
-
-<!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=50"></script>
-<script src="js/siembra-apis.js?v=50"></script>
-<script src="js/economia.js?v=50"></script>
-<script src="js/maquinaria.js?v=50"></script>
-<script src="js/asistente.js?v=50"></script>
-<script src="js/pdf.js?v=50"></script>
-<script src="js/pdf-modulo.js?v=50"></script>
-<script src="js/onboarding.js?v=50"></script>
-<script src="js/alerta-sanitaria.js?v=50"></script>
-<script src="js/dashboard-ux.js?v=50"></script>
-<script src="js/dashboard.js?v=50"></script>
-<script src="js/graficos
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsp
