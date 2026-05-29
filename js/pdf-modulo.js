@@ -1076,30 +1076,29 @@
     }
   };
 
-  // ── Botón flotante context-aware ─────────────────────
-  // Detecta el módulo activo y dispara el generador correspondiente.
-  window.amExportarPDFModulo = function() {
-    if (!window.AM_SESION) {
-      amToast('Iniciá sesión primero — el PDF se firma con tu matrícula profesional.', 'err');
-      if (typeof amMostrarModal === 'function') amMostrarModal('login');
-      return;
-    }
-    var activePanel = document.querySelector('.module-panel.active');
-    var modId = activePanel?.id?.replace('mod-','');
-    var fns = {
-      'decision':       window.pdfDecision,
-      'nutricion':      window.pdfNutricion,
-      'suelo':          window.pdfSuelo,
-      'hidrico':        window.pdfHidrico,
-      'cosecha':        window.pdfCosecha,
-      'plagas':         window.pdfPlagas,
-      'pulverizacion':  window.pdfPulverizacion,
-      'cultivares':     window.pdfCultivares,
-      'economia':       window.pdfEconomia,
-    };
-    var fn = fns[modId];
-    if (typeof fn === 'function') fn();
-    else amToast('Este módulo aún no soporta exportar PDF.', 'err');
-  };
+  // ── Informe de Cierre de Campaña ─────────────────────
+  window.pdfInformeCierre = function() {
+    try {
+      // Leer datos del cierre almacenado
+      var raw = localStorage.getItem('am_campana_cerrada_ultima');
+      var d   = raw ? JSON.parse(raw) : null;
 
-})();
+      // Si no hay cierre guardado, intentar leer estado actual de los módulos
+      if (!d) {
+        var esMs = 'No se encontró informe de cierre. Cerrá la campaña desde el módulo de Seguimiento primero.';
+        amToast(esMs, 'err');
+        return;
+      }
+
+      var ctx = crearPDFBase('Informe de Cierre de Campaña',
+        (d.cultivo || '').charAt(0).toUpperCase() + (d.cultivo || '').slice(1) +
+        (d.lote ? ' · ' + d.lote : '') +
+        (d.fechaCosecha ? ' · Cosecha ' + d.fechaCosecha : ''));
+
+      var doc = ctx.doc;
+
+      // Función helper para fila de datos
+      function fila(etiqueta, valor, alt) {
+        checkPage(ctx, 7);
+        if (alt) { doc.setFillColor(...ctx.COL.CLARO); doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F'); }
+        doc.setFont('helvetica','normal'); doc.setTextColor(...ct
