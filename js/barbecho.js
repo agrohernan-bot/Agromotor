@@ -15,6 +15,11 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// IIFE — evitar contaminación del scope global
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -22,6 +27,7 @@ const BARBECHO_KC       = 0.30;   // Factor de reducción por rastrojo sin culti
 const HARGREAVES_FACTOR = 0.60;   // Calibración regional pampeana
 const NASA_POWER_BASE   = "https://power.larc.nasa.gov/api/temporal/daily/point";
 const LS_KEY            = "am_barbecho_ultimo";   // Cache del último cálculo
+const NASA_DATA_LAG     = 7;      // Días de rezago típico de NASA POWER
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API NASA POWER
@@ -62,11 +68,15 @@ async function fetchNASAPower(lat, lon, fechaInicio, fechaFin) {
   if (!props) throw new Error("Respuesta NASA POWER inesperada");
 
   const dates = Object.keys(props.PRECTOTCORR).sort();
+
+  // -999 es el fill-value de NASA POWER para datos faltantes; tratar igual que null
+  const clean = (v, fallback) => (v == null || v <= -998) ? fallback : v;
+
   return {
     dates,
-    precip: dates.map(d => Math.max(0, props.PRECTOTCORR[d] ?? 0)),
-    tmax:   dates.map(d => props.T2M_MAX[d] ?? 25),
-    tmin:   dates.map(d => props.T2M_MIN[d] ?? 10),
+    precip: dates.map(d => Math.max(0, clean(props.PRECTOTCORR[d], 0))),
+    tmax:   dates.map(d => clean(props.T2M_MAX[d], 25)),
+    tmin:   dates.map(d => clean(props.T2M_MIN[d], 10)),
   };
 }
 
@@ -101,12 +111,14 @@ function et0Hargreaves(tmax, tmin, diaAnio, lat) {
 }
 
 /**
- * Número de día del año a partir de una fecha ISO.
+ * Número de día del año a partir de una fecha ISO ("YYYY-MM-DD").
+ * Usa UTC para evitar desfase de zona horaria (Argentina UTC-3).
  */
 function diaDelAnio(fechaISO) {
-  const d   = new Date(fechaISO);
-  const ini = new Date(d.getFullYear(), 0, 0);
-  return Math.floor((d - ini) / 86400000);
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const fecha    = new Date(Date.UTC(y, m - 1, d));
+  const inicioAnio = new Date(Date.UTC(y, 0, 0));
+  return Math.floor((fecha - inicioAnio) / 86400000);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -147,7 +159,12 @@ async function calcularBarbecho(params) {
 
   // Convertir fechas a formato NASA POWER (YYYYMMDD)
   const f2nasa = (iso) => iso.replace(/-/g, "");
-  const nasa = await fetchNASAPower(lat, lon, f2nasa(fechaCosechaAnt), f2nasa(fechaSiembra));
+
+  // NASA POWER tiene rezago de datos (~7 días); no pedir fechas futuras o muy recientes
+  const limiteAPI = new Date(Date.now() - NASA_DATA_LAG * 86400000).toISOString().slice(0, 10);
+  const fechaFinAPI = fechaSiembra > limiteAPI ? limiteAPI : fechaSiembra;
+
+  const nasa = await fetchNASAPower(lat, lon, f2nasa(fechaCosechaAnt), f2nasa(fechaFinAPI));
 
   // Balance diario
   const diario = [];
@@ -552,3 +569,5 @@ if (typeof module !== "undefined" && module.exports) {
  * @property {string} calculadoEn
  * @property {string} version
  */
+
+})(); // fin IIFE barbecho.js
