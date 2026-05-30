@@ -340,18 +340,26 @@ function sevLabel(s) {
 // ═══════════════════════════════════════════════════════════════
 // API CALLS
 // ═══════════════════════════════════════════════════════════════
+function fetchWithTimeout(url, ms) {
+  var ctrl = new AbortController();
+  var timer = setTimeout(function(){ ctrl.abort(); }, ms);
+  return fetch(url, { signal: ctrl.signal })
+    .then(function(r){ clearTimeout(timer); return r.json(); })
+    .catch(function(e){ clearTimeout(timer); throw e; });
+}
+
 function fetchClimateArchive(lat,lon,startDate,endDate) {
-  return fetch('https://archive-api.open-meteo.com/v1/archive?latitude='+lat+'&longitude='+lon+
+  var url = 'https://archive-api.open-meteo.com/v1/archive?latitude='+lat+'&longitude='+lon+
     '&start_date='+startDate+'&end_date='+endDate+
-    '&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FArgentina%2FBuenos_Aires')
-    .then(function(r){return r.json();});
+    '&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FArgentina%2FBuenos_Aires';
+  return fetchWithTimeout(url, 15000);
 }
 
 function fetchClimateForecast(lat,lon) {
-  return fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lon+
     '&hourly=temperature_2m,relative_humidity_2m,precipitation'+
-    '&past_days=14&forecast_days=7&timezone=America%2FArgentina%2FBuenos_Aires')
-    .then(function(r){return r.json();});
+    '&past_days=14&forecast_days=7&timezone=America%2FArgentina%2FBuenos_Aires';
+  return fetchWithTimeout(url, 15000);
 }
 
 // ═══════════════════════════════════════════════════════════════
