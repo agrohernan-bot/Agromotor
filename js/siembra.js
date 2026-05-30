@@ -46,7 +46,7 @@
         'et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m'+
         '&daily=temperature_2m_max,temperature_2m_min,'+
         'precipitation_probability_max,precipitation_sum,'+
-        'et0_fao_evapotranspiration,growing_degree_days_base_0_limit_50,'+
+        'et0_fao_evapotranspiration,'+
         'wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum';
 
       const res=await fetch(url);
@@ -77,7 +77,7 @@
           tMax:dd.temperature_2m_max?.[i]??null,tMin:dd.temperature_2m_min?.[i]??null,
           precP:dd.precipitation_probability_max?.[i]??null,precS:dd.precipitation_sum?.[i]??null,
           et0d:dd.et0_fao_evapotranspiration?.[i]??null,
-          gdd:dd.growing_degree_days_base_0_limit_50?.[i]??null,
+          gdd:(()=>{const tx=dd.temperature_2m_max?.[i],tn=dd.temperature_2m_min?.[i];return(tx!=null&&tn!=null)?Math.max(0,(Math.min(tx,50)+Math.min(tn,50))/2):null;})(),
           windMax:dd.wind_speed_10m_max?.[i]??null,
           rad:dd.shortwave_radiation_sum?.[i]??null,
           st6:avg(x.st6||[]),st18:avg(x.st18||[]),
@@ -174,8 +174,8 @@
       }
       if (typeof cacheGuardar === 'function') setTimeout(cacheGuardar, 1000);
     }catch(e){
-      setStatus('⚠️ Error al consultar la API. Podés ingresar los datos manualmente.',false);
-      console.error(e);
+      setStatus('⚠️ Error: '+e.message+'. Podés ingresar los datos manualmente.',false);
+      console.error('[siembra buscarAPI]',e);
     }finally{btn.disabled=false;btn.textContent='🌡️ Obtener datos'}
   }
 
