@@ -50,11 +50,13 @@ async function ecActualizarDolar() {
 }
 
 function ecRenderDolar() {
+  const panel = $('ec-dolar-panel');
+  if (!panel) return;
   const ts = EC_DOLAR.ts
     ? EC_DOLAR.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
     : 'Referencia';
 
-  $('ec-dolar-panel').innerHTML = `
+  panel.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.5rem">
       <div style="background:rgba(74,140,92,.08);border-radius:8px;padding:.6rem .8rem;text-align:center">
         <div style="font-size:.62rem;color:rgba(74,46,26,.5);font-weight:600;text-transform:uppercase;letter-spacing:.08em">Oficial</div>
@@ -77,6 +79,7 @@ function ecRenderDolar() {
       Fuente: DolarAPI · Actualizado: ${ts}
     </div>`;
 }
+
 
 function ecActualizarCultivo() {
   const cult = gv('s-cultivo') || 'Soja';
