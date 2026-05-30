@@ -26,37 +26,37 @@
 // Escritura
 const LS_KEY_CIERRE    = "am_campana_cerrada_ultima";
 const LS_KEY_HISTORIAL = "am_campana_historial";
-const LS_KEY_TS        = "am_cierre_ts";
+const LS_KEY_CIERRE_TS = "am_cierre_ts";
 
 // Lectura módulos
-const LS_IN_CAMPANA_ID   = "am_campana_id";
-const LS_IN_CULTIVO      = "am_cultivo";
-const LS_IN_MODO         = "am_modo_global";
-const LS_IN_LAT          = "am_siembra_lat";
-const LS_IN_LON          = "am_siembra_lon";
-const LS_IN_LOTE         = "am_lote_nombre";
-const LS_IN_AWC          = "am_lote_awc_mm";
-const LS_IN_FECHA_SIEM   = "am_siembra_fecha";
-const LS_IN_FECHA_COS    = "am_cosecha_fecha";
+const CIERRE_LS_IN_CAMPANA_ID   = "am_campana_id";
+const CIERRE_LS_IN_CULTIVO      = "am_cultivo";
+const CIERRE_LS_IN_MODO         = "am_modo_global";
+const CIERRE_LS_IN_LAT          = "am_siembra_lat";
+const CIERRE_LS_IN_LON          = "am_siembra_lon";
+const CIERRE_LS_IN_LOTE         = "am_lote_nombre";
+const CIERRE_LS_IN_AWC          = "am_lote_awc_mm";
+const CIERRE_LS_IN_FECHA_SIEM   = "am_siembra_fecha";
+const CIERRE_LS_IN_FECHA_COS    = "am_cosecha_fecha";
 
 // Hidrico
-const LS_IN_AGUA_FINAL   = "am_hidrico_agua_actual_mm";
-const LS_IN_DEFICIT      = "am_hidrico_deficit_acum_mm";
-const LS_IN_DIAS_ESTRES  = "am_hidrico_dias_estres";
-const LS_IN_DIAS_ET_CRIT = "am_hidrico_dias_et_crit";
-const LS_IN_ETC_TOTAL    = "am_hidrico_etc_total";
-const LS_IN_HIDRICO_OBJ  = "am_hidrico_ultimo";
+const CIERRE_LS_IN_AGUA_FINAL   = "am_hidrico_agua_actual_mm";
+const CIERRE_LS_IN_DEFICIT      = "am_hidrico_deficit_acum_mm";
+const CIERRE_LS_IN_DIAS_ESTRES  = "am_hidrico_dias_estres";
+const CIERRE_LS_IN_DIAS_ET_CRIT = "am_hidrico_dias_et_crit";
+const CIERRE_LS_IN_ETC_TOTAL    = "am_hidrico_etc_total";
+const CIERRE_LS_IN_HIDRICO_OBJ  = "am_hidrico_ultimo";
 
 // Fenologia
-const LS_IN_DURACION_CICLO = "am_fen_duracion_ciclo";
-const LS_IN_ETAPAS_JSON    = "am_hidrico_deficit_etapas";  // desde publicarEstadoHidrico
+const CIERRE_LS_IN_DURACION_CICLO = "am_fen_duracion_ciclo";
+const CIERRE_LS_IN_ETAPAS_JSON    = "am_hidrico_deficit_etapas";  // desde publicarEstadoHidrico
 
 // ENSO
-const LS_IN_ENSO_FASE    = "am_enso_fase";
-const LS_IN_ENSO_FACTOR  = "am_enso_factor";
+const CIERRE_LS_IN_ENSO_FASE    = "am_enso_fase";
+const CIERRE_LS_IN_ENSO_FACTOR  = "am_enso_factor";
 
 // Decisiones
-const LS_IN_DECISIONES   = "am_decision_ultima";
+const CIERRE_LS_IN_DECISIONES   = "am_decision_ultima";
 
 /* ──────────────────────────── UTILIDADES ───────────────────────────────── */
 function hoyISO() {
@@ -82,36 +82,36 @@ function parseJSON(raw, def) {
 
 /* ──────────────────────── CONSOLIDACIÓN DE ESTADO ────────────────────── */
 function _leerEstados() {
-  const hidricoRaw = leerLS(LS_IN_HIDRICO_OBJ, null);
+  const hidricoRaw = leerLS(CIERRE_LS_IN_HIDRICO_OBJ, null);
   const hidrico    = hidricoRaw ? parseJSON(hidricoRaw, null) : null;
 
   return {
-    campanaId   : leerLS(LS_IN_CAMPANA_ID, `campaña-${hoyISO()}`),
-    cultivo     : leerLS(LS_IN_CULTIVO, "soja"),
-    modo        : leerLS(LS_IN_MODO, "planificacion"),
-    lat         : parseFloat(leerLS(LS_IN_LAT, "-34")) || -34,
-    lon         : parseFloat(leerLS(LS_IN_LON, "-60")) || -60,
-    lote        : leerLS(LS_IN_LOTE, "Sin nombre"),
-    awcMm       : parseFloat(leerLS(LS_IN_AWC, "200")) || 200,
-    fechaSiembra: leerLS(LS_IN_FECHA_SIEM, null),
-    fechaCosecha: leerLS(LS_IN_FECHA_COS, hoyISO()),
+    campanaId   : leerLS(CIERRE_LS_IN_CAMPANA_ID, `campaña-${hoyISO()}`),
+    cultivo     : leerLS(CIERRE_LS_IN_CULTIVO, "soja"),
+    modo        : leerLS(CIERRE_LS_IN_MODO, "planificacion"),
+    lat         : parseFloat(leerLS(CIERRE_LS_IN_LAT, "-34")) || -34,
+    lon         : parseFloat(leerLS(CIERRE_LS_IN_LON, "-60")) || -60,
+    lote        : leerLS(CIERRE_LS_IN_LOTE, "Sin nombre"),
+    awcMm       : parseFloat(leerLS(CIERRE_LS_IN_AWC, "200")) || 200,
+    fechaSiembra: leerLS(CIERRE_LS_IN_FECHA_SIEM, null),
+    fechaCosecha: leerLS(CIERRE_LS_IN_FECHA_COS, hoyISO()),
 
     // Hídrico
     hidrico,
-    aguaFinalMm : hidrico?.aguaFinalMm  ?? (parseFloat(leerLS(LS_IN_AGUA_FINAL, "0")) || 0),
-    deficitAcum : hidrico?.deficitAcum  ?? (parseFloat(leerLS(LS_IN_DEFICIT, "0")) || 0),
-    diasEstres  : hidrico?.diasEstres   ?? (parseInt(leerLS(LS_IN_DIAS_ESTRES, "0"), 10) || 0),
-    diasEtCrit  : hidrico?.diasEtCritica ?? (parseInt(leerLS(LS_IN_DIAS_ET_CRIT, "0"), 10) || 0),
-    etcTotal    : hidrico?.etcTotal     ?? (parseFloat(leerLS(LS_IN_ETC_TOTAL, "0")) || 0),
+    aguaFinalMm : hidrico?.aguaFinalMm  ?? (parseFloat(leerLS(CIERRE_LS_IN_AGUA_FINAL, "0")) || 0),
+    deficitAcum : hidrico?.deficitAcum  ?? (parseFloat(leerLS(CIERRE_LS_IN_DEFICIT, "0")) || 0),
+    diasEstres  : hidrico?.diasEstres   ?? (parseInt(leerLS(CIERRE_LS_IN_DIAS_ESTRES, "0"), 10) || 0),
+    diasEtCrit  : hidrico?.diasEtCritica ?? (parseInt(leerLS(CIERRE_LS_IN_DIAS_ET_CRIT, "0"), 10) || 0),
+    etcTotal    : hidrico?.etcTotal     ?? (parseFloat(leerLS(CIERRE_LS_IN_ETC_TOTAL, "0")) || 0),
     lluviaTotal : hidrico?.lluviaTotal  ?? 0,
-    etapas      : hidrico?.etapas       ?? parseJSON(leerLS(LS_IN_ETAPAS_JSON, "[]"), []),
+    etapas      : hidrico?.etapas       ?? parseJSON(leerLS(CIERRE_LS_IN_ETAPAS_JSON, "[]"), []),
 
     // ENSO
-    faseENSO  : leerLS(LS_IN_ENSO_FASE, "neutro"),
-    factorENSO: parseFloat(leerLS(LS_IN_ENSO_FACTOR, "0")) || 0,
+    faseENSO  : leerLS(CIERRE_LS_IN_ENSO_FASE, "neutro"),
+    factorENSO: parseFloat(leerLS(CIERRE_LS_IN_ENSO_FACTOR, "0")) || 0,
 
     // Decisiones
-    decisiones: parseJSON(leerLS(LS_IN_DECISIONES, "[]"), []),
+    decisiones: parseJSON(leerLS(CIERRE_LS_IN_DECISIONES, "[]"), []),
   };
 }
 
@@ -184,7 +184,7 @@ async function cerrarCampana({
 
   if (fechaCosecha) est.fechaCosecha = fechaCosecha;
   // Persistir la fecha resuelta para que barbecho.js y alertas.js la lean correctamente
-  guardarLS(LS_IN_FECHA_COS, est.fechaCosecha);
+  guardarLS(CIERRE_LS_IN_FECHA_COS, est.fechaCosecha);
 
   const kpis = _calcularKPIs(est);
   const ts   = new Date().toISOString();
@@ -230,7 +230,7 @@ async function cerrarCampana({
 
   // Persistir cierre actual
   guardarLS(LS_KEY_CIERRE, JSON.stringify(cierre));
-  guardarLS(LS_KEY_TS,     ts);
+  guardarLS(LS_KEY_CIERRE_TS,     ts);
 
   // Agregar a historial (max 10 campañas)
   const histRaw  = leerLS(LS_KEY_HISTORIAL, "[]");

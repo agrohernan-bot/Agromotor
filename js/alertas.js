@@ -23,22 +23,22 @@
 
 /* ─────────────────────────── LS KEYS ─────────────────────────────────── */
 const LS_KEY_ALERTAS     = "am_alertas_activas";
-const LS_KEY_TS          = "am_alertas_ts";
+const LS_KEY_ALERTAS_TS  = "am_alertas_ts";
 
 // Entradas desde otros módulos
-const LS_IN_MODO         = "am_modo_global";
-const LS_IN_LAT          = "am_siembra_lat";
-const LS_IN_LON          = "am_siembra_lon";
-const LS_IN_CULTIVO      = "am_cultivo";
-const LS_IN_ETAPA_ACTUAL = "am_fen_etapa_hoy";
-const LS_IN_FECHA_ETAPA  = "am_fen_fecha_etapa_fin";
-const LS_IN_AWC          = "am_lote_awc_mm";
-const LS_IN_AGUA_ACTUAL  = "am_hidrico_agua_actual_mm";
-const LS_IN_DEFICIT_ACUM = "am_hidrico_deficit_acum_mm";
-const LS_IN_DIAS_ESTRES  = "am_hidrico_dias_estres";
-const LS_IN_DIAS_ET_CRIT = "am_hidrico_dias_et_crit";
-const LS_IN_ENSO_FASE    = "am_enso_fase";
-const LS_IN_ENSO_FACTOR  = "am_enso_factor";
+const ALERTAS_LS_IN_MODO         = "am_modo_global";
+const ALERTAS_LS_IN_LAT          = "am_siembra_lat";
+const ALERTAS_LS_IN_LON          = "am_siembra_lon";
+const ALERTAS_LS_IN_CULTIVO      = "am_cultivo";
+const ALERTAS_LS_IN_ETAPA_ACTUAL = "am_fen_etapa_hoy";
+const ALERTAS_LS_IN_FECHA_ETAPA  = "am_fen_fecha_etapa_fin";
+const ALERTAS_LS_IN_AWC          = "am_lote_awc_mm";
+const ALERTAS_LS_IN_AGUA_ACTUAL  = "am_hidrico_agua_actual_mm";
+const ALERTAS_LS_IN_DEFICIT_ACUM = "am_hidrico_deficit_acum_mm";
+const ALERTAS_LS_IN_DIAS_ESTRES  = "am_hidrico_dias_estres";
+const ALERTAS_LS_IN_DIAS_ET_CRIT = "am_hidrico_dias_et_crit";
+const ALERTAS_LS_IN_ENSO_FASE    = "am_enso_fase";
+const ALERTAS_LS_IN_ENSO_FACTOR  = "am_enso_factor";
 
 /* ─────────────────────────── UMBRALES ────────────────────────────────── */
 const UMBRAL_ESTRES_FRAC   = 0.30;   // <30 % AWC → estrés
@@ -327,18 +327,18 @@ async function evaluarAlertas({
   estadoFenologia = null,
   signal,
 } = {}) {
-  const cultivo     = leerLS(LS_IN_CULTIVO, "soja");
-  const etapaActual = leerLS(LS_IN_ETAPA_ACTUAL, "");
-  const fechaFinEtapa = leerLS(LS_IN_FECHA_ETAPA, null);
-  const awcMm       = parseFloat(leerLS(LS_IN_AWC, "200")) || 200;
-  const aguaMm      = parseFloat(leerLS(LS_IN_AGUA_ACTUAL, "140")) || 0;
-  const deficitAcum = parseFloat(leerLS(LS_IN_DEFICIT_ACUM, "0")) || 0;
-  const diasEstres  = parseInt(leerLS(LS_IN_DIAS_ESTRES, "0"), 10) || 0;
-  const diasEtCrit  = parseInt(leerLS(LS_IN_DIAS_ET_CRIT, "0"), 10) || 0;
-  const faseENSO    = leerLS(LS_IN_ENSO_FASE, "neutro");
-  const factorENSO  = parseFloat(leerLS(LS_IN_ENSO_FACTOR, "0")) || 0;
-  const lat         = parseFloat(leerLS(LS_IN_LAT, "-34"));
-  const lon         = parseFloat(leerLS(LS_IN_LON, "-60"));
+  const cultivo     = leerLS(ALERTAS_LS_IN_CULTIVO, "soja");
+  const etapaActual = leerLS(ALERTAS_LS_IN_ETAPA_ACTUAL, "");
+  const fechaFinEtapa = leerLS(ALERTAS_LS_IN_FECHA_ETAPA, null);
+  const awcMm       = parseFloat(leerLS(ALERTAS_LS_IN_AWC, "200")) || 200;
+  const aguaMm      = parseFloat(leerLS(ALERTAS_LS_IN_AGUA_ACTUAL, "140")) || 0;
+  const deficitAcum = parseFloat(leerLS(ALERTAS_LS_IN_DEFICIT_ACUM, "0")) || 0;
+  const diasEstres  = parseInt(leerLS(ALERTAS_LS_IN_DIAS_ESTRES, "0"), 10) || 0;
+  const diasEtCrit  = parseInt(leerLS(ALERTAS_LS_IN_DIAS_ET_CRIT, "0"), 10) || 0;
+  const faseENSO    = leerLS(ALERTAS_LS_IN_ENSO_FASE, "neutro");
+  const factorENSO  = parseFloat(leerLS(ALERTAS_LS_IN_ENSO_FACTOR, "0")) || 0;
+  const lat         = parseFloat(leerLS(ALERTAS_LS_IN_LAT, "-34"));
+  const lon         = parseFloat(leerLS(ALERTAS_LS_IN_LON, "-60"));
 
   // Si llegó estado desde módulo hidrico, sobreescribir LS
   const ctx_agua = estadoHidrico
@@ -392,7 +392,7 @@ async function evaluarAlertas({
 
   // Persistir
   guardarLS(LS_KEY_ALERTAS, JSON.stringify(final));
-  guardarLS(LS_KEY_TS,      ts);
+  guardarLS(LS_KEY_ALERTAS_TS,      ts);
 
   return final;
 }
@@ -411,7 +411,7 @@ function limpiarAlertas() {
   try {
     if (typeof localStorage !== "undefined") {
       localStorage.removeItem(LS_KEY_ALERTAS);
-      localStorage.removeItem(LS_KEY_TS);
+      localStorage.removeItem(LS_KEY_ALERTAS_TS);
     }
   } catch { /* noop */ }
 }

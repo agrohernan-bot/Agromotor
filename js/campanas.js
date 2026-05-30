@@ -58,7 +58,7 @@ const CULTIVOS_VALIDOS = [
 ];
 
 const ESTADOS_VALIDOS = ["planificado", "activo", "cosechado", "archivado"];
-const MODOS_VALIDOS   = ["planificacion", "seguimiento"];
+const CAMPANAS_MODOS_VALIDOS = ["planificacion", "seguimiento"];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // UUID v4 (sin dependencias externas)
@@ -158,8 +158,8 @@ function validar(c) {
   if (typeof c.agua_inicio_mm !== "number" || c.agua_inicio_mm < 0)
     throw new Error("agua_inicio_mm debe ser un número ≥ 0");
 
-  if (!MODOS_VALIDOS.includes(c.modo))
-    throw new Error(`modo inválido: "${c.modo}". Válidos: ${MODOS_VALIDOS.join(", ")}`);
+  if (!CAMPANAS_MODOS_VALIDOS.includes(c.modo))
+    throw new Error(`modo inválido: "${c.modo}". Válidos: ${CAMPANAS_MODOS_VALIDOS.join(", ")}`);
 
   if (!ESTADOS_VALIDOS.includes(c.estado))
     throw new Error(`estado inválido: "${c.estado}". Válidos: ${ESTADOS_VALIDOS.join(", ")}`);
