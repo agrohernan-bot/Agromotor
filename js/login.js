@@ -688,17 +688,17 @@ function amRegistrarPlan(plan) {
 // y redirige al checkout de MP.
 async function amSuscribir(plan) {
   if (!AM_SESION) {
-    amToast('Iniciá sesión primero para suscribirte.', 'error');
+    amToast('Iniciá sesión primero para suscribirte.', 'err');
     amMostrarModal('login');
     return;
   }
   if (!['asesor','pro','empresa'].includes(plan)) {
-    amToast('Plan inválido.', 'error');
+    amToast('Plan inválido.', 'err');
     return;
   }
   try {
     const { data: { session } } = await AM_SB.auth.getSession();
-    if (!session) { amToast('Sesión expirada.', 'error'); return; }
+    if (!session) { amToast('Sesión expirada.', 'err'); return; }
 
     const url = AM_CONFIG.supabase.url + '/functions/v1/mp-crear-suscripcion';
     const r = await fetch(url, {
@@ -708,14 +708,14 @@ async function amSuscribir(plan) {
     });
     const data = await r.json();
     if (!r.ok || !data.init_point) {
-      amToast(data.error || 'No pudimos crear la suscripción. Intentá de nuevo.', 'error');
+      amToast(data.error || 'No pudimos crear la suscripción. Intentá de nuevo.', 'err');
       console.error('MP suscripcion error:', data);
       return;
     }
     // Redirigir al checkout de Mercado Pago
     window.location.href = data.init_point;
   } catch (e) {
-    amToast('Error de conexión con Mercado Pago.', 'error');
+    amToast('Error de conexión con Mercado Pago.', 'err');
     console.error('amSuscribir:', e);
   }
 }
