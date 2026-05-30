@@ -279,8 +279,9 @@
 
     render();
 
-    // Auto-refresh cada 30 s
-    setInterval(render, 30000);
+    // Auto-refresh cada 30 s (guardar ID para poder cancelarlo si init() se llama de nuevo)
+    if (window._dashCampanaInterval) clearInterval(window._dashCampanaInterval);
+    window._dashCampanaInterval = setInterval(render, 30000);
 
     // Reaccionar a cambios de localStorage desde otras pestañas
     window.addEventListener('storage', function(e) {

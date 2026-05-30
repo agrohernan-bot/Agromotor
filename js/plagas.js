@@ -7,20 +7,11 @@
   window.AM = window.AM || {};
   window.AM.plagas = {};
 
-// ═══════════════════════════════════════════════════════════════
-// CONFIGURACIÓN SUPABASE — completar con credenciales del proyecto
-// ═══════════════════════════════════════════════════════════════
-var SUPABASE_URL      = 'https://TU_PROYECTO.supabase.co';
-var SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI';
-var RADIO_KM          = 80; // radio de búsqueda de reportes comunitarios
+var RADIO_KM = 80; // radio de búsqueda de reportes comunitarios
 
-var sb = null;
-try {
-  var _sb = window.supabase || supabase;
-  sb = _sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-} catch(e) { console.warn('Supabase no inicializado:', e); }
-
-var supabaseActivo = SUPABASE_URL !== 'https://TU_PROYECTO.supabase.co';
+// Reutilizar el cliente Supabase global (config.js lo define antes)
+var sb = (typeof AM_SB !== 'undefined') ? AM_SB : null;
+var supabaseActivo = sb !== null;
 
 // ═══════════════════════════════════════════════════════════════
 // ZONAS INTA con coordenadas
@@ -295,24 +286,6 @@ var PESTS = {
     }
   ]
 };
-
-// Zonas INTA con coordenadas
-var INTA_ZONAS = [
-  { nombre:'Marcos Juárez',           lat:-32.70, lon:-62.10 },
-  { nombre:'Pergamino',               lat:-33.89, lon:-60.57 },
-  { nombre:'Paraná',                  lat:-31.75, lon:-60.48 },
-  { nombre:'Oliveros',                lat:-32.55, lon:-60.87 },
-  { nombre:'Manfredi',                lat:-31.83, lon:-63.77 },
-  { nombre:'Anguil',                  lat:-36.53, lon:-64.02 },
-  { nombre:'Bordenave',               lat:-37.84, lon:-63.01 },
-  { nombre:'Balcarce',                lat:-37.75, lon:-58.30 },
-  { nombre:'General Villegas',        lat:-35.03, lon:-63.02 },
-  { nombre:'Reconquista',             lat:-29.15, lon:-59.65 },
-  { nombre:'Corrientes',              lat:-27.47, lon:-58.83 },
-  { nombre:'Salta',                   lat:-24.78, lon:-65.42 },
-  { nombre:'Concepción del Uruguay',  lat:-32.48, lon:-58.23 },
-  { nombre:'Concordia',               lat:-31.39, lon:-58.02 }
-];
 
 // Estado global
 var gState = { selectedSev: 0 };
