@@ -49,10 +49,9 @@ function amCargarLotesGlobales() {
 function amGetLoteLimit() {
   if (localStorage.getItem('am_god') === 'true') return 999;
   if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.devMode) return 999;
-  // Promoción lanzamiento: hasta el 01 Agosto 2026 → máx 6 lotes (con sesión activa)
-  // Sin sesión → 1 lote (mismo que plan free)
-  // TODO: restaurar el 1° de agosto de 2026
-  if (new Date() < new Date('2026-08-02')) {
+  // Durante la promo: máx 6 lotes con sesión activa, 1 sin sesión.
+  const promoHasta = (typeof AM_PROMO_HASTA !== 'undefined') ? AM_PROMO_HASTA : new Date('2026-08-02');
+  if (new Date() < promoHasta) {
     return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 6 : 1;
   }
   if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
@@ -188,50 +187,45 @@ window.amCrearLoteGlobal = function() {
   // y la quiere asignar al nuevo lote, no al previo
   const coordEsParaNuevoLote = coordEnPantalla && coordEnPantalla !== coordPrev;
 
-  const nombre = prompt('Nombre del nuevo lote (ej. Lote Sur - Soja):');
-  if(!nombre) return;
-  const id = 'lote_' + Date.now();
+  amInputModal('Nombre del nuevo lote', 'Ej: Lote Sur — Soja', function(nombre) {
+    if (!nombre) return;
+    const id = 'lote_' + Date.now();
 
-  // ── Si la coord nueva era para el lote nuevo, restaurar la del previo antes de guardarlo ──
-  if (coordEsParaNuevoLote) {
-    const sCoord = document.getElementById('s-coord');
-    if (sCoord) sCoord.value = coordPrev; // restaurar coord original del lote previo
-  }
-  cacheGuardar(); // ahora cacheGuardar persiste el lote previo con SUS coordenadas, no la del clic
+    // ── Si la coord nueva era para el lote nuevo, restaurar la del previo antes de guardarlo ──
+    if (coordEsParaNuevoLote) {
+      const sCoord = document.getElementById('s-coord');
+      if (sCoord) sCoord.value = coordPrev;
+    }
+    cacheGuardar();
 
-  // ── Crear nuevo lote, opcionalmente con las coords clickeadas ──
-  const nuevoLote = {
-    id, nombre,
-    data: coordEsParaNuevoLote ? {
-      ts: Date.now(),
-      coord:   coordEnPantalla,
-      cultivo: cultivoEnPantalla,
-      fecha:   fechaEnPantalla,
-      suelo:   sueloEnPantalla,
-    } : {}
-  };
-  AM_LOTES.push(nuevoLote);
-  AM_LOTE_ACTIVO = id;
+    // ── Crear nuevo lote, opcionalmente con las coords clickeadas ──
+    const nuevoLote = {
+      id, nombre,
+      data: coordEsParaNuevoLote ? {
+        ts: Date.now(),
+        coord:   coordEnPantalla,
+        cultivo: cultivoEnPantalla,
+        fecha:   fechaEnPantalla,
+        suelo:   sueloEnPantalla,
+      } : {}
+    };
+    AM_LOTES.push(nuevoLote);
+    AM_LOTE_ACTIVO = id;
 
-  amLimpiarDOM();
+    amLimpiarDOM();
+    amGuardarLotesEstado();
+    amRenderSelectLotes();
 
-  amGuardarLotesEstado();
-  amRenderSelectLotes();
-
-  if(typeof cacheCargar === 'function') cacheCargar();
-  if(typeof amActualizarUI === 'function') amActualizarUI();
-  if(typeof amToast === 'function') {
-    amToast(coordEsParaNuevoLote
-      ? `Lote "${nombre}" creado en la ubicación seleccionada`
-      : `Lote "${nombre}" creado`, 'ok');
-  }
-
-  if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
-
-  // Si el nuevo lote tiene coords, disparar consulta automática de APIs
-  if (coordEsParaNuevoLote && typeof buscarAPI === 'function') {
-    setTimeout(buscarAPI, 500);
-  }
+    if(typeof cacheCargar === 'function') cacheCargar();
+    if(typeof amActualizarUI === 'function') amActualizarUI();
+    if(typeof amToast === 'function') {
+      amToast(coordEsParaNuevoLote
+        ? `Lote "${nombre}" creado en la ubicación seleccionada`
+        : `Lote "${nombre}" creado`, 'ok');
+    }
+    if(typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+    if (coordEsParaNuevoLote && typeof buscarAPI === 'function') setTimeout(buscarAPI, 500);
+  });
 };
 
 window.amEliminarLoteGlobal = function() {
@@ -573,3 +567,57 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amGuardarLotesEstado = amGuardarLotesEstado;
 
 })();
+
+// ── MODAL DE INPUT GENÉRICO (reemplaza window.prompt) ────────────────────────
+// amInputModal('Título', 'placeholder', callback(valor|null))
+window.amInputModal = function(titulo, placeholder, callback) {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(28,18,8,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
+
+  var card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:16px;padding:1.5rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(28,18,8,.25);font-family:"DM Sans",sans-serif';
+
+  var h = document.createElement('div');
+  h.style.cssText = 'font-weight:700;font-size:1rem;color:#1c1208;margin-bottom:1rem';
+  h.textContent = titulo;
+
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = placeholder || '';
+  input.style.cssText = 'width:100%;box-sizing:border-box;border:1.5px solid #d4c9b8;border-radius:10px;padding:.65rem .9rem;font-size:.9rem;font-family:inherit;color:#1c1208;outline:none;margin-bottom:1rem';
+  input.addEventListener('focus', function(){ input.style.borderColor='#3A7A4A'; });
+  input.addEventListener('blur', function(){ input.style.borderColor='#d4c9b8'; });
+
+  var btns = document.createElement('div');
+  btns.style.cssText = 'display:flex;gap:.6rem;justify-content:flex-end';
+
+  var btnCancel = document.createElement('button');
+  btnCancel.textContent = 'Cancelar';
+  btnCancel.style.cssText = 'border:1.5px solid #d4c9b8;background:#fff;color:#5a4a32;border-radius:8px;padding:.5rem 1rem;font-size:.85rem;cursor:pointer;font-family:inherit';
+
+  var btnOk = document.createElement('button');
+  btnOk.textContent = 'Crear';
+  btnOk.style.cssText = 'border:none;background:#3A7A4A;color:#fff;border-radius:8px;padding:.5rem 1.1rem;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit';
+
+  function cerrar(val) {
+    document.body.removeChild(overlay);
+    callback(val || null);
+  }
+
+  btnCancel.addEventListener('click', function(){ cerrar(null); });
+  btnOk.addEventListener('click', function(){ cerrar(input.value.trim()); });
+  overlay.addEventListener('click', function(e){ if(e.target===overlay) cerrar(null); });
+  input.addEventListener('keydown', function(e){
+    if(e.key==='Enter') cerrar(input.value.trim());
+    if(e.key==='Escape') cerrar(null);
+  });
+
+  btns.appendChild(btnCancel);
+  btns.appendChild(btnOk);
+  card.appendChild(h);
+  card.appendChild(input);
+  card.appendChild(btns);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  setTimeout(function(){ input.focus(); }, 50);
+};

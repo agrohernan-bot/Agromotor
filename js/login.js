@@ -72,6 +72,12 @@ const AM_PLANES = {
   }
 };
 
+// ── FECHA FIN DE PROMOCIÓN ────────────────────────────
+// Cambiar esta fecha para activar/desactivar el período promo.
+// Hasta esta fecha: acceso total con login, sin restricciones de plan.
+// Después: se aplican límites por plan (lotes, módulos, IA).
+const AM_PROMO_HASTA = new Date('2026-08-02');
+
 // ── ESTADO DE SESIÓN ──────────────────────────────────
 // { id, email, nombre, plan, planHasta, trialHasta, token }
 let AM_SESION = null;
@@ -188,14 +194,11 @@ function amTieneAcceso(modulo) {
   }
   if (AM_CONFIG.devMode) return true;
 
-  // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive
-  // — requiere sesión activa (login obligatorio durante el promo)
-  // TODO: restaurar el 1° de agosto de 2026
-  if (new Date() < new Date('2026-08-02')) {
-    // Dashboard y Siembra accesibles sin login (vista previa);
-    // cualquier otro módulo requiere sesión activa durante el promo
+  // Período de promoción de lanzamiento: acceso total con login activo.
+  // Ver AM_PROMO_HASTA para cambiar la fecha de fin.
+  if (new Date() < AM_PROMO_HASTA) {
     if (!AM_SESION) return modulo === 'siembra' || modulo === 'dashboard';
-    return true; // con login: todo habilitado
+    return true;
   }
 
   if (!AM_SESION) return modulo === 'siembra';
@@ -310,8 +313,9 @@ function amCerrarModal() {
 }
 
 function amCambiarVista(vista) {
-  // TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios
-  if (vista === 'planes') vista = 'registro';
+  // Durante la promo redirigimos 'planes' a 'registro' directamente.
+  // Cuando AM_PROMO_HASTA expire, eliminar este bloque para mostrar el selector de planes.
+  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'registro';
   ['am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
@@ -439,10 +443,9 @@ function amProcesarUrlParams() {
 }
 window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 
-// Auto-mostrar modal si no logueado:
-// — Período promo (hasta 01-ago-2026): mostrar en CADA carga de página hasta que el usuario se registre
-// — Post-promo: mostrar solo la primera vez por dispositivo (am_seen_welcome)
-// TODO: restaurar el 1° de agosto de 2026 — usar solo el bloque post-promo
+// Auto-mostrar modal si no logueado.
+// Durante la promo: no se abre automáticamente (el guard de módulos lo hace).
+// Post-promo: ídem — solo al tocar un módulo restringido.
 window.addEventListener('DOMContentLoaded', function() {
   // No abrir modales automáticamente: si el usuario toca un módulo restringido,
   // amTieneAcceso/amMostrarModalUpgrade muestran el login en ese momento.
@@ -585,28 +588,84 @@ async function amCerrarSesion() {
 function amMostrarPerfil() {
   if (!AM_SESION) { amMostrarModal('login'); return; }
 
-  const plan      = AM_PLANES[AM_SESION.plan];
-  const trialInfo = AM_SESION.trialHasta
-    ? `\n🕐 Trial hasta: ${new Date(AM_SESION.trialHasta).toLocaleDateString('es-AR')}`
-    : '';
-  const planInfo  = AM_SESION.planHasta
-    ? `\n📅 Plan hasta: ${new Date(AM_SESION.planHasta).toLocaleDateString('es-AR')}`
-    : '';
-  const matLine = AM_SESION.matricula
-    ? `\n🎓 Matrícula ${AM_SESION.matricula}${AM_SESION.cpia ? ' · ' + AM_SESION.cpia : ''}${AM_SESION.matriculaVerificada ? ' (verificada ✓)' : ''}`
-    : '';
+  // Eliminar panel previo si existe
+  const prevPanel = document.getElementById('am-perfil-panel');
+  if (prevPanel) { prevPanel.remove(); return; }
 
-  const opciones = [
-    '1 — Cerrar sesión',
-    '2 — Ver tour de bienvenida nuevamente',
-    '3 — Cancelar',
-  ].join('\n');
+  const plan = AM_PLANES[AM_SESION.plan];
 
-  const elegido = prompt(
-    `👤 ${AM_SESION.nombre}\n📧 ${AM_SESION.email}\n⭐ Plan: ${plan.nombre}${matLine}${trialInfo}${planInfo}\n\n${opciones}\n\nIngresá 1, 2 o 3:`
-  );
-  if (elegido === '1') amCerrarSesion();
-  else if (elegido === '2' && typeof amOnbStart === 'function') amOnbStart();
+  // Construir filas de info
+  const rows = [
+    { icon: '👤', label: AM_SESION.nombre },
+    { icon: '📧', label: AM_SESION.email },
+    { icon: plan.icon, label: `Plan ${plan.nombre}` },
+  ];
+  if (AM_SESION.matricula) {
+    const mat = `Mat. ${AM_SESION.matricula}${AM_SESION.cpia ? ' · ' + AM_SESION.cpia : ''}${AM_SESION.matriculaVerificada ? ' ✓' : ''}`;
+    rows.push({ icon: '🎓', label: mat });
+  }
+  if (AM_SESION.trialHasta) {
+    rows.push({ icon: '🕐', label: `Trial hasta ${new Date(AM_SESION.trialHasta).toLocaleDateString('es-AR')}` });
+  }
+  if (AM_SESION.planHasta) {
+    rows.push({ icon: '📅', label: `Plan hasta ${new Date(AM_SESION.planHasta).toLocaleDateString('es-AR')}` });
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'am-perfil-panel';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(28,18,8,.4);backdrop-filter:blur(3px)';
+
+  const panel = document.createElement('div');
+  panel.style.cssText = [
+    'position:fixed;top:56px;right:12px;width:280px',
+    'background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(28,18,8,.2)',
+    'font-family:"DM Sans",sans-serif;overflow:hidden',
+    'animation:amSlideUp .22s cubic-bezier(.22,.68,0,1.2) both'
+  ].join(';');
+
+  // Header
+  const header = document.createElement('div');
+  header.style.cssText = 'background:linear-gradient(135deg,var(--canopy,#3A7A4A),#2A5A8C);padding:1rem 1.1rem .8rem;color:#fff';
+  header.innerHTML = `<div style="font-weight:700;font-size:.95rem">${plan.icon} ${AM_SESION.nombre.split(' ')[0]}</div><div style="font-size:.72rem;opacity:.8;margin-top:.1rem">${AM_SESION.email}</div>`;
+
+  // Filas info
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:.7rem 1rem';
+  rows.slice(2).forEach(function(r) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:.55rem;padding:.35rem 0;font-size:.8rem;color:#3a2e1c;border-bottom:1px solid rgba(74,46,26,.07)';
+    row.innerHTML = `<span style="font-size:.9rem;flex-shrink:0">${r.icon}</span><span>${r.label}</span>`;
+    body.appendChild(row);
+  });
+
+  // Botones
+  const btns = document.createElement('div');
+  btns.style.cssText = 'padding:.7rem 1rem .9rem;display:flex;flex-direction:column;gap:.45rem';
+
+  function mkBtn(txt, color, action) {
+    const b = document.createElement('button');
+    b.textContent = txt;
+    b.style.cssText = `width:100%;border:none;border-radius:9px;padding:.55rem .9rem;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;background:${color};color:#fff;text-align:left`;
+    b.addEventListener('click', function() { overlay.remove(); action(); });
+    return b;
+  }
+
+  btns.appendChild(mkBtn('🚪 Cerrar sesión', '#C94A2A', function() { amCerrarSesion(); }));
+  if (typeof amOnbStart === 'function') {
+    btns.appendChild(mkBtn('🎯 Ver tour de bienvenida', '#2A5A8C', function() { amOnbStart(); }));
+  }
+  const btnCerrar = document.createElement('button');
+  btnCerrar.textContent = 'Cancelar';
+  btnCerrar.style.cssText = 'width:100%;border:1.5px solid #d4c9b8;border-radius:9px;padding:.5rem .9rem;font-size:.82rem;cursor:pointer;font-family:inherit;background:#fff;color:#5a4a32';
+  btnCerrar.addEventListener('click', function() { overlay.remove(); });
+  btns.appendChild(btnCerrar);
+
+  panel.appendChild(header);
+  panel.appendChild(body);
+  panel.appendChild(btns);
+  overlay.appendChild(panel);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 // ── HELPER: seleccionar plan desde modal ──────────────
