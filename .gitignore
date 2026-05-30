@@ -18,3 +18,8 @@ desktop.ini
 agromotor/
 
 .vercel
+
+# Node (puppeteer / scripts locales)
+node_modules/
+package-lock.json
+package.json
