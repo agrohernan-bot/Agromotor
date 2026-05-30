@@ -9,11 +9,20 @@
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const ALLOWED_ORIGINS = [
+  'https://agromotor.com.ar',
+  'https://www.agromotor.com.ar',
+];
+
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) || origin.startsWith('http://localhost');
+  return {
+    'Access-Control-Allow-Origin': allowed ? origin : ALLOWED_ORIGINS[0],
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
 
 // Límites mensuales por plan (consultas IA / mes)
 // Período promo (hasta 01-ago-2026): plan free → 15 consultas/mes
@@ -30,6 +39,8 @@ const IA_LIMITES: Record<string, number> = {
 };
 
 serve(async (req: Request) => {
+  const CORS = corsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS });
   }
@@ -38,7 +49,7 @@ serve(async (req: Request) => {
     // ── 1. Verificar token de sesión ─────────────────
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      return json({ error: 'No autorizado. Iniciá sesión primero.' }, 401);
+      return json({ error: 'No autorizado. Iniciá sesión primero.' }, 401, CORS);
     }
 
     const supabase = createClient(
@@ -51,7 +62,7 @@ serve(async (req: Request) => {
     );
 
     if (authError || !user) {
-      return json({ error: 'Sesión inválida o vencida. Volvé a iniciar sesión.' }, 401);
+      return json({ error: 'Sesión inválida o vencida. Volvé a iniciar sesión.' }, 401, CORS);
     }
 
     // ── 2. Verificar plan activo ──────────────────────
@@ -80,7 +91,7 @@ serve(async (req: Request) => {
         error: EN_PROMO
           ? 'El Asistente IA requiere registrarse durante el período de lanzamiento.'
           : 'El Asistente IA requiere plan Asesor Pro o Empresa. Actualizá tu plan.',
-      }, 403);
+      }, 403, CORS);
     }
 
     // ── 3. Verificar y actualizar contador mensual ────
@@ -107,18 +118,18 @@ serve(async (req: Request) => {
         error: `Alcanzaste el límite de ${limite} consultas mensuales del plan ${planLabels[planActivo] || planActivo}. El contador se reinicia el próximo mes.`,
         ia_remaining: 0,
         ia_total: limite,
-      }, 429);
+      }, 429, CORS);
     }
 
     // ── 4. Reenviar a Claude API ──────────────────────
     const body = await req.json();
 
-    // Prompt caching: el system prompt de AgroMotor es ~80% estático
-    // (rol del asistente, reglas, especialidades). Lo separamos en bloque
-    // cacheable. Ahorra ~30% en input tokens cuando el cache hits.
-    const systemBlocks = (typeof body.system === 'string' && body.system.length > 1024)
-      ? [{ type: 'text', text: body.system, cache_control: { type: 'ephemeral' } }]
-      : body.system;
+    // Validar y sanitizar system prompt del cliente.
+    // Solo se acepta string; se trunca a 20 000 chars para prevenir abuso.
+    const rawSystem = typeof body.system === 'string' ? body.system.slice(0, 20000) : null;
+    const systemBlocks = rawSystem && rawSystem.length > 1024
+      ? [{ type: 'text', text: rawSystem, cache_control: { type: 'ephemeral' } }]
+      : rawSystem ?? undefined;
 
     const payload = {
       model:      body.model      ?? 'claude-sonnet-4-5',
@@ -161,13 +172,13 @@ serve(async (req: Request) => {
 
   } catch (e) {
     console.error('claude-proxy error:', e);
-    return json({ error: 'Error interno del servidor.' }, 500);
+    return json({ error: 'Error interno del servidor.' }, 500, CORS);
   }
 });
 
-function json(body: unknown, status = 200) {
+function json(body: unknown, status = 200, cors: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...cors, 'Content-Type': 'application/json' },
   });
 }

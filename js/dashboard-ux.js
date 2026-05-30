@@ -95,13 +95,10 @@
   if (typeof _origActivar !== 'function') {
     // Esperar a que nav.js termine
   }
-  // Observar cambios en _sgDatos (suelo) cada vez que se navega
-  setInterval(function() {
-    if (document.getElementById('mod-dashboard') &&
-        document.getElementById('mod-dashboard').classList.contains('active')) {
-      dashRefreshCards();
-    }
-  }, 3000);
+  // Refrescar cards al volver al Dashboard (event-driven, sin polling)
+  document.addEventListener('am:dashboard-activado', function() {
+    dashRefreshCards();
+  });
 
 
   // ── BANNER OFFLINE / ONLINE ─────────────────────────────

@@ -47,7 +47,14 @@ async function fetchNASAPower(lat, lon, fechaInicio, fechaFin) {
   });
 
   const url = `${NASA_POWER_BASE}?${params}`;
-  const resp = await fetch(url);
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 15000);
+  let resp;
+  try {
+    resp = await fetch(url, { signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!resp.ok) throw new Error(`NASA POWER error ${resp.status}: ${await resp.text()}`);
 
   const json = await resp.json();
