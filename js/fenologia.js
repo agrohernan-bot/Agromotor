@@ -1,3 +1,4 @@
+(function() {
 /**
  * fenologia.js — AGROMOTOR v2.0
  *
@@ -1010,22 +1011,17 @@ function getEtapasCultivo(cultivo) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    // Principal
     calcularFenologia,
-    // Acceso rápido (sync, desde localStorage)
     getKcHoy,
     getEtapaHoy,
     getGDDAcumHoy,
     getFenologiaActiva,
     getResumenActual,
     getKcParaFecha,
-    // Catálogo
     getCultivosDisponibles,
     getEtapasCultivo,
-    // Humedad de suelo (modo Seguimiento)
     omHumedadSuelo,
     omSmAAgua,
-    // Bajo nivel (util para tests)
     calcularGDD,
     kcParaGDD,
     etapaParaGDD,
@@ -1052,3 +1048,4 @@ if (typeof module !== "undefined" && module.exports) {
     CULTIVOS,
   };
 }
+})();
