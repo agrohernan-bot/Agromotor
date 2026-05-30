@@ -46,16 +46,32 @@
 <body>
 
 <script>
-  // Tracking de 3 clics para God Mode
+  // Triple-tap en el logo → refresh forzado (limpia SW + caché PWA)
   let amLogoClicks = 0;
   let amLogoClickTimer;
   function amLogoClick() {
     amLogoClicks++;
     clearTimeout(amLogoClickTimer);
-    amLogoClickTimer = setTimeout(() => amLogoClicks = 0, 1000);
+    amLogoClickTimer = setTimeout(() => amLogoClicks = 0, 1500);
     if (amLogoClicks >= 3) {
-      if (window.amHabilitarGodMode) window.amHabilitarGodMode();
       amLogoClicks = 0;
+      // Limpiar Service Worker y todos los cachés, luego recargar
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          var promises = regs.map(function(r) { return r.unregister(); });
+          return Promise.all(promises);
+        }).then(function() {
+          if ('caches' in window) {
+            return caches.keys().then(function(keys) {
+              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+            });
+          }
+        }).finally(function() {
+          location.reload(true);
+        });
+      } else {
+        location.reload(true);
+      }
     }
   }
 </script>
