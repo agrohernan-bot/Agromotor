@@ -30,7 +30,8 @@ function amCargarModulo(archivo, callback) {
     return;
   }
   var script = document.createElement('script');
-  script.src = 'js/' + archivo + '?v=55';
+  var version = (window.AM_CONFIG && window.AM_CONFIG.assetVersion) || '64';
+  script.src = 'js/' + archivo + '?v=' + version;
   script.onload = function() {
     AM_MODULOS_CARGADOS[archivo] = true;
     if (callback) callback();

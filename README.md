@@ -133,7 +133,7 @@ El SW tiene auto-update: cada 60 segundos chequea cambios. Cuando detecta nueva 
 
 - [ ] Mercado Pago activación final (esperando token de producción)
 - [ ] Verificar SSL HTTPS Enforced en agromotor.com.ar
-- [ ] Panel admin para verificar matrículas profesionales
+- [x] Panel admin para verificar matrículas profesionales
 - [ ] Acuerdos institucionales con CPIAs (descuento del 30% para matriculados)
 - [ ] Integración con SIGA / SISA / AFIP factura electrónica
 - [ ] App nativa Android (wrap PWA con Capacitor)

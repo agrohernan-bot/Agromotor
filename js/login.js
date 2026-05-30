@@ -6,9 +6,10 @@
 
 (function() {
   window.AM = window.AM || {};
+  try { localStorage.removeItem('am_god'); } catch (_) {}
 
 // ── LÍMITES POR PLAN ──────────────────────────────────
-// PERÍODO PROMO (hasta 01-ago-2026): login obligatorio, 6 lotes, 15 IA/mes
+// PERÍODO PROMO (hasta 01-ago-2026): login obligatorio, 5 lotes, 15 IA/mes
 // TODO: restaurar selector de planes y precios el 1° de agosto de 2026
 const AM_PLANES = {
   free: {
@@ -57,7 +58,7 @@ const AM_PLANES = {
   empresa: {
     // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
     nombre: 'Empresa',
-    precio: 'USD 250/mes',
+    precio: 'USD 230/mes',
     lotes: 75,
     iaCallsMes: 300,
     modulos: [
@@ -187,47 +188,28 @@ AM_SB.auth.onAuthStateChange((event, session) => {
 
 // ── VERIFICAR ACCESO A MÓDULO ─────────────────────────
 function amTieneAcceso(modulo) {
-  // God mode solo válido en devMode; limpiar si existe en producción
-  if (localStorage.getItem('am_god') === 'true') {
-    if (!AM_CONFIG.devMode) { localStorage.removeItem('am_god'); }
-    else { return true; }
-  }
-  if (AM_CONFIG.devMode) return true;
-
-  // Período de promoción de lanzamiento: acceso total con login activo.
-  // Ver AM_PROMO_HASTA para cambiar la fecha de fin.
-  if (new Date() < AM_PROMO_HASTA) {
-    if (!AM_SESION) return modulo === 'siembra' || modulo === 'dashboard';
+  // Promocion lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive.
+  // Requiere sesion activa (login obligatorio durante la promo).
+  if (new Date() < new Date('2026-08-02')) {
+    if (!AM_SESION) return false;
     return true;
   }
 
-  if (!AM_SESION) return modulo === 'siembra';
+  if (!AM_SESION) return false;
 
   const plan = AM_PLANES[AM_SESION.plan];
   if (!plan?.modulos?.includes(modulo)) return false;
 
-  // Plan gratuito: siempre activo
-  if (AM_SESION.plan === 'free') return true;
+  if (AM_SESION.plan === 'free') return false;
 
-  // Planes pagos: verificar que no estén vencidos
-  const ahora     = new Date();
-  const planVigente  = AM_SESION.planHasta  && new Date(AM_SESION.planHasta)  > ahora;
+  const ahora = new Date();
+  const planVigente = AM_SESION.planHasta && new Date(AM_SESION.planHasta) > ahora;
   const trialVigente = AM_SESION.trialHasta && new Date(AM_SESION.trialHasta) > ahora;
 
-  if (!planVigente && !trialVigente) {
-    // Plan vencido: notificar al usuario la primera vez
-    if (!window._amPlanVencidoNotificado) {
-      window._amPlanVencidoNotificado = true;
-      setTimeout(function() {
-        amToast('Tu plan venció. Seguís con acceso básico — renovalo desde tu perfil.', 'err');
-      }, 1000);
-    }
-    return modulo === 'siembra';
-  }
+  if (!planVigente && !trialVigente) return false;
 
   return true;
 }
-
 // ── ACTUALIZAR UI SEGÚN SESIÓN ────────────────────────
 function amActualizarUI() {
   const btnLogin    = $('am-btn-login');
@@ -292,9 +274,16 @@ function amMostrarModal(vista = 'planes') {
     });
   });
   amCambiarVista(vista);
+  amResetModalScroll();
 }
 
 function amCerrarModal() {
+  if (!AM_SESION) {
+    var visible = document.querySelector('#am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
+    var err = visible ? visible.querySelector('.alert.danger') : null;
+    if (err) amMostrarError(err, 'NecesitÃ¡s iniciar sesiÃ³n para ingresar a AgroMotor.');
+    return;
+  }
   const modal = $('am-modal');
   modal.style.transition = 'opacity .25s ease, transform .25s ease';
   modal.style.opacity = '0';
@@ -320,6 +309,18 @@ function amCambiarVista(vista) {
     $(id)?.classList.add('hidden');
   });
   $(`am-vista-${vista}`)?.classList.remove('hidden');
+  amResetModalScroll();
+}
+
+function amResetModalScroll() {
+  requestAnimationFrame(function() {
+    var modal = $('am-modal');
+    var shell = modal ? modal.firstElementChild : null;
+    var visible = modal ? modal.querySelector('#am-vista-planes:not(.hidden), #am-vista-login:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-recovery:not(.hidden)') : null;
+    [modal, shell, visible].forEach(function(el) {
+      if (el) el.scrollTop = 0;
+    });
+  });
 }
 
 function amMostrarModalUpgrade(modulo) {
@@ -394,7 +395,6 @@ async function amOlvidarContrasena() {
 // También maneja el return de Mercado Pago (?subscription=success/pending/failure)
 function amProcesarUrlParams() {
   try {
-    if (localStorage.getItem('am_god') === 'true') return;
     const params = new URLSearchParams(window.location.search);
 
     // ── Retorno desde checkout de Mercado Pago ──
@@ -449,8 +449,14 @@ window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 window.addEventListener('DOMContentLoaded', function() {
   // No abrir modales automáticamente: si el usuario toca un módulo restringido,
   // amTieneAcceso/amMostrarModalUpgrade muestran el login en ese momento.
-  if (localStorage.getItem('am_god') === 'true') return;
   if (_modoRecovery) return;
+  if (new Date() < new Date('2026-08-02')) {
+    setTimeout(function() {
+      if (!AM_SESION && !_modoRecovery && typeof amMostrarModal === 'function') {
+        amMostrarModal('registro');
+      }
+    }, 900);
+  }
 });
 
 // Toggle bloques agronomo/estudiante en el form de registro
@@ -757,18 +763,6 @@ function amCargarSesion() {}
   window.amCerrarModal = amCerrarModal;
   window.amCambiarVista = amCambiarVista;
   window.amMostrarModalUpgrade = amMostrarModalUpgrade;
-
-  window.amHabilitarGodMode = function() {
-    if (!AM_CONFIG.devMode) return;
-    if (localStorage.getItem('am_god') === 'true') {
-      localStorage.removeItem('am_god');
-      alert('🔒 Modo Dios Desactivado.');
-    } else {
-      localStorage.setItem('am_god', 'true');
-      alert('🔓 ¡Modo Dios Activado! Tienes acceso ilimitado a todo.');
-    }
-    location.reload();
-  };
 
   window.amLogin = amLogin;
   window.amConfirmarNuevaContrasena = amConfirmarNuevaContrasena;

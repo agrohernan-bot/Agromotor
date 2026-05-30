@@ -30,11 +30,11 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=57">
-  <link rel="stylesheet" href="css/cosecha.css?v=57">
-  <link rel="stylesheet" href="css/siembra-variable.css?v=57">
-  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=57">
-  <link rel="stylesheet" href="css/dashboard.css?v=57">
+  <link rel="stylesheet" href="css/agromotor.css?v=70">
+  <link rel="stylesheet" href="css/cosecha.css?v=70">
+  <link rel="stylesheet" href="css/siembra-variable.css?v=70">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=70">
+  <link rel="stylesheet" href="css/dashboard.css?v=70">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -46,7 +46,7 @@
 <body>
 
 <script>
-  // Triple-tap en el logo → refresh forzado (limpia SW + caché PWA)
+  // Triple clic oculto sobre el logo: refresh limpio para pruebas.
   let amLogoClicks = 0;
   let amLogoClickTimer;
   function amLogoClick() {
@@ -55,27 +55,11 @@
     amLogoClickTimer = setTimeout(() => amLogoClicks = 0, 1500);
     if (amLogoClicks >= 3) {
       amLogoClicks = 0;
-      // Limpiar Service Worker y todos los cachés, luego recargar
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(regs) {
-          var promises = regs.map(function(r) { return r.unregister(); });
-          return Promise.all(promises);
-        }).then(function() {
-          if ('caches' in window) {
-            return caches.keys().then(function(keys) {
-              return Promise.all(keys.map(function(k) { return caches.delete(k); }));
-            });
-          }
-        }).finally(function() {
-          location.reload(true);
-        });
-      } else {
-        location.reload(true);
-      }
+      if (window.amForzarActualizacionLimpia) window.amForzarActualizacionLimpia();
+      else window.location.href = '/app.html?clear-sw=1';
     }
   }
 </script>
-
 <header>
   <div class="header-inner">
     <div class="logo" style="cursor:pointer" onclick="amLogoClick()" title="AgroMotor">
@@ -4221,42 +4205,43 @@ function _fsRender(res, diasTranscurridos) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
-<script src="js/store.js?v=57"></script>
-<script src="js/core.js?v=57"></script>
-<script src="js/config.js?v=57"></script>
-<script src="js/login.js?v=57"></script>
-<script src="js/cache.js?v=57"></script>
+<script src="js/store.js?v=70"></script>
+<script src="js/core.js?v=70"></script>
+<script src="js/config.js?v=70"></script>
+<script src="js/login.js?v=70"></script>
+<script src="js/cache.js?v=70"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
-<script src="js/modo-switch.js?v=57"></script>
-<script src="js/campanas.js?v=57"></script>
-<script src="js/enso.js?v=57"></script>
-<script src="js/alertas.js?v=57"></script>
-<script src="js/barbecho.js?v=57"></script>
-<script src="js/fenologia.js?v=57"></script>
-<script src="js/informe-cierre.js?v=57"></script>
+<script src="js/modo-switch.js?v=70"></script>
+<script src="js/campanas.js?v=70"></script>
+<script src="js/enso.js?v=70"></script>
+<script src="js/alertas.js?v=70"></script>
+<script src="js/barbecho.js?v=70"></script>
+<script src="js/fenologia.js?v=70"></script>
+<script src="js/informe-cierre.js?v=70"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=57"></script>
+<script src="js/nav.js?v=70"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=57"></script>
-<script src="js/siembra-apis.js?v=57"></script>
-<script src="js/economia.js?v=57"></script>
-<script src="js/maquinaria.js?v=57"></script>
-<script src="js/asistente.js?v=57"></script>
-<script src="js/pdf.js?v=57"></script>
-<script src="js/pdf-modulo.js?v=57"></script>
-<script src="js/onboarding.js?v=57"></script>
-<script src="js/alerta-sanitaria.js?v=57"></script>
-<script src="js/dashboard-ux.js?v=57"></script>
-<script src="js/dashboard.js?v=57"></script>
-<script src="js/graficos-economia.js?v=57"></script>
-<script src="js/comparador-campana.js?v=57"></script>
-<script src="js/rotacion.js?v=57"></script>
-<script src="js/graficos-hidrico.js?v=57"></script>
+<script src="js/siembra.js?v=70"></script>
+<script src="js/siembra-apis.js?v=70"></script>
+<script src="js/economia.js?v=70"></script>
+<script src="js/maquinaria.js?v=70"></script>
+<script src="js/asistente.js?v=70"></script>
+<script src="js/pdf.js?v=70"></script>
+<script src="js/pdf-modulo.js?v=70"></script>
+<script src="js/onboarding.js?v=70"></script>
+<script src="js/alerta-sanitaria.js?v=70"></script>
+<script src="js/dashboard-ux.js?v=70"></script>
+<script src="js/dashboard.js?v=70"></script>
+<script src="js/graficos-economia.js?v=70"></script>
+<script src="js/decision.js?v=70"></script>
+<script src="js/comparador-campana.js?v=70"></script>
+<script src="js/rotacion.js?v=70"></script>
+<script src="js/graficos-hidrico.js?v=70"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
@@ -4272,22 +4257,99 @@ function _fsRender(res, diasTranscurridos) {
 ══ -->
 
 <script>
-// ── Service Worker — PWA offline · auto-update ────────
+// Service Worker - PWA offline + auto-update
 if ('serviceWorker' in navigator) {
   let _amReloading = false;
-  // Cuando el nuevo SW toma control, recargar la página una vez
+  let _amPendingSW = null;
+  let _amLastUserEditAt = 0;
+  const AM_UPDATE_IDLE_MS = 120000;
+
+  function amTrackUserEdit(event) {
+    const el = event.target;
+    if (!el || !el.matches?.('input, textarea, select, [contenteditable="true"]')) return;
+    _amLastUserEditAt = Date.now();
+  }
+
+  function amCanApplyUpdateNow() {
+    const active = document.activeElement;
+    const editing = active && active.matches?.('input, textarea, select, [contenteditable="true"]');
+    const recentEdit = Date.now() - _amLastUserEditAt < AM_UPDATE_IDLE_MS;
+    const authModalOpen = document.body.classList.contains('modal-open') || document.documentElement.classList.contains('modal-open');
+    return navigator.onLine && document.visibilityState === 'visible' && !editing && !recentEdit && !authModalOpen;
+  }
+
+  function amApplyPendingUpdate() {
+    if (!_amPendingSW || _amReloading || !amCanApplyUpdateNow()) return false;
+    _amReloading = true;
+    try { sessionStorage.setItem('am_sw_reloading', '1'); } catch (_) {}
+    if (typeof amToast === 'function') amToast('Actualizando AgroMotor a la ultima version...', 'ok');
+    _amPendingSW.postMessage({ type: 'SKIP_WAITING' });
+    return true;
+  }
+
+  function amQueueUpdate(newSW) {
+    _amPendingSW = newSW;
+    if (amApplyPendingUpdate()) return;
+    if (typeof amToast === 'function') {
+      amToast('Nueva version lista. Se aplicara cuando termines esta accion.', 'ok');
+    }
+  }
+
+  window.amForzarActualizacionLimpia = async function() {
+    if (_amReloading) return;
+    _amReloading = true;
+    try {
+      if (typeof amToast === 'function') amToast('Limpiando cache y actualizando AgroMotor...', 'ok');
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(reg => reg.unregister()));
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+      }
+    } catch (err) {
+      console.warn('[AgroMotor] No se pudo limpiar todo el cache:', err);
+    } finally {
+      const cleanPath = window.location.pathname || '/app.html';
+      const cleanHash = window.location.hash || '';
+      window.location.replace(cleanPath + '?clear-sw=1&forced=' + Date.now() + cleanHash);
+    }
+  };
+
+  document.addEventListener('input', amTrackUserEdit, true);
+  document.addEventListener('change', amTrackUserEdit, true);
+  document.addEventListener('visibilitychange', amApplyPendingUpdate);
+  window.addEventListener('focus', amApplyPendingUpdate);
+  window.addEventListener('online', amApplyPendingUpdate);
+  setInterval(amApplyPendingUpdate, 30000);
+
+  async function amClearServiceWorkerIfRequested() {
+    if (!new URLSearchParams(window.location.search).has('clear-sw')) return false;
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(reg => reg.unregister()));
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+      }
+    } finally {
+      const cleanUrl = window.location.pathname + window.location.hash;
+      window.location.replace(cleanUrl);
+    }
+    return true;
+  }
+
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (_amReloading) return;
     _amReloading = true;
     window.location.reload();
   });
 
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js')
+  window.addEventListener('load', async () => {
+    if (await amClearServiceWorkerIfRequested()) return;
+
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
       .then(reg => {
-        // Buscar updates inmediatamente al cargar
         reg.update();
-        // Verificar updates cada 60s mientras la pestaña está abierta
         setInterval(() => reg.update(), 60000);
 
         reg.addEventListener('updatefound', () => {
@@ -4295,7 +4357,15 @@ if ('serviceWorker' in navigator) {
           if (!newSW) return;
           newSW.addEventListener('statechange', () => {
             if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              // Hay un SW viejo activo y uno nuevo esperando → forzar el cambio
-              if (typeof amToast === 'function') {
-                amToast('🔄 Actualizando AgroMotor a la última versión...', 'ok');
-              }
+              amQueueUpdate(newSW);
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[AgroMotor] SW no registrado:', err));
+  });
+}
+</script>
+
+</body>
+</html>

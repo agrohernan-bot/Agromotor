@@ -1767,12 +1767,14 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 }
 
 /* Auth modal: one reliable scroll surface, above header/nav on all viewports */
-body.am-modal-open {
+body.am-modal-open,
+body.modal-open {
   overflow: hidden !important;
 }
 
-body.am-modal-open main {
-  z-index: 200 !important;
+body.am-modal-open main,
+body.modal-open main {
+  z-index: 2147482900 !important;
 }
 
 #am-modal {
@@ -1818,6 +1820,15 @@ body.am-modal-open main {
 #am-vista-registro input,
 #am-vista-registro select {
   min-height: 42px;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+#am-vista-registro input[type="checkbox"] {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  box-sizing: content-box !important;
 }
 
 @media (max-width: 640px) {
@@ -1843,7 +1854,39 @@ body.am-modal-open main {
 
   #am-vista-registro:not(.hidden) > div,
   #am-vista-login:not(.hidden) > div {
-    padding: .85rem .95rem 1rem !important;
+    padding: .85rem .95rem max(1.75rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  #am-vista-registro:not(.hidden) > div {
+    padding-top: .5rem !important;
+  }
+
+  #am-vista-registro:not(.hidden) > div > div:first-child {
+    margin-bottom: .45rem !important;
+  }
+
+  #am-vista-registro:not(.hidden) > div > div:first-child > div:first-child {
+    display: none !important;
+  }
+
+  #am-vista-registro .fg {
+    margin-bottom: .42rem !important;
+  }
+
+  #am-vista-registro input,
+  #am-vista-registro select {
+    min-height: 38px !important;
+  }
+
+  #am-reg-plan + div {
+    padding: .58rem .8rem !important;
+    margin: .45rem 0 !important;
+  }
+
+  #am-btn-reg-submit {
+    min-height: 44px !important;
+    padding: .65rem 1rem !important;
+    margin-top: .35rem !important;
   }
 }
 

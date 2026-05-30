@@ -17,4 +17,28 @@ desktop.ini
 *.log
 agromotor/
 
-.vercel
+# Deploy / herramientas locales
+.vercel/
+.claude/
+.codex-remote-attachments/
+
+# Artefactos generados
+output/
+scratch/
+test-results/
+src/
+*.zip
+
+# Scripts temporales de mantenimiento local
+commit_push.bat
+deploy_fenologia.bat
+deploy_nasa_fix.ps1
+fix_agromotor.bat
+push_fenologia.ps1
+push_fix.bat
+run_deploy.bat
+deploy_log.txt
+
+# Material auxiliar no desplegable
+guion_presentacion_agromotor_45min.md
+speech_ia_agronomo_agromotor_30min.md

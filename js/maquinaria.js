@@ -6,6 +6,39 @@
   window.AM = window.AM || {};
   window.TC = window.TC || [];
   let _maqTolvasPropias = [];
+  const MAQ_LABELS = {
+    mixia: 'Crucianelli Mixia 13.5 m',
+    plantor: 'Crucianelli Plantor 18.9 m',
+    drilor: 'Crucianelli Drilor 10 m',
+    pionera: 'Crucianelli Pionera 16.38 m',
+    gringa: 'Crucianelli Gringa 18.9 m',
+    domina: 'Crucianelli Domina 10.5 m',
+    agrometalApx: 'Agrometal APX Seed Pro 12.6 m',
+    agrometalApxl: 'Agrometal APX-L 19 m',
+    agrometalTxPivot: 'Agrometal TX Pivot 2 9.8 m',
+    agrometalTxMega: 'Agrometal TX Mega Gen 3 20.47 m',
+    agrometalAdx: 'Agrometal ADX Magna 13 m',
+    agrometalMx: 'Agrometal MX Max 15 m',
+    apache54000: 'Apache 54000 Max 15 m',
+    apache27000: 'Apache 27000+ 21 m',
+    apache99000: 'Apache 99000 12.4 m',
+    tanzi9200evox: 'Tanzi 9200 Air Drill EVOX 18.4 m',
+    tanziSpecial3Evox: 'Tanzi Special 3 EVOX 14 m',
+    tanziSpecial4: 'Tanzi Special 4 12 m',
+    tanziSpecial5: 'Tanzi Special 5 18.9 m',
+    superWalterW650Imperial: 'Super Walter W650 Imperial 16 m',
+    superWalterW650Autotrailer: 'Super Walter W650 Autotrailer 12 m',
+    superWalterW650AirDrill: 'Super Walter W650 Air Drill 12 m',
+    superWalterW4500: 'Super Walter W4500 10 m',
+    ercaPfPremium: 'ERCA PF Premium 14.7 m',
+    ercaLinea7g: 'ERCA Linea 7 G / Serie 6G 18 m',
+    ercaLinea7f: 'ERCA Linea 7 F / Serie 6F 15.21 m',
+    ercaAirDrillTi13500: 'ERCA Air Drill Ti 13.500 14 m',
+    monumentalAd8300: 'Monumental AD-8300 8.3 m',
+    monumentalAd12000: 'Monumental AD-12000 11.5 m',
+    monumentalAd16000: 'Monumental AD-16000 16 m',
+    custom: 'Maquina personalizada'
+  };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function maqStorageKey() {
@@ -26,31 +59,41 @@
   function maqGuardarPropiasLista(arr) {
     localStorage.setItem(maqStorageKey(), JSON.stringify(arr));
   }
-
-  // ── Sincronizar máquinas propias al selector ──────────────────────────────
-  function maqSyncPropias() {
-    const sel = $('m-maq');
-    if (!sel || !sel.options || !DB || !DB.maqs) return;
-    const actual = sel.value;
-    const propias = maqLeerPropias();
-    // Quitar las propias antiguas del selector
-    for (let i = sel.options.length - 1; i >= 0; i--) {
-      if (sel.options[i].dataset.propia === '1') sel.remove(i);
-    }
-    // Cargar las propias guardadas
+  function maqRegistrarPropias(propias) {
     propias.forEach(m => {
       DB.maqs[m.id] = {
         a: +m.a || 9,
         t: (m.t || []).map(t => ({ n: t.n || 'Tolva', v: +t.v || 0 })).filter(t => t.v > 0),
-        f: m.f || 'Máquina propia cargada por el usuario.'
+        f: m.f || 'Maquina propia cargada por el usuario.'
       };
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = 'Propia · ' + m.nombre;
-      opt.dataset.propia = '1';
-      sel.insertBefore(opt, sel.querySelector('option[value="custom"]'));
     });
-    if (actual && DB.maqs[actual]) sel.value = actual;
+  }
+  function maqOption(value, label, propia) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (propia) opt.dataset.propia = '1';
+    return opt;
+  }
+  function maqRenderSelector() {
+    const sel = $('m-maq');
+    if (!sel || !DB || !DB.maqs) return;
+    const actual = sel.value || 'mixia';
+    const propias = maqLeerPropias();
+    maqRegistrarPropias(propias);
+    sel.innerHTML = '';
+    Object.keys(DB.maqs).forEach(id => {
+      if (id === 'custom' || id.indexOf('usr_') === 0) return;
+      sel.appendChild(maqOption(id, MAQ_LABELS[id] || id, false));
+    });
+    propias.forEach(m => sel.appendChild(maqOption(m.id, 'Propia - ' + m.nombre, true)));
+    sel.appendChild(maqOption('custom', MAQ_LABELS.custom, false));
+    sel.value = DB.maqs[actual] ? actual : 'mixia';
+  }
+
+  // ── Sincronizar máquinas propias al selector ──────────────────────────────
+  function maqSyncPropias() {
+    maqRenderSelector();
   }
 
   // ── Cargar máquina seleccionada ───────────────────────────────────────────

@@ -47,19 +47,15 @@ function amCargarLotesGlobales() {
 }
 
 function amGetLoteLimit() {
-  if (localStorage.getItem('am_god') === 'true') return 999;
-  if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.devMode) return 999;
-  // Durante la promo: máx 6 lotes con sesión activa, 1 sin sesión.
-  const promoHasta = (typeof AM_PROMO_HASTA !== 'undefined') ? AM_PROMO_HASTA : new Date('2026-08-02');
-  if (new Date() < promoHasta) {
-    return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 6 : 1;
+  // Promoci�n lanzamiento: hasta el 01 Agosto 2026 -> m�x 5 lotes con sesi�n activa.
+  if (new Date() < new Date('2026-08-02')) {
+    return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 5 : 1;
   }
   if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
     return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
   }
   return 1;
 }
-
 function amRenderSelectLotes() {
   const sel = document.getElementById('am-global-lotes');
   const selDash = document.getElementById('am-dash-lotes');
@@ -167,7 +163,7 @@ window.amCrearLoteGlobal = function() {
   const limite = amGetLoteLimit();
   if (AM_LOTES.length >= limite) {
     const msg = limite === 1
-      ? 'El plan Free permite 1 lote. Actualizá a Asesor Pro para tener hasta 15 lotes.'
+      ? 'El plan Free permite 1 lote. Actualizá a Asesor para tener hasta 5 lotes.'
       : `Tu plan permite hasta ${limite} lotes y ya los usaste todos. Considerá actualizar tu plan.`;
     if(typeof amToast === 'function') amToast(msg, 'error');
     else alert(msg);

@@ -5,28 +5,47 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v58';
+const CACHE_NAME    = 'agromotor-v70';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
-// Assets locales â€” se pre-cachean en el install
+// Assets locales - se pre-cachean en el install
 const ASSETS_LOCAL = [
   './',
   './index.html',
   './app.html',
   './css/agromotor.css',
   './css/cosecha.css',
+  './css/dashboard.css',
+  './css/alerta-sanitaria.css',
+  './css/siembra-variable.css',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png',
+  './js/store.js',
   './js/config.js',
   './js/core.js',
   './js/login.js',
   './js/cache.js',
+  './js/modo-switch.js',
+  './js/campanas.js',
+  './js/enso.js',
+  './js/alertas.js',
+  './js/barbecho.js',
+  './js/fenologia.js',
+  './js/informe-cierre.js',
   './js/nav.js',
   './js/pdf.js',
+  './js/pdf-modulo.js',
+  './js/onboarding.js',
   './js/siembra.js',
   './js/siembra-apis.js',
   './js/economia.js',
+  './js/graficos-economia.js',
+  './js/comparador-campana.js',
   './js/nutricion.js',
   './js/maquinaria.js',
   './js/hidrico.js',
+  './js/graficos-hidrico.js',
   './js/cultivares.js',
   './js/cultivares-extra.js',
   './js/decision.js',
@@ -38,20 +57,11 @@ const ASSETS_LOCAL = [
   './js/mapa.js',
   './js/siembra-variable.js',
   './js/rotacion.js',
-  './css/siembra-variable.css',
   './js/alerta-sanitaria.js',
   './js/dashboard.js',
   './js/dashboard-ux.js',
-  './css/dashboard.css',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/icon-maskable-512.png',
-  './js/pdf-modulo.js',
-  './js/onboarding.js',
-  './css/alerta-sanitaria.css',
   './manifest.json',
 ];
-
 // CDN externos â€” se cachean en primer uso (Stale While Revalidate)
 const CDN_HOSTS = [
   'cdn.jsdelivr.net',
@@ -82,7 +92,6 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(ASSETS_LOCAL))
-      .then(() => self.skipWaiting())
       .catch(err => console.warn('[SW] Error en install:', err))
   );
 });
@@ -221,8 +230,10 @@ async function offlineFallback(request) {
 
 // â”€â”€ MENSAJE desde la app (para forzar update) â”€â”€â”€â”€â”€â”€â”€â”€â”€
 self.addEventListener('message', event => {
-  if (event.data === 'skipWaiting') self.skipWaiting();
+  const data = event.data;
+  if (data === 'skipWaiting' || data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
+
 
 
 

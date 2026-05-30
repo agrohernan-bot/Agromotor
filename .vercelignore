@@ -10,8 +10,8 @@ fix.py
 
 agromotor-*.html
 cosecha-decide.html
-balance-nutricional.js
-decision.js
+/balance-nutricional.js
+/decision.js
 /nav.js
 
 guion_presentacion_agromotor_45min.md

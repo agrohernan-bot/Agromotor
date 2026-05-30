@@ -5,6 +5,28 @@
   window.AM = window.AM || {};
   window.AM.siembra = {};
 
+  async function fetchOpenMeteoSeguro(url,urlFallback){
+    async function leer(res){
+      if(res.ok)return res.json();
+      let detalle='';
+      try{
+        const err=await res.json();
+        detalle=err?.reason?': '+err.reason:'';
+      }catch(_){}
+      throw new Error('Open-Meteo HTTP '+res.status+detalle);
+    }
+    try{
+      return await leer(await fetch(url));
+    }catch(e){
+      console.warn('[Siembra] Open-Meteo intento principal fallo:',e.message);
+      try{
+        return await leer(await fetch(urlFallback));
+      }catch(e2){
+        throw new Error(e2.message||e.message);
+      }
+    }
+  }
+
   async function buscarAPI(){
     const[lat,lon]=parsCoord(gv('s-coord'));
     if(lat===null){alert('Formato no reconocido.\nEjemplos:\n• 33°23\'42.55"S 60°11\'29.87"W\n• -33.395, -60.192');return}
@@ -32,26 +54,31 @@
 
       // 3. Open-Meteo — llamada única con TODAS las variables
       const hoy=new Date();
+      hoy.setHours(12,0,0,0);
       const fs=gv('s-fecha');
       const fsel=fs?new Date(fs+'T12:00:00'):hoy;
       const fmt=d=>d.toISOString().split('T')[0];
-      const ini=new Date(fsel);ini.setDate(ini.getDate()-3);
-      const fin=new Date(fsel);fin.setDate(fin.getDate()+16);
+      const minApi=new Date(hoy);minApi.setDate(minApi.getDate()-3);
+      const maxApi=new Date(hoy);maxApi.setDate(maxApi.getDate()+15);
+      const apiRef=(fsel<minApi||fsel>maxApi)?hoy:fsel;
+      const fechaFueraRango=apiRef.getTime()!==fsel.getTime();
+      const ini=new Date(apiRef);ini.setDate(ini.getDate()-3);
+      const fin=new Date(apiRef);fin.setDate(fin.getDate()+15);
 
-      const url='https://api.open-meteo.com/v1/forecast?'+
-        `latitude=${lat}&longitude=${lon}&timezone=auto`+
-        `&start_date=${fmt(ini)}&end_date=${fmt(fin)}`+
-        '&hourly=soil_temperature_6cm,soil_temperature_18cm,'+
+      const meteoVars='&hourly=soil_temperature_6cm,soil_temperature_18cm,'+
         'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm,'+
         'et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m'+
         '&daily=temperature_2m_max,temperature_2m_min,'+
         'precipitation_probability_max,precipitation_sum,'+
         'et0_fao_evapotranspiration,growing_degree_days_base_0_limit_50,'+
         'wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum';
+      const meteoBase=`latitude=${lat}&longitude=${lon}&timezone=auto`;
+      const url='https://api.open-meteo.com/v1/forecast?'+
+        meteoBase+`&start_date=${fmt(ini)}&end_date=${fmt(fin)}`+meteoVars;
+      const urlFallback='https://api.open-meteo.com/v1/forecast?'+
+        meteoBase+'&past_days=3&forecast_days=16'+meteoVars;
 
-      const res=await fetch(url);
-      if(!res.ok)throw new Error('Open-Meteo HTTP '+res.status);
-      const data=await res.json();
+      const data=await fetchOpenMeteoSeguro(url,urlFallback);
 
       // Procesar hourly → avg diario
       const h=data.hourly||{},ht=h.time||[];
@@ -86,7 +113,7 @@
         };
       });
 
-      const fselStr=fmt(fsel);
+      const fselStr=fmt(apiRef);
       const dRef=dias.find(d=>d.fecha===fselStr)||dias.find(d=>d.fecha>=fselStr)||dias[3];
       const iRef=dias.indexOf(dRef);
 
@@ -122,7 +149,8 @@
       $('api-info').classList.remove('hidden');
 
       renderPron(dias,fselStr);
-      setStatus('✅ Open-Meteo cargado — consultando NASA POWER (histórico 30 años)...',true);
+      const avisoFechaApi=fechaFueraRango?' con fecha actual (la fecha elegida queda fuera del pronóstico disponible)':'';
+      setStatus('✅ Open-Meteo cargado'+avisoFechaApi+' — consultando NASA POWER (histórico 30 años)...',true);
       // Actualizar banner del asistente IA
       setTimeout(iaActualizarContextoBanner, 500);
 
@@ -130,25 +158,33 @@
       window._diaRef = dRef;
 
       // ── NASA POWER: llamada paralela, no bloquea si falla ──
+      const buscarNasa = window.buscarNASAPower;
+      const renderNasa = window.renderNASAPower;
+      const buscarSuelo = window.buscarSoilGrids;
+      const renderSuelo = window.renderSoilGrids;
+      if (typeof buscarSuelo !== 'function' || typeof renderSuelo !== 'function') {
+        throw new Error('Modulo de APIs de suelo no cargado');
+      }
       const mesSimb = fsel.getMonth() + 1; // 1-12
-      buscarNASAPower(lat, lon, mesSimb)
+      if (typeof buscarNasa === 'function' && typeof renderNasa === 'function') buscarNasa(lat, lon, mesSimb)
         .then(props => {
-          renderNASAPower(props, mesSimb, lat, lon);
-          setStatus('✅ Open-Meteo + NASA POWER cargados correctamente', false);
+          renderNasa(props, mesSimb, lat, lon);
+          setStatus('✅ Open-Meteo'+avisoFechaApi+' + NASA POWER cargados correctamente', false);
         })
         .catch(e => {
           // Falla silenciosa — Open-Meteo ya funcionó
-          setStatus('✅ Open-Meteo cargado · NASA POWER no disponible (se puede usar igualmente)', false);
+          setStatus('✅ Open-Meteo cargado'+avisoFechaApi+' · NASA POWER no disponible (se puede usar igualmente)', false);
           console.warn('NASA POWER:', e.message);
         });
+      else console.warn('NASA POWER: modulo no cargado');
 
       // ── SOILGRIDS: mostrar DB interna INMEDIATAMENTE, luego intentar API real ──
       // Paso 1: mostrar datos internos de inmediato (siempre funciona)
       const sueloTipo = detSuelo(lat, lon) || 'Molisol';
-      const datosInternos = await buscarSoilGrids(lat, lon); // tiene fallback garantizado
+      const datosInternos = await buscarSuelo(lat, lon); // tiene fallback garantizado
       // Siempre va a devolver algo (API real o DB interna)
       window._sgDatos = datosInternos;
-      renderSoilGrids(datosInternos);
+      renderSuelo(datosInternos);
       renderSueloModulo(datosInternos);
       if ($('suelo-coord') && $('s-coord')?.value) $('suelo-coord').value = $('s-coord').value;
       if (datosInternos.textura) {
@@ -174,8 +210,9 @@
       }
       if (typeof cacheGuardar === 'function') setTimeout(cacheGuardar, 1000);
     }catch(e){
-      setStatus('⚠️ Error al consultar la API. Podés ingresar los datos manualmente.',false);
-      console.error(e);
+      const detalle = e && e.message ? e.message : 'error desconocido';
+      setStatus('⚠️ Error al consultar la API: ' + detalle + '. Podés ingresar los datos manualmente.',false);
+      console.error('[Siembra] Error al consultar APIs', e);
     }finally{btn.disabled=false;btn.textContent='🌡️ Obtener datos'}
   }
 

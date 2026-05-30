@@ -9,9 +9,9 @@ const AM_CONFIG = {
     url:     'https://xsbaqlqztppdpdcjgazz.supabase.co',
     anonKey: 'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK'
   },
+  assetVersion: '70',
   claudeProxy: 'https://xsbaqlqztppdpdcjgazz.supabase.co/functions/v1/claude-proxy',
-  agromonitoringKey: 'b0fc7778f1bef4d4b5e2076f0c75845f',
-  devMode: false   // production mode
+  agromonitoringKey: 'b0fc7778f1bef4d4b5e2076f0c75845f'
 };
 
 // ── Cliente Supabase compartido ───────────────────────
