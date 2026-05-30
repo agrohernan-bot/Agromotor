@@ -340,7 +340,8 @@ function decRender(resultados, aguaTotal, ensoFase) {
     tablaHtml += '<td style="padding:.7rem .8rem;text-align:center;font-family:\'DM Mono\',monospace;font-weight:600">' + r.rendEstim.toFixed(1) + '<span style="font-size:.7rem;color:rgba(74,46,26,.4);font-family:inherit"> t/ha</span></td>';
     tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><div style="font-size:.8rem;margin-bottom:.1rem">' + medalEco + '</div><div style="font-size:1rem;font-weight:700;color:' + margenColor + '">USD ' + r.margenBruto + '</div><div style="font-size:.65rem;color:rgba(74,46,26,.4)">/ha</div></td>';
     tablaHtml += '<td style="padding:.7rem .8rem;text-align:center;font-family:\'DM Mono\',monospace">' + r.relInsumoProd + '<span style="font-size:.7rem;color:rgba(74,46,26,.4);font-family:inherit"> qq/' + r.nombre.substring(0,3) + '</span></td>';
-    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><button onclick="decElegir(\'' + r.nombre + '\')" style="background:linear-gradient(135deg,var(--canopy),var(--leaf));color:white;border:none;border-radius:8px;padding:.4rem .9rem;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Elegir</button></td>';
+    var nombreEsc = r.nombre.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    tablaHtml += '<td style="padding:.7rem .8rem;text-align:center"><button onclick="decElegir(\'' + nombreEsc + '\')" style="background:linear-gradient(135deg,var(--canopy),var(--leaf));color:white;border:none;border-radius:8px;padding:.4rem .9rem;font-size:.75rem;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">✓ Elegir</button></td>';
     tablaHtml += '</tr>';
   });
 

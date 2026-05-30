@@ -94,7 +94,11 @@ function bnAnalizar() {
   var nSuelo = window._sgDatos && window._sgDatos.n ? window._sgDatos.n * 1000 : null;
 
   var ext = BN_EXTRACCION[cultivo];
-  if (!ext) return;
+  if (!ext) {
+    var errEl = document.getElementById('bn-resultado');
+    if (errEl) errEl.innerHTML = '<div style="color:var(--warn);padding:1rem">Cultivo no reconocido. Seleccioná un cultivo válido.</div>';
+    return;
+  }
 
   // ── CALCULAR BALANCE ──────────────────────────────
   var rastrojoQueda = rastrojo === 'campo';

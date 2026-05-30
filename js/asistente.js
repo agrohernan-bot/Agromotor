@@ -80,7 +80,7 @@ function iaConstruirContexto() {
   - Fuente: ${compSrc || 'estimado'}`);
 
   // ENSO
-  if (ENSO_DATA.fase) ctx.push(`ESTADO ENSO (NOAA/CPC):
+  if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase) ctx.push(`ESTADO ENSO (NOAA/CPC):
   - Fase actual: ${ENSO_DATA.label}
   - Prob. El Niño: ${ENSO_DATA.prob_nino}% · Neutro: ${ENSO_DATA.prob_neutro}% · La Niña: ${ENSO_DATA.prob_nina}%
   - Sinopsis: ${ENSO_DATA.sinopsis?.slice(0,200) || '—'}`);
@@ -89,7 +89,7 @@ function iaConstruirContexto() {
   const precioDisp = $('ec-precio-disp')?.value;
   const precioFut  = $('ec-precio-fut')?.value;
   const margenEl   = $('ec-tabla-body')?.textContent?.slice(0,200);
-  const dolar      = EC_DOLAR?.oficial;
+  const dolar      = (typeof EC_DOLAR !== 'undefined') ? EC_DOLAR?.oficial : null;
   if (precioDisp) ctx.push(`ECONOMÍA DE CAMPAÑA:
   - Precio disponible: USD ${precioDisp}/t
   - Precio futuro cosecha: USD ${precioFut}/t
@@ -155,7 +155,8 @@ async function iaEnviar() {
 
   try {
     // Obtener token de sesión activa
-    const { data: { session } } = await AM_SB.auth.getSession();
+    const sessionRes = await AM_SB.auth.getSession().catch(() => ({ data: { session: null } }));
+    const session = sessionRes?.data?.session;
     if (!session) {
       iaRemoverTyping(typingId);
       iaAgregarMensaje('error', 'Necesitás iniciar sesión para usar el Asistente IA.');
@@ -173,25 +174,31 @@ async function iaEnviar() {
         'Authorization': `Bearer ${session.access_token}`
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1000,
         system: iaSistemaPrompt(),
         messages: IA_HISTORIAL.slice(-10),
       })
     });
 
-    if (response.status === 401 || response.status === 403 || response.status === 429) {
-      const err = await response.json();
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
       iaRemoverTyping(typingId);
-      iaAgregarMensaje('error', err.error || 'Sin acceso al Asistente IA. Verificá tu plan.');
-      if (response.status === 429) iaActualizarContador(0, err.ia_total);
+      if (response.status === 429) {
+        iaAgregarMensaje('error', err.error || 'Límite de consultas alcanzado. Se reinicia el próximo mes.');
+        iaActualizarContador(0, err.ia_total);
+      } else if (response.status === 401 || response.status === 403) {
+        iaAgregarMensaje('error', err.error || 'Sin acceso al Asistente IA. Verificá tu plan.');
+      } else {
+        iaAgregarMensaje('error', err.error || `Error del servidor (${response.status}). Intentá de nuevo.`);
+      }
       IA_PENSANDO = false;
       $('ia-btn').disabled = false;
       $('ia-btn').innerHTML = '<span style="font-size:1.3rem">📤</span><span>Enviar</span>';
       return;
     }
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
     const respuesta = data?.content?.[0]?.text || 'No pude generar una respuesta. Intentá de nuevo.';
 
     // Remover typing y agregar respuesta
@@ -222,8 +229,15 @@ function iaAgregarMensaje(role, texto) {
   const isUser = role === 'user';
   const isError = role === 'error';
 
-  // Convertir markdown básico a HTML
-  const html = texto
+  // Escapar HTML antes de aplicar markdown para evitar XSS
+  const escaped = texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  // Convertir markdown básico a HTML (sobre texto ya escapado)
+  const html = escaped
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code style="background:rgba(74,46,26,.08);padding:.1em .3em;border-radius:4px;font-family:DM Mono,monospace;font-size:.85em">$1</code>')

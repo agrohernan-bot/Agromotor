@@ -88,13 +88,13 @@ function detSuelo(lat,lon){for(const[t,p] of Object.entries(SPOLY))if(inPoly(lat
 function parsCoord(txt){
   txt=txt.trim();
   const dec=txt.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
-  if(dec)return[+dec[1],+dec[2]];
+  if(dec){const la=+dec[1],lo=+dec[2];if(la>=-90&&la<=90&&lo>=-180&&lo<=180)return[la,lo];return[null,null];}
   const dms=txt.match(/(\d+)[°\s]\s*(\d+)['\u2019\s]\s*(\d+(?:[.,]\d+)?)["\u201d]?\s*([NS])\s+(\d+)[°\s]\s*(\d+)['\u2019\s]\s*(\d+(?:[.,]\d+)?)["\u201d]?\s*([EW])/i);
   if(dms){
     let la=+dms[1]+(+dms[2])/60+parseFloat(dms[3].replace(',','.'))/3600;
     let lo=+dms[5]+(+dms[6])/60+parseFloat(dms[7].replace(',','.'))/3600;
     if(dms[4].toUpperCase()==='S')la=-la;if(dms[8].toUpperCase()==='W')lo=-lo;
-    return[la,lo];
+    if(la>=-90&&la<=90&&lo>=-180&&lo<=180)return[la,lo];return[null,null];
   }return[null,null];
 }
 
