@@ -103,7 +103,8 @@ async function run() {
   log('Iniciando Puppeteer...');
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--window-size=1440,900'],
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--ignore-certificate-errors', '--window-size=1440,900'],
+    ignoreHTTPSErrors: true,
     defaultViewport: { width: 1440, height: 900 },
   });
 
@@ -174,9 +175,31 @@ async function run() {
   }
 
   // ── 3. VERIFICAR QUE ESTAMOS EN LA APP ───────────────────────────────────
-  const inApp = await page.evaluate(() => {
-    return !!(document.getElementById('app') || document.querySelector('.module-panel') || document.querySelector('nav.am-nav'));
+  // Wait a bit more for JS to initialize
+  await new Promise(r => setTimeout(r, 4000));
+  await shot(page, 'app-check', 'Estado de app.html después de espera');
+
+  const appDiag = await page.evaluate(() => {
+    return {
+      url: location.href,
+      title: document.title,
+      bodyClass: document.body.className,
+      hasModulePanel: !!document.querySelector('.module-panel'),
+      hasNav: !!document.querySelector('nav, #nav, .am-nav, .nav'),
+      hasMain: !!document.querySelector('main, #main, #app'),
+      visiblePanels: Array.from(document.querySelectorAll('.module-panel'))
+        .filter(el => window.getComputedStyle(el).display !== 'none')
+        .map(el => el.id),
+      allPanels: Array.from(document.querySelectorAll('.module-panel')).map(el => el.id),
+      navLinks: Array.from(document.querySelectorAll('nav a, [data-modulo]')).slice(0,5).map(el => ({
+        text: el.textContent.trim().slice(0,30),
+        attr: el.getAttribute('data-modulo') || el.getAttribute('href')
+      })),
+    };
   });
+  log(`  Diagnóstico app: ${JSON.stringify(appDiag, null, 2)}`);
+
+  const inApp = appDiag.hasModulePanel || appDiag.hasNav || appDiag.hasMain;
 
   if (!inApp) {
     errors.push({ step: 'app-load', error: 'No se pudo acceder a la app después del login' });
