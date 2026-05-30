@@ -20,6 +20,10 @@
  * Exports (dual): CommonJS module.exports + window.InformeCierre
  */
 
+// ─────────────────────────────────────────────────────────────────────────────
+// IIFE — evitar contaminación del scope global (CALIFICACION_COLOR, LS_KEY_*, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
 "use strict";
 
 /* ──────────────────────────── LS KEYS ──────────────────────────────────── */
@@ -419,3 +423,5 @@ if (typeof window !== "undefined") {
     renderizarCierre,
   };
 }
+
+})(); // fin IIFE informe-cierre.js

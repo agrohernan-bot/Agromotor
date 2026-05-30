@@ -19,6 +19,10 @@
  * Exports (dual): CommonJS module.exports + window.Alertas
  */
 
+// ─────────────────────────────────────────────────────────────────────────────
+// IIFE — evitar contaminación del scope global (COLOR, ICONO, UMBRAL_*, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
 "use strict";
 
 /* ─────────────────────────── LS KEYS ─────────────────────────────────── */
@@ -493,3 +497,5 @@ if (typeof window !== "undefined") {
     renderizarAlertas,
   };
 }
+
+})(); // fin IIFE alertas.js
