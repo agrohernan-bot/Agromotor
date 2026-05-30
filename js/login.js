@@ -181,7 +181,11 @@ AM_SB.auth.onAuthStateChange((event, session) => {
 
 // ── VERIFICAR ACCESO A MÓDULO ─────────────────────────
 function amTieneAcceso(modulo) {
-  if (localStorage.getItem('am_god') === 'true') return true;
+  // God mode solo válido en devMode; limpiar si existe en producción
+  if (localStorage.getItem('am_god') === 'true') {
+    if (!AM_CONFIG.devMode) { localStorage.removeItem('am_god'); }
+    else { return true; }
+  }
   if (AM_CONFIG.devMode) return true;
 
   // Promoción lanzamiento: acceso total hasta el 01 Agosto 2026 inclusive
@@ -208,7 +212,13 @@ function amTieneAcceso(modulo) {
   const trialVigente = AM_SESION.trialHasta && new Date(AM_SESION.trialHasta) > ahora;
 
   if (!planVigente && !trialVigente) {
-    // Plan vencido: degradar silenciosamente a free
+    // Plan vencido: notificar al usuario la primera vez
+    if (!window._amPlanVencidoNotificado) {
+      window._amPlanVencidoNotificado = true;
+      setTimeout(function() {
+        amToast('Tu plan venció. Seguís con acceso básico — renovalo desde tu perfil.', 'err');
+      }, 1000);
+    }
     return modulo === 'siembra';
   }
 
@@ -690,6 +700,7 @@ function amCargarSesion() {}
   window.amMostrarModalUpgrade = amMostrarModalUpgrade;
 
   window.amHabilitarGodMode = function() {
+    if (!AM_CONFIG.devMode) return;
     if (localStorage.getItem('am_god') === 'true') {
       localStorage.removeItem('am_god');
       alert('🔒 Modo Dios Desactivado.');

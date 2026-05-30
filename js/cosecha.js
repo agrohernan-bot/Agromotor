@@ -18,7 +18,7 @@ const S = {
   sbCostoBolsa: 5.5, sbMO: 2.5, sbMerma: 0.10,
   scAmort: 1.2, scSeguro: 0.5, scMerma: 0.05,
   acTarifa: 2.0, acZar: 3.0,
-  bcraToken: localStorage.getItem('bcra_token') || '',
+  bcraToken: sessionStorage.getItem('bcra_token') || '',
   fobData: null, usdData: null, pfData: null, badlarData: null
 };
 
@@ -588,7 +588,7 @@ function setDot(id, state) {
 function saveBcraToken() {
   const t = $('bcra-token').value.trim();
   if (t) {
-    localStorage.setItem('bcra_token', t);
+    sessionStorage.setItem('bcra_token', t);
     S.bcraToken = t;
     fetchTasasBCRA();
     fetchTipoCambio();

@@ -8,8 +8,8 @@
 
   class AMStore {
     constructor() {
-      // Intentar cargar estado desde sessionStorage
-      const savedState = sessionStorage.getItem('am_store_state');
+      // Intentar cargar estado desde localStorage
+      const savedState = localStorage.getItem('am_store_state');
       this.state = savedState ? JSON.parse(savedState) : {
         cultivo: 'Soja',
         fecha: new Date().toISOString().split('T')[0],
@@ -51,8 +51,8 @@
       }
 
       if (changed) {
-        // Persistir en sessionStorage
-        sessionStorage.setItem('am_store_state', JSON.stringify(this.state));
+        // Persistir en localStorage
+        localStorage.setItem('am_store_state', JSON.stringify(this.state));
         
         // Notificar a los suscritos globales (escuchan todo cambio)
         if (this.listeners['*']) {

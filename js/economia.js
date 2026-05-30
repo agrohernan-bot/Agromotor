@@ -99,7 +99,8 @@ function ecActualizarCultivo() {
   if ($('ec-futuro-label')) $('ec-futuro-label').textContent = ` — ${info.mes} 2026`;
 
   // Precio futuro estimado con spread histórico
-  const precioDisp = parseFloat($('ec-precio-disp')?.value) || 290;
+  const _pdRaw = parseFloat($('ec-precio-disp')?.value);
+  const precioDisp = (!isNaN(_pdRaw) && _pdRaw > 0) ? _pdRaw : 290;
   if ($('ec-precio-fut')) $('ec-precio-fut').value = Math.max(100, precioDisp + info.spreadHist);
 
   ecCalc();
