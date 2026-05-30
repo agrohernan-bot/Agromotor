@@ -38,9 +38,22 @@
       const ini=new Date(fsel);ini.setDate(ini.getDate()-3);
       const fin=new Date(fsel);fin.setDate(fin.getDate()+16);
 
+      // Usar past_days/forecast_days cuando el rango incluye fechas pasadas
+      // (más compatible con el endpoint forecast que start_date con fecha pasada)
+      const hoyStr=fmt(hoy);
+      const latR=Math.round(lat*10000)/10000;
+      const lonR=Math.round(lon*10000)/10000;
+      let dateParams;
+      if(fmt(ini)<hoyStr){
+        const pastD=Math.round((hoy-ini)/86400e3);
+        const fcstD=Math.max(1,Math.round((fin-hoy)/86400e3));
+        dateParams=`past_days=${pastD}&forecast_days=${fcstD}`;
+      } else {
+        dateParams=`start_date=${fmt(ini)}&end_date=${fmt(fin)}`;
+      }
+
       const url='https://api.open-meteo.com/v1/forecast?'+
-        `latitude=${lat}&longitude=${lon}&timezone=auto`+
-        `&start_date=${fmt(ini)}&end_date=${fmt(fin)}`+
+        `latitude=${latR}&longitude=${lonR}&timezone=auto&${dateParams}`+
         '&hourly=soil_temperature_6cm,soil_temperature_18cm,'+
         'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm,'+
         'et0_fao_evapotranspiration,vapour_pressure_deficit,wind_speed_10m'+
@@ -50,7 +63,11 @@
         'wind_speed_10m_max,wind_gusts_10m_max,shortwave_radiation_sum';
 
       const res=await fetch(url);
-      if(!res.ok)throw new Error('Open-Meteo HTTP '+res.status);
+      if(!res.ok){
+        const errTxt=await res.text().catch(()=>'');
+        const reason=errTxt.match(/"reason":"([^"]+)"/)?.[1]||errTxt.slice(0,80);
+        throw new Error('Open-Meteo HTTP '+res.status+(reason?' — '+reason:''));
+      }
       const data=await res.json();
 
       // Procesar hourly → avg diario
