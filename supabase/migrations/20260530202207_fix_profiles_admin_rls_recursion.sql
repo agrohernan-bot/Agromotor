@@ -20,3 +20,7 @@ $$;
 
 REVOKE ALL ON FUNCTION app_private.is_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app_private.is_admin() TO authenticated;
+
+-- Remove older recursive policies created before app_private.is_admin().
+DROP POLICY IF EXISTS "Admin can view all profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admin can verify matriculas" ON public.profiles;
