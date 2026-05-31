@@ -1451,6 +1451,26 @@
     </div>
   </div>
 
+  <!-- ── PANEL EVOLUCIÓN DIARIA AGUA EN PERFIL ── -->
+  <div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(42,90,140,.30);background:#f3f7fd">
+    <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+      📈 Agua en Perfil · Día a Día desde Siembra
+      <span style="font-size:.68rem;font-weight:400;background:rgba(42,90,140,.1);color:rgba(42,90,140,.8);border-radius:4px;padding:.1rem .4rem">ERA5 · automático</span>
+      <button onclick="_ghdRefrescar()" class="btn btn-s" style="margin-left:auto;font-size:.68rem;padding:.2rem .55rem;border:1px solid rgba(42,90,140,.3);background:rgba(42,90,140,.07);color:#2A5A8C">🔄 Actualizar</button>
+    </div>
+    <div style="font-size:.71rem;color:rgba(74,46,26,.45);margin-bottom:.5rem">
+      Balance real día a día · datos históricos ERA5 (Open-Meteo) + pronóstico 10 días · CC y PME del lote
+    </div>
+    <div id="ghd-loading" style="display:flex;align-items:center;justify-content:center;padding:1.4rem;font-size:.82rem;color:rgba(74,46,26,.45)">
+      ⟳ Cargando datos históricos…
+    </div>
+    <div id="ghd-error" style="display:none;padding:.8rem;font-size:.8rem;color:#C94A2A;background:rgba(201,74,42,.06);border-radius:8px"></div>
+    <div id="ghd-stats"></div>
+    <div style="position:relative;height:270px" class="gh-chart-wrap">
+      <canvas id="ghd-chart" style="display:none"></canvas>
+    </div>
+  </div>
+
   <!-- ── PANEL GRÁFICO BALANCE HÍDRICO ── -->
   <div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(42,90,140,.25);background:#f3f7fd">
     <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center">

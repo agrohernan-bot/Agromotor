@@ -220,6 +220,8 @@ function _activarModulo(mod) {
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
+    // Gráfico diario automático
+    setTimeout(function() { if (typeof window.ghDiarioRender === 'function') window.ghDiarioRender(); }, 500);
   }
   if (mod === 'cultivares') {
     _syncCultivo('cv-cultivo');
