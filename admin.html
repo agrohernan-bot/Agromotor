@@ -7,8 +7,8 @@
   <meta name="robots" content="noindex, nofollow">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/agromotor.css?v=82">
-  <script src="js/config.js?v=82"></script>
+  <link rel="stylesheet" href="css/agromotor.css?v=83">
+  <script src="js/config.js?v=83"></script>
   <style>
     body{padding:1.5rem 1rem;color:#1c1208}
     .admin-wrap{max-width:1280px;margin:0 auto}
@@ -26,6 +26,9 @@
     .filter-bar button{background:rgba(15,31,20,.5);border:1px solid rgba(200,162,85,.25);color:rgba(237,224,196,.78);padding:.42rem .9rem;border-radius:7px;font-size:.78rem;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
     .filter-bar button:hover{border-color:rgba(200,162,85,.5);color:#EDE0C4}
     .filter-bar button.active{background:rgba(200,162,85,.18);border-color:var(--grain);color:var(--amber);font-weight:700}
+    .admin-tabs{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem}
+    .admin-tabs button{background:rgba(15,31,20,.65);border:1px solid rgba(200,162,85,.25);color:rgba(237,224,196,.75);padding:.52rem 1rem;border-radius:9px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit}
+    .admin-tabs button.active{background:rgba(200,162,85,.2);color:#E8B84B;border-color:#C8A255}
     table.adm{width:100%;background:rgba(252,249,242,.97);border-radius:14px;overflow:hidden;border:1.5px solid rgba(74,140,92,.18);font-size:.85rem;border-collapse:separate;border-spacing:0}
     table.adm thead{background:#f1ebe0}
     table.adm th{padding:.7rem .8rem;text-align:left;font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#5a4a32;white-space:nowrap}
@@ -72,7 +75,10 @@
 <script>
 let SESS = null;
 let USERS = [];
+let EVENTS = [];
 let FILTER = 'pending';
+let VIEW = 'users';
+let EVENTS_ERROR = null;
 
 async function init() {
   const { data: { session } } = await AM_SB.auth.getSession();
@@ -134,7 +140,23 @@ async function loadUsers() {
     return;
   }
   USERS = data || [];
+  await loadEvents();
   render();
+}
+
+async function loadEvents() {
+  EVENTS_ERROR = null;
+  const { data, error } = await AM_SB
+    .from('admin_events')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(80);
+  if (error) {
+    EVENTS = [];
+    EVENTS_ERROR = error.message;
+    return;
+  }
+  EVENTS = data || [];
 }
 
 function render() {
@@ -143,6 +165,7 @@ function render() {
   const verificados = USERS.filter(u => u.matricula_verificada).length;
   const estudiantes = USERS.filter(u => u.rol === 'estudiante').length;
   const admins = USERS.filter(u => u.rol === 'admin').length;
+  const borrados = EVENTS.filter(e => e.event_type === 'user_deleted').length;
 
   const filtered = USERS.filter(u => {
     if (FILTER === 'all') return true;
@@ -159,7 +182,22 @@ function render() {
       <div class="stat ok"><div class="stat-label">✓ Verificados</div><div class="stat-val">${verificados}</div></div>
       <div class="stat"><div class="stat-label">🎓 Estudiantes</div><div class="stat-val">${estudiantes}</div></div>
       <div class="stat"><div class="stat-label">🛡️ Admins</div><div class="stat-val">${admins}</div></div>
+      <div class="stat"><div class="stat-label">Auditoria</div><div class="stat-val">${EVENTS_ERROR ? '!' : EVENTS.length}</div></div>
+      <div class="stat warn"><div class="stat-label">Bajas registradas</div><div class="stat-val">${borrados}</div></div>
     </div>
+
+    <div class="admin-tabs">
+      <button onclick="setView('users')" class="${VIEW==='users'?'active':''}">Usuarios</button>
+      <button onclick="setView('events')" class="${VIEW==='events'?'active':''}">Auditoria</button>
+    </div>
+  `;
+
+  if (VIEW === 'events') {
+    document.getElementById('admin-content').innerHTML = html + renderEvents();
+    return;
+  }
+
+  html += `
 
     <div class="filter-bar">
       <button onclick="setFilter('pending')" class="${FILTER==='pending'?'active':''}">⚠️ Pendientes (${pendientes})</button>
@@ -226,6 +264,59 @@ function render() {
 }
 
 function setFilter(f) { FILTER = f; render(); }
+function setView(v) { VIEW = v; render(); }
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+  });
+}
+
+function eventLabel(t) {
+  return {
+    user_created: 'Alta usuario',
+    user_deleted: 'Baja usuario',
+    matricula_verified: 'Matricula verificada',
+    matricula_revoked: 'Matricula revocada',
+    plan_changed: 'Plan actualizado',
+    profile_updated: 'Perfil actualizado',
+  }[t] || t;
+}
+
+function renderEvents() {
+  if (EVENTS_ERROR) {
+    return `<div class="nologged" style="color:#E8B84B;text-align:left;max-width:760px;margin:0 auto">
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:.5rem">Auditoria no disponible todavia</div>
+      <div style="font-size:.88rem;line-height:1.55;color:rgba(237,224,196,.75)">
+        Falta aplicar la migracion <code>20260531161000_admin_events_audit_log.sql</code> en Supabase,
+        o revisar permisos de la tabla <code>admin_events</code>.<br>
+        Error actual: <code>${esc(EVENTS_ERROR)}</code>
+      </div>
+    </div>`;
+  }
+  let html = `
+    <table class="adm">
+      <thead><tr>
+        <th>Fecha</th><th>Evento</th><th>Usuario afectado</th><th>Email</th><th>Detalle</th>
+      </tr></thead><tbody>
+  `;
+  EVENTS.forEach(e => {
+    const fecha = e.created_at ? new Date(e.created_at).toLocaleString('es-AR') : '-';
+    const meta = e.metadata ? JSON.stringify(e.metadata) : '';
+    html += `<tr>
+      <td style="font-size:.78rem;color:#5a4a32;white-space:nowrap">${esc(fecha)}</td>
+      <td><span class="badge b-empresa">${esc(eventLabel(e.event_type))}</span></td>
+      <td><strong>${esc(e.target_name || '-')}</strong></td>
+      <td style="font-size:.8rem">${esc(e.target_email || '-')}</td>
+      <td><code style="font-family:'DM Mono',monospace;font-size:.68rem;white-space:normal;word-break:break-word">${esc(meta)}</code></td>
+    </tr>`;
+  });
+  if (EVENTS.length === 0) {
+    html += `<tr><td colspan="5" style="text-align:center;color:#888;padding:2rem">No hay eventos de auditoria registrados todavia.</td></tr>`;
+  }
+  html += `</tbody></table><div class="legend">La auditoria registra altas, bajas y cambios sensibles desde que se aplica la migracion.</div>`;
+  return html;
+}
 
 async function verificarMatricula(userId, verificar) {
   if (!confirm(verificar ? '¿Confirmás que la matrícula es válida?' : '¿Revocar la verificación?')) return;
@@ -241,6 +332,7 @@ async function verificarMatricula(userId, verificar) {
 window.adminLogin = adminLogin;
 window.adminLogout = adminLogout;
 window.setFilter = setFilter;
+window.setView = setView;
 window.verificarMatricula = verificarMatricula;
 
 init();
