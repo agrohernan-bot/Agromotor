@@ -121,6 +121,18 @@ function diaDelAnio(fechaISO) {
   return Math.floor((fecha - inicioAnio) / 86400000);
 }
 
+function sumarDiasISO(fechaISO, dias) {
+  const [y, m, d] = fechaISO.split("-").map(Number);
+  const fecha = new Date(Date.UTC(y, m - 1, d + dias));
+  return fecha.toISOString().slice(0, 10);
+}
+
+function rangoDiasISO(desdeISO, hastaISO) {
+  const out = [];
+  for (let f = desdeISO; f <= hastaISO; f = sumarDiasISO(f, 1)) out.push(f);
+  return out;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // BALANCE HÍDRICO BARBECHO
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,17 +176,25 @@ async function calcularBarbecho(params) {
   const limiteAPI = new Date(Date.now() - NASA_DATA_LAG * 86400000).toISOString().slice(0, 10);
   const fechaFinAPI = fechaSiembra > limiteAPI ? limiteAPI : fechaSiembra;
 
-  const nasa = await fetchNASAPower(lat, lon, f2nasa(fechaCosechaAnt), f2nasa(fechaFinAPI));
+  let nasa = { dates: [], precip: [], tmax: [], tmin: [] };
+  if (fechaCosechaAnt <= fechaFinAPI) {
+    nasa = await fetchNASAPower(lat, lon, f2nasa(fechaCosechaAnt), f2nasa(fechaFinAPI));
+  }
 
   // Balance diario
   const diario = [];
   let agua = Math.min(aguaInicioMm, awcMm);
 
-  for (let i = 0; i < nasa.dates.length; i++) {
-    const fecha   = nasa.dates[i].slice(0, 4) + "-" + nasa.dates[i].slice(4, 6) + "-" + nasa.dates[i].slice(6, 8);
+  const fechasNASA = nasa.dates.map(d => d.slice(0, 4) + "-" + d.slice(4, 6) + "-" + d.slice(6, 8));
+  const ultimaFechaNASA = fechasNASA.length ? fechasNASA[fechasNASA.length - 1] : null;
+  const fechaEstimadaInicio = ultimaFechaNASA ? sumarDiasISO(ultimaFechaNASA, 1) : fechaCosechaAnt;
+  const fechasEstimadas = fechaEstimadaInicio <= fechaSiembra ? rangoDiasISO(fechaEstimadaInicio, fechaSiembra) : [];
+  const tmaxRef = nasa.tmax.length ? nasa.tmax.reduce((a, b) => a + b, 0) / nasa.tmax.length : 25;
+  const tminRef = nasa.tmin.length ? nasa.tmin.reduce((a, b) => a + b, 0) / nasa.tmin.length : 10;
+
+  const procesarDia = (fecha, lluvia, tmax, tmin, fuente) => {
     const dia     = diaDelAnio(fecha);
-    const lluvia  = nasa.precip[i];
-    const et0     = et0Hargreaves(nasa.tmax[i], nasa.tmin[i], dia, lat);
+    const et0     = et0Hargreaves(tmax, tmin, dia, lat);
     const etBarb  = et0 * BARBECHO_KC;
     const delta   = lluvia - etBarb;
 
@@ -186,10 +206,18 @@ async function calcularBarbecho(params) {
       lluvia:    +lluvia.toFixed(1),
       et0:       +et0.toFixed(1),
       etBarbecho:+etBarb.toFixed(1),
-      delta:     +delta.toFixed(1),
-      agua:      +agua.toFixed(1),
-    });
+        delta:     +delta.toFixed(1),
+        agua:      +agua.toFixed(1),
+        fuente,
+      });
+  };
+
+  for (let i = 0; i < fechasNASA.length; i++) {
+    procesarDia(fechasNASA[i], nasa.precip[i], nasa.tmax[i], nasa.tmin[i], "nasa_power");
   }
+  fechasEstimadas.forEach(fecha => {
+    procesarDia(fecha, 0, tmaxRef, tminRef, "estimado_sin_lluvia");
+  });
 
   // Totales
   const totalLluvia = nasa.precip.reduce((a, b) => a + b, 0);
@@ -203,7 +231,7 @@ async function calcularBarbecho(params) {
     fechaCosechaAnt,
     fechaSiembra,
     lat, lon,
-    duracionDias: nasa.dates.length,
+    duracionDias: diario.length,
 
     // Agua
     aguaInicioMm:    +aguaInicioMm.toFixed(1),
@@ -222,6 +250,7 @@ async function calcularBarbecho(params) {
 
     // Metadatos
     calculadoEn:     new Date().toISOString(),
+    diasEstimados:   fechasEstimadas.length,
     version:         "2.0",
   };
 
