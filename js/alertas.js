@@ -100,6 +100,25 @@ function guardarLS(key, value) {
   } catch { /* noop */ }
 }
 
+function coordDesdeDOM() {
+  try {
+    const el = typeof document !== "undefined" ? document.getElementById("s-coord") : null;
+    if (!el || !el.value) return null;
+    const parts = el.value.split(",");
+    if (parts.length !== 2) return null;
+    const lat = parseFloat(parts[0].trim());
+    const lon = parseFloat(parts[1].trim());
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+  } catch {
+    return null;
+  }
+}
+
+function coordValida(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon)
+    && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+}
+
 /* ────────────────────── FETCH FORECAST CLIMA ─────────────────────────── */
 /**
  * Obtiene temperatura máx/mín y precipitación para próximos N días.
@@ -341,8 +360,9 @@ async function evaluarAlertas({
   const diasEtCrit  = parseInt(leerLS(ALERTAS_LS_IN_DIAS_ET_CRIT, "0"), 10) || 0;
   const faseENSO    = leerLS(ALERTAS_LS_IN_ENSO_FASE, "neutro");
   const factorENSO  = parseFloat(leerLS(ALERTAS_LS_IN_ENSO_FACTOR, "0")) || 0;
-  const lat         = parseFloat(leerLS(ALERTAS_LS_IN_LAT, "-34"));
-  const lon         = parseFloat(leerLS(ALERTAS_LS_IN_LON, "-60"));
+  const coordDOM    = coordDesdeDOM();
+  const lat         = coordDOM ? coordDOM.lat : parseFloat(leerLS(ALERTAS_LS_IN_LAT, ""));
+  const lon         = coordDOM ? coordDOM.lon : parseFloat(leerLS(ALERTAS_LS_IN_LON, ""));
 
   // Si llegó estado desde módulo hidrico, sobreescribir LS
   const ctx_agua = estadoHidrico
@@ -373,7 +393,7 @@ async function evaluarAlertas({
   ];
 
   // Alertas de temperatura sólo si podemos fetch forecast
-  if (incluirForecast) {
+  if (incluirForecast && coordValida(lat, lon)) {
     try {
       const forecast = await _fetchForecastCorto({ lat, lon, dias: 7, signal });
       const alertasTemp = _evaluarAlertas_Temperatura(forecast, {
@@ -382,7 +402,11 @@ async function evaluarAlertas({
       });
       todasAlertas = [...todasAlertas, ...alertasTemp];
     } catch (err) {
-      console.warn("[Alertas] No se pudo obtener forecast:", err.message);
+      // El forecast es complementario. Si el navegador aborta por navegación/cambio
+      // de módulo o hay red intermitente, no debe ensuciar consola ni bloquear alertas.
+      if (err && err.name !== "AbortError" && err.message && !/failed to fetch/i.test(err.message)) {
+        console.debug("[Alertas] Forecast no disponible:", err.message);
+      }
     }
   }
 
