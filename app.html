@@ -131,6 +131,9 @@
     <div class="nav-tab nav-tab-ia" data-mod="asistente" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
     <div class="nav-tab" data-mod="fen-plan" onclick="switchMod('fen-plan')"><span class="dot"></span>📅 Fen. Planificación</div>
     <div class="nav-tab" data-mod="fen-seg" onclick="switchMod('fen-seg')"><span class="dot"></span>🌿 Fen. Seguimiento</div>
+    <div class="nav-sep"></div>
+    <!-- 7. CAMPO -->
+    <div class="nav-tab" data-mod="bitacora" onclick="switchMod('bitacora')"><span class="dot"></span>📓 Bitácora</div>
   </div>
 </nav>
 
@@ -301,6 +304,11 @@
       <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
       <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
 <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
+    </div>
+
+    <div class="mod-group-title">7 · Campo</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-campo" onclick="switchMod('bitacora')"><div class="mc-ico">📓</div><div class="mc-name">Bitácora</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Registro automático de actividades · siempre disponible</div></div>
     </div>
   </div>
 
@@ -3916,6 +3924,11 @@
 </div>
 <!-- ══ FIN MÓDULO FENOLOGÍA SEGUIMIENTO ══════════════════ -->
 
+<!-- ══ MÓDULO BITÁCORA ═══════════════════════════════════ -->
+<div id="mod-bitacora" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO BITÁCORA ═══════════════════════════════ -->
+
 <script>
 // ════════════════════════════════════════════════
 // FENOLOGÍA · PLANIFICACIÓN
@@ -4270,6 +4283,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/comparador-campana.js?v=77"></script>
 <script src="js/rotacion.js?v=77"></script>
 <script src="js/graficos-hidrico.js?v=77"></script>
+<script src="js/bitacora.js?v=77"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
