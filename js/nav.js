@@ -18,7 +18,7 @@ var AM_TAB_ORDER = [
   'plagas','alerta-sanitaria','pulverizacion',
   'siembra-variable','mapa','asistente',
   'fen-plan','fen-seg',
-  'malezas','bitacora','huella-carbono'
+  'malezas','bitacora','huella-carbono','hist-campanas'
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
@@ -267,6 +267,9 @@ function _activarModulo(mod) {
   }
   if (mod === 'huella-carbono') {
     if (typeof window.huellaCarbonoRender === 'function') window.huellaCarbonoRender();
+  }
+  if (mod === 'hist-campanas') {
+    if (typeof window.histCampanasRender === 'function') window.histCampanasRender();
   }
   if (mod === 'fen-plan' || mod === 'fen-seg') {
     // Asegurar carga si aÃºn no se completÃ³ el lazy-load de 8s

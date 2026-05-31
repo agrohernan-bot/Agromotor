@@ -137,6 +137,7 @@
     <div class="nav-tab" data-mod="malezas" onclick="switchMod('malezas')"><span class="dot"></span>🌿 Malezas</div>
     <div class="nav-tab" data-mod="bitacora" onclick="switchMod('bitacora')"><span class="dot"></span>📓 Bitácora</div>
     <div class="nav-tab" data-mod="huella-carbono" onclick="switchMod('huella-carbono')"><span class="dot"></span>🌍 Huella CO₂</div>
+    <div class="nav-tab" data-mod="hist-campanas" onclick="switchMod('hist-campanas')"><span class="dot"></span>📊 Campañas</div>
   </div>
 </nav>
 
@@ -323,6 +324,7 @@
       <div class="mod-card mc-campo" onclick="switchMod('malezas')"><div class="mc-ico">🌿</div><div class="mc-name">Malezas</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Identificación · ventanas HRAC · resistencias</div></div>
       <div class="mod-card mc-campo" onclick="switchMod('bitacora')"><div class="mc-ico">📓</div><div class="mc-name">Bitácora</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Registro automático de actividades · siempre disponible</div></div>
       <div class="mod-card mc-campo" onclick="switchMod('huella-carbono')"><div class="mc-ico">🌍</div><div class="mc-name">Huella CO₂</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Emisiones de la campaña · IPCC · benchmarks INTA</div></div>
+      <div class="mod-card mc-campo" onclick="switchMod('hist-campanas')"><div class="mc-ico">📊</div><div class="mc-name">Campañas</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Comparador histórico año a año · rendimiento · estrés · CO₂</div><div id="dash-hist-campanas-card"></div></div>
     </div>
   </div>
 
@@ -3956,6 +3958,11 @@
 </div>
 <!-- ══ FIN MÓDULO HUELLA DE CARBONO ══════════════════════ -->
 
+<!-- ══ MÓDULO HISTORIAL DE CAMPAÑAS ══════════════════════ -->
+<div id="mod-hist-campanas" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO HISTORIAL DE CAMPAÑAS ══════════════════ -->
+
 <script>
 // ════════════════════════════════════════════════
 // FENOLOGÍA · PLANIFICACIÓN
@@ -4316,6 +4323,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/notificaciones.js?v=77"></script>
 <script src="js/malezas.js?v=77"></script>
 <script src="js/huella-carbono.js?v=77"></script>
+<script src="js/historial-campanas.js?v=77"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
