@@ -26,6 +26,9 @@
  * para que los componentes UI puedan reaccionar sin polling.
  */
 
+(function () {
+'use strict';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -374,3 +377,5 @@ if (typeof module !== "undefined" && module.exports) {
     modoSetUI,
   };
 }
+
+})(); // fin IIFE modo-switch.js
