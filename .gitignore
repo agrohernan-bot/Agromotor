@@ -8,6 +8,11 @@ supabase/config.toml
 Thumbs.db
 desktop.ini
 
+# Node / herramientas de prueba
+node_modules/
+package.json
+package-lock.json
+
 # Editor
 .vscode/
 *.swp
