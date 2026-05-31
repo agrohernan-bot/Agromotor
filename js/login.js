@@ -619,15 +619,18 @@ function amMostrarPerfil() {
 
   const overlay = document.createElement('div');
   overlay.id = 'am-perfil-panel';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(28,18,8,.4);backdrop-filter:blur(3px)';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9998;background:rgba(28,18,8,.4);backdrop-filter:blur(3px);display:flex;justify-content:flex-end;align-items:flex-start;padding:56px 12px 12px;box-sizing:border-box';
 
   const panel = document.createElement('div');
   panel.style.cssText = [
-    'position:fixed;top:56px;right:12px;width:280px',
+    'width:min(280px, calc(100vw - 24px));max-height:calc(100dvh - 80px)',
     'background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(28,18,8,.2)',
-    'font-family:"DM Sans",sans-serif;overflow:hidden',
-    'animation:amSlideUp .22s cubic-bezier(.22,.68,0,1.2) both'
+    'font-family:"DM Sans",sans-serif;overflow:auto;-webkit-overflow-scrolling:touch'
   ].join(';');
+  if (window.innerWidth < 520) {
+    overlay.style.justifyContent = 'center';
+    overlay.style.padding = '64px 10px 10px';
+  }
 
   // Header
   const header = document.createElement('div');
@@ -640,7 +643,7 @@ function amMostrarPerfil() {
   rows.slice(2).forEach(function(r) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:.55rem;padding:.35rem 0;font-size:.8rem;color:#3a2e1c;border-bottom:1px solid rgba(74,46,26,.07)';
-    row.innerHTML = `<span style="font-size:.9rem;flex-shrink:0">${r.icon}</span><span>${r.label}</span>`;
+    row.innerHTML = `<span style="font-size:.9rem;flex-shrink:0">${r.icon}</span><span style="min-width:0;overflow-wrap:anywhere">${r.label}</span>`;
     body.appendChild(row);
   });
 
