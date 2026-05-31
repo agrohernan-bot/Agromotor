@@ -18,7 +18,7 @@ var AM_TAB_ORDER = [
   'plagas','alerta-sanitaria','pulverizacion',
   'siembra-variable','mapa','asistente',
   'fen-plan','fen-seg',
-  'bitacora'
+  'malezas','bitacora'
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
@@ -256,6 +256,10 @@ function _activarModulo(mod) {
     setTimeout(function() {
       if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
     }, 150);
+  }
+  if (mod === 'malezas') {
+    if (typeof window.malezasRender === 'function') window.malezasRender();
+    if (typeof window.amActualizarBadgesLote === 'function') window.amActualizarBadgesLote();
   }
   if (mod === 'bitacora') {
     if (typeof window.bitacoraRender === 'function') window.bitacoraRender();

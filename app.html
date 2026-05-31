@@ -134,6 +134,7 @@
     <div class="nav-tab" data-mod="fen-seg" onclick="switchMod('fen-seg')"><span class="dot"></span>🌿 Fen. Seguimiento</div>
     <div class="nav-sep"></div>
     <!-- 7. CAMPO -->
+    <div class="nav-tab" data-mod="malezas" onclick="switchMod('malezas')"><span class="dot"></span>🌿 Malezas</div>
     <div class="nav-tab" data-mod="bitacora" onclick="switchMod('bitacora')"><span class="dot"></span>📓 Bitácora</div>
   </div>
 </nav>
@@ -318,6 +319,7 @@
 
     <div class="mod-group-title">7 · Campo</div>
     <div class="mod-card-grid">
+      <div class="mod-card mc-campo" onclick="switchMod('malezas')"><div class="mc-ico">🌿</div><div class="mc-name">Malezas</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Identificación · ventanas HRAC · resistencias</div></div>
       <div class="mod-card mc-campo" onclick="switchMod('bitacora')"><div class="mc-ico">📓</div><div class="mc-name">Bitácora</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Registro automático de actividades · siempre disponible</div></div>
     </div>
   </div>
@@ -3937,6 +3939,11 @@
 </div>
 <!-- ══ FIN MÓDULO FENOLOGÍA SEGUIMIENTO ══════════════════ -->
 
+<!-- ══ MÓDULO MALEZAS ════════════════════════════════════ -->
+<div id="mod-malezas" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO MALEZAS ════════════════════════════════ -->
+
 <!-- ══ MÓDULO BITÁCORA ═══════════════════════════════════ -->
 <div id="mod-bitacora" class="module-panel">
 </div>
@@ -4300,6 +4307,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/rendimiento-predictor.js?v=77"></script>
 <script src="js/ndvi-monitor.js?v=77"></script>
 <script src="js/notificaciones.js?v=77"></script>
+<script src="js/malezas.js?v=77"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
