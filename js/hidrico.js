@@ -341,8 +341,7 @@
       </div>
       <div style="font-size:.72rem;color:rgba(74,46,26,.45);margin-top:.6rem">
         ⚠️ Valores de referencia · Ajustar según análisis de suelo del lote y disponibilidad actual del perfil (SoilGrids N total: <span id="bh-n-suelo">—</span> g/kg)
-      </div>
-    </div>`;
+      </div>`;
 
   // Actualizar N del suelo si está disponible
   const nSuelo = window._sgDatos?.n;

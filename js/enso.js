@@ -35,6 +35,11 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// IIFE — evitar contaminación del scope global (ONI_URL_TXT, AJUSTE_*, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+(function () {
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -99,15 +104,10 @@ function parsearONI(texto) {
  * @returns {Date}
  */
 function periodoAFecha(periodo, anio) {
-  const meses = { D:12,J:1,F:2,M:3,A:4,M:5,J:6,J:7,A:8,S:9,O:10,N:11 };
-  // El mes central del período (segundo carácter)
-  const mesLetra = periodo[1];
-  const mesIdx   = PERIODOS_ONI.indexOf(periodo);
+  const mesIdx     = PERIODOS_ONI.indexOf(periodo);
   // Meses centrales: DJF→1, JFM→2, FMA→3, ... NDJ→12
   const mesCentral = ((mesIdx + 1) % 12) || 12;
-  // DJF cruza año (diciembre del año anterior)
-  const anioReal = (mesCentral >= 12 && mesIdx === 0) ? anio - 1 : anio;
-  return new Date(anioReal, mesCentral - 1, 1);
+  return new Date(anio, mesCentral - 1, 1);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -461,3 +461,5 @@ if (typeof module !== "undefined" && module.exports) {
     AJUSTE_NINA,
   };
 }
+
+})(); // fin IIFE enso.js
