@@ -70,8 +70,9 @@ const PERIODOS_ONI = ["DJF","JFM","FMA","MAM","AMJ","MJJ","JJA","JAS","ASO","SON
  * Devuelve los registros como array de objetos.
  *
  * Formato de línea (espacio-delimitado):
- *   SEAS  YR   TOTAL   CLIM   ANOM
- *   DJF   1950  25.96  26.02  -0.06
+ *   SEAS  YR   TOTAL   ANOM
+ *   DJF   1950  24.72  -1.53
+ * NOAA mantuvo versiones previas con una columna CLIM extra; se aceptan ambas.
  *
  * @param {string} texto  Contenido crudo del archivo
  * @returns {Array<{periodo:string, anio:number, anom:number}>}
@@ -82,9 +83,10 @@ function parsearONI(texto) {
 
   for (const linea of lineas) {
     const partes = linea.trim().split(/\s+/);
-    if (partes.length < 5) continue;
+    if (partes.length < 4) continue;
 
-    const [seas, yr, , , anom] = partes;
+    const [seas, yr] = partes;
+    const anom = partes.length >= 5 ? partes[4] : partes[3];
     const anio   = parseInt(yr,   10);
     const anomF  = parseFloat(anom);
 
@@ -290,7 +292,7 @@ function _fallbackENSO(anio, mes, motivo) {
     factorAjuste:     AJUSTE_NEUTRO,
     fuente:           "fallback",
     datosDisponibles: false,
-    advertencia:      `NOAA CPC no disponible (${motivo}). Usando fase neutra (sin ajuste).`,
+    advertencia:      `ENSO no disponible temporalmente. Se calculo con fase neutra, sin ajuste de lluvia.`,
   };
 }
 
