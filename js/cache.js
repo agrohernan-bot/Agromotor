@@ -47,7 +47,7 @@ function amCargarLotesGlobales() {
 }
 
 function amGetLoteLimit() {
-  // Promoci�n lanzamiento: hasta el 01 Agosto 2026 -> m�x 5 lotes con sesi�n activa.
+  // Promoci�n lanzamiento: hasta el 01 Agosto 2026 -> m�x 5 lotes con sesi�n activa.
   if (new Date() < new Date('2026-08-02')) {
     return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 5 : 1;
   }
@@ -95,6 +95,38 @@ function amRenderSelectLotes() {
       const cultivo = L.data?.cultivo  || null;
       const isActive = L.id === AM_LOTE_ACTIVO;
 
+      // ── Semáforo: leer del snapshot calcKeys ──────────
+      const ck = L.data?.calcKeys || {};
+      const aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
+      const capMax  = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
+      const etapa   = ck['am_fen_etapa_hoy']  || '';
+      const diasEstres = parseInt(ck['am_hidrico_dias_estres'])   || 0;
+      let alertCount = 0;
+      try { alertCount = JSON.parse(ck['am_alertas_activas'] || '[]').length; } catch(_) {}
+
+      // Semáforo hídrico
+      let hidDot = '#cbd5e1'; let hidPct = '—'; let hidLabel = 'Sin datos';
+      if (capMax > 0) {
+        const pct = Math.min(100, Math.round(aguaMm / capMax * 100));
+        hidPct = pct + '%';
+        if (pct >= 60)      { hidDot = '#2A7A4A'; hidLabel = 'Óptimo';    }
+        else if (pct >= 35) { hidDot = '#C8A255'; hidLabel = 'Moderado';  }
+        else                { hidDot = '#D4522A'; hidLabel = 'Estrés';    }
+      }
+
+      // Etapa corta (max 14 chars)
+      const etapaCorta = etapa ? (etapa.length > 14 ? etapa.slice(0,13)+'…' : etapa) : '';
+
+      // Días de estrés badge
+      const estresBadge = diasEstres > 3
+        ? `<span style="font-size:.6rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">${diasEstres}d estrés</span>`
+        : '';
+
+      // Alertas badge
+      const alertBadge = alertCount > 0
+        ? `<span style="font-size:.6rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700">🚨 ${alertCount}</span>`
+        : '';
+
       const card = document.createElement('div');
       card.style.cssText = `
         border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
@@ -118,6 +150,13 @@ function amRenderSelectLotes() {
         </div>
         ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
         ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
+        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.1rem">
+          <span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;font-weight:700;color:${hidDot};background:${hidDot}18;padding:2px 6px;border-radius:5px;border:1px solid ${hidDot}44" title="Balance hídrico: ${hidLabel}">
+            <span style="width:7px;height:7px;border-radius:50%;background:${hidDot};display:inline-block"></span>💧 ${hidPct}
+          </span>
+          ${etapaCorta ? `<span style="font-size:.65rem;color:#374151;background:#f1f5f9;padding:2px 6px;border-radius:5px;border:1px solid #e2e8f0" title="Etapa fenológica: ${etapa}">🌱 ${etapaCorta}</span>` : ''}
+          ${estresBadge}${alertBadge}
+        </div>
       `;
       listCont.appendChild(card);
     }
@@ -391,6 +430,7 @@ function cacheGuardar() {
     });
     
     amGuardarLotesEstado();
+    amRenderSelectLotes(); // Refrescar semáforo en "Mis Lotes" con nuevos calcKeys
   } catch(e) { console.warn('Cache write error:', e.message); }
 }
 

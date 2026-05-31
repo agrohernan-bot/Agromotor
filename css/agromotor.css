@@ -1643,7 +1643,8 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
 .mc-eco  { --mc-accent: #4A8C5C; }
 .mc-san  { --mc-accent: #C94A2A; }
 .mc-adv  { --mc-accent: #6B5B95; }
-.mc-ia   { --mc-accent: #2A5A8C; background: #f3f7fd !important; }
+.mc-ia     { --mc-accent: #2A5A8C; background: #f3f7fd !important; }
+.mc-campo  { --mc-accent: #8B5CF6; }
 
 /* ════════════════════════════════════════════════════════
    BOTÓN FLOTANTE: VOLVER AL DASHBOARD

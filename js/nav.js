@@ -17,7 +17,8 @@ var AM_TAB_ORDER = [
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
   'siembra-variable','mapa','asistente',
-  'fen-plan','fen-seg'
+  'fen-plan','fen-seg',
+  'malezas','bitacora','huella-carbono'
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
@@ -220,6 +221,8 @@ function _activarModulo(mod) {
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
+    // Gráfico diario automático
+    setTimeout(function() { if (typeof window.ghDiarioRender === 'function') window.ghDiarioRender(); }, 500);
   }
   if (mod === 'cultivares') {
     _syncCultivo('cv-cultivo');
@@ -229,6 +232,7 @@ function _activarModulo(mod) {
   }
   if (mod === 'nutricion') {
     if (typeof ncActualizar === 'function') ncActualizar();
+    setTimeout(function() { if (typeof window.ncTimingRender === 'function') window.ncTimingRender(); }, 300);
   }
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
@@ -252,6 +256,17 @@ function _activarModulo(mod) {
     setTimeout(function() {
       if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
     }, 150);
+  }
+  if (mod === 'malezas') {
+    if (typeof window.malezasRender === 'function') window.malezasRender();
+    if (typeof window.amActualizarBadgesLote === 'function') window.amActualizarBadgesLote();
+  }
+  if (mod === 'bitacora') {
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    if (typeof window.amActualizarBadgesLote === 'function') window.amActualizarBadgesLote();
+  }
+  if (mod === 'huella-carbono') {
+    if (typeof window.huellaCarbonoRender === 'function') window.huellaCarbonoRender();
   }
   if (mod === 'fen-plan' || mod === 'fen-seg') {
     // Asegurar carga si aÃºn no se completÃ³ el lazy-load de 8s

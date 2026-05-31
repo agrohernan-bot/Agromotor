@@ -307,3 +307,235 @@
   window.dashCampanaRefresh = render;
 
 })();
+
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — dashboard-gantt (incluido en dashboard.js)
+// Timeline Gantt de la campaña — automático, cero inputs
+// ════════════════════════════════════════════════════════
+
+(function () {
+'use strict';
+
+// ── Estructura de etapas por cultivo (% del ciclo total) ─────────────────
+var ETAPAS = {
+  soja: [
+    { label: 'Emergencia',       pct: 6,  color: '#B8E6B0' },
+    { label: 'Vegetativo V1-V6', pct: 20, color: '#6DC26A' },
+    { label: 'V→R1 Prefloración',pct: 10, color: '#FFDD66' },
+    { label: 'R1-R3 Floración',  pct: 17, color: '#FFB800' },
+    { label: 'R3-R5 Llenado',    pct: 22, color: '#E8860A' },
+    { label: 'R5-R7 Maduración', pct: 15, color: '#C86020' },
+    { label: 'Madurez',          pct: 10, color: '#8A4A18' },
+  ],
+  maiz: [
+    { label: 'Emergencia',       pct: 5,  color: '#B8E6B0' },
+    { label: 'Vegetativo V1-V6', pct: 20, color: '#6DC26A' },
+    { label: 'V6-VT Avanzado',   pct: 15, color: '#FFDD66' },
+    { label: 'VT-R1 Floración',  pct: 8,  color: '#FFB800' },
+    { label: 'R1-R3 Grano lechoso',pct:18,'color': '#E8860A' },
+    { label: 'R3-R5 Grano duro', pct: 22, color: '#C86020' },
+    { label: 'Madurez R6',       pct: 12, color: '#8A4A18' },
+  ],
+  trigo: [
+    { label: 'Germinación',      pct: 8,  color: '#B8E6B0' },
+    { label: 'Macollaje',        pct: 18, color: '#6DC26A' },
+    { label: 'Encañado',         pct: 18, color: '#FFDD66' },
+    { label: 'Espigazón',        pct: 10, color: '#FFB800' },
+    { label: 'Gr. lechoso',      pct: 15, color: '#E8860A' },
+    { label: 'Gr. pastoso',      pct: 17, color: '#C86020' },
+    { label: 'Madurez',          pct: 14, color: '#8A4A18' },
+  ],
+  cebada: [
+    { label: 'Germinación',      pct: 7,  color: '#B8E6B0' },
+    { label: 'Macollaje',        pct: 18, color: '#6DC26A' },
+    { label: 'Encañado',         pct: 20, color: '#FFDD66' },
+    { label: 'Espigazón',        pct: 10, color: '#FFB800' },
+    { label: 'Gr. lechoso',      pct: 14, color: '#E8860A' },
+    { label: 'Gr. pastoso',      pct: 17, color: '#C86020' },
+    { label: 'Madurez',          pct: 14, color: '#8A4A18' },
+  ],
+  girasol: [
+    { label: 'Emergencia',       pct: 8,  color: '#B8E6B0' },
+    { label: 'Vegetativo',       pct: 28, color: '#6DC26A' },
+    { label: 'Botón floral',     pct: 12, color: '#FFDD66' },
+    { label: 'Floración',        pct: 15, color: '#FFB800' },
+    { label: 'Llenado',          pct: 24, color: '#E8860A' },
+    { label: 'Madurez',          pct: 13, color: '#8A4A18' },
+  ],
+  sorgo: [
+    { label: 'Emergencia',       pct: 6,  color: '#B8E6B0' },
+    { label: 'Vegetativo',       pct: 28, color: '#6DC26A' },
+    { label: 'Encañado',         pct: 15, color: '#FFDD66' },
+    { label: 'Floración',        pct: 10, color: '#FFB800' },
+    { label: 'Gr. lechoso',      pct: 18, color: '#E8860A' },
+    { label: 'Gr. pastoso-maduro',pct:23, color: '#8A4A18' },
+  ],
+};
+
+// Duración total de ciclo por cultivo (días, fallback si no hay am_fen_duracion_ciclo)
+var CICLO_DEFAULT = {
+  soja: 150, maiz: 150, trigo: 190, cebada: 180, girasol: 130, sorgo: 140
+};
+
+function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
+
+function _normCultivo(c) {
+  var s = (c || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (s.includes('maiz') || s.includes('maíz')) return 'maiz';
+  if (s.includes('trigo'))   return 'trigo';
+  if (s.includes('cebada'))  return 'cebada';
+  if (s.includes('girasol')) return 'girasol';
+  if (s.includes('sorgo'))   return 'sorgo';
+  if (s.includes('soja'))    return 'soja';
+  return null;
+}
+
+function _diasDesde(fechaISO) {
+  if (!fechaISO) return null;
+  try {
+    var d = new Date(fechaISO + 'T12:00:00');
+    var h = new Date(); h.setHours(12,0,0,0);
+    return Math.round((h - d) / 86400000);
+  } catch(_) { return null; }
+}
+
+function _addDias(fechaISO, dias) {
+  try {
+    var d = new Date(fechaISO + 'T12:00:00');
+    d.setDate(d.getDate() + dias);
+    return d.toISOString().slice(0,10);
+  } catch(_) { return ''; }
+}
+
+function _fmt(isoStr) {
+  if (!isoStr) return '';
+  var p = isoStr.split('-');
+  if (p.length === 3) return p[2] + '/' + p[1];
+  return isoStr;
+}
+
+function render() {
+  var el = document.getElementById('dash-gantt-panel');
+  if (!el) return;
+
+  var cultivo  = _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
+  var fecha    = _ls('am_siembra_fecha')   || (document.getElementById('s-fecha')   ? document.getElementById('s-fecha').value   : '');
+  var cultKey  = _normCultivo(cultivo);
+  var etapas   = cultKey ? ETAPAS[cultKey] : null;
+  var ciclo    = parseInt(_ls('am_fen_duracion_ciclo')) || (cultKey ? CICLO_DEFAULT[cultKey] : 0);
+
+  if (!etapas || !fecha || ciclo <= 0) {
+    el.innerHTML = '';
+    return;
+  }
+
+  var diasActuales = _diasDesde(fecha);
+  if (diasActuales === null || diasActuales < 0) { el.innerHTML = ''; return; }
+
+  var pctHoy = Math.min(100, Math.max(0, diasActuales / ciclo * 100));
+  var fechaCosecha = _addDias(fecha, ciclo);
+  var yaTermino    = diasActuales >= ciclo;
+
+  // Acumular pct para encontrar en qué etapa estamos
+  var acum = 0;
+  var etapaActual = null;
+  for (var i = 0; i < etapas.length; i++) {
+    acum += etapas[i].pct;
+    if (!etapaActual && pctHoy <= acum) etapaActual = i;
+  }
+
+  var html = '<div class="dg-wrap card" style="margin-bottom:.75rem;border:1.5px solid rgba(42,90,140,.18);background:#f8fafb;padding:.85rem 1rem">';
+  html += '<div class="dg-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.65rem;flex-wrap:wrap;gap:.3rem">';
+  html += '<div style="font-size:.72rem;font-weight:700;color:#374151;letter-spacing:.06em;text-transform:uppercase">📅 Línea de tiempo · ' + cultivo + '</div>';
+  html += '<div style="font-size:.68rem;color:#6b7280">Siembra: <b>' + _fmt(fecha) + '</b> · Cosecha est.: <b>' + _fmt(fechaCosecha) + '</b> · Ciclo: <b>' + ciclo + ' d</b></div>';
+  html += '</div>';
+
+  // ── Barra del Gantt ──
+  html += '<div class="dg-track" style="position:relative;height:36px;border-radius:8px;overflow:visible;display:flex;box-shadow:0 1px 3px rgba(0,0,0,.08)">';
+
+  var pctAccum = 0;
+  etapas.forEach(function(e, idx) {
+    var isActive = (idx === etapaActual) && !yaTermino;
+    var isCompleted = pctHoy > pctAccum + e.pct;
+    var segPct = e.pct;
+    var bg = isCompleted ? _darken(e.color, 0.15) : e.color;
+    var opacity = isCompleted ? '1' : (isActive ? '1' : '0.55');
+    var borderRight = idx < etapas.length - 1 ? '1px solid rgba(255,255,255,.5)' : 'none';
+    var borderRadius = idx === 0 ? '8px 0 0 8px' : (idx === etapas.length - 1 ? '0 8px 8px 0' : '0');
+
+    html += '<div title="' + e.label + '" style="' +
+      'width:' + segPct + '%;' +
+      'background:' + bg + ';' +
+      'opacity:' + opacity + ';' +
+      'border-right:' + borderRight + ';' +
+      'border-radius:' + borderRadius + ';' +
+      'position:relative;overflow:hidden;' +
+      (isActive ? 'box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),0 0 0 2px rgba(0,0,0,.18);z-index:2;opacity:1;' : '') +
+      '">' +
+      (segPct >= 10 ? '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.58rem;font-weight:700;color:rgba(0,0,0,.55);white-space:nowrap;overflow:hidden;padding:0 3px">' + (segPct >= 8 ? e.label.split(' ')[0] : '') + '</span>' : '') +
+      '</div>';
+    pctAccum += segPct;
+  });
+
+  // Marcador de hoy
+  if (!yaTermino && pctHoy > 0 && pctHoy < 100) {
+    html += '<div style="position:absolute;top:-4px;bottom:-4px;left:' + pctHoy.toFixed(1) + '%;width:2.5px;background:#1f2937;border-radius:2px;z-index:10;transform:translateX(-50%)">' +
+      '<div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;font-size:.58rem;font-weight:700;padding:1px 5px;border-radius:4px;white-space:nowrap">Hoy · Día ' + diasActuales + '</div>' +
+      '</div>';
+  }
+
+  html += '</div>'; // /dg-track
+
+  // ── Leyenda de etapas (compacta) ──
+  html += '<div class="dg-legend" style="display:flex;flex-wrap:wrap;gap:.25rem .75rem;margin-top:.6rem">';
+  etapas.forEach(function(e, idx) {
+    var isActive = (idx === etapaActual) && !yaTermino;
+    html += '<span style="font-size:.62rem;display:flex;align-items:center;gap:.25rem;' +
+      (isActive ? 'font-weight:700;color:#1f2937' : 'color:#6b7280') + '">' +
+      '<span style="width:8px;height:8px;border-radius:2px;background:' + e.color + ';display:inline-block' +
+      (isActive ? ';box-shadow:0 0 0 1.5px #374151' : '') + '"></span>' +
+      e.label + '</span>';
+  });
+
+  if (yaTermino) {
+    html += '<span style="font-size:.62rem;font-weight:700;color:#3A7A4A;margin-left:auto">✅ Ciclo completado</span>';
+  }
+
+  html += '</div>'; // /dg-legend
+  html += '</div>'; // /dg-wrap
+
+  el.innerHTML = html;
+}
+
+function _darken(hex, amount) {
+  try {
+    var r = parseInt(hex.slice(1,3),16);
+    var g = parseInt(hex.slice(3,5),16);
+    var b = parseInt(hex.slice(5,7),16);
+    r = Math.max(0, Math.round(r * (1 - amount)));
+    g = Math.max(0, Math.round(g * (1 - amount)));
+    b = Math.max(0, Math.round(b * (1 - amount)));
+    return '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0');
+  } catch(_) { return hex; }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  render();
+
+  // Refrescar con datos del lote
+  window.addEventListener('storage', function(e) {
+    var watched = ['am_siembra_cultivo','am_siembra_fecha','am_fen_duracion_ciclo'];
+    if (watched.indexOf(e.key) !== -1) render();
+  });
+  document.addEventListener('am:dashboard-activado', render);
+
+  var elCultivo = document.getElementById('s-cultivo');
+  var elFecha   = document.getElementById('s-fecha');
+  if (elCultivo) elCultivo.addEventListener('change', function() { setTimeout(render, 200); });
+  if (elFecha)   elFecha.addEventListener('change',   function() { setTimeout(render, 200); });
+});
+
+window.dashGanttRefresh = render;
+
+})();

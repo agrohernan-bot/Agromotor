@@ -190,3 +190,177 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 })();
+
+// ════════════════════════════════════════════════════════
+// TIMING ÓPTIMO DE FERTILIZACIÓN (incluido en fertilizacion-optima.js)
+// Indica automáticamente si la ventana actual es óptima para cada nutriente.
+// Cero inputs: lee cultivo, etapa fenológica, AWC% y VPD del estado activo.
+// ════════════════════════════════════════════════════════
+
+(function () {
+'use strict';
+
+// Ventanas críticas de fertilización por cultivo y nutriente
+// pctDesde / pctHasta: % del ciclo total (0-100) donde la ventana es óptima
+// La urgencia: 'optimo' | 'aceptable' | 'fuera'
+var VENTANAS = {
+  soja: [
+    { nut:'N', label:'N arranque',   pctDesde:0,  pctHasta:8,  desc:'Inoculante + N arranque en siembra o V1' },
+    { nut:'P', label:'P siembra',    pctDesde:0,  pctHasta:5,  desc:'Fosfato al voleo o incorporado en siembra' },
+    { nut:'S', label:'S cobertura',  pctDesde:10, pctHasta:30, desc:'Sulfato en V4-R1 para máxima absorción' },
+    { nut:'K', label:'K follaje',    pctDesde:18, pctHasta:45, desc:'K en V5-R3 si el análisis lo indica' },
+  ],
+  maiz: [
+    { nut:'N', label:'N arranque',    pctDesde:0,  pctHasta:15, desc:'N en siembra o V1-V2 con inhibidor' },
+    { nut:'N', label:'N macollaje',   pctDesde:15, pctHasta:35, desc:'N cobertura V6-V10: mayor absorción' },
+    { nut:'P', label:'P siembra',     pctDesde:0,  pctHasta:5,  desc:'Fosfato incorporado en la línea de siembra' },
+    { nut:'S', label:'S V4-VT',       pctDesde:15, pctHasta:40, desc:'Azufre en cobertura antes de VT/floración' },
+    { nut:'K', label:'K cobertura',   pctDesde:10, pctHasta:30, desc:'K al voleo en V4-V6 si Bray-K bajo' },
+  ],
+  trigo: [
+    { nut:'N', label:'N macollaje',   pctDesde:12, pctHasta:28, desc:'N cobertura en macollaje Z21-Z31' },
+    { nut:'N', label:'N encañado',    pctDesde:28, pctHasta:45, desc:'2da dosis de N en encañado Z32-Z37' },
+    { nut:'P', label:'P siembra',     pctDesde:0,  pctHasta:5,  desc:'MAP incorporado en siembra' },
+    { nut:'S', label:'S macollaje',   pctDesde:12, pctHasta:35, desc:'Azufre junto con N de macollaje' },
+  ],
+  cebada: [
+    { nut:'N', label:'N macollaje',   pctDesde:10, pctHasta:28, desc:'N cobertura temprana en macollaje' },
+    { nut:'N', label:'N encañado',    pctDesde:28, pctHasta:42, desc:'2da dosis N en encañado' },
+    { nut:'P', label:'P siembra',     pctDesde:0,  pctHasta:5,  desc:'Fosfato en siembra' },
+    { nut:'S', label:'S macollaje',   pctDesde:10, pctHasta:30, desc:'Azufre en macollaje' },
+  ],
+  girasol: [
+    { nut:'N', label:'N siembra-V4',  pctDesde:0,  pctHasta:20, desc:'N incorporado antes de V4' },
+    { nut:'P', label:'P siembra',     pctDesde:0,  pctHasta:5,  desc:'Fosfato en siembra' },
+    { nut:'S', label:'S V4-BF',       pctDesde:20, pctHasta:45, desc:'Azufre en V4 antes del botón floral' },
+    { nut:'B', label:'Boro botón',    pctDesde:38, pctHasta:52, desc:'Boro foliar en botón floral para fecundación' },
+  ],
+  sorgo: [
+    { nut:'N', label:'N arranque',    pctDesde:0,  pctHasta:15, desc:'N en siembra o V1 con arrancador' },
+    { nut:'N', label:'N cobertura',   pctDesde:18, pctHasta:38, desc:'N cobertura V6-encañado' },
+    { nut:'P', label:'P siembra',     pctDesde:0,  pctHasta:5,  desc:'Fosfato incorporado' },
+    { nut:'S', label:'S encañado',    pctDesde:15, pctHasta:40, desc:'Azufre antes de encañado' },
+  ],
+};
+
+var NUT_COLOR = { N:'#2A5A8C', P:'#C8800A', S:'#8B5CF6', K:'#2A7A4A', B:'#C94A2A' };
+
+function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
+
+function _normCultivo(c) {
+  var s = (c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (s.includes('maiz') || s.includes('maíz')) return 'maiz';
+  if (s.includes('trigo'))   return 'trigo';
+  if (s.includes('cebada'))  return 'cebada';
+  if (s.includes('girasol')) return 'girasol';
+  if (s.includes('sorgo'))   return 'sorgo';
+  if (s.includes('soja'))    return 'soja';
+  return null;
+}
+
+function _diasDesde(fechaISO) {
+  if (!fechaISO) return null;
+  try {
+    var d = new Date(fechaISO + 'T12:00:00');
+    var h = new Date(); h.setHours(12,0,0,0);
+    return Math.round((h - d) / 86400000);
+  } catch(_) { return null; }
+}
+
+function render() {
+  var el = document.getElementById('nc-timing-panel');
+  if (!el) return;
+
+  var cultivo   = _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '') || (document.getElementById('nc-bn-cultivo') ? document.getElementById('nc-bn-cultivo').value : '');
+  var cultKey   = _normCultivo(cultivo);
+  var ventanas  = cultKey ? VENTANAS[cultKey] : null;
+
+  if (!ventanas) { el.innerHTML = ''; return; }
+
+  var fecha     = _ls('am_siembra_fecha') || (document.getElementById('s-fecha') ? document.getElementById('s-fecha').value : '');
+  var ciclo     = parseInt(_ls('am_fen_duracion_ciclo')) || 150;
+  var etapa     = _ls('am_fen_etapa_hoy') || '';
+  var dias      = _diasDesde(fecha);
+  var pctHoy    = (dias !== null && ciclo > 0) ? Math.min(100, Math.max(0, dias / ciclo * 100)) : null;
+
+  var aguaMm    = parseFloat(_ls('am_hidrico_agua_actual_mm')) || 0;
+  var capMax    = parseFloat(_ls('am_hidrico_cap_max_mm'))     || 0;
+  var awcPct    = capMax > 0 ? Math.min(100, Math.round(aguaMm / capMax * 100)) : null;
+
+  // VPD del lote activo (sv-vpd o i-vpd)
+  var elVpd = document.getElementById('sv-vpd') || document.getElementById('i-vpd');
+  var vpdStr = elVpd ? (elVpd.textContent || '').replace(/[^0-9.]/g, '') : '';
+  var vpd    = parseFloat(vpdStr) || 0;
+
+  var html = '<div style="background:linear-gradient(135deg,rgba(109,191,130,.06),rgba(109,191,130,.03));border:1.5px solid rgba(109,191,130,.25);border-radius:12px;padding:.85rem 1rem;margin-bottom:0">';
+  html += '<div style="font-size:.72rem;font-weight:700;color:#6DBF82;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">⏱️ Timing óptimo de fertilización · ' + (etapa || _escapeHtml(cultivo)) + (pctHoy !== null ? ' · Día ' + (dias || 0) + ' (' + Math.round(pctHoy) + '% ciclo)' : '') + '</div>';
+
+  // Condiciones del momento
+  html += '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.6rem">';
+  if (awcPct !== null) {
+    var hC = awcPct >= 50 ? '#2A7A4A' : awcPct >= 30 ? '#C8A255' : '#D4522A';
+    var hTxt = awcPct >= 50 ? '✅ Suelo apto' : awcPct >= 30 ? '⚠️ Suelo seco · riesgo quemado' : '🔴 No aplicar · suelo sin agua';
+    html += '<span style="font-size:.65rem;color:' + hC + ';background:' + hC + '15;border:1px solid ' + hC + '44;padding:2px 7px;border-radius:4px;font-weight:700">💧 ' + awcPct + '% — ' + hTxt + '</span>';
+  }
+  if (vpd > 0) {
+    var vC = vpd < 1.5 ? '#2A7A4A' : vpd < 2.5 ? '#C8A255' : '#D4522A';
+    var vTxt = vpd < 1.5 ? '✅ VPD óptimo' : vpd < 2.5 ? '⚠️ VPD moderado' : '🔴 VPD alto · no foliar';
+    html += '<span style="font-size:.65rem;color:' + vC + ';background:' + vC + '15;border:1px solid ' + vC + '44;padding:2px 7px;border-radius:4px;font-weight:700">🌬️ VPD ' + vpd.toFixed(1) + ' kPa — ' + vTxt + '</span>';
+  }
+  html += '</div>';
+
+  // Una fila por ventana de fertilización
+  html += '<div style="display:flex;flex-direction:column;gap:.35rem">';
+  ventanas.forEach(function(v) {
+    var estado, estColor, estBg, estIco;
+    if (pctHoy === null) {
+      estado = 'Sin fecha de siembra'; estColor = '#6b7280'; estBg = '#f3f4f6'; estIco = '❓';
+    } else if (pctHoy >= v.pctDesde && pctHoy <= v.pctHasta) {
+      estado = 'VENTANA ACTIVA — aplicar ahora'; estColor = '#2A7A4A'; estBg = 'rgba(42,122,74,.08)'; estIco = '🟢';
+    } else if (pctHoy < v.pctDesde) {
+      var diasFalta = Math.round((v.pctDesde / 100 - pctHoy / 100) * ciclo);
+      estado = 'Próxima ventana en ~' + diasFalta + ' días'; estColor = '#C8A255'; estBg = 'rgba(200,160,85,.08)'; estIco = '⏳';
+    } else {
+      estado = 'Ventana pasada (' + v.pctDesde + '-' + v.pctHasta + '% ciclo)'; estColor = '#9ca3af'; estBg = '#f9fafb'; estIco = '⬜';
+    }
+
+    var nutCol = NUT_COLOR[v.nut] || '#374151';
+    html += '<div style="display:flex;align-items:center;gap:.6rem;background:' + estBg + ';border-radius:7px;padding:.35rem .6rem;border:1px solid ' + estColor + '22">';
+    html += '<span style="font-size:.7rem;font-weight:800;color:' + nutCol + ';min-width:1.8rem">' + v.nut + '</span>';
+    html += '<span style="font-size:.65rem;color:#374151;font-weight:600;flex:1">' + _escapeHtml(v.label) + ' <span style="color:#6b7280;font-weight:400">— ' + _escapeHtml(v.desc) + '</span></span>';
+    html += '<span style="font-size:.62rem;font-weight:700;color:' + estColor + ';white-space:nowrap">' + estIco + ' ' + _escapeHtml(estado) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function _escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+window.ncTimingRender = render;
+
+// Activar cuando Nutrición se abre
+window.addEventListener('am:nutricion-activado', render);
+
+// También exponer para llamada directa desde ncActualizar
+var _origNcActualizar = window.ncActualizar;
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    // Envolver ncActualizar para que siempre actualice el timing
+    if (typeof window.ncActualizar === 'function' && !window._ncTimingWrapped) {
+      var orig = window.ncActualizar;
+      window.ncActualizar = function() {
+        orig.apply(this, arguments);
+        render();
+      };
+      window._ncTimingWrapped = true;
+    }
+    render();
+  }, 1000);
+});
+
+})(); // fin timing-fertilizacion

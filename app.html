@@ -73,6 +73,7 @@
       <div class="header-inta">Lógica agronómica INTA</div>
       <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
       <button onclick="amInstalarPWA()" id="am-btn-pwa" class="btn-hdr btn-hdr-green hidden" title="Instalar AgroMotor como app">📲 Instalar</button>
+      <button onclick="amActivarNotificaciones()" id="am-btn-notif" class="btn-hdr" style="font-size:.72rem;padding:.3rem .7rem;border-radius:14px;border:1px solid rgba(42,90,140,.35);cursor:pointer;font-family:inherit" title="Activar alertas push del navegador">🔔 Alertas</button>
       <button onclick="amMostrarModalSugerencias()" id="btn-feedback" class="btn-hdr btn-hdr-green">💡 Sugerencias</button>
       <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
       <!-- TODO: Restaurar el 1° de agosto de 2026 — quitar btn-registro, dejar solo Ingresar -->
@@ -131,6 +132,11 @@
     <div class="nav-tab nav-tab-ia" data-mod="asistente" onclick="switchMod('asistente')"><span class="dot"></span>🤖 Asistente IA</div>
     <div class="nav-tab" data-mod="fen-plan" onclick="switchMod('fen-plan')"><span class="dot"></span>📅 Fen. Planificación</div>
     <div class="nav-tab" data-mod="fen-seg" onclick="switchMod('fen-seg')"><span class="dot"></span>🌿 Fen. Seguimiento</div>
+    <div class="nav-sep"></div>
+    <!-- 7. CAMPO -->
+    <div class="nav-tab" data-mod="malezas" onclick="switchMod('malezas')"><span class="dot"></span>🌿 Malezas</div>
+    <div class="nav-tab" data-mod="bitacora" onclick="switchMod('bitacora')"><span class="dot"></span>📓 Bitácora</div>
+    <div class="nav-tab" data-mod="huella-carbono" onclick="switchMod('huella-carbono')"><span class="dot"></span>🌍 Huella CO₂</div>
   </div>
 </nav>
 
@@ -157,6 +163,15 @@
 
   <!-- ── PANEL CAMPAÑA ACTIVA ──────────────────────────── -->
   <div id="dash-campana-panel" class="dash-campana-panel hidden"></div>
+
+  <!-- ── TIMELINE GANTT DE CAMPAÑA (automático) ─────────── -->
+  <div id="dash-gantt-panel"></div>
+
+  <!-- ── PROYECCIÓN RENDIMIENTO 3 ESCENARIOS (automático) ── -->
+  <div id="dash-rend-panel"></div>
+
+  <!-- ── MONITOR NDVI PROXY (automático, requiere datos ERA5) ── -->
+  <div id="dash-ndvi-panel"></div>
 
   <!-- ── CUERPO PRINCIPAL ───────────────────────────────── -->
   <div class="dash-main-grid">
@@ -301,6 +316,13 @@
       <div class="mod-card mc-adv" onclick="switchMod('siembra-variable')"><div class="mc-ico">🗺</div><div class="mc-name">Siembra Variable</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Mapas de prescripción · zonas</div></div>
       <div class="mod-card mc-adv" onclick="switchMod('mapa')"><div class="mc-ico">📍</div><div class="mc-name">Distribuidores</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Insumos cercanos al lote</div></div>
 <div class="mod-card mc-ia" onclick="switchMod('asistente')"><div class="mc-ico">🤖</div><div class="mc-name">Asistente IA</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Consultas agronómicas con contexto</div></div>
+    </div>
+
+    <div class="mod-group-title">7 · Campo</div>
+    <div class="mod-card-grid">
+      <div class="mod-card mc-campo" onclick="switchMod('malezas')"><div class="mc-ico">🌿</div><div class="mc-name">Malezas</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Identificación · ventanas HRAC · resistencias</div></div>
+      <div class="mod-card mc-campo" onclick="switchMod('bitacora')"><div class="mc-ico">📓</div><div class="mc-name">Bitácora</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Registro automático de actividades · siempre disponible</div></div>
+      <div class="mod-card mc-campo" onclick="switchMod('huella-carbono')"><div class="mc-ico">🌍</div><div class="mc-name">Huella CO₂</div><span class="mc-status" data-status="ok">✅</span><div class="mc-desc">Emisiones de la campaña · IPCC · benchmarks INTA</div></div>
     </div>
   </div>
 
@@ -622,6 +644,9 @@
       <span>📍 <span id="nc-lbl-lote" style="color:rgba(237,224,196,.75)">Sin lote activo</span></span>
       <span id="nc-lbl-fuente-badge" style="font-size:.68rem;padding:.12rem .6rem;border-radius:6px;font-weight:700;background:rgba(74,46,26,.35);color:rgba(237,224,196,.6)">Sin datos de suelo</span>
     </div>
+
+    <!-- ── TIMING OPTIMIZER (auto) ── -->
+    <div id="nc-timing-panel" style="margin-bottom:1.1rem"></div>
 
     <div class="grid-2">
       <!-- Parámetros -->
@@ -1448,6 +1473,26 @@
 
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── PANEL EVOLUCIÓN DIARIA AGUA EN PERFIL ── -->
+  <div class="card" style="margin-top:1.2rem;border:1.5px solid rgba(42,90,140,.30);background:#f3f7fd">
+    <div class="card-title" style="color:#2A5A8C;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+      📈 Agua en Perfil · Día a Día desde Siembra
+      <span style="font-size:.68rem;font-weight:400;background:rgba(42,90,140,.1);color:rgba(42,90,140,.8);border-radius:4px;padding:.1rem .4rem">ERA5 · automático</span>
+      <button onclick="_ghdRefrescar()" class="btn btn-s" style="margin-left:auto;font-size:.68rem;padding:.2rem .55rem;border:1px solid rgba(42,90,140,.3);background:rgba(42,90,140,.07);color:#2A5A8C">🔄 Actualizar</button>
+    </div>
+    <div style="font-size:.71rem;color:rgba(74,46,26,.45);margin-bottom:.5rem">
+      Balance real día a día · datos históricos ERA5 (Open-Meteo) + pronóstico 10 días · CC y PME del lote
+    </div>
+    <div id="ghd-loading" style="display:flex;align-items:center;justify-content:center;padding:1.4rem;font-size:.82rem;color:rgba(74,46,26,.45)">
+      ⟳ Cargando datos históricos…
+    </div>
+    <div id="ghd-error" style="display:none;padding:.8rem;font-size:.8rem;color:#C94A2A;background:rgba(201,74,42,.06);border-radius:8px"></div>
+    <div id="ghd-stats"></div>
+    <div style="position:relative;height:270px" class="gh-chart-wrap">
+      <canvas id="ghd-chart" style="display:none"></canvas>
     </div>
   </div>
 
@@ -3896,6 +3941,21 @@
 </div>
 <!-- ══ FIN MÓDULO FENOLOGÍA SEGUIMIENTO ══════════════════ -->
 
+<!-- ══ MÓDULO MALEZAS ════════════════════════════════════ -->
+<div id="mod-malezas" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO MALEZAS ════════════════════════════════ -->
+
+<!-- ══ MÓDULO BITÁCORA ═══════════════════════════════════ -->
+<div id="mod-bitacora" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO BITÁCORA ═══════════════════════════════ -->
+
+<!-- ══ MÓDULO HUELLA DE CARBONO ══════════════════════════ -->
+<div id="mod-huella-carbono" class="module-panel">
+</div>
+<!-- ══ FIN MÓDULO HUELLA DE CARBONO ══════════════════════ -->
+
 <script>
 // ════════════════════════════════════════════════
 // FENOLOGÍA · PLANIFICACIÓN
@@ -4250,6 +4310,12 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/comparador-campana.js?v=77"></script>
 <script src="js/rotacion.js?v=77"></script>
 <script src="js/graficos-hidrico.js?v=77"></script>
+<script src="js/bitacora.js?v=77"></script>
+<script src="js/rendimiento-predictor.js?v=77"></script>
+<script src="js/ndvi-monitor.js?v=77"></script>
+<script src="js/notificaciones.js?v=77"></script>
+<script src="js/malezas.js?v=77"></script>
+<script src="js/huella-carbono.js?v=77"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
