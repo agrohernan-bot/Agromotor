@@ -73,6 +73,7 @@
       <div class="header-inta">Lógica agronómica INTA</div>
       <div id="am-user-info" style="font-size:.7rem;color:rgba(237,224,196,.4);display:none"></div>
       <button onclick="amInstalarPWA()" id="am-btn-pwa" class="btn-hdr btn-hdr-green hidden" title="Instalar AgroMotor como app">📲 Instalar</button>
+      <button onclick="amActivarNotificaciones()" id="am-btn-notif" class="btn-hdr" style="font-size:.72rem;padding:.3rem .7rem;border-radius:14px;border:1px solid rgba(42,90,140,.35);cursor:pointer;font-family:inherit" title="Activar alertas push del navegador">🔔 Alertas</button>
       <button onclick="amMostrarModalSugerencias()" id="btn-feedback" class="btn-hdr btn-hdr-green">💡 Sugerencias</button>
       <button onclick="generarPDF()" id="btn-pdf" class="btn-hdr btn-hdr-blue">📄 PDF</button>
       <!-- TODO: Restaurar el 1° de agosto de 2026 — quitar btn-registro, dejar solo Ingresar -->
@@ -4298,6 +4299,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/bitacora.js?v=77"></script>
 <script src="js/rendimiento-predictor.js?v=77"></script>
 <script src="js/ndvi-monitor.js?v=77"></script>
+<script src="js/notificaciones.js?v=77"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══
   Gestionados por nav.js con amCargarModulo():
