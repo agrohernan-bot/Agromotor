@@ -9,7 +9,28 @@
   window.AM = window.AM || {};
   window.AM.economia = {};
 
-  let EC_DOLAR = { oficial:1080, blue:1085, mep:1090, ccl:1095, ts:null };
+  let EC_DOLAR = { oficial:1080, blue:1085, mep:1090, ccl:1095, ts:null, fuente:'Referencia' };
+  const EC_DOLAR_CACHE_KEY = 'am_economia_dolar_cache_v1';
+
+function ecGuardarDolarCache() {
+  try {
+    localStorage.setItem(EC_DOLAR_CACHE_KEY, JSON.stringify({
+      dolar: EC_DOLAR,
+      ts: new Date().toISOString()
+    }));
+  } catch (_) {}
+}
+
+function ecLeerDolarCache() {
+  try {
+    const raw = localStorage.getItem(EC_DOLAR_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.dolar ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
 
 async function ecActualizarDolar() {
   const badge = $('ec-dolar-badge');
@@ -34,7 +55,9 @@ async function ecActualizarDolar() {
       else if (c === 'contadoconliqui' || c === 'ccl') EC_DOLAR.ccl = v;
     });
     EC_DOLAR.ts = new Date();
+    EC_DOLAR.fuente = 'DolarAPI';
     window.EC_DOLAR = EC_DOLAR; // exponer para asistente.js y otros módulos
+    ecGuardarDolarCache();
 
     // Mostrar panel
     ecRenderDolar();
@@ -43,6 +66,20 @@ async function ecActualizarDolar() {
 
   } catch(e) {
     console.warn('DolarAPI:', e.message);
+    const cache = ecLeerDolarCache();
+    if (cache && cache.dolar) {
+      EC_DOLAR = {
+        ...EC_DOLAR,
+        ...cache.dolar,
+        ts: cache.dolar.ts ? new Date(cache.dolar.ts) : (cache.ts ? new Date(cache.ts) : null),
+        fuente: 'Ultimo dato guardado'
+      };
+      window.EC_DOLAR = EC_DOLAR;
+      if (badge) badge.textContent = '⚠️ DolarAPI no disponible - usando ultimo dato guardado';
+      ecRenderDolar();
+      ecCalc();
+      return;
+    }
     if (badge) badge.textContent = '⚠️ Dólar no disponible — usando referencia';
     ecRenderDolar();
     ecCalc();
@@ -55,6 +92,7 @@ function ecRenderDolar() {
   const ts = EC_DOLAR.ts
     ? EC_DOLAR.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
     : 'Referencia';
+  const fuente = EC_DOLAR.fuente || 'DolarAPI';
 
   panel.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.5rem">
@@ -76,7 +114,7 @@ function ecRenderDolar() {
       </div>
     </div>
     <div style="font-size:.68rem;color:rgba(74,46,26,.4);text-align:center">
-      Fuente: DolarAPI · Actualizado: ${ts}
+      Fuente: ${fuente} · Actualizado: ${ts}
     </div>`;
 }
 

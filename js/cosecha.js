@@ -39,6 +39,33 @@ const fmtUSD = n => isNaN(n)||!isFinite(n) ? '—' : 'USD '+fmt(n,0);
 
 function tarModo() { return $('tarifa-modo').value; }
 
+const COS_CACHE_PREFIX = 'am_cosecha_api_cache_';
+
+function cacheSet(name, data) {
+  try {
+    localStorage.setItem(COS_CACHE_PREFIX + name, JSON.stringify({
+      data,
+      ts: new Date().toISOString()
+    }));
+  } catch (_) {}
+}
+
+function cacheGet(name) {
+  try {
+    const raw = localStorage.getItem(COS_CACHE_PREFIX + name);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.data != null ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function cacheFecha(cache) {
+  if (!cache || !cache.ts) return 'fecha guardada';
+  return new Date(cache.ts).toLocaleDateString('es-AR');
+}
+
 function readState() {
   S.cultivo       = $('cultivo').value;
   S.superficie    = +$('superficie').value || 0;
@@ -490,14 +517,17 @@ async function fetchPrecioGrano() {
       setDot('dot-fob', 'ok');
       // Mostrar en ribbon
       sv('val-fob', `${nombre}: USD ${fmt(precio,0)}`);
+      cacheSet('fob_' + cultivo, { precio, nombre, fecha: item.fecha || null });
       calcLive();
     } else {
+      return aplicarPrecioGranoCache(cultivo, 'Datos FOB disponibles, pero no para este cultivo.');
       // Si no encontramos el cultivo, mostrar lo que llegó
       setDot('dot-fob', 'ok');
       sv('val-fob', 'OK (manual)');
       $('precio-source').innerHTML = `⚠� Datos FOB disponibles. Ingresá precio manualmente.`;
     }
   } catch(e) {
+    return aplicarPrecioGranoCache(cultivo, 'API FOB no disponible.');
     setDot('dot-fob', 'error');
     sv('val-fob', 'manual');
     $('precio-source').innerHTML = `⚠� API FOB no disponible — ingresá precio manualmente`;
@@ -505,6 +535,22 @@ async function fetchPrecioGrano() {
 }
 
 // USD OFICIAL � DolarAPI (gratuito, sin token, CORS ok)
+function aplicarPrecioGranoCache(cultivo, motivo) {
+  const cache = cacheGet('fob_' + cultivo);
+  if (cache && cache.data && cache.data.precio) {
+    $('precio-usd').value = cache.data.precio;
+    setDot('dot-fob', 'ok');
+    sv('val-fob', `${cache.data.nombre || CULTIVOS[cultivo].nombre}: USD ${fmt(cache.data.precio,0)} guardado`);
+    $('precio-source').innerHTML = `⚠️ ${motivo} Usando ultimo FOB guardado (${cacheFecha(cache)}).`;
+    calcLive();
+    return true;
+  }
+  setDot('dot-fob', 'error');
+  sv('val-fob', 'manual');
+  $('precio-source').innerHTML = `⚠️ ${motivo} Sin dato guardado; podes ajustar el precio manualmente.`;
+  return false;
+}
+
 async function fetchTipoCambio() {
   setDot('dot-usd', 'loading');
   try {
@@ -520,8 +566,19 @@ async function fetchTipoCambio() {
     setDot('dot-usd', 'ok');
     sv('val-usd', '$ ' + fmt(tc, 0));
     S.usdData = tc;
+    cacheSet('usd_oficial', { tc, fechaActualizacion: d.fechaActualizacion || null });
     calcLive();
   } catch(e) {
+    const cache = cacheGet('usd_oficial');
+    if (cache && cache.data && cache.data.tc) {
+      $('tipo-cambio').value = cache.data.tc;
+      S.usdData = cache.data.tc;
+      setDot('dot-usd', 'ok');
+      sv('val-usd', '$ ' + fmt(cache.data.tc, 0) + ' guardado');
+      if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible. Usando ultimo USD guardado (${cacheFecha(cache)}).`;
+      calcLive();
+      return;
+    }
     setDot('dot-usd', 'error');
     sv('val-usd', 'manual');
     if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible � ingres� TC manualmente`;
@@ -547,9 +604,20 @@ async function fetchTasasBCRA() {
     const badlar = parseFloat(last[badlarIdx]);
     if (isNaN(badlar)) throw new Error('sin valor');
     S.badlarData = badlar;
+    cacheSet('badlar', { badlar });
     sv('val-badlar', fmt(badlar, 1) + '% TNA');
     setDot('dot-badlar', 'ok');
-  } catch(e) { setDot('dot-badlar', 'error'); sv('val-badlar', 'error'); }
+  } catch(e) {
+    const cache = cacheGet('badlar');
+    if (cache && cache.data && cache.data.badlar) {
+      S.badlarData = cache.data.badlar;
+      sv('val-badlar', fmt(cache.data.badlar, 1) + '% TNA guardado');
+      setDot('dot-badlar', 'ok');
+    } else {
+      setDot('dot-badlar', 'error');
+      sv('val-badlar', 'sin dato');
+    }
+  }
 
   // PLAZO FIJO 30d � CSV mensual: tasas_interes_plazo_fijo_30_59_dias
   try {
@@ -572,11 +640,25 @@ async function fetchTasasBCRA() {
     }
     if (isNaN(pfVal)) throw new Error('sin valor');
     S.pfData = pfVal;
+    cacheSet('plazo_fijo', { pfVal, pfFecha });
     sv('val-pf', fmt(pfVal, 1) + '% TNA');
     setDot('dot-pf', 'ok');
     if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
     if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d � datos.gob.ar � ${pfFecha}`;
-  } catch(e) { setDot('dot-pf', 'error'); sv('val-pf', 'error'); }
+  } catch(e) {
+    const cache = cacheGet('plazo_fijo');
+    if (cache && cache.data && cache.data.pfVal) {
+      S.pfData = cache.data.pfVal;
+      sv('val-pf', fmt(cache.data.pfVal, 1) + '% TNA guardado');
+      setDot('dot-pf', 'ok');
+      if ($('tasa-ref')) $('tasa-ref').value = (cache.data.pfVal / 12).toFixed(1);
+      if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ datos.gob.ar no disponible. Usando ultima tasa guardada (${cacheFecha(cache)}).`;
+    } else {
+      setDot('dot-pf', 'error');
+      sv('val-pf', 'sin dato');
+      if ($('tasa-source')) $('tasa-source').innerHTML = '⚠️ datos.gob.ar no disponible. Sin tasa guardada.';
+    }
+  }
 }
 
 function setDot(id, state) {
