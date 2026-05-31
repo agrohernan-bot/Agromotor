@@ -232,6 +232,7 @@ function _activarModulo(mod) {
   }
   if (mod === 'nutricion') {
     if (typeof ncActualizar === 'function') ncActualizar();
+    setTimeout(function() { if (typeof window.ncTimingRender === 'function') window.ncTimingRender(); }, 300);
   }
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
   if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
