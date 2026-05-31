@@ -44,7 +44,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ONI_URL_TXT  = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt";
-const LS_CACHE_KEY = "am_enso_cache";
+const LS_CACHE_KEY = "am_enso_cache_v2";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;   // 7 días
 
 /** Umbral ONI para declarar El Niño / La Niña (°C de anomalía SST Niño-3.4) */
@@ -137,11 +137,13 @@ function leerCache() {
     if (!raw) return null;
     const obj = JSON.parse(raw);
     if (Date.now() - obj.ts > CACHE_TTL_MS) return null;
+    if (!Array.isArray(obj.datos) || obj.datos.length === 0) return null;
     return obj;
   } catch (_) { return null; }
 }
 
 function escribirCache(datos) {
+  if (!Array.isArray(datos) || datos.length === 0) return;
   try {
     localStorage.setItem(LS_CACHE_KEY, JSON.stringify({
       ts:    Date.now(),
@@ -151,7 +153,10 @@ function escribirCache(datos) {
 }
 
 function limpiarCache() {
-  try { localStorage.removeItem(LS_CACHE_KEY); } catch (_) {}
+  try {
+    localStorage.removeItem(LS_CACHE_KEY);
+    localStorage.removeItem("am_enso_cache");
+  } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +225,7 @@ async function getFaseENSO(anio, mes) {
   } else {
     try {
       datos = await fetchONI();
+      if (!Array.isArray(datos) || datos.length === 0) throw new Error("NOAA CPC sin registros ONI parseables");
       escribirCache(datos);
     } catch (e) {
       // Sin acceso a NOAA — usar fallback histórico
@@ -347,6 +353,7 @@ async function getHistorialENSO(anioInicio, anioFin, mes = 10) {
   } else {
     try {
       datos = await fetchONI();
+      if (!Array.isArray(datos) || datos.length === 0) throw new Error("NOAA CPC sin registros ONI parseables");
       escribirCache(datos);
     } catch (_) {
       // Sin red: devolver neutro para todos los años
