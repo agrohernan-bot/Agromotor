@@ -316,6 +316,7 @@ async function fetchNASAPower(lat, lon, fechaInicio, fechaFin) {
 async function fetchOpenMeteo(lat, lon, fechaInicio, fechaFin) {
   const hoy       = new Date();
   const limiteArch = _addDays(hoy, -OPENMETEO_ARCHIVE_LAG_DIAS);
+  const limiteForecast = _addDays(hoy, 16);
 
   const resultados = [];
 
@@ -331,8 +332,10 @@ async function fetchOpenMeteo(lat, lon, fechaInicio, fechaFin) {
   // Segmento reciente / futuro (forecast)
   if (fechaFin >= limiteArch) {
     const iniForec = fechaInicio > limiteArch ? fechaInicio : limiteArch;
+    const finForec = fechaFin > limiteForecast ? limiteForecast : fechaFin;
+    if (iniForec > finForec) return resultados.sort((a, b) => a.fecha.localeCompare(b.fecha));
     const datos = await _fetchOpenMeteoSegmento(
-      OPENMETEO_FORECAST_BASE, lat, lon, iniForec, fechaFin
+      OPENMETEO_FORECAST_BASE, lat, lon, iniForec, finForec
     );
     // Evitar duplicados por solapamiento
     const existentes = new Set(resultados.map(r => r.fecha));
@@ -343,14 +346,25 @@ async function fetchOpenMeteo(lat, lon, fechaInicio, fechaFin) {
 }
 
 async function _fetchOpenMeteoSegmento(baseUrl, lat, lon, fechaIni, fechaFin) {
-  const params = new URLSearchParams({
+  const paramsObj = {
     latitude:    String(lat),
     longitude:   String(lon),
     daily:       "temperature_2m_max,temperature_2m_min,precipitation_sum",
-    timezone:    "America/Argentina/Buenos_Aires",
-    start_date:  _formatISO(fechaIni),
-    end_date:    _formatISO(fechaFin),
-  });
+    timezone:    "America/Argentina/Buenos_Aires"
+  };
+
+  if (baseUrl === OPENMETEO_FORECAST_BASE) {
+    const hoy = new Date();
+    const pastDays = Math.max(0, Math.min(7, Math.ceil((hoy - fechaIni) / 86400000)));
+    const futureDays = Math.max(1, Math.min(16, Math.ceil((fechaFin - hoy) / 86400000) + 1));
+    if (pastDays > 0) paramsObj.past_days = String(pastDays);
+    paramsObj.forecast_days = String(futureDays);
+  } else {
+    paramsObj.start_date = _formatISO(fechaIni);
+    paramsObj.end_date = _formatISO(fechaFin);
+  }
+
+  const params = new URLSearchParams(paramsObj);
 
   const url = `${baseUrl}?${params}`;
   const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
@@ -370,7 +384,7 @@ async function _fetchOpenMeteoSegmento(baseUrl, lat, lon, fechaIni, fechaFin) {
     tmax:  tmaxArr[i] ?? 25,
     tmin:  tminArr[i] ?? 15,
     precip: pArr[i]    ??  0,
-  }));
+  })).filter(d => d.fecha >= _formatISO(fechaIni) && d.fecha <= _formatISO(fechaFin));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
