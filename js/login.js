@@ -660,6 +660,9 @@ function amMostrarPerfil() {
   if (typeof amOnbStart === 'function') {
     btns.appendChild(mkBtn('🎯 Ver tour de bienvenida', '#2A5A8C', function() { amOnbStart(); }));
   }
+  if (AM_SESION.rol === 'admin') {
+    btns.appendChild(mkBtn('Panel admin', '#1A3A6C', function() { window.location.href = '/admin.html'; }));
+  }
   const btnCerrar = document.createElement('button');
   btnCerrar.textContent = 'Cancelar';
   btnCerrar.style.cssText = 'width:100%;border:1.5px solid #d4c9b8;border-radius:9px;padding:.5rem .9rem;font-size:.82rem;cursor:pointer;font-family:inherit;background:#fff;color:#5a4a32';
