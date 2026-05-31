@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v84';
+const CACHE_NAME    = 'agromotor-v85';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -62,7 +62,6 @@ const ASSETS_LOCAL = [
   './js/dashboard-ux.js',
   './js/bitacora.js',
   './js/rendimiento-predictor.js',
-  './js/ndvi-monitor.js',
   './js/notificaciones.js',
   './js/malezas.js',
   './js/huella-carbono.js',

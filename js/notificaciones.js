@@ -13,7 +13,6 @@
 // Fuentes monitoreadas:
 //   · am_alertas_activas: alertas críticas y de advertencia
 //   · am_hidrico_dias_estres: estrés hídrico acumulado
-//   · am_ndvi_alerta: anomalía NDVI detectada
 // ════════════════════════════════════════════════════════
 
 (function () {
@@ -134,33 +133,9 @@ function chequearEstresHidrico() {
   marcarVista(id);
 }
 
-function chequearNDVI() {
-  var ndviAlerta = _lsJSON('am_ndvi_alerta');
-  if (!ndviAlerta || !ndviAlerta.anomalia) return;
-
-  var ts  = ndviAlerta.ts || 0;
-  var age = Date.now() - ts;
-  if (age > 24 * 60 * 60 * 1000) return; // alerta de más de 24h = ignorar
-
-  var id = 'ndvi-anomalia-' + Math.floor(ts / (4 * 60 * 60 * 1000)); // una por período de 4h
-  if (notifAlreadySent(id)) return;
-
-  var lote   = _ls('am_lote_nombre') || 'Lote activo';
-  var ndviV  = ndviAlerta.ndviActual || 0;
-  var mu     = ndviAlerta.mu || 0;
-
-  enviar(
-    '🛰️ AGROMOTOR · Anomalía NDVI · ' + lote,
-    'NDVI ' + ndviV.toFixed(2) + ' por debajo de la media histórica (' + mu.toFixed(2) + '). Hacer scouting del lote.',
-    'am-ndvi-' + id
-  );
-  marcarVista(id);
-}
-
 function correrChequeos() {
   chequearAlertas();
   chequearEstresHidrico();
-  chequearNDVI();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,7 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Monitorear cambios de localStorage desde otras pestañas
   window.addEventListener('storage', function(e) {
-    var watched = ['am_alertas_activas', 'am_hidrico_dias_estres', 'am_ndvi_alerta'];
+    var watched = ['am_alertas_activas', 'am_hidrico_dias_estres'];
     if (watched.indexOf(e.key) !== -1 && permisoConcedido()) {
       setTimeout(correrChequeos, 500);
     }

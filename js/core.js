@@ -128,7 +128,6 @@ function setStatus(msg,loading=true){
 // ── LEAFLET MAP INLINE (Dashboard) ──
 let amMap = null;
 let amMapMarker = null;
-let amNdviLayer = null;
 
 function amInitMapaInline() {
   const container = document.getElementById('am-inline-map');
@@ -155,36 +154,6 @@ function amInitMapaInline() {
     }
   });
 
-  // Inyectar dinámicamente el checkbox flotante en la esquina superior derecha
-  const ndviToggle = document.createElement('label');
-  ndviToggle.style.position = 'absolute';
-  ndviToggle.style.top = '12px';
-  ndviToggle.style.right = '12px';
-  ndviToggle.style.zIndex = '1000';
-  ndviToggle.style.background = 'rgba(10,18,12,0.85)';
-  ndviToggle.style.color = '#fff';
-  ndviToggle.style.padding = '6px 12px';
-  ndviToggle.style.borderRadius = '20px';
-  ndviToggle.style.fontSize = '11px';
-  ndviToggle.style.fontWeight = '600';
-  ndviToggle.style.cursor = 'pointer';
-  ndviToggle.style.display = 'flex';
-  ndviToggle.style.alignItems = 'center';
-  ndviToggle.style.gap = '6px';
-  ndviToggle.style.border = '1px solid rgba(255,255,255,0.15)';
-  ndviToggle.style.backdropFilter = 'blur(10px)';
-  ndviToggle.style.transition = 'all 0.2s';
-  ndviToggle.innerHTML = `
-    <input type="checkbox" id="am-chk-ndvi-sat" style="margin:0; cursor:pointer;"/>
-    <span>🛰️ NDVI estimado (simulado)</span>
-  `;
-  container.appendChild(ndviToggle);
-
-  const chk = ndviToggle.querySelector('#am-chk-ndvi-sat');
-  chk.addEventListener('change', (e) => {
-    window.amToggleNdviOverlay(e.target.checked);
-  });
-
   setTimeout(amActualizarMapaInline, 500);
 }
 
@@ -197,12 +166,6 @@ function amActualizarMapaInline() {
       if(!amMapMarker) amMapMarker = L.marker([lat, lon]).addTo(amMap);
       else amMapMarker.setLatLng([lat, lon]);
       amMap.setView([lat, lon], 14);
-
-      // Si la capa NDVI satelital está marcada, actualizarla de forma inmediata con las nuevas coordenadas
-      const chk = document.getElementById('am-chk-ndvi-sat');
-      if(chk && chk.checked) {
-        setTimeout(() => window.amToggleNdviOverlay(true), 100);
-      }
     }
   } else {
     if(amMapMarker) {
@@ -210,8 +173,6 @@ function amActualizarMapaInline() {
       amMapMarker = null;
     }
     amMap.setView([-33.395, -60.192], 5);
-    // Remover capa NDVI y leyenda si no hay coordenadas
-    window.amToggleNdviOverlay(false);
   }
 }
 
@@ -224,130 +185,7 @@ function amRefrescarMapaDashboard() {
   }
 }
 
-window.amToggleNdviOverlay = function(checked) {
-  if (amNdviLayer) {
-    amMap.removeLayer(amNdviLayer);
-    amNdviLayer = null;
-  }
-  
-  const legend = document.getElementById('am-ndvi-map-legend');
-  if (!checked) {
-    if (legend) legend.style.display = 'none';
-    const chk = document.getElementById('am-chk-ndvi-sat');
-    if (chk) chk.checked = false;
-    return;
-  }
-
-  const val = document.getElementById('s-coord')?.value;
-  if (!val) {
-    alert("Ingresá o hacé clic en las coordenadas del lote primero.");
-    const chk = document.getElementById('am-chk-ndvi-sat');
-    if (chk) chk.checked = false;
-    return;
-  }
-
-  const [lat, lon] = parsCoord(val);
-  if (lat === null || lon === null) return;
-
-  amNdviLayer = L.featureGroup();
-
-  // Crear una cuadrícula de 10x10 alrededor del centroide del lote
-  const cd = 0.0012; // tamaño de celda (~130m)
-  const rows = 10;
-  const cols = 10;
-  
-  const startLat = lat - (rows * cd) / 2;
-  const startLon = lon - (cols * cd) / 2;
-
-  // Ruido determinista basado en las coordenadas para que sea consistente
-  const noise = (x, y) => {
-    return 0.40 * Math.sin(x * 0.63 + y * 0.31) + 
-           0.25 * Math.sin(x * 1.41 - y * 0.87 + 1.3) +
-           0.20 * Math.sin(x * 2.17 + y * 1.73 + 2.8) + 
-           0.15 * Math.sin(x * 3.61 - y * 2.43 + 4.2);
-  };
-  
-  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  
-  const ndviColor = (v) => {
-    return v > 0.75 ? '#1a9641' : 
-           v > 0.65 ? '#91cf60' : 
-           v > 0.55 ? '#d9ef8b' : 
-           v > 0.45 ? '#fee08b' : 
-           v > 0.30 ? '#fc8d59' : '#d73027';
-  };
-
-  const ndviLabel = (v) => {
-    if (v > 0.75) return 'Vigoroso';
-    if (v > 0.65) return 'Bueno';
-    if (v > 0.55) return 'Moderado';
-    if (v > 0.45) return 'Bajo';
-    if (v > 0.30) return 'Muy Bajo';
-    return 'Crítico';
-  };
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const cellLat = startLat + r * cd;
-      const cellLon = startLon + c * cd;
-      
-      // Calcular valor NDVI simulado estable
-      const rawNoise = noise(cellLon * 25000 + (lat * 100), cellLat * 25000 + (lon * 100));
-      const ndvi = clamp(0.55 + rawNoise * 0.35, 0.15, 0.95);
-      const color = ndviColor(ndvi);
-      const label = ndviLabel(ndvi);
-
-      const rect = L.rectangle(
-        [[cellLat, cellLon], [cellLat + cd, cellLon + cd]],
-        {
-          fillColor: color,
-          fillOpacity: 0.65,
-          color: 'rgba(255,255,255,0.15)',
-          weight: 1
-        }
-      );
-      
-      rect.bindTooltip(`NDVI: ${ndvi.toFixed(2)} (${label})`, { sticky: true });
-      rect.addTo(amNdviLayer);
-    }
-  }
-
-  amNdviLayer.addTo(amMap);
-  
-  // Agregar una leyenda compacta flotante sobre el mapa
-  let legendEl = document.getElementById('am-ndvi-map-legend');
-  if (!legendEl) {
-    legendEl = document.createElement('div');
-    legendEl.id = 'am-ndvi-map-legend';
-    legendEl.style.position = 'absolute';
-    legendEl.style.bottom = '12px';
-    legendEl.style.left = '12px';
-    legendEl.style.zIndex = '1000';
-    legendEl.style.background = 'rgba(10,18,12,0.85)';
-    legendEl.style.color = '#fff';
-    legendEl.style.padding = '8px 12px';
-    legendEl.style.borderRadius = '12px';
-    legendEl.style.fontSize = '10px';
-    legendEl.style.border = '1px solid rgba(255,255,255,0.15)';
-    legendEl.style.backdropFilter = 'blur(10px)';
-    legendEl.style.display = 'flex';
-    legendEl.style.flexDirection = 'column';
-    legendEl.style.gap = '4px';
-    legendEl.style.pointerEvents = 'none';
-    legendEl.innerHTML = `
-      <div style="font-weight:700;margin-bottom:2px;font-size:11px;">📡 Escala NDVI</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#1a9641;display:inline-block;"></span> >0.75 Vigoroso</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#91cf60;display:inline-block;"></span> 0.65 - 0.75 Bueno</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#d9ef8b;display:inline-block;"></span> 0.55 - 0.65 Moderado</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#fee08b;display:inline-block;"></span> 0.45 - 0.55 Bajo</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#fc8d59;display:inline-block;"></span> 0.30 - 0.45 Muy Bajo</div>
-      <div style="display:flex;align-items:center;gap:6px;"><span style="width:8px;height:8px;border-radius:50%;background:#d73027;display:inline-block;"></span> <0.30 Crítico</div>
-    `;
-    amMap.getContainer().appendChild(legendEl);
-  } else {
-    legendEl.style.display = 'flex';
-  }
-};
+window.amToggleNdviOverlay = function() {};
 
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(amInitMapaInline, 800);
