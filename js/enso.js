@@ -121,6 +121,18 @@ function periodoAFecha(periodo, anio) {
  * @returns {Promise<Array<{periodo:string, anio:number, anom:number}>>}
  */
 async function fetchONI() {
+  const proxyUrl = window.AM_CONFIG?.ensoProxy;
+  if (proxyUrl) {
+    const proxyResp = await fetch(proxyUrl, { cache: "no-store" });
+    if (proxyResp.ok) {
+      const proxyJson = await proxyResp.json();
+      if (Array.isArray(proxyJson.datos) && proxyJson.datos.length > 0) {
+        return proxyJson.datos;
+      }
+      throw new Error("ENSO proxy sin registros ONI");
+    }
+  }
+
   const resp = await fetch(ONI_URL_TXT, { cache: "no-store" });
   if (!resp.ok) throw new Error(`NOAA CPC error ${resp.status}`);
   const texto = await resp.text();
