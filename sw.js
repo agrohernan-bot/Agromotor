@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v77';
+const CACHE_NAME    = 'agromotor-v78';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -60,6 +60,13 @@ const ASSETS_LOCAL = [
   './js/alerta-sanitaria.js',
   './js/dashboard.js',
   './js/dashboard-ux.js',
+  './js/bitacora.js',
+  './js/rendimiento-predictor.js',
+  './js/ndvi-monitor.js',
+  './js/notificaciones.js',
+  './js/malezas.js',
+  './js/huella-carbono.js',
+  './js/historial-campanas.js',
   './manifest.json',
 ];
 // CDN externos â€” se cachean en primer uso (Stale While Revalidate)
@@ -233,7 +240,6 @@ self.addEventListener('message', event => {
   const data = event.data;
   if (data === 'skipWaiting' || data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
-
 
 
 

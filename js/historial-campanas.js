@@ -27,6 +27,23 @@ function _lsI(k) { return parseInt(_ls(k))   || 0; }
 function _lsJ(k) { try { return JSON.parse(_ls(k) || 'null'); } catch(_) { return null; } }
 function _gv(id) { var el = document.getElementById(id); return el ? el.value : ''; }
 
+function _safeKeyPart(v) {
+  return String(v || 'local').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80);
+}
+
+function storageKey() {
+  var uid = (window.AM_SESION && window.AM_SESION.id) ? window.AM_SESION.id : 'local';
+  var loteId = window.AM_LOTE_ACTIVO || (window.AM && AM.store && AM.store.getState().loteId) || 'default';
+  return LS_KEY + '_' + _safeKeyPart(uid) + '_' + _safeKeyPart(loteId);
+}
+
+function migrarLegacySiHaceFalta(key) {
+  try {
+    if (key === LS_KEY || localStorage.getItem(key) || !localStorage.getItem(LS_KEY)) return;
+    localStorage.setItem(key, localStorage.getItem(LS_KEY));
+  } catch(_) {}
+}
+
 function capturar() {
   var cultivo    = _ls('am_siembra_cultivo') || _gv('s-cultivo') || '';
   var fechaSiem  = _ls('am_siembra_fecha')   || _gv('s-fecha')   || '';
@@ -72,10 +89,12 @@ function capturar() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function cargar() {
-  try { return JSON.parse(_ls(LS_KEY) || '[]'); } catch(_) { return []; }
+  var key = storageKey();
+  migrarLegacySiHaceFalta(key);
+  try { return JSON.parse(_ls(key) || '[]'); } catch(_) { return []; }
 }
 function persistir(arr) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(arr)); } catch(_) {}
+  try { localStorage.setItem(storageKey(), JSON.stringify(arr)); } catch(_) {}
 }
 
 function guardarSnapshot() {
