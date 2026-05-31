@@ -241,13 +241,6 @@ async function buscarSoilGrids(lat, lon) {
   // Propiedades: phh2o, clay, sand, silt, soc, nitrogen, bdod, cec
   // Profundidad: 0-5cm · Valor: mean
   try {
-    const props = 'phh2o,clay,sand,silt,soc,nitrogen,bdod,cec';
-    const url = `https://rest.isric.org/soilgrids/v2.0/properties/query` +
-      `?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}` +
-      `&property=${props.split(',').map(p=>`property=${p}`).join('&').replace(/property=/g,'').split('&').map(p=>`property=${p}`).join('&')}` +
-      `&depth=0-5cm&value=mean`;
-
-    // Construir URL correctamente
     const urlFinal = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=phh2o&property=clay&property=sand&property=silt&property=soc&property=nitrogen&property=bdod&property=cec&depth=0-5cm&value=mean`;
 
     const res = await Promise.race([

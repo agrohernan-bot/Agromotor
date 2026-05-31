@@ -41,6 +41,9 @@
  * @property {string}      version           "2.0"
  */
 
+(function () {
+'use strict';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -768,3 +771,5 @@ if (typeof module !== "undefined" && module.exports) {
     campanaAnterior,
   };
 }
+
+})(); // fin IIFE campanas.js

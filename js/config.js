@@ -4,7 +4,7 @@
 // Cargado antes de login.js, plagas.js y asistente.js
 // ════════════════════════════════════════════════════════
 
-const AM_CONFIG = {
+window.AM_CONFIG = {
   supabase: {
     url:     'https://xsbaqlqztppdpdcjgazz.supabase.co',
     anonKey: 'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK'
@@ -18,7 +18,7 @@ const AM_CONFIG = {
 // Usado por login.js, plagas.js y asistente.js.
 // La anon key es pública por diseño: Supabase la expone en el client.
 // La seguridad real viene de RLS (Row Level Security) en la DB.
-const AM_SB = supabase.createClient(
+window.AM_SB = supabase.createClient(
   AM_CONFIG.supabase.url,
   AM_CONFIG.supabase.anonKey,
   { auth: { persistSession: true, autoRefreshToken: true } }
