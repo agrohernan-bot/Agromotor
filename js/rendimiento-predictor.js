@@ -230,6 +230,9 @@ function render() {
   html += '</div>';
 
   el.innerHTML = html;
+
+  // Persistir P50 para que historial-campanas.js lo capture
+  try { localStorage.setItem('am_rend_pred_p50', datos.p50.toString()); } catch(_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
