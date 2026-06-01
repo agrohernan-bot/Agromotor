@@ -148,6 +148,39 @@
   margin-bottom: .35rem;
   font-style: italic;
 }
+
+/* Controles de corrección del polígono */
+.lnv-poly-controles {
+  display: none;
+  gap: .5rem;
+  margin-bottom: .4rem;
+}
+.lnv-poly-btn {
+  flex: 1;
+  padding: .38rem .6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(237,224,196,.15);
+  background: rgba(237,224,196,.06);
+  color: rgba(237,224,196,.65);
+  font-size: .72rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.lnv-poly-btn:hover {
+  background: rgba(237,224,196,.12);
+  border-color: rgba(237,224,196,.3);
+  color: rgba(237,224,196,.9);
+}
+.lnv-poly-btn-danger {
+  border-color: rgba(212,82,42,.2);
+  color: rgba(232,122,90,.7);
+}
+.lnv-poly-btn-danger:hover {
+  background: rgba(212,82,42,.1);
+  border-color: rgba(212,82,42,.45);
+  color: #E87A5A;
+}
 .lnv-mapa {
   height: 280px;
   border-radius: 10px;

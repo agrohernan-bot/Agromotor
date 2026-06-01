@@ -120,6 +120,10 @@
               '</div>',
             '</div>',
             '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.</div>',
+            '<div class="lnv-poly-controles" id="lnv-poly-controles">',
+              '<button class="lnv-poly-btn" id="lnv-btn-deshacer" onclick="window.lnvDeshacer()">← Deshacer último punto</button>',
+              '<button class="lnv-poly-btn lnv-poly-btn-danger" id="lnv-btn-reiniciar" onclick="window.lnvReiniciar()">↺ Reiniciar</button>',
+            '</div>',
             '<div id="lnv-mapa" class="lnv-mapa"></div>',
             '<div id="lnv-coord-display" class="lnv-coord"></div>',
           '</div>',
@@ -193,6 +197,14 @@
     cargarLoteEditadoEnMapa();
   }
 
+  function actualizarBotonesControl() {
+    var cont        = document.getElementById('lnv-poly-controles');
+    var btnDeshacer = document.getElementById('lnv-btn-deshacer');
+    var tienePuntos = _puntos.length > 0;
+    if (cont)        cont.style.display        = tienePuntos ? 'flex' : 'none';
+    if (btnDeshacer) btnDeshacer.style.display  = _poligonoCerrado ? 'none' : '';
+  }
+
   function onMapaClick(e) {
     var lat = e.latlng.lat;
     var lng = e.latlng.lng;
@@ -200,6 +212,7 @@
     if (_poligonoCerrado) return;
     _puntos.push([lat, lng]);
     redibujarPoligono();
+    actualizarBotonesControl();
 
     if (_puntos.length === 1) {
       actualizarHint('Seguí haciendo click para agregar puntos. Doble-click para cerrar.');
@@ -241,8 +254,45 @@
     _poligonoCerrado = true;
     redibujarPoligono();
     calcularSuperficiePoly();
-    actualizarHint('✅ Polígono cerrado. Podés ajustar la superficie manualmente.');
+    actualizarHint('✅ Polígono cerrado. Podés ajustar la superficie o usar ↺ Reiniciar para redibujarlo.');
+    actualizarBotonesControl();
   }
+
+  window.lnvDeshacer = function () {
+    if (_poligonoCerrado || _puntos.length === 0) return;
+    _puntos.pop();
+    redibujarPoligono();
+    if (_puntos.length >= 3) {
+      calcularSuperficiePoly();
+    } else {
+      _supPoly = 0;
+      _coords  = null;
+      var wrap    = document.getElementById('lnv-sup-auto-wrap');
+      var coordEl = document.getElementById('lnv-coord-display');
+      if (wrap)    wrap.style.display = 'none';
+      if (coordEl) coordEl.innerHTML  = '';
+    }
+    if (_puntos.length === 0) {
+      actualizarHint('Hacé click en el mapa para comenzar a dibujar el polígono.');
+    }
+    actualizarBotonesControl();
+  };
+
+  window.lnvReiniciar = function () {
+    if (_poly) { _poly.remove(); _poly = null; }
+    _puntos          = [];
+    _coords          = null;
+    _supPoly         = 0;
+    _poligonoCerrado = false;
+    var wrap    = document.getElementById('lnv-sup-auto-wrap');
+    var supInp  = document.getElementById('lnv-sup');
+    var coordEl = document.getElementById('lnv-coord-display');
+    if (wrap)    wrap.style.display = 'none';
+    if (supInp)  supInp.value       = '';
+    if (coordEl) coordEl.innerHTML  = '';
+    actualizarHint('Polígono eliminado. Hacé click para empezar de nuevo.');
+    actualizarBotonesControl();
+  };
 
   function calcularSuperficiePoly() {
     if (typeof turf === 'undefined' || _puntos.length < 3) return;
@@ -451,7 +501,8 @@
       redibujarPoligono();
       calcularSuperficiePoly();
       if (_poly) _mapa.fitBounds(_poly.getBounds().pad(0.12));
-      actualizarHint('Polígono cargado. Cambiá a otro modo solo si querés redibujarlo.');
+      actualizarHint('Polígono cargado. Usá ↺ Reiniciar si querés redibujarlo.');
+      actualizarBotonesControl();
       return;
     }
 
