@@ -124,7 +124,7 @@
     if (!lat) return null;
     var latN = parseFloat(lat);
     if (isNaN(latN)) return null;
-    var CV = (typeof CV_ZONAS !== 'undefined') ? CV_ZONAS : null;
+    var CV = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
     if (!CV) return null;
     var orden = ['pampeana_norte','pampeana_sur','semiarida','nea','noa'];
     for (var i = 0; i < orden.length; i++) {
@@ -145,7 +145,7 @@
     var dia = fecha.getDate();
 
     // Buscar ventana: primero en CV_ZONAS, luego en VENTANAS_EXTRA
-    var CV = (typeof CV_ZONAS !== 'undefined') ? CV_ZONAS : null;
+    var CV = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
     var ventanas = (CV && CV[zona] && CV[zona].cultivos[cultivo])
       ? CV[zona].cultivos[cultivo].ventana
       : (VENTANAS_EXTRA[zona] && VENTANAS_EXTRA[zona][cultivo]);
@@ -204,7 +204,7 @@
     if (!zona) return { pts: 15, label: 'Sin coordenadas del lote' };
     var lista = CULTIVOS_POR_ZONA[zona] || [];
     var idx   = lista.indexOf(cultivo);
-    var CV    = (typeof CV_ZONAS !== 'undefined') ? CV_ZONAS : null;
+    var CV    = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
     var zonaLabel = (CV && CV[zona]) ? CV[zona].label : zona;
     if (idx < 0) return { pts: 5,  label: 'No recomendado en ' + zonaLabel };
     if (idx === 0) return { pts: 25, label: zonaLabel + ' — cultivo principal ✓' };
@@ -246,7 +246,7 @@
 
     var lat = coord ? coord.split(',')[0] : null;
     var zona = detectarZona(lat);
-    var CV   = (typeof CV_ZONAS !== 'undefined') ? CV_ZONAS : null;
+    var CV   = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
 
     var pctAgua = aguaCC > 0 ? Math.min(100, Math.round(aguaMm / aguaCC * 100)) : -1;
 

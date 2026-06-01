@@ -31,6 +31,14 @@ function amCargarModulo(archivo, callback) {
     if (callback) callback();
     return;
   }
+  var yaExiste = Array.prototype.some.call(document.scripts, function(s) {
+    return s.src && s.src.indexOf('/js/' + archivo) !== -1;
+  });
+  if (yaExiste) {
+    AM_MODULOS_CARGADOS[archivo] = true;
+    if (callback) callback();
+    return;
+  }
   var script = document.createElement('script');
   var version = (window.AM_CONFIG && window.AM_CONFIG.assetVersion) || '64';
   script.src = 'js/' + archivo + '?v=' + version;

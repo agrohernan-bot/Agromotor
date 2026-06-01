@@ -15,6 +15,7 @@
   var _coords   = null;   // { lat, lng } del punto/centroide
   var _supPoly  = 0;      // superficie calculada del polígono (has)
   var _modoMapa = 'punto'; // 'punto' | 'poligono'
+  var _poligonoCerrado = false;
 
   // ── Centro por defecto: Pampa húmeda argentina ─────────
   var DEFAULT_LAT = -34.0;
@@ -164,6 +165,7 @@
 
     _mapa = L.map('lnv-mapa', { zoomControl: true, attributionControl: false })
               .setView([lat0, lng0], zoom0);
+    if (_mapa.doubleClickZoom) _mapa.doubleClickZoom.disable();
 
     // Imágenes satelitales Esri
     L.tileLayer(
@@ -178,6 +180,7 @@
     ).addTo(_mapa);
 
     _mapa.on('click', onMapaClick);
+    _mapa.on('dblclick', cerrarPoligono);
   }
 
   function onMapaClick(e) {
@@ -191,6 +194,7 @@
       actualizarCoordDisplay(_coords.lat, _coords.lng);
 
     } else {
+      if (_poligonoCerrado) return;
       // Modo polígono: agregar vértice
       _puntos.push([lat, lng]);
       redibujarPoligono();
@@ -229,14 +233,15 @@
       fillOpacity: 0.18
     }).addTo(_mapa);
 
-    // Doble-click cierra el polígono
-    _mapa.once('dblclick', function (e) {
-      L.DomEvent.stopPropagation(e);
-      _puntos.push(_puntos[0]); // cerrar
-      redibujarPoligono();
-      calcularSuperficiePoly();
-      actualizarHint('✅ Polígono cerrado. Podés ajustar la superficie manualmente.');
-    });
+  }
+
+  function cerrarPoligono(e) {
+    if (_modoMapa !== 'poligono' || _poligonoCerrado || _puntos.length < 3) return;
+    if (e) L.DomEvent.stopPropagation(e);
+    _poligonoCerrado = true;
+    redibujarPoligono();
+    calcularSuperficiePoly();
+    actualizarHint('✅ Polígono cerrado. Podés ajustar la superficie manualmente.');
   }
 
   function calcularSuperficiePoly() {
@@ -296,6 +301,7 @@
     _puntos  = [];
     _coords  = null;
     _supPoly = 0;
+    _poligonoCerrado = false;
     var wrap = document.getElementById('lnv-sup-auto-wrap');
     if (wrap) wrap.style.display = 'none';
     var coord = document.getElementById('lnv-coord-display');
@@ -329,6 +335,7 @@
 
     var coordStr = _coords ? (_coords.lat + ', ' + _coords.lng) : '';
     var supFinal = supVal || (_supPoly > 0 ? String(_supPoly) : '');
+    var poligono = getPoligonoPersistible();
 
     var id = 'lote_' + Date.now();
     var nuevoLote = {
@@ -338,6 +345,8 @@
         cultivo:    cultivo,
         coord:      coordStr,
         superficie: supFinal,
+        polygon:    poligono ? poligono.puntos : null,
+        geojson:    poligono ? poligono.geojson : null,
         ts:         Date.now(),
       }
     };
@@ -363,6 +372,35 @@
     cerrarLimpiar(true);
   };
 
+  function getPoligonoPersistible() {
+    if (_modoMapa !== 'poligono' || _puntos.length < 3) return null;
+
+    var puntos = _puntos.slice();
+    var first = puntos[0];
+    var last = puntos[puntos.length - 1];
+    if (first && last && first[0] === last[0] && first[1] === last[1]) {
+      puntos = puntos.slice(0, -1);
+    }
+    if (puntos.length < 3) return null;
+
+    var coords = puntos.map(function (p) { return [p[1], p[0]]; });
+    coords.push(coords[0]);
+
+    return {
+      puntos: puntos.map(function (p) {
+        return { lat: Number(p[0].toFixed(6)), lng: Number(p[1].toFixed(6)) };
+      }),
+      geojson: {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'Polygon',
+          coordinates: [coords]
+        }
+      }
+    };
+  }
+
   function cerrarLimpiar(removerDOM) {
     if (_mapa)   { try { _mapa.remove(); } catch(e) {} _mapa = null; }
     if (_marker) { _marker = null; }
@@ -370,6 +408,7 @@
     _puntos  = [];
     _coords  = null;
     _supPoly = 0;
+    _poligonoCerrado = false;
     _modoMapa = 'punto';
     if (removerDOM) {
       var el = document.getElementById('lnv-overlay');

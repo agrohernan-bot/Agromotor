@@ -57,7 +57,7 @@
         { mod: 'alerta-sanitaria', emoji: '🦠', titulo: 'Enfermedades',             desc: 'Alertas sanitarias por cultivo/región — umbrales INTA' },
         { mod: 'pulverizacion',    emoji: '💦', titulo: 'Ventanas de pulverización', desc: 'Análisis climatológico para aplicaciones fitosanitarias' },
         { mod: 'malezas',          emoji: '🌿', titulo: 'Malezas',                  desc: 'Manejo integrado de malezas resistentes' },
-        { mod: 'seguimiento',      emoji: '🛰', titulo: 'NDVI / Imágenes satelitales', desc: 'Monitoreo remoto del lote · índice de vegetación' },
+        { mod: 'mapa',             emoji: '🛰', titulo: 'Mapa / Imágenes satelitales', desc: 'Visualización geográfica del lote y capas satelitales' },
         { mod: 'economia',         emoji: '💰', titulo: 'Margen bruto real',         desc: 'Seguimiento del margen en tiempo real vs. presupuesto' },
         { mod: 'cosecha',          emoji: '🌾', titulo: 'Cosecha',                  desc: 'Estimación de rendimiento y logística de cosecha' },
         { mod: 'bitacora',         emoji: '📓', titulo: 'Bitácora de labores',       desc: 'Registro cronológico de todas las labores del lote' },
