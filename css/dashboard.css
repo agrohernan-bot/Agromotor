@@ -612,6 +612,43 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   margin-top: .15rem;
 }
 
+/* Thumbnail satelital del lote */
+.dl-card-mapa {
+  margin: -1.1rem -1.15rem .7rem;
+  height: 110px;
+  border-radius: 15px 15px 0 0;
+  overflow: hidden;
+  position: relative;
+  pointer-events: none;
+  background: #0e1f13;
+  z-index: 0;
+}
+.dl-card-mapa .leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background: #0e1f13;
+}
+.dl-card-mapa .leaflet-control-container { display: none; }
+@media (max-width: 640px) {
+  .dl-card-mapa {
+    margin-top: -3.1rem;
+    height: 100px;
+  }
+}
+
+/* Clima en cards */
+.dl-card-clima {
+  display: flex;
+  align-items: center;
+  gap: .2rem;
+  font-size: .72rem;
+  color: rgba(237,224,196,.55);
+  padding-top: .1rem;
+}
+.dl-clima-sep {
+  color: rgba(237,224,196,.2);
+}
+
 /* Balance hídrico mini */
 .dl-hidrico {
   margin-top: .15rem;

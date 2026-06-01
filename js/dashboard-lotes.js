@@ -70,6 +70,8 @@
   var _loteAbierto = null;
   var _seccionAbierta = null;
   var _modContext = null;
+  var _climaCache = {};
+  var _mapaInstances = {};
 
   // ── DETERMINAR ESTADO DEL LOTE ────────────────────────
   function getEstado(lote) {
@@ -93,18 +95,49 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // ── COORDENADAS DEL LOTE ─────────────────────────────
+  function _coordsFromLote(lote) {
+    var d = lote.data || {};
+    if (Array.isArray(d.polygon) && d.polygon.length > 0) {
+      var sLat = 0, sLng = 0;
+      d.polygon.forEach(function(p) { sLat += p.lat; sLng += p.lng; });
+      return { lat: sLat / d.polygon.length, lng: sLng / d.polygon.length };
+    }
+    if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+      var ring = d.geojson.geometry.coordinates[0] || [];
+      if (ring.length > 0) {
+        var rLat = 0, rLng = 0;
+        ring.forEach(function(c) { rLat += c[1]; rLng += c[0]; });
+        return { lat: rLat / ring.length, lng: rLng / ring.length };
+      }
+    }
+    if (d.coord) {
+      var parts = String(d.coord).split(',');
+      if (parts.length === 2) {
+        var lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) return { lat: lat, lng: lng };
+      }
+    }
+    return null;
+  }
+
   // ── RENDER PANEL RAÍZ ─────────────────────────────────
   function renderPanel() {
     var panel = document.getElementById('mod-lotes');
     if (!panel) return;
 
-    // Calcular el estado de la pantalla actual
+    _destroyMiniMaps();
     if (_seccionAbierta && _loteAbierto) {
       panel.innerHTML = renderSeccion(_loteAbierto, _seccionAbierta);
     } else if (_loteAbierto) {
       panel.innerHTML = renderHub(_loteAbierto);
     } else {
       panel.innerHTML = renderCards();
+      var lotes = window.AM_LOTES || [];
+      setTimeout(function() {
+        _initMiniMaps(lotes);
+        _fetchClimaCards(lotes);
+      }, 30);
     }
   }
 
@@ -155,19 +188,23 @@
   }
 
   function renderCard(lote) {
-    var d       = lote.data || {};
-    var ck      = d.calcKeys || {};
-    var estado  = getEstado(lote);
-    var eConf   = ESTADOS[estado];
-    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var fecha   = d.fecha   || ck['am_siembra_fecha']   || '';
-    var coord   = d.coord   || '';
+    var d        = lote.data || {};
+    var ck       = d.calcKeys || {};
+    var estado   = getEstado(lote);
+    var eConf    = ESTADOS[estado];
+    var cultivo  = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha    = d.fecha   || ck['am_siembra_fecha']   || '';
     var fenEtapa = ck['am_fen_etapa_hoy'] || '';
-    var aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
-    var aguaCC  = parseFloat(ck['am_hidrico_cap_max_mm']) || 0;
-    var alertas = 0;
+    var aguaMm   = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
+    var aguaCC   = parseFloat(ck['am_hidrico_cap_max_mm']) || 0;
+    var sup      = d.superficie || '';
+    var sueloTex = d['sg-textura'] || ck['am_siembra_suelo'] || '';
+    var alertas  = 0;
     try { alertas = (JSON.parse(ck['am_alertas_activas'] || '[]') || []).length; } catch(e) {}
-    var isActivo = lote.id === window.AM_LOTE_ACTIVO;
+    var isActivo   = lote.id === window.AM_LOTE_ACTIVO;
+    var hasPolygon = (Array.isArray(d.polygon) && d.polygon.length > 2) ||
+                     !!(d.geojson && d.geojson.geometry);
+    var coords     = _coordsFromLote(lote);
 
     var html = '<div class="dl-card' + (isActivo ? ' dl-card-activa' : '') + '" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">';
 
@@ -175,6 +212,11 @@
     html +=   '<button class="dl-card-action" onclick="window.dlEditarLote(\'' + esc(lote.id) + '\')" title="Editar lote">✎</button>';
     html +=   '<button class="dl-card-action dl-card-action-danger" onclick="window.dlEliminarLote(\'' + esc(lote.id) + '\')" title="Eliminar lote">🗑</button>';
     html += '</div>';
+
+    // Thumbnail satelital del polígono
+    if (hasPolygon) {
+      html += '<div class="dl-card-mapa" id="dl-mapa-' + esc(lote.id) + '"></div>';
+    }
 
     // Cabecera de card
     html += '<div class="dl-card-head">';
@@ -191,19 +233,20 @@
       html += '<div class="dl-card-empty">Tocá para comenzar a planificar este lote</div>';
     } else {
       html += '<div class="dl-card-body">';
-      if (cultivo) html += kv('🌾 Cultivo', cultivo);
-      if (fecha)   html += kv('📅 Siembra', fecha);
-      if (fenEtapa) html += kv('🌱 Etapa',  fenEtapa);
+      if (cultivo)  html += kv('🌾 Cultivo', cultivo);
+      if (fecha)    html += kv('📅 Siembra', fecha);
+      if (fenEtapa) html += kv('🌱 Etapa',   fenEtapa);
+      if (sup)      html += kv('📐 Área',    sup + ' ha');
+      if (sueloTex) html += kv('🌍 Suelo',   sueloTex);
       if (aguaCC > 0) {
         var pct = Math.min(100, Math.round(aguaMm / aguaCC * 100));
         var bcolor = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
         html += '<div class="dl-hidrico">';
-        html +=   '<div class="dl-hidrico-top"><span>💧 Balance hídrico</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
+        html +=   '<div class="dl-hidrico-top"><span>💧 Humedad suelo</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
         html +=   '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + bcolor + '"></div></div>';
         html += '</div>';
       }
-      if (coord) html += '<div class="dl-coord">📍 ' + esc(coord) + '</div>';
-      // Barra de progreso fenológico del ciclo
+      if (coords) html += '<div id="dl-clima-' + esc(lote.id) + '"></div>';
       html += renderBarraCiclo(ck, fecha);
       html += '</div>';
     }
@@ -487,6 +530,95 @@
         '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + col + '"></div></div>',
       '</div>'
     ].join('');
+  }
+
+  // ── MINI-MAPA SATELITAL ──────────────────────────────
+  function _destroyMiniMaps() {
+    Object.keys(_mapaInstances).forEach(function(id) {
+      try { _mapaInstances[id].remove(); } catch(e) {}
+    });
+    _mapaInstances = {};
+  }
+
+  function _initMiniMaps(lotes) {
+    if (typeof L === 'undefined') return;
+    lotes.forEach(function(lote) {
+      var d = lote.data || {};
+      var leafletCoords;
+      if (Array.isArray(d.polygon) && d.polygon.length > 2) {
+        leafletCoords = d.polygon.map(function(p) { return [p.lat, p.lng]; });
+      } else if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+        var ring = d.geojson.geometry.coordinates[0] || [];
+        if (ring.length > 2) leafletCoords = ring.map(function(c) { return [c[1], c[0]]; });
+      }
+      if (!leafletCoords) return;
+      var el = document.getElementById('dl-mapa-' + lote.id);
+      if (!el) return;
+      try {
+        var map = L.map(el, {
+          zoomControl: false, attributionControl: false,
+          dragging: false, touchZoom: false, doubleClickZoom: false,
+          scrollWheelZoom: false, keyboard: false, tap: false
+        });
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19, tileSize: 256
+        }).addTo(map);
+        var poly = L.polygon(leafletCoords, {
+          color: '#6DBF82', weight: 2,
+          fillColor: '#6DBF82', fillOpacity: 0.15
+        }).addTo(map);
+        map.fitBounds(poly.getBounds(), { padding: [6, 6] });
+        map.invalidateSize();
+        _mapaInstances[lote.id] = map;
+      } catch(e) {}
+    });
+  }
+
+  // ── CLIMA ASÍNCRONO EN CARDS ─────────────────────────
+  function _fetchClimaCards(lotes) {
+    lotes.forEach(function(lote) {
+      var coords = _coordsFromLote(lote);
+      if (!coords) return;
+      var el = document.getElementById('dl-clima-' + lote.id);
+      if (!el) return;
+      var cKey = coords.lat.toFixed(2) + ',' + coords.lng.toFixed(2);
+      if (_climaCache[cKey]) {
+        _renderClimaInCard(el, _climaCache[cKey]);
+        return;
+      }
+      var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + coords.lat.toFixed(4) +
+                '&longitude=' + coords.lng.toFixed(4) +
+                '&current=temperature_2m&daily=precipitation_probability_max' +
+                '&forecast_days=1&timezone=auto';
+      fetch(url)
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+          if (!data) return;
+          var temp = data.current ? data.current.temperature_2m : null;
+          var prob = (data.daily && data.daily.precipitation_probability_max)
+                     ? data.daily.precipitation_probability_max[0] : null;
+          var result = { temp: temp, prob: prob };
+          _climaCache[cKey] = result;
+          var el2 = document.getElementById('dl-clima-' + lote.id);
+          if (el2) _renderClimaInCard(el2, result);
+        })
+        .catch(function() {});
+    });
+  }
+
+  function _renderClimaInCard(el, data) {
+    var parts = [];
+    if (data.temp !== null && data.temp !== undefined) {
+      parts.push('🌡️ ' + parseFloat(data.temp).toFixed(1) + '°C');
+    }
+    if (data.prob !== null && data.prob !== undefined) {
+      var p = parseInt(data.prob, 10);
+      var col = p > 60 ? '#7AAEF5' : p > 30 ? '#C8A255' : 'rgba(237,224,196,.4)';
+      parts.push('<span style="color:' + col + '">🌧️ ' + p + '%</span>');
+    }
+    if (parts.length) {
+      el.innerHTML = '<div class="dl-card-clima">' + parts.join('<span class="dl-clima-sep"> · </span>') + '</div>';
+    }
   }
 
   // ── HELPERS DE HTML ──────────────────────────────────
