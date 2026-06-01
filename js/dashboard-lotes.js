@@ -57,6 +57,7 @@
         { mod: 'alerta-sanitaria', emoji: '🦠', titulo: 'Enfermedades',             desc: 'Alertas sanitarias por cultivo/región — umbrales INTA' },
         { mod: 'pulverizacion',    emoji: '💦', titulo: 'Ventanas de pulverización', desc: 'Análisis climatológico para aplicaciones fitosanitarias' },
         { mod: 'malezas',          emoji: '🌿', titulo: 'Malezas',                  desc: 'Manejo integrado de malezas resistentes' },
+        { mod: 'seguimiento',      emoji: '🛰', titulo: 'NDVI / Imágenes satelitales', desc: 'Monitoreo remoto del lote · índice de vegetación' },
         { mod: 'economia',         emoji: '💰', titulo: 'Margen bruto real',         desc: 'Seguimiento del margen en tiempo real vs. presupuesto' },
         { mod: 'cosecha',          emoji: '🌾', titulo: 'Cosecha',                  desc: 'Estimación de rendimiento y logística de cosecha' },
         { mod: 'bitacora',         emoji: '📓', titulo: 'Bitácora de labores',       desc: 'Registro cronológico de todas las labores del lote' },
@@ -119,7 +120,11 @@
     html += '<div class="dl-page-header">';
     html +=   '<div>';
     html +=     '<h1 class="dl-page-titulo">Mis Lotes</h1>';
-    html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + lotes.length + ' / ' + limite + '</span></p>';
+    // Mostrar contador solo si hay sesión activa (limite > 1 = logueado)
+    var contadorTxt = (limite > 1)
+      ? lotes.length + ' / ' + limite + ' lotes'
+      : lotes.length + (lotes.length === 1 ? ' lote' : ' lotes');
+    html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + contadorTxt + '</span></p>';
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
     html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
@@ -363,7 +368,7 @@
 
     // ENSO
     var ensoColor = ensoFase.includes('Niño') ? '#E87A5A' : ensoFase.includes('Niña') ? '#7AAEF5' : '#C8A255';
-    var ensoIco   = ensoFase.includes('Niño') ? '🌡️' : ensoFase.includes('Niña') ? '💧' : '⚖️';
+    var ensoIco   = ensoFase.includes('Niño') ? '🌡️' : ensoFase.includes('Niña') ? '🌬️' : '⚖️';
 
     var html = '<div class="dlw-panel">';
 
