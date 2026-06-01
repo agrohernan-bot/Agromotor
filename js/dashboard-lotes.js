@@ -293,7 +293,13 @@
 
     // Widgets contextuales según sección
     if (secKey === 'monitoreo') html += renderWidgetMonitoreo(lote);
-    if (secKey === 'planfina')  html += renderWidgetPlanFina(lote);
+    if (secKey === 'planfina') {
+      html += renderWidgetPlanFina(lote);
+      // Score de cultivos (si score-cultivares.js está cargado)
+      if (typeof window.dlRenderScoreCultivares === 'function') {
+        html += window.dlRenderScoreCultivares(lote);
+      }
+    }
 
     // Grid de módulos
     html += '<div class="dl-modulos-grid">';

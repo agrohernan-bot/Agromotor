@@ -1,0 +1,210 @@
+/* ════════════════════════════════════════════════════════
+   SCORE DE CULTIVARES (sc-*)
+   feature/nueva-ux
+   ════════════════════════════════════════════════════════ */
+
+.sc-widget {
+  background: rgba(10,22,14,.6);
+  border: 1px solid rgba(237,224,196,.09);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(6px);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.sc-header {
+  padding: .85rem 1.1rem .7rem;
+  border-bottom: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.sc-titulo {
+  font-size: .88rem;
+  font-weight: 700;
+  color: rgba(237,224,196,.85);
+}
+.sc-subtitulo {
+  font-size: .72rem;
+  font-weight: 400;
+  color: rgba(237,224,196,.38);
+  margin-left: .35rem;
+}
+.sc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.sc-chip {
+  background: rgba(237,224,196,.07);
+  color: rgba(237,224,196,.5);
+  border: 1px solid rgba(237,224,196,.1);
+  border-radius: 10px;
+  padding: .18em .6em;
+  font-size: .68rem;
+}
+.sc-chip-warn {
+  background: rgba(212,82,42,.12);
+  color: #E87A5A;
+  border-color: rgba(212,82,42,.25);
+}
+
+/* ── Tabla ─────────────────────────────────────────────── */
+.sc-tabla {
+  overflow-x: auto;
+}
+.sc-tabla-head {
+  display: grid;
+  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .55fr .4fr;
+  gap: .25rem;
+  padding: .4rem 1.1rem;
+  background: rgba(237,224,196,.04);
+  border-bottom: 1px solid rgba(237,224,196,.06);
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.3);
+}
+.sc-row {
+  display: grid;
+  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .55fr .4fr;
+  gap: .25rem;
+  align-items: center;
+  padding: .55rem 1.1rem;
+  border-bottom: 1px solid rgba(237,224,196,.05);
+  transition: background .15s;
+}
+.sc-row:last-child { border-bottom: none; }
+.sc-row:hover { background: rgba(237,224,196,.04); }
+.sc-row-activa {
+  background: rgba(109,191,130,.07) !important;
+  border-color: rgba(109,191,130,.12);
+}
+.sc-row-top {
+  background: rgba(109,191,130,.04);
+}
+
+/* ── Columna cultivo ──────────────────────────────────── */
+.sc-cultivo {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.sc-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+.sc-nombre {
+  font-size: .85rem;
+  font-weight: 600;
+  color: rgba(237,224,196,.8);
+}
+.sc-activo-badge {
+  font-size: .58rem;
+  background: rgba(109,191,130,.15);
+  color: #6DBF82;
+  border: 1px solid rgba(109,191,130,.25);
+  border-radius: 6px;
+  padding: .05em .4em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.sc-top-badge {
+  font-size: .58rem;
+  background: rgba(200,162,85,.15);
+  color: #C8A255;
+  border: 1px solid rgba(200,162,85,.25);
+  border-radius: 6px;
+  padding: .05em .4em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ── Celdas de sub-scores ─────────────────────────────── */
+.sc-pts-cell {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.sc-pts-bar {
+  height: 4px;
+  background: rgba(237,224,196,.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sc-pts-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+.sc-pts-num {
+  font-size: .65rem;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+
+/* ── Score total ──────────────────────────────────────── */
+.sc-total {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* ── Botón seleccionar ────────────────────────────────── */
+.sc-btn-sel {
+  background: rgba(109,191,130,.12);
+  border: 1px solid rgba(109,191,130,.25);
+  color: #6DBF82;
+  border-radius: 8px;
+  padding: .25rem .5rem;
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.sc-btn-sel:hover {
+  background: rgba(109,191,130,.22);
+  border-color: rgba(109,191,130,.45);
+}
+.sc-sel-actual {
+  font-size: .9rem;
+  color: #6DBF82;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Nota metodológica ────────────────────────────────── */
+.sc-nota {
+  padding: .55rem 1.1rem;
+  font-size: .62rem;
+  color: rgba(237,224,196,.2);
+  font-style: italic;
+  line-height: 1.4;
+  border-top: 1px solid rgba(237,224,196,.05);
+}
+
+/* ── Alineación columnas específicas ─────────────────── */
+.sc-col-total { text-align: right; }
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  .sc-tabla-head,
+  .sc-row {
+    grid-template-columns: 1.4fr .5fr .5fr 0 0 .55fr .35fr;
+  }
+  .sc-col-enso,
+  .sc-col-zona { display: none; }
+  .sc-titulo { font-size: .82rem; }
+}
+@media (max-width: 480px) {
+  .sc-tabla-head,
+  .sc-row {
+    grid-template-columns: 1.3fr .5fr 0 0 0 .5fr .35fr;
+  }
+  .sc-col-agua { display: none; }
+}
