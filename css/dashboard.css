@@ -438,12 +438,12 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
 }
 .dl-card-actions {
   position: absolute;
-  top: .65rem;
-  right: .65rem;
+  top: .75rem;
+  right: .75rem;
   display: flex;
-  gap: .3rem;
+  gap: .4rem;
   z-index: 3;
-  opacity: .82;
+  opacity: 1;
   transition: opacity .15s;
 }
 .dl-card:hover .dl-card-actions,
@@ -451,8 +451,8 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   opacity: 1;
 }
 .dl-card-action {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
   border: 1px solid rgba(237,224,196,.12);
   background: rgba(10,18,12,.72);
@@ -461,7 +461,7 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: .78rem;
+  font-size: .9rem;
 }
 .dl-card-action:hover {
   border-color: rgba(109,191,130,.35);
@@ -470,6 +470,21 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
 .dl-card-action-danger:hover {
   border-color: rgba(212,82,42,.45);
   color: #E87A5A;
+}
+
+@media (max-width: 640px) {
+  .dl-card {
+    padding-top: 3.1rem;
+  }
+  .dl-card-actions {
+    top: .7rem;
+    right: .7rem;
+  }
+  .dl-card-action {
+    width: 38px;
+    height: 38px;
+    background: rgba(237,224,196,.08);
+  }
 }
 
 /* Slot vacío */

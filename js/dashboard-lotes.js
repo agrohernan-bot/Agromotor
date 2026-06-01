@@ -173,9 +173,7 @@
 
     html += '<div class="dl-card-actions" onclick="event.stopPropagation()">';
     html +=   '<button class="dl-card-action" onclick="window.dlEditarLote(\'' + esc(lote.id) + '\')" title="Editar lote">✎</button>';
-    if ((window.AM_LOTES || []).length > 1) {
-      html += '<button class="dl-card-action dl-card-action-danger" onclick="window.dlEliminarLote(\'' + esc(lote.id) + '\')" title="Eliminar lote">🗑</button>';
-    }
+    html +=   '<button class="dl-card-action dl-card-action-danger" onclick="window.dlEliminarLote(\'' + esc(lote.id) + '\')" title="Eliminar lote">🗑</button>';
     html += '</div>';
 
     // Cabecera de card
@@ -582,14 +580,19 @@
   window.dlEliminarLote = function (loteId) {
     var lote = getLote(loteId);
     if (!lote) return;
-    if ((window.AM_LOTES || []).length <= 1) {
-      if (typeof amToast === 'function') amToast('Debe haber al menos un lote activo.', 'error');
-      return;
-    }
-    if (!confirm('¿Eliminar el lote "' + lote.nombre + '" y todos sus datos?')) return;
-    window.AM_LOTES = (window.AM_LOTES || []).filter(function (l) { return l.id !== loteId; });
-    if (window.AM_LOTE_ACTIVO === loteId) {
-      window.AM_LOTE_ACTIVO = window.AM_LOTES[0] ? window.AM_LOTES[0].id : 'default';
+    var esUltimo = (window.AM_LOTES || []).length <= 1;
+    var pregunta = esUltimo
+      ? '¿Eliminar los datos del lote "' + lote.nombre + '"? Quedará un lote vacío para empezar de nuevo.'
+      : '¿Eliminar el lote "' + lote.nombre + '" y todos sus datos?';
+    if (!confirm(pregunta)) return;
+    if (esUltimo) {
+      window.AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: {} }];
+      window.AM_LOTE_ACTIVO = 'default';
+    } else {
+      window.AM_LOTES = (window.AM_LOTES || []).filter(function (l) { return l.id !== loteId; });
+      if (window.AM_LOTE_ACTIVO === loteId) {
+        window.AM_LOTE_ACTIVO = window.AM_LOTES[0] ? window.AM_LOTES[0].id : 'default';
+      }
     }
     if (_loteAbierto === loteId) {
       _loteAbierto = null;

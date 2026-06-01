@@ -117,6 +117,15 @@
   margin-bottom: .15rem;
 }
 .lnv-mapa-modos { display: flex; gap: .35rem; }
+.lnv-modo-fijo {
+  background: rgba(109,191,130,.15);
+  border: 1px solid rgba(109,191,130,.35);
+  color: #6DBF82;
+  border-radius: 14px;
+  padding: .2rem .65rem;
+  font-size: .72rem;
+  font-weight: 700;
+}
 .lnv-modo-btn {
   background: rgba(237,224,196,.06);
   border: 1px solid rgba(237,224,196,.1);

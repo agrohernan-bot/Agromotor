@@ -14,7 +14,7 @@
   var _puntos   = [];     // puntos del polígono en construcción
   var _coords   = null;   // { lat, lng } del punto/centroide
   var _supPoly  = 0;      // superficie calculada del polígono (has)
-  var _modoMapa = 'poligono'; // 'punto' | 'poligono'
+  var _modoMapa = 'poligono';
   var _poligonoCerrado = false;
   var _editLoteId = null;
 
@@ -110,10 +110,7 @@
             '<div class="lnv-mapa-header">',
               '<label class="lnv-label">Ubicación del lote</label>',
               '<div class="lnv-mapa-modos">',
-                '<button id="lnv-btn-punto" class="lnv-modo-btn"',
-                '  onclick="window.lnvSetModo(\'punto\')" title="Marcar un punto">📍 Punto</button>',
-                '<button id="lnv-btn-poli" class="lnv-modo-btn lnv-modo-activo"',
-                '  onclick="window.lnvSetModo(\'poligono\')" title="Dibujar perímetro">✏ Polígono</button>',
+                '<span class="lnv-modo-fijo">✏ Polígono obligatorio</span>',
               '</div>',
             '</div>',
             '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.</div>',
@@ -194,25 +191,15 @@
     var lat = e.latlng.lat;
     var lng = e.latlng.lng;
 
-    if (_modoMapa === 'punto') {
-      // Modo punto: marcar ubicación del lote
-      _coords = { lat: lat.toFixed(5), lng: lng.toFixed(5) };
-      actualizarMarcador(lat, lng);
-      actualizarCoordDisplay(_coords.lat, _coords.lng);
+    if (_poligonoCerrado) return;
+    _puntos.push([lat, lng]);
+    redibujarPoligono();
 
-    } else {
-      if (_poligonoCerrado) return;
-      // Modo polígono: agregar vértice
-      _puntos.push([lat, lng]);
-      redibujarPoligono();
-
-      if (_puntos.length === 1) {
-        actualizarHint('Seguí haciendo click para agregar puntos. Doble-click para cerrar.');
-      }
-      if (_puntos.length >= 3) {
-        // Calcular área con Turf.js
-        calcularSuperficiePoly();
-      }
+    if (_puntos.length === 1) {
+      actualizarHint('Seguí haciendo click para agregar puntos. Doble-click para cerrar.');
+    }
+    if (_puntos.length >= 3) {
+      calcularSuperficiePoly();
     }
   }
 
@@ -296,12 +283,9 @@
 
   // ── Cambio de modo mapa ───────────────────────────────
   window.lnvSetModo = function (modo) {
-    _modoMapa = modo;
+    _modoMapa = 'poligono';
 
     // Actualizar botones
-    document.getElementById('lnv-btn-punto')?.classList.toggle('lnv-modo-activo', modo === 'punto');
-    document.getElementById('lnv-btn-poli')?.classList.toggle('lnv-modo-activo', modo === 'poligono');
-
     // Limpiar estado previo
     if (_marker) { _marker.remove(); _marker = null; }
     if (_poly)   { _poly.remove();   _poly   = null; }
@@ -313,12 +297,7 @@
     if (wrap) wrap.style.display = 'none';
     var coord = document.getElementById('lnv-coord-display');
     if (coord) coord.innerHTML = '';
-
-    if (modo === 'punto') {
-      actualizarHint('Hacé click en el mapa para ubicar el lote');
-    } else {
-      actualizarHint('Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.');
-    }
+    actualizarHint('Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.');
   };
 
   // ══════════════════════════════════════════════════════
@@ -344,6 +323,11 @@
     var coordStr = _coords ? (_coords.lat + ', ' + _coords.lng) : '';
     var supFinal = supVal || (_supPoly > 0 ? String(_supPoly) : '');
     var poligono = getPoligonoPersistible();
+    if (!poligono) {
+      if (typeof amToast === 'function') amToast('Dibujá el polígono del lote antes de guardar.', 'error');
+      else alert('Dibujá el polígono del lote antes de guardar.');
+      return;
+    }
 
     var id = _editLoteId || ('lote_' + Date.now());
     var data = {
@@ -352,19 +336,8 @@
       superficie: supFinal,
       ts:         Date.now(),
     };
-    if (poligono) {
-      data.polygon = poligono.puntos;
-      data.geojson = poligono.geojson;
-    } else if (_editLoteId) {
-      var previo = getLoteEditado();
-      if (previo && previo.data) {
-        data.polygon = previo.data.polygon || null;
-        data.geojson = previo.data.geojson || null;
-      }
-    } else {
-      data.polygon = null;
-      data.geojson = null;
-    }
+    data.polygon = poligono.puntos;
+    data.geojson = poligono.geojson;
 
     if (_editLoteId) {
       var loteExistente = (window.AM_LOTES || []).find(function (l) { return l.id === _editLoteId; });
@@ -465,13 +438,7 @@
       var parts = String(d.coord).split(',');
       if (parts.length === 2) {
         var lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
-        if (!isNaN(lat) && !isNaN(lng)) {
-          window.lnvSetModo('punto');
-          _coords = { lat: lat.toFixed(5), lng: lng.toFixed(5) };
-          actualizarMarcador(lat, lng);
-          actualizarCoordDisplay(_coords.lat, _coords.lng);
-          _mapa.setView([lat, lng], 14);
-        }
+        if (!isNaN(lat) && !isNaN(lng)) _mapa.setView([lat, lng], 14);
       }
     }
   }
