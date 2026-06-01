@@ -69,6 +69,7 @@
   // ── ESTADO INTERNO ────────────────────────────────────
   var _loteAbierto = null;
   var _seccionAbierta = null;
+  var _modContext = null;
 
   // ── DETERMINAR ESTADO DEL LOTE ────────────────────────
   function getEstado(lote) {
@@ -170,6 +171,13 @@
 
     var html = '<div class="dl-card' + (isActivo ? ' dl-card-activa' : '') + '" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">';
 
+    html += '<div class="dl-card-actions" onclick="event.stopPropagation()">';
+    html +=   '<button class="dl-card-action" onclick="window.dlEditarLote(\'' + esc(lote.id) + '\')" title="Editar lote">✎</button>';
+    if ((window.AM_LOTES || []).length > 1) {
+      html += '<button class="dl-card-action dl-card-action-danger" onclick="window.dlEliminarLote(\'' + esc(lote.id) + '\')" title="Eliminar lote">🗑</button>';
+    }
+    html += '</div>';
+
     // Cabecera de card
     html += '<div class="dl-card-head">';
     html +=   '<div class="dl-card-nombre"><span class="dl-dot" style="background:' + eConf.dot + '"></span>' + esc(lote.nombre) + '</div>';
@@ -245,7 +253,8 @@
 
     // Acciones rápidas del lote
     html +=   '<div class="dl-hub-acciones">';
-    html +=     '<button class="dl-hub-accion" onclick="window.amEliminarLoteGlobal(); setTimeout(window.dlRefrescar,500)" title="Eliminar lote">🗑</button>';
+    html +=     '<button class="dl-hub-accion" onclick="window.dlEditarLote(\'' + esc(loteId) + '\')" title="Editar lote">✎ Editar</button>';
+    html +=     '<button class="dl-hub-accion dl-hub-accion-danger" onclick="window.dlEliminarLote(\'' + esc(loteId) + '\')" title="Eliminar lote">🗑 Eliminar</button>';
     html +=   '</div>';
     html += '</div>';
 
@@ -526,9 +535,72 @@
 
   window.dlAbrirModulo = function (mod, loteId) {
     activarLote(loteId);
+    _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod };
     // Ir a vista clásica y abrir el módulo
     window.dlIrClasica();
     if (typeof switchMod === 'function') switchMod(mod);
+  };
+
+  window.dlVolverAnterior = function () {
+    var ctx = _modContext || {};
+    document.body.classList.remove('dl-modo-clasico');
+    document.body.classList.add('dl-modo-nuevo');
+
+    document.querySelectorAll('.module-panel').forEach(function (p) {
+      p.classList.remove('active');
+    });
+    var lotes = document.getElementById('mod-lotes');
+    if (lotes) lotes.classList.add('active');
+
+    if (ctx.loteId && getLote(ctx.loteId)) {
+      _loteAbierto = ctx.loteId;
+      _seccionAbierta = ctx.secKey || null;
+    } else {
+      _loteAbierto = null;
+      _seccionAbierta = null;
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.mod === 'lotes');
+    });
+    var btnVolver = document.getElementById('btn-volver-dash');
+    if (btnVolver) btnVolver.classList.add('hidden');
+    var btnPDF = document.getElementById('btn-pdf-modulo');
+    if (btnPDF) btnPDF.classList.add('hidden');
+    renderPanel();
+  };
+
+  window.dlEditarLote = function (loteId) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    activarLote(loteId);
+    if (typeof window.dlMostrarModalNuevoLote === 'function') {
+      window.dlMostrarModalNuevoLote(loteId);
+    }
+  };
+
+  window.dlEliminarLote = function (loteId) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    if ((window.AM_LOTES || []).length <= 1) {
+      if (typeof amToast === 'function') amToast('Debe haber al menos un lote activo.', 'error');
+      return;
+    }
+    if (!confirm('¿Eliminar el lote "' + lote.nombre + '" y todos sus datos?')) return;
+    window.AM_LOTES = (window.AM_LOTES || []).filter(function (l) { return l.id !== loteId; });
+    if (window.AM_LOTE_ACTIVO === loteId) {
+      window.AM_LOTE_ACTIVO = window.AM_LOTES[0] ? window.AM_LOTES[0].id : 'default';
+    }
+    if (_loteAbierto === loteId) {
+      _loteAbierto = null;
+      _seccionAbierta = null;
+    }
+    if (_modContext && _modContext.loteId === loteId) _modContext = null;
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof cacheCargar === 'function') cacheCargar();
+    if (typeof amRenderSelectLotes === 'function') amRenderSelectLotes();
+    if (typeof amToast === 'function') amToast('Lote "' + lote.nombre + '" eliminado', 'ok');
+    renderPanel();
   };
 
   function activarLote(loteId) {
@@ -557,7 +629,11 @@
     var dash = document.getElementById('mod-dashboard');
     if (dash) dash.classList.add('active');
     var btnVolver = document.getElementById('btn-volver-dash');
-    if (btnVolver) btnVolver.classList.add('hidden');
+    if (btnVolver) {
+      btnVolver.classList.add('hidden');
+      btnVolver.textContent = '← Volver';
+      btnVolver.title = 'Volver';
+    }
     var btnPDF = document.getElementById('btn-pdf-modulo');
     if (btnPDF) btnPDF.classList.add('hidden');
     // Sincronizar nav tab
@@ -626,15 +702,29 @@
     var _orig = window.switchMod;
     if (typeof _orig !== 'function') return;
     window.switchMod = function (mod) {
-      if (mod === 'lotes') {
+      if (mod === 'lotes' || mod === 'dashboard') {
         window.dlVolverNueva();
         return;
       } else {
         document.body.classList.remove('dl-modo-nuevo');
         document.body.classList.add('dl-modo-clasico');
       }
-      return _orig.apply(this, arguments);
+      var res = _orig.apply(this, arguments);
+      actualizarBotonVolver(mod);
+      return res;
     };
+  }
+
+  function actualizarBotonVolver(mod) {
+    var btnVolver = document.getElementById('btn-volver-dash');
+    if (!btnVolver) return;
+    if (mod === 'dashboard' || mod === 'lotes') {
+      btnVolver.classList.add('hidden');
+      return;
+    }
+    btnVolver.classList.remove('hidden');
+    btnVolver.textContent = _modContext && _modContext.secKey ? '← Volver a ' + SECCIONES[_modContext.secKey].titulo : '← Mis Lotes';
+    btnVolver.title = _modContext && _modContext.secKey ? 'Volver al hub anterior' : 'Volver a Mis Lotes';
   }
 
 })();

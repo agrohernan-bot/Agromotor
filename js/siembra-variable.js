@@ -13,6 +13,7 @@
   var svZonaData = null, svNumZonas = 3;
   var svYieldPuntos = null, svCsvHeaders = [], svCsvRows = [];
   var svIniciado = false;
+  var svLoteBloqueado = false;
 
   var ZONE_COLORS = ['#1a6b3c', '#f59e0b', '#e05a3a', '#7c3aed'];
   var ZONE_NAMES  = ['Ambiente A', 'Ambiente B', 'Ambiente C', 'Ambiente D'];
@@ -74,6 +75,55 @@
     if (fileBtn) fileBtn.disabled = false;
   }
 
+  function _loteActivo() {
+    return (window.AM_LOTES || []).find(function (l) { return l.id === window.AM_LOTE_ACTIVO; }) || null;
+  }
+
+  function _geoJSONLoteActivo() {
+    var lote = _loteActivo();
+    var d = lote && lote.data ? lote.data : null;
+    if (!d) return null;
+    if (d.geojson && d.geojson.geometry) return d.geojson;
+    if (Array.isArray(d.polygon) && d.polygon.length >= 3) {
+      var coords = d.polygon.map(function (p) { return [p.lng, p.lat]; });
+      coords.push(coords[0]);
+      return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [coords] } };
+    }
+    return null;
+  }
+
+  function _aplicarLoteActivo() {
+    if (!svMap || typeof L === 'undefined') return false;
+    var geo = _geoJSONLoteActivo();
+    if (!geo) {
+      svLoteBloqueado = false;
+      _actualizarBloqueoLote(false);
+      if (svLoteGeoJSON) limpiarLote();
+      return false;
+    }
+    var layer = L.geoJSON(geo, {
+      style: { color: '#1b5e35', weight: 3, fillColor: '#1b5e35', fillOpacity: .10 }
+    });
+    setLote(layer);
+    svLoteBloqueado = true;
+    _actualizarBloqueoLote(true);
+    return true;
+  }
+
+  function _actualizarBloqueoLote(bloqueado) {
+    var btn = el('btn-dibujar');
+    var limpiar = document.querySelector('#mod-siembra-variable .sv-btn-danger');
+    var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
+    var empty = el('lote-empty');
+    if (btn) {
+      btn.disabled = bloqueado;
+      btn.textContent = bloqueado ? '🔒 Polígono del lote activo' : '✏️ Dibujar lote en el mapa';
+    }
+    if (limpiar) limpiar.disabled = bloqueado;
+    if (fileBtn) fileBtn.disabled = bloqueado;
+    if (empty && bloqueado) empty.innerHTML = 'El perímetro viene del lote activo. Para cambiarlo, editá el lote desde Mis Lotes.';
+  }
+
   // ── INIT (llamado desde nav.js al activar el módulo) ─
   window.svInit = function () {
     var loteCoord = _parsLoteCoord();
@@ -81,7 +131,7 @@
     if (svIniciado) {
       if (svMap) setTimeout(function () { svMap.invalidateSize(); }, 100);
       // Re-verificar lote activo cada vez que se abre el módulo
-      if (!loteCoord) { _mostrarOverlayLote(); } else { _ocultarOverlayLote(); if (svMap) svMap.setView([loteCoord.lat, loteCoord.lon], 14); }
+      if (!loteCoord) { _mostrarOverlayLote(); } else { _ocultarOverlayLote(); if (svMap) svMap.setView([loteCoord.lat, loteCoord.lon], 14); _aplicarLoteActivo(); }
       return;
     }
     svIniciado = true;
@@ -113,12 +163,14 @@
     sat.addTo(svMap);
     L.control.layers({ 'Satélite': sat, 'Callejero': osm }).addTo(svMap);
     svDrawnItems = new L.FeatureGroup().addTo(svMap);
+    _aplicarLoteActivo();
   };
 
   // ── DIBUJO NATIVO ──────────────────────────────────
   var _d = false, _pts = [], _mks = [], _pl = null, _pv = null;
 
   function activarDibujo() {
+    if (svLoteBloqueado) return;
     if (_d) { cancelarDibujo(); return; }
     _d = true; _pts = [];
     svMap.getContainer().style.cursor = 'crosshair';
@@ -183,6 +235,7 @@
     svMap.fitBounds(layer.getBounds().pad(0.12));
   }
   function limpiarLote() {
+    if (svLoteBloqueado) return;
     svDrawnItems.clearLayers(); svLoteGeoJSON = null;
     [svNdviLayer, svZonaLayer, svYieldLayer].forEach(function (l) { if (l) svMap.removeLayer(l); });
     svNdviLayer = svZonaLayer = svYieldLayer = null;

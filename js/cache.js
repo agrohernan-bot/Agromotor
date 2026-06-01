@@ -379,6 +379,11 @@ function cacheGuardar() {
   try {
     const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
     if(!lote) return;
+    const geometry = {
+      superficie: lote.data?.superficie || '',
+      polygon: lote.data?.polygon || null,
+      geojson: lote.data?.geojson || null
+    };
     
     lote.data = {
       ts: Date.now(),
@@ -386,6 +391,9 @@ function cacheGuardar() {
       cultivo: document.getElementById('s-cultivo')?.value,
       fecha:   document.getElementById('s-fecha')?.value,
       suelo:   document.getElementById('s-suelo')?.value,
+      superficie: geometry.superficie,
+      polygon: geometry.polygon,
+      geojson: geometry.geojson,
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,

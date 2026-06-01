@@ -436,6 +436,41 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   border-color: rgba(109,191,130,.35) !important;
   background: rgba(20,50,28,.75) !important;
 }
+.dl-card-actions {
+  position: absolute;
+  top: .65rem;
+  right: .65rem;
+  display: flex;
+  gap: .3rem;
+  z-index: 3;
+  opacity: .82;
+  transition: opacity .15s;
+}
+.dl-card:hover .dl-card-actions,
+.dl-card:focus-within .dl-card-actions {
+  opacity: 1;
+}
+.dl-card-action {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(237,224,196,.12);
+  background: rgba(10,18,12,.72);
+  color: rgba(237,224,196,.68);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .78rem;
+}
+.dl-card-action:hover {
+  border-color: rgba(109,191,130,.35);
+  color: #6DBF82;
+}
+.dl-card-action-danger:hover {
+  border-color: rgba(212,82,42,.45);
+  color: #E87A5A;
+}
 
 /* Slot vacío */
 .dl-card-slot {
@@ -682,6 +717,11 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   background: rgba(212,82,42,.15);
   border-color: rgba(212,82,42,.3);
   color: #E87A5A;
+}
+.dl-hub-accion:not(.dl-hub-accion-danger):hover {
+  background: rgba(109,191,130,.12);
+  border-color: rgba(109,191,130,.3);
+  color: #6DBF82;
 }
 
 /* 3 botones grandes del hub */

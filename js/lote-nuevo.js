@@ -14,8 +14,9 @@
   var _puntos   = [];     // puntos del polígono en construcción
   var _coords   = null;   // { lat, lng } del punto/centroide
   var _supPoly  = 0;      // superficie calculada del polígono (has)
-  var _modoMapa = 'punto'; // 'punto' | 'poligono'
+  var _modoMapa = 'poligono'; // 'punto' | 'poligono'
   var _poligonoCerrado = false;
+  var _editLoteId = null;
 
   // ── Centro por defecto: Pampa húmeda argentina ─────────
   var DEFAULT_LAT = -34.0;
@@ -24,20 +25,21 @@
   // ══════════════════════════════════════════════════════
   // MOSTRAR MODAL
   // ══════════════════════════════════════════════════════
-  window.dlMostrarModalNuevoLote = function () {
+  window.dlMostrarModalNuevoLote = function (editLoteId) {
     var limite = typeof amGetLoteLimit === 'function' ? amGetLoteLimit() : 5;
-    if ((window.AM_LOTES || []).length >= limite) {
+    if (!editLoteId && (window.AM_LOTES || []).length >= limite) {
       if (typeof amToast === 'function') amToast('Límite de lotes del plan alcanzado.', 'error');
       return;
     }
 
     // Limpiar modal previo si existe
     cerrarLimpiar(false);
+    _editLoteId = editLoteId || null;
 
     var modal = document.createElement('div');
     modal.id = 'lnv-overlay';
     modal.className = 'lnv-overlay';
-    modal.innerHTML = buildHTML();
+    modal.innerHTML = buildHTML(getLoteEditado());
     document.body.appendChild(modal);
 
     // Cerrar con click en fondo
@@ -58,7 +60,10 @@
   // ══════════════════════════════════════════════════════
   // HTML DEL MODAL
   // ══════════════════════════════════════════════════════
-  function buildHTML() {
+  function buildHTML(loteEdit) {
+    var d = loteEdit && loteEdit.data ? loteEdit.data : {};
+    var titulo = loteEdit ? 'Editar lote' : 'Nuevo lote';
+    var accion = loteEdit ? 'Guardar cambios →' : 'Crear lote →';
     var cultivoOpts = [
       '<option value="">Sin definir todavía</option>',
       '<option value="Trigo">🌾 Trigo</option>',
@@ -77,7 +82,7 @@
         '<div class="lnv-head">',
           '<div class="lnv-head-titulo">',
             '<span class="lnv-head-ico">🌍</span>',
-            '<span>Nuevo lote</span>',
+            '<span>' + titulo + '</span>',
           '</div>',
           '<button class="lnv-close" onclick="window.dlCerrarModalLote()" title="Cerrar">✕</button>',
         '</div>',
@@ -90,6 +95,7 @@
             '<label class="lnv-label">Nombre del lote <span class="lnv-req">*</span></label>',
             '<input id="lnv-nombre" class="lnv-input" type="text"',
             '  placeholder="Ej: Lote Sur, La Esperanza, Campo 3..."',
+            '  value="' + escAttr(loteEdit ? loteEdit.nombre : '') + '"',
             '  autocomplete="off" oninput="this.style.borderColor=\'\'">',
           '</div>',
 
@@ -104,13 +110,13 @@
             '<div class="lnv-mapa-header">',
               '<label class="lnv-label">Ubicación del lote</label>',
               '<div class="lnv-mapa-modos">',
-                '<button id="lnv-btn-punto" class="lnv-modo-btn lnv-modo-activo"',
+                '<button id="lnv-btn-punto" class="lnv-modo-btn"',
                 '  onclick="window.lnvSetModo(\'punto\')" title="Marcar un punto">📍 Punto</button>',
-                '<button id="lnv-btn-poli" class="lnv-modo-btn"',
+                '<button id="lnv-btn-poli" class="lnv-modo-btn lnv-modo-activo"',
                 '  onclick="window.lnvSetModo(\'poligono\')" title="Dibujar perímetro">✏ Polígono</button>',
               '</div>',
             '</div>',
-            '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click en el mapa para ubicar el lote</div>',
+            '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.</div>',
             '<div id="lnv-mapa" class="lnv-mapa"></div>',
             '<div id="lnv-coord-display" class="lnv-coord"></div>',
           '</div>',
@@ -120,7 +126,7 @@
             '<div class="lnv-fg lnv-half">',
               '<label class="lnv-label">Superficie <span class="lnv-opt">(has)</span></label>',
               '<input id="lnv-sup" class="lnv-input" type="number"',
-              '  placeholder="Ej: 120" min="0.1" max="99999" step="0.1">',
+              '  placeholder="Ej: 120" min="0.1" max="99999" step="0.1" value="' + escAttr(d.superficie || '') + '">',
             '</div>',
             '<div class="lnv-fg lnv-half" id="lnv-sup-auto-wrap" style="display:none">',
               '<label class="lnv-label">Calculada del polígono</label>',
@@ -133,7 +139,7 @@
         // ── Footer
         '<div class="lnv-footer">',
           '<button class="lnv-btn-cancel" onclick="window.dlCerrarModalLote()">Cancelar</button>',
-          '<button class="lnv-btn-crear" onclick="window.lnvCrearLote()">Crear lote →</button>',
+          '<button class="lnv-btn-crear" onclick="window.lnvCrearLote()">' + accion + '</button>',
         '</div>',
 
       '</div>', // .lnv-box
@@ -181,6 +187,7 @@
 
     _mapa.on('click', onMapaClick);
     _mapa.on('dblclick', cerrarPoligono);
+    cargarLoteEditadoEnMapa();
   }
 
   function onMapaClick(e) {
@@ -318,6 +325,7 @@
   // CREAR LOTE
   // ══════════════════════════════════════════════════════
   window.lnvCrearLote = function () {
+    var editando = !!_editLoteId;
     var nombre  = (document.getElementById('lnv-nombre')?.value  || '').trim();
     var cultivo = (document.getElementById('lnv-cultivo')?.value || '');
     var supVal  = (document.getElementById('lnv-sup')?.value     || '');
@@ -337,21 +345,36 @@
     var supFinal = supVal || (_supPoly > 0 ? String(_supPoly) : '');
     var poligono = getPoligonoPersistible();
 
-    var id = 'lote_' + Date.now();
-    var nuevoLote = {
-      id: id,
-      nombre: nombre,
-      data: {
-        cultivo:    cultivo,
-        coord:      coordStr,
-        superficie: supFinal,
-        polygon:    poligono ? poligono.puntos : null,
-        geojson:    poligono ? poligono.geojson : null,
-        ts:         Date.now(),
-      }
+    var id = _editLoteId || ('lote_' + Date.now());
+    var data = {
+      cultivo:    cultivo,
+      coord:      coordStr,
+      superficie: supFinal,
+      ts:         Date.now(),
     };
+    if (poligono) {
+      data.polygon = poligono.puntos;
+      data.geojson = poligono.geojson;
+    } else if (_editLoteId) {
+      var previo = getLoteEditado();
+      if (previo && previo.data) {
+        data.polygon = previo.data.polygon || null;
+        data.geojson = previo.data.geojson || null;
+      }
+    } else {
+      data.polygon = null;
+      data.geojson = null;
+    }
 
-    window.AM_LOTES.push(nuevoLote);
+    if (_editLoteId) {
+      var loteExistente = (window.AM_LOTES || []).find(function (l) { return l.id === _editLoteId; });
+      if (loteExistente) {
+        loteExistente.nombre = nombre;
+        loteExistente.data = Object.assign({}, loteExistente.data || {}, data);
+      }
+    } else {
+      window.AM_LOTES.push({ id: id, nombre: nombre, data: data });
+    }
     window.AM_LOTE_ACTIVO = id;
 
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
@@ -359,7 +382,7 @@
 
     cerrarLimpiar(true);
 
-    if (typeof amToast === 'function') amToast('Lote "' + nombre + '" creado ✓', 'ok');
+    if (typeof amToast === 'function') amToast('Lote "' + nombre + '" ' + (editando ? 'actualizado' : 'creado') + ' ✓', 'ok');
 
     // Ir directo al hub del nuevo lote
     if (typeof window.dlAbrirLote === 'function') window.dlAbrirLote(id);
@@ -401,6 +424,62 @@
     };
   }
 
+  function getLoteEditado() {
+    if (!_editLoteId) return null;
+    return (window.AM_LOTES || []).find(function (l) { return l.id === _editLoteId; }) || null;
+  }
+
+  function cargarLoteEditadoEnMapa() {
+    var lote = getLoteEditado();
+    if (!lote || !lote.data) return;
+
+    var d = lote.data;
+    if (d.cultivo) {
+      var cult = document.getElementById('lnv-cultivo');
+      if (cult) cult.value = d.cultivo;
+    }
+
+    var coords = null;
+    if (d.geojson && d.geojson.geometry && d.geojson.geometry.type === 'Polygon') {
+      coords = d.geojson.geometry.coordinates[0].map(function (c) { return [c[1], c[0]]; });
+      if (coords.length > 1) {
+        var first = coords[0], last = coords[coords.length - 1];
+        if (first[0] === last[0] && first[1] === last[1]) coords.pop();
+      }
+    } else if (Array.isArray(d.polygon)) {
+      coords = d.polygon.map(function (p) { return [p.lat, p.lng]; });
+    }
+
+    if (coords && coords.length >= 3) {
+      _modoMapa = 'poligono';
+      _puntos = coords;
+      _poligonoCerrado = true;
+      redibujarPoligono();
+      calcularSuperficiePoly();
+      if (_poly) _mapa.fitBounds(_poly.getBounds().pad(0.12));
+      actualizarHint('Polígono cargado. Cambiá a otro modo solo si querés redibujarlo.');
+      return;
+    }
+
+    if (d.coord) {
+      var parts = String(d.coord).split(',');
+      if (parts.length === 2) {
+        var lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          window.lnvSetModo('punto');
+          _coords = { lat: lat.toFixed(5), lng: lng.toFixed(5) };
+          actualizarMarcador(lat, lng);
+          actualizarCoordDisplay(_coords.lat, _coords.lng);
+          _mapa.setView([lat, lng], 14);
+        }
+      }
+    }
+  }
+
+  function escAttr(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
   function cerrarLimpiar(removerDOM) {
     if (_mapa)   { try { _mapa.remove(); } catch(e) {} _mapa = null; }
     if (_marker) { _marker = null; }
@@ -409,7 +488,8 @@
     _coords  = null;
     _supPoly = 0;
     _poligonoCerrado = false;
-    _modoMapa = 'punto';
+    _modoMapa = 'poligono';
+    _editLoteId = null;
     if (removerDOM) {
       var el = document.getElementById('lnv-overlay');
       if (el) el.remove();
@@ -421,6 +501,9 @@
   // ══════════════════════════════════════════════════════
   // Se sobreescribe cuando este script carga (después de dashboard-lotes.js)
   window.dlCrearLote = function () {
+    window.dlMostrarModalNuevoLote();
+  };
+  window.amCrearLoteGlobal = function () {
     window.dlMostrarModalNuevoLote();
   };
 
