@@ -1066,6 +1066,104 @@ window.sueloFusionar = sueloFusionar;
 window.sueloRenderResumenLab = sueloRenderResumenLab;
 window.sueloRestaurarLabInputs = sueloRestaurarLabInputs;
 
+// ══════════════════════════════════════════════════════════
+// CACHE SUELO — 90 días, invalida si centroide >1 km
+// ══════════════════════════════════════════════════════════
+var _SG_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+function _sgDistKm(lat1, lon1, lat2, lon2) {
+  var dLat = (lat2 - lat1) * 111;
+  var dLon = (lon2 - lon1) * 111 * Math.cos(lat1 * Math.PI / 180);
+  return Math.sqrt(dLat * dLat + dLon * dLon);
+}
+
+function _sgCentroideFromLote(lote) {
+  var d = lote.data || {};
+  if (Array.isArray(d.polygon) && d.polygon.length > 0) {
+    var sLat = 0, sLng = 0;
+    d.polygon.forEach(function(p) { sLat += parseFloat(p.lat); sLng += parseFloat(p.lng); });
+    return { lat: sLat / d.polygon.length, lon: sLng / d.polygon.length };
+  }
+  if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+    var ring = d.geojson.geometry.coordinates[0] || [];
+    if (ring.length > 0) {
+      var rLat = 0, rLon = 0;
+      ring.forEach(function(c) { rLat += c[1]; rLon += c[0]; });
+      return { lat: rLat / ring.length, lon: rLon / ring.length };
+    }
+  }
+  if (d.coord) {
+    var parts = String(d.coord).split(',');
+    if (parts.length === 2) {
+      var lat = parseFloat(parts[0]), lon = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lon)) return { lat: lat, lon: lon };
+    }
+  }
+  return null;
+}
+
+function _sgCacheCheck(loteId, lat, lon) {
+  try {
+    var raw = localStorage.getItem('sg_full_' + loteId);
+    if (!raw) return null;
+    var cache = JSON.parse(raw);
+    if (!cache || !cache.ts || !cache.datos) return null;
+    if (Date.now() - cache.ts > _SG_TTL_MS) return null;
+    if (cache.lat != null && lat != null && _sgDistKm(cache.lat, cache.lon, lat, lon) > 1) return null;
+    return cache.datos;
+  } catch(e) { return null; }
+}
+
+function _sgCacheSave(loteId, lat, lon, datos) {
+  try {
+    localStorage.setItem('sg_full_' + loteId, JSON.stringify({
+      ts: Date.now(), lat: lat, lon: lon, datos: datos
+    }));
+  } catch(e) {}
+  var lote = (window.AM_LOTES || []).find(function(l) { return l.id === loteId; });
+  if (lote) {
+    lote.data['sg-textura'] = datos.textura || '';
+    lote.data['sg-ph']      = datos.ph != null ? datos.ph : '';
+    lote.data['sg-lat']     = lat;
+    lote.data['sg-lon']     = lon;
+    lote.data['sg-ts']      = Date.now();
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+  }
+}
+
+function _sgDiasAtras(loteId) {
+  try {
+    var raw = localStorage.getItem('sg_full_' + loteId);
+    if (!raw) return '?';
+    var cache = JSON.parse(raw);
+    return Math.round((Date.now() - cache.ts) / 86400000);
+  } catch(e) { return '?'; }
+}
+
+// ── AUTO-FETCH para cards (sin UI, background) ────────────
+window.sgAutoFetchLote = async function(lote) {
+  if (!lote) return;
+  var loteId   = lote.id;
+  var centroid = _sgCentroideFromLote(lote);
+  if (!centroid) return;
+  var lat = centroid.lat, lon = centroid.lon;
+  if (_sgCacheCheck(loteId, lat, lon)) return; // cache válido
+  try {
+    var datos = await buscarSoilGrids(lat, lon);
+    var pkz   = await buscarPKZ(lat, lon, datos.textura || 'Molisol');
+    if (pkz) {
+      if (pkz.p  != null) datos.p  = pkz.p;
+      if (pkz.k  != null) datos.k  = pkz.k;
+      if (pkz.zn != null) datos.zn = pkz.zn;
+      datos.fuente_pkz     = pkz.fuente_pkz;
+      datos.fuente_pkz_id  = pkz.fuente_pkz_id;
+      datos.fuente_pkz_det = pkz.fuente_pkz_det;
+    }
+    _sgCacheSave(loteId, lat, lon, datos);
+    if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
+  } catch(e) {}
+};
+
 // ── CONSULTAR SUELO (botón del módulo Suelo) ─────────────
 async function consultarSuelo() {
   const lblCoord = document.getElementById('suelo-lbl-coord');
@@ -1074,13 +1172,33 @@ async function consultarSuelo() {
   const spEl    = document.getElementById('suelo-sp');
   const msgEl   = document.getElementById('suelo-msg');
 
-  // Usar coordenadas globales del Dashboard/Siembra
   const coordRaw = document.getElementById('s-coord')?.value?.trim() || '';
   if (lblCoord) lblCoord.textContent = coordRaw || 'Sin coordenadas';
 
   const [lat, lon] = typeof parsCoord === 'function' ? parsCoord(coordRaw) : [null, null];
   if (lat === null) {
     alert('Formato no reconocido.\nEjemplo: -33.395, -60.192');
+    return;
+  }
+
+  const loteId = window.AM_LOTE_ACTIVO || '';
+
+  // ── Verificar cache (90 días, centroide < 1 km) ──────────
+  const cacheado = _sgCacheCheck(loteId, lat, lon);
+  if (cacheado) {
+    window._sgDatos = cacheado;
+    if (typeof sueloFusionar          === 'function') sueloFusionar();
+    if (typeof sueloRenderResumenLab  === 'function') sueloRenderResumenLab();
+    if (typeof renderSoilGrids        === 'function') renderSoilGrids(cacheado);
+    if (typeof renderSueloModulo      === 'function') renderSueloModulo(cacheado);
+    if (cacheado.textura) {
+      const ss = document.getElementById('s-suelo');
+      if (ss && !ss.value) ss.value = cacheado.textura;
+    }
+    if (stEl)  stEl.classList.remove('hidden');
+    if (spEl)  spEl.style.animation = 'none';
+    if (btnEl) btnEl.textContent = '🔄 Actualizar';
+    if (msgEl) msgEl.textContent = 'SoilGrids (caché) · hace ' + _sgDiasAtras(loteId) + ' días · 250 m ISRIC';
     return;
   }
 
@@ -1107,6 +1225,9 @@ async function consultarSuelo() {
       datos.fuente_pkz_id  = pkz.fuente_pkz_id;
       datos.fuente_pkz_det = pkz.fuente_pkz_det;
     }
+
+    // Guardar en cache (lote.data + localStorage)
+    _sgCacheSave(loteId, lat, lon, datos);
 
     window._sgDatos = datos;
 

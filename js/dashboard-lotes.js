@@ -137,6 +137,7 @@
       setTimeout(function() {
         _initMiniMaps(lotes);
         _fetchClimaCards(lotes);
+        _fetchSueloCards(lotes);
       }, 30);
     }
   }
@@ -603,6 +604,17 @@
           if (el2) _renderClimaInCard(el2, result);
         })
         .catch(function() {});
+    });
+  }
+
+  function _fetchSueloCards(lotes) {
+    if (typeof window.sgAutoFetchLote !== 'function') return;
+    lotes.forEach(function(lote) {
+      var ts  = parseInt((lote.data || {})['sg-ts'] || 0, 10);
+      var age = Date.now() - ts;
+      if (!ts || age > 90 * 24 * 3600 * 1000) {
+        window.sgAutoFetchLote(lote);
+      }
     });
   }
 

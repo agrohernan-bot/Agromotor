@@ -18,6 +18,12 @@
   var _poligonoCerrado = false;
   var _editLoteId = null;
 
+  function _distKmSimple(lat1, lon1, lat2, lon2) {
+    var dLat = (lat2 - lat1) * 111;
+    var dLon = (lon2 - lon1) * 111 * Math.cos(lat1 * Math.PI / 180);
+    return Math.sqrt(dLat * dLat + dLon * dLon);
+  }
+
   // ── Centro por defecto: Pampa húmeda argentina ─────────
   var DEFAULT_LAT = -34.0;
   var DEFAULT_LNG = -63.0;
@@ -342,8 +348,23 @@
     if (_editLoteId) {
       var loteExistente = (window.AM_LOTES || []).find(function (l) { return l.id === _editLoteId; });
       if (loteExistente) {
+        // Invalidar cache de suelo si el centroide se desplazó >1 km
+        var prevSgLat = parseFloat((loteExistente.data || {})['sg-lat'] || 0);
+        var prevSgLon = parseFloat((loteExistente.data || {})['sg-lon'] || 0);
+        var newCLat   = _coords ? parseFloat(_coords.lat) : 0;
+        var newCLon   = _coords ? parseFloat(_coords.lng) : 0;
+        var centroideMovido = prevSgLat && newCLat &&
+                              _distKmSimple(prevSgLat, prevSgLon, newCLat, newCLon) > 1;
+
         loteExistente.nombre = nombre;
         loteExistente.data = Object.assign({}, loteExistente.data || {}, data);
+
+        if (centroideMovido) {
+          ['sg-ts','sg-textura','sg-ph','sg-lat','sg-lon'].forEach(function(k) {
+            delete loteExistente.data[k];
+          });
+          try { localStorage.removeItem('sg_full_' + _editLoteId); } catch(e) {}
+        }
       }
     } else {
       window.AM_LOTES.push({ id: id, nombre: nombre, data: data });
