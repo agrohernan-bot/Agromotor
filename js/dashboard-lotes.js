@@ -334,6 +334,7 @@
     var ensoFase     = ck['am_enso_fase'] || '';
     var alertas      = [];
     try { alertas = JSON.parse(ck['am_alertas_activas'] || '[]'); } catch(e) {}
+    if (!Array.isArray(alertas)) alertas = [];
 
     // Verificar si hay datos suficientes para mostrar el panel
     var tieneDatos = fenEtapa || (aguaCC > 0) || ensoFase;
@@ -427,9 +428,8 @@
     var cultivo     = d.cultivo || ck['am_siembra_cultivo']       || '';
     var fecha       = d.fecha   || ck['am_siembra_fecha']         || '';
     var coord       = d.coord   || '';
-    var sueloTex    = ck['am_sg_textura'] || ck['sg-textura']     || '';
-    var sueloPH     = ck['am_sg_ph']      || '';
-    var nitrogeno   = ck['am_sg_n']       || '';
+    var sueloTex    = d['sg-textura'] || ck['am_siembra_suelo'] || '';
+    var sueloPH     = d['sg-ph']      || '';
     var ensoFase    = ck['am_enso_fase']  || '';
     var sup         = d.superficie        || '';
 
