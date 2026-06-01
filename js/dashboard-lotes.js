@@ -122,7 +122,7 @@
     html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + lotes.length + ' / ' + limite + '</span></p>';
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
-    html +=     '<button class="dl-btn-nuevo" onclick="window.amCrearLoteGlobal(); setTimeout(window.dlRefrescar, 600)">➕ Nuevo lote</button>';
+    html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
     html +=     '<button class="dl-btn-clasica" onclick="window.dlIrClasica()" title="Acceder a todos los módulos individualmente">⚙ Vista clásica</button>';
     html +=   '</div>';
     html += '</div>';
@@ -137,7 +137,7 @@
     // Slots vacíos hasta el límite (máx 6 en pantalla)
     var slots = Math.min(limite, 6) - lotes.length;
     for (var i = 0; i < slots; i++) {
-      html += '<div class="dl-card dl-card-slot" onclick="window.amCrearLoteGlobal(); setTimeout(window.dlRefrescar, 600)">';
+      html += '<div class="dl-card dl-card-slot" onclick="window.dlCrearLote()">';
       html +=   '<div class="dl-slot-inner"><span class="dl-slot-ico">＋</span><span class="dl-slot-txt">Nuevo lote</span></div>';
       html += '</div>';
     }
