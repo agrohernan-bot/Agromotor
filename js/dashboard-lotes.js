@@ -28,7 +28,6 @@
         { mod: 'cultivares',    emoji: '🌾', titulo: 'Cultivares RECSO/INTA',   desc: 'Catálogo 2024-25 con recomendaciones por zona y ciclo' },
         { mod: 'rotacion',      emoji: '🔄', titulo: 'Rotación',                desc: 'Planificación de rotación multiañal de cultivos' },
         { mod: 'hist-campanas', emoji: '📊', titulo: 'Historial de campañas',   desc: 'Comparativo entre campañas anteriores del lote' },
-        { mod: 'barbecho',      emoji: '🌾', titulo: 'Barbecho',                desc: 'Gestión del barbecho pre-siembra' },
       ]
     },
     planfina: {
@@ -58,7 +57,6 @@
         { mod: 'alerta-sanitaria', emoji: '🦠', titulo: 'Enfermedades',             desc: 'Alertas sanitarias por cultivo/región — umbrales INTA' },
         { mod: 'pulverizacion',    emoji: '💦', titulo: 'Ventanas de pulverización', desc: 'Análisis climatológico para aplicaciones fitosanitarias' },
         { mod: 'malezas',          emoji: '🌿', titulo: 'Malezas',                  desc: 'Manejo integrado de malezas resistentes' },
-        { mod: 'seguimiento',      emoji: '🛰',  titulo: 'NDVI / Seguimiento',       desc: 'Imágenes satelitales · monitoreo remoto del lote' },
         { mod: 'economia',         emoji: '💰', titulo: 'Margen bruto real',         desc: 'Seguimiento del margen en tiempo real vs. presupuesto' },
         { mod: 'cosecha',          emoji: '🌾', titulo: 'Cosecha',                  desc: 'Estimación de rendimiento y logística de cosecha' },
         { mod: 'bitacora',         emoji: '📓', titulo: 'Bitácora de labores',       desc: 'Registro cronológico de todas las labores del lote' },
@@ -334,12 +332,7 @@
   // ══════════════════════════════════════════════════════
 
   window.dlAbrirLote = function (loteId) {
-    // Activar como lote global
-    if (loteId !== window.AM_LOTE_ACTIVO) {
-      window.AM_LOTE_ACTIVO = loteId;
-      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
-      if (typeof amRenderSelectLotes  === 'function') amRenderSelectLotes();
-    }
+    activarLote(loteId);
     _loteAbierto    = loteId;
     _seccionAbierta = null;
     renderPanel();
@@ -357,15 +350,25 @@
   };
 
   window.dlAbrirModulo = function (mod, loteId) {
-    // Asegurar lote activo correcto
-    if (loteId && loteId !== window.AM_LOTE_ACTIVO) {
-      window.AM_LOTE_ACTIVO = loteId;
-      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
-    }
+    activarLote(loteId);
     // Ir a vista clásica y abrir el módulo
     window.dlIrClasica();
     if (typeof switchMod === 'function') switchMod(mod);
   };
+
+  function activarLote(loteId) {
+    if (!loteId) return;
+    window.AM_LOTE_ACTIVO = loteId;
+    var sel = document.getElementById('am-global-lotes');
+    if (sel) sel.value = loteId;
+    var selDash = document.getElementById('am-dash-lotes');
+    if (selDash) selDash.value = loteId;
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof cacheCargar === 'function') cacheCargar();
+    if (typeof amRenderSelectLotes === 'function') amRenderSelectLotes();
+    if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
+    if (typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+  }
 
   // Vista clásica: activar sidebar + mostrar dashboard clásico
   // Activamos el panel directamente para no pasar por amTieneAcceso
@@ -378,6 +381,10 @@
     });
     var dash = document.getElementById('mod-dashboard');
     if (dash) dash.classList.add('active');
+    var btnVolver = document.getElementById('btn-volver-dash');
+    if (btnVolver) btnVolver.classList.add('hidden');
+    var btnPDF = document.getElementById('btn-pdf-modulo');
+    if (btnPDF) btnPDF.classList.add('hidden');
     // Sincronizar nav tab
     document.querySelectorAll('.nav-tab').forEach(function (t) {
       t.classList.toggle('active', t.dataset.mod === 'dashboard');
@@ -394,6 +401,10 @@
     });
     var lotes = document.getElementById('mod-lotes');
     if (lotes) lotes.classList.add('active');
+    var btnVolver = document.getElementById('btn-volver-dash');
+    if (btnVolver) btnVolver.classList.add('hidden');
+    var btnPDF = document.getElementById('btn-pdf-modulo');
+    if (btnPDF) btnPDF.classList.add('hidden');
     document.querySelectorAll('.nav-tab').forEach(function (t) {
       t.classList.toggle('active', t.dataset.mod === 'lotes');
     });
@@ -441,8 +452,8 @@
     if (typeof _orig !== 'function') return;
     window.switchMod = function (mod) {
       if (mod === 'lotes') {
-        document.body.classList.add('dl-modo-nuevo');
-        document.body.classList.remove('dl-modo-clasico');
+        window.dlVolverNueva();
+        return;
       } else {
         document.body.classList.remove('dl-modo-nuevo');
         document.body.classList.add('dl-modo-clasico');

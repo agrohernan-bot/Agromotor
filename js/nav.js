@@ -108,7 +108,7 @@ function _activarModulo(mod) {
   // Mostrar/ocultar botÃ³n "Volver al Dashboard"
   var btnVolver = document.getElementById('btn-volver-dash');
   if (btnVolver) {
-    if (mod === 'dashboard') btnVolver.classList.add('hidden');
+    if (mod === 'dashboard' || mod === 'lotes') btnVolver.classList.add('hidden');
     else btnVolver.classList.remove('hidden');
   }
 
