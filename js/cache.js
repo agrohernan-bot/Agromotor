@@ -603,6 +603,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amCargarLotesGlobales = amCargarLotesGlobales;
   window.amRenderSelectLotes = amRenderSelectLotes;
   window.amGuardarLotesEstado = amGuardarLotesEstado;
+  window.amGetLoteLimit = amGetLoteLimit;
 
 })();
 
