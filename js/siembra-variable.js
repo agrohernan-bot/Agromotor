@@ -25,6 +25,33 @@
   var GF_KM = 5; // radio máximo desde el centro del lote activo
 
   function _parsLoteCoord() {
+    // Preferir lote.data (nueva UX) → fallback a #s-coord (dashboard clásico)
+    var lote = _loteActivo();
+    if (lote && lote.data) {
+      var d = lote.data;
+      // Desde centroide del polígono guardado
+      if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+        var ring = d.geojson.geometry.coordinates[0] || [];
+        if (ring.length > 0) {
+          var sLat = 0, sLon = 0;
+          ring.forEach(function(c) { sLat += c[1]; sLon += c[0]; });
+          return { lat: sLat / ring.length, lon: sLon / ring.length };
+        }
+      }
+      if (Array.isArray(d.polygon) && d.polygon.length > 0) {
+        var sLat = 0, sLon = 0;
+        d.polygon.forEach(function(p) { sLat += parseFloat(p.lat); sLon += parseFloat(p.lng); });
+        return { lat: sLat / d.polygon.length, lon: sLon / d.polygon.length };
+      }
+      if (d.coord) {
+        var p = d.coord.split(',');
+        if (p.length >= 2) {
+          var lat = parseFloat(p[0].trim()), lon = parseFloat(p[1].trim());
+          if (!isNaN(lat) && !isNaN(lon)) return { lat: lat, lon: lon };
+        }
+      }
+    }
+    // Fallback: input clásico del dashboard
     var raw = (document.getElementById('s-coord') || {}).value || '';
     if (!raw.trim()) return null;
     var p = raw.split(',');
