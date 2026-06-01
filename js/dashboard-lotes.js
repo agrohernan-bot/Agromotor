@@ -205,6 +205,7 @@
     var hasPolygon = (Array.isArray(d.polygon) && d.polygon.length > 2) ||
                      !!(d.geojson && d.geojson.geometry);
     var coords     = _coordsFromLote(lote);
+    var hasMap     = hasPolygon || !!coords;
 
     var html = '<div class="dl-card' + (isActivo ? ' dl-card-activa' : '') + '" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">';
 
@@ -213,8 +214,8 @@
     html +=   '<button class="dl-card-action dl-card-action-danger" onclick="window.dlEliminarLote(\'' + esc(lote.id) + '\')" title="Eliminar lote">🗑</button>';
     html += '</div>';
 
-    // Thumbnail satelital del polígono
-    if (hasPolygon) {
+    // Thumbnail satelital (polígono o punto)
+    if (hasMap) {
       html += '<div class="dl-card-mapa" id="dl-mapa-' + esc(lote.id) + '"></div>';
     }
 
@@ -551,7 +552,6 @@
         var ring = d.geojson.geometry.coordinates[0] || [];
         if (ring.length > 2) leafletCoords = ring.map(function(c) { return [c[1], c[0]]; });
       }
-      if (!leafletCoords) return;
       var el = document.getElementById('dl-mapa-' + lote.id);
       if (!el) return;
       try {
@@ -563,11 +563,21 @@
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
           maxZoom: 19, tileSize: 256
         }).addTo(map);
-        var poly = L.polygon(leafletCoords, {
-          color: '#6DBF82', weight: 2,
-          fillColor: '#6DBF82', fillOpacity: 0.15
-        }).addTo(map);
-        map.fitBounds(poly.getBounds(), { padding: [6, 6] });
+        if (leafletCoords) {
+          var poly = L.polygon(leafletCoords, {
+            color: '#6DBF82', weight: 2,
+            fillColor: '#6DBF82', fillOpacity: 0.15
+          }).addTo(map);
+          map.fitBounds(poly.getBounds(), { padding: [6, 6] });
+        } else {
+          var c = _coordsFromLote(lote);
+          if (!c) { map.remove(); return; }
+          map.setView([c.lat, c.lng], 14);
+          L.circleMarker([c.lat, c.lng], {
+            radius: 7, color: '#6DBF82', weight: 2,
+            fillColor: '#6DBF82', fillOpacity: 0.7
+          }).addTo(map);
+        }
         map.invalidateSize();
         _mapaInstances[lote.id] = map;
       } catch(e) {}
