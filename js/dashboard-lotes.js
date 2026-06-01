@@ -1,0 +1,454 @@
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — dashboard-lotes.js
+// Nueva UX: Grid de tarjetas de lotes + Lote Hub + Hubs de módulos
+// Corre sobre la arquitectura existente sin modificarla.
+// ════════════════════════════════════════════════════════
+
+(function () {
+  'use strict';
+
+  // ── ESTADOS DE LOTE ──────────────────────────────────
+  var ESTADOS = {
+    vacio:        { label: 'Sin datos',       dot: 'rgba(237,224,196,.3)',  texto: '#EDE0C4' },
+    planificando: { label: 'Planificando',    dot: '#7AAEF5',               texto: '#7AAEF5' },
+    sembrado:     { label: 'Sembrado',        dot: '#6DBF82',               texto: '#6DBF82' },
+    creciendo:    { label: 'En crecimiento',  dot: '#3A7A4A',               texto: '#6DBF82' },
+    cosechando:   { label: 'Cosechando',      dot: '#C8A255',               texto: '#C8A255' },
+  };
+
+  // ── MAPA DE SECCIONES ─────────────────────────────────
+  var SECCIONES = {
+    plangruesa: {
+      titulo: 'Planificación Gruesa',
+      emoji:  '🧭',
+      desc:   '¿Qué sembrar? · Cultivares · Rotación · Historial',
+      color:  '#2A5A8C',
+      modulos: [
+        { mod: 'decision',      emoji: '⚖️', titulo: '¿Qué sembrar?',          desc: 'Análisis multicriterio para elegir el cultivo correcto' },
+        { mod: 'cultivares',    emoji: '🌾', titulo: 'Cultivares RECSO/INTA',   desc: 'Catálogo 2024-25 con recomendaciones por zona y ciclo' },
+        { mod: 'rotacion',      emoji: '🔄', titulo: 'Rotación',                desc: 'Planificación de rotación multiañal de cultivos' },
+        { mod: 'hist-campanas', emoji: '📊', titulo: 'Historial de campañas',   desc: 'Comparativo entre campañas anteriores del lote' },
+        { mod: 'barbecho',      emoji: '🌾', titulo: 'Barbecho',                desc: 'Gestión del barbecho pre-siembra' },
+      ]
+    },
+    planfina: {
+      titulo: 'Planificación Fina',
+      emoji:  '🎯',
+      desc:   'Siembra · Suelo · Hídrico · Nutrición · Siembra variable',
+      color:  '#1E4D2B',
+      modulos: [
+        { mod: 'siembra',          emoji: '🌱', titulo: 'Siembra',                desc: 'Diagnóstico de fecha óptima, densidad y ambientes' },
+        { mod: 'suelo',            emoji: '🌍', titulo: 'Suelo P/K/Zn',           desc: 'Análisis de suelo · IDECOR · OLM · SoilGrids ISRIC' },
+        { mod: 'hidrico',          emoji: '💧', titulo: 'Balance hídrico',         desc: 'ETC FAO + ENSO/NOAA + proyección de lluvias' },
+        { mod: 'nutricion',        emoji: '🌿', titulo: 'Nutrición N/P/K',         desc: 'Balance nutricional — tablas Echeverría & García INTA' },
+        { mod: 'siembra-variable', emoji: '🗺', titulo: 'Siembra variable',        desc: 'Ambientes por zona · prescripción · shapefile export' },
+        { mod: 'fen-plan',         emoji: '📅', titulo: 'Simular fenología',       desc: 'Predicción de estadios con corrección ENSO/NOAA' },
+        { mod: 'economia',         emoji: '💰', titulo: 'Presupuesto de campaña',  desc: 'Costos de insumos, maquinaria y labores' },
+        { mod: 'maquinaria',       emoji: '🚜', titulo: 'Maquinaria',              desc: 'Inventario y costos de maquinaria propia o contratada' },
+      ]
+    },
+    monitoreo: {
+      titulo: 'Monitoreo',
+      emoji:  '📡',
+      desc:   'Clima · Fenología · Plagas · NDVI · Economía · Cosecha',
+      color:  '#7B3F00',
+      modulos: [
+        { mod: 'fen-seg',          emoji: '🌿', titulo: 'Fenología en tiempo real', desc: 'Estadio actual · días transcurridos · % ciclo completado' },
+        { mod: 'plagas',           emoji: '🐛', titulo: 'Plagas',                   desc: 'Umbrales de acción y favorabilidad climática por zona' },
+        { mod: 'alerta-sanitaria', emoji: '🦠', titulo: 'Enfermedades',             desc: 'Alertas sanitarias por cultivo/región — umbrales INTA' },
+        { mod: 'pulverizacion',    emoji: '💦', titulo: 'Ventanas de pulverización', desc: 'Análisis climatológico para aplicaciones fitosanitarias' },
+        { mod: 'malezas',          emoji: '🌿', titulo: 'Malezas',                  desc: 'Manejo integrado de malezas resistentes' },
+        { mod: 'seguimiento',      emoji: '🛰',  titulo: 'NDVI / Seguimiento',       desc: 'Imágenes satelitales · monitoreo remoto del lote' },
+        { mod: 'economia',         emoji: '💰', titulo: 'Margen bruto real',         desc: 'Seguimiento del margen en tiempo real vs. presupuesto' },
+        { mod: 'cosecha',          emoji: '🌾', titulo: 'Cosecha',                  desc: 'Estimación de rendimiento y logística de cosecha' },
+        { mod: 'bitacora',         emoji: '📓', titulo: 'Bitácora de labores',       desc: 'Registro cronológico de todas las labores del lote' },
+        { mod: 'huella-carbono',   emoji: '🌍', titulo: 'Huella de carbono',         desc: 'Cálculo de emisiones CO₂ del lote en la campaña' },
+      ]
+    }
+  };
+
+  // ── ESTADO INTERNO ────────────────────────────────────
+  var _loteAbierto = null;
+  var _seccionAbierta = null;
+
+  // ── DETERMINAR ESTADO DEL LOTE ────────────────────────
+  function getEstado(lote) {
+    var d  = lote.data || {};
+    var ck = d.calcKeys || {};
+    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha   = d.fecha   || ck['am_siembra_fecha']   || '';
+    if (!cultivo && !fecha) return 'vacio';
+    if (!fecha) return 'planificando';
+    var hoy     = new Date();
+    var fSiembra = new Date(fecha + 'T12:00:00');
+    if (fSiembra > hoy) return 'planificando';
+    var fen = (ck['am_fen_etapa_hoy'] || '').toLowerCase();
+    if (!fen) return 'sembrado';
+    if (/cosech|madur|granol|madurez|cosecha/.test(fen)) return 'cosechando';
+    return 'creciendo';
+  }
+
+  // ── ESCAPING HTML ─────────────────────────────────────
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── RENDER PANEL RAÍZ ─────────────────────────────────
+  function renderPanel() {
+    var panel = document.getElementById('mod-lotes');
+    if (!panel) return;
+
+    // Calcular el estado de la pantalla actual
+    if (_seccionAbierta && _loteAbierto) {
+      panel.innerHTML = renderSeccion(_loteAbierto, _seccionAbierta);
+    } else if (_loteAbierto) {
+      panel.innerHTML = renderHub(_loteAbierto);
+    } else {
+      panel.innerHTML = renderCards();
+    }
+  }
+
+  // ══════════════════════════════════════════════════════
+  // PANTALLA 1: GRID DE TARJETAS
+  // ══════════════════════════════════════════════════════
+  function renderCards() {
+    var lotes  = window.AM_LOTES || [];
+    var limite = typeof amGetLoteLimit === 'function' ? amGetLoteLimit() : 5;
+
+    var html = '<div class="dl-page dl-page-cards">';
+
+    // ── Cabecera ─────────────────────────────────────────
+    html += '<div class="dl-page-header">';
+    html +=   '<div>';
+    html +=     '<h1 class="dl-page-titulo">Mis Lotes</h1>';
+    html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + lotes.length + ' / ' + limite + '</span></p>';
+    html +=   '</div>';
+    html +=   '<div class="dl-header-actions">';
+    html +=     '<button class="dl-btn-nuevo" onclick="window.amCrearLoteGlobal(); setTimeout(window.dlRefrescar, 600)">➕ Nuevo lote</button>';
+    html +=     '<button class="dl-btn-clasica" onclick="window.dlIrClasica()" title="Acceder a todos los módulos individualmente">⚙ Vista clásica</button>';
+    html +=   '</div>';
+    html += '</div>';
+
+    // ── Grid de cards ─────────────────────────────────────
+    html += '<div class="dl-grid">';
+
+    lotes.forEach(function (lote) {
+      html += renderCard(lote);
+    });
+
+    // Slots vacíos hasta el límite (máx 6 en pantalla)
+    var slots = Math.min(limite, 6) - lotes.length;
+    for (var i = 0; i < slots; i++) {
+      html += '<div class="dl-card dl-card-slot" onclick="window.amCrearLoteGlobal(); setTimeout(window.dlRefrescar, 600)">';
+      html +=   '<div class="dl-slot-inner"><span class="dl-slot-ico">＋</span><span class="dl-slot-txt">Nuevo lote</span></div>';
+      html += '</div>';
+    }
+
+    html += '</div>'; // .dl-grid
+    html += '</div>'; // .dl-page
+
+    return html;
+  }
+
+  function renderCard(lote) {
+    var d       = lote.data || {};
+    var ck      = d.calcKeys || {};
+    var estado  = getEstado(lote);
+    var eConf   = ESTADOS[estado];
+    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha   = d.fecha   || ck['am_siembra_fecha']   || '';
+    var coord   = d.coord   || '';
+    var fenEtapa = ck['am_fen_etapa_hoy'] || '';
+    var aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
+    var aguaCC  = parseFloat(ck['am_hidrico_cap_max_mm']) || 0;
+    var alertas = 0;
+    try { alertas = (JSON.parse(ck['am_alertas_activas'] || '[]') || []).length; } catch(e) {}
+    var isActivo = lote.id === window.AM_LOTE_ACTIVO;
+
+    var html = '<div class="dl-card' + (isActivo ? ' dl-card-activa' : '') + '" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">';
+
+    // Cabecera de card
+    html += '<div class="dl-card-head">';
+    html +=   '<div class="dl-card-nombre"><span class="dl-dot" style="background:' + eConf.dot + '"></span>' + esc(lote.nombre) + '</div>';
+    if (alertas > 0) html += '<div class="dl-alerta-badge">⚠ ' + alertas + '</div>';
+    if (isActivo)    html += '<div class="dl-activo-chip">activo</div>';
+    html += '</div>';
+
+    // Estado
+    html += '<div class="dl-card-estado" style="color:' + eConf.texto + '">' + eConf.label + '</div>';
+
+    // Contenido según estado
+    if (estado === 'vacio') {
+      html += '<div class="dl-card-empty">Tocá para comenzar a planificar este lote</div>';
+    } else {
+      html += '<div class="dl-card-body">';
+      if (cultivo) html += kv('🌾 Cultivo', cultivo);
+      if (fecha)   html += kv('📅 Siembra', fecha);
+      if (fenEtapa) html += kv('🌱 Etapa',  fenEtapa);
+      if (aguaCC > 0) {
+        var pct = Math.min(100, Math.round(aguaMm / aguaCC * 100));
+        var bcolor = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
+        html += '<div class="dl-hidrico">';
+        html +=   '<div class="dl-hidrico-top"><span>💧 Balance hídrico</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
+        html +=   '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + bcolor + '"></div></div>';
+        html += '</div>';
+      }
+      if (coord) html += '<div class="dl-coord">📍 ' + esc(coord) + '</div>';
+      html += '</div>';
+    }
+
+    // Footer con flecha
+    html += '<div class="dl-card-footer">Ver lote →</div>';
+    html += '</div>'; // .dl-card
+
+    return html;
+  }
+
+  function kv(k, v) {
+    return '<div class="dl-kv"><span class="dl-kv-k">' + esc(k) + '</span><span class="dl-kv-v">' + esc(v) + '</span></div>';
+  }
+
+  // ══════════════════════════════════════════════════════
+  // PANTALLA 2: LOTE HUB
+  // ══════════════════════════════════════════════════════
+  function renderHub(loteId) {
+    var lote = getLote(loteId);
+    if (!lote) return '';
+
+    var d       = lote.data || {};
+    var ck      = d.calcKeys || {};
+    var estado  = getEstado(lote);
+    var eConf   = ESTADOS[estado];
+    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var coord   = d.coord   || '';
+    var sup     = d.superficie || '';
+
+    var html = '<div class="dl-page dl-page-hub">';
+
+    // Breadcrumb
+    html += breadcrumb([{ label: 'Mis Lotes', onclick: 'window.dlVolverCards()' }], lote.nombre);
+
+    // Header del lote
+    html += '<div class="dl-hub-header">';
+    html +=   '<div class="dl-hub-nombre"><span class="dl-dot dl-dot-lg" style="background:' + eConf.dot + '"></span>' + esc(lote.nombre) + '</div>';
+    html +=   '<div class="dl-hub-chips">';
+    if (cultivo) html += chip('🌾 ' + cultivo);
+    html +=     chip('<span style="color:' + eConf.texto + '">' + eConf.label + '</span>');
+    if (coord)  html += chip('📍 ' + esc(coord));
+    if (sup)    html += chip('📐 ' + esc(sup) + ' has');
+    html +=   '</div>';
+
+    // Acciones rápidas del lote
+    html +=   '<div class="dl-hub-acciones">';
+    html +=     '<button class="dl-hub-accion" onclick="window.amEliminarLoteGlobal(); setTimeout(window.dlRefrescar,500)" title="Eliminar lote">🗑</button>';
+    html +=   '</div>';
+    html += '</div>';
+
+    // 3 botones grandes
+    html += '<div class="dl-hub-grid">';
+    Object.keys(SECCIONES).forEach(function (key) {
+      var s = SECCIONES[key];
+      html += hubBtn(key, s.emoji, s.titulo, s.desc, s.color);
+    });
+    html += '</div>';
+
+    html += '</div>'; // .dl-page
+    return html;
+  }
+
+  function hubBtn(key, emoji, titulo, desc, color) {
+    return [
+      '<div class="dl-hub-btn" onclick="window.dlAbrirSeccion(\'' + key + '\')" style="--hub-color:' + color + '">',
+        '<div class="dl-hub-emoji">' + emoji + '</div>',
+        '<div class="dl-hub-info">',
+          '<div class="dl-hub-titulo">' + titulo + '</div>',
+          '<div class="dl-hub-desc">' + desc + '</div>',
+        '</div>',
+        '<div class="dl-hub-arrow">→</div>',
+      '</div>'
+    ].join('');
+  }
+
+  // ══════════════════════════════════════════════════════
+  // PANTALLA 3: SECCIÓN (lista de módulos)
+  // ══════════════════════════════════════════════════════
+  function renderSeccion(loteId, secKey) {
+    var lote = getLote(loteId);
+    var sec  = SECCIONES[secKey];
+    if (!lote || !sec) return '';
+
+    var html = '<div class="dl-page dl-page-sec">';
+
+    // Breadcrumb
+    html += breadcrumb([
+      { label: 'Mis Lotes',      onclick: 'window.dlVolverCards()' },
+      { label: esc(lote.nombre), onclick: 'window.dlAbrirLote(\'' + esc(loteId) + '\')' }
+    ], sec.titulo);
+
+    // Header sección
+    html += '<div class="dl-sec-header" style="border-left-color:' + sec.color + '">';
+    html +=   '<span class="dl-sec-emoji">' + sec.emoji + '</span>';
+    html +=   '<span class="dl-sec-titulo">' + sec.titulo + '</span>';
+    html += '</div>';
+
+    // Grid de módulos
+    html += '<div class="dl-modulos-grid">';
+    sec.modulos.forEach(function (m) {
+      html += '<div class="dl-modulo-card" onclick="window.dlAbrirModulo(\'' + m.mod + '\',\'' + esc(loteId) + '\')">';
+      html +=   '<div class="dl-mod-emoji">' + m.emoji + '</div>';
+      html +=   '<div class="dl-mod-cuerpo">';
+      html +=     '<div class="dl-mod-titulo">' + m.titulo + '</div>';
+      html +=     '<div class="dl-mod-desc">' + m.desc + '</div>';
+      html +=   '</div>';
+      html +=   '<div class="dl-mod-arrow">→</div>';
+      html += '</div>';
+    });
+    html += '</div>'; // .dl-modulos-grid
+
+    html += '</div>'; // .dl-page
+    return html;
+  }
+
+  // ── HELPERS DE HTML ──────────────────────────────────
+  function breadcrumb(crumbs, actual) {
+    var html = '<nav class="dl-breadcrumb">';
+    crumbs.forEach(function (c) {
+      html += '<button class="dl-bc-btn" onclick="' + c.onclick + '">' + c.label + '</button>';
+      html += '<span class="dl-bc-sep">/</span>';
+    });
+    html += '<span class="dl-bc-actual">' + actual + '</span>';
+    html += '</nav>';
+    return html;
+  }
+
+  function chip(contenido) {
+    return '<span class="dl-chip">' + contenido + '</span>';
+  }
+
+  function getLote(id) {
+    return (window.AM_LOTES || []).find(function (l) { return l.id === id; }) || null;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // NAVEGACIÓN PÚBLICA
+  // ══════════════════════════════════════════════════════
+
+  window.dlAbrirLote = function (loteId) {
+    // Activar como lote global
+    if (loteId !== window.AM_LOTE_ACTIVO) {
+      window.AM_LOTE_ACTIVO = loteId;
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+      if (typeof amRenderSelectLotes  === 'function') amRenderSelectLotes();
+    }
+    _loteAbierto    = loteId;
+    _seccionAbierta = null;
+    renderPanel();
+  };
+
+  window.dlAbrirSeccion = function (secKey) {
+    _seccionAbierta = secKey;
+    renderPanel();
+  };
+
+  window.dlVolverCards = function () {
+    _loteAbierto    = null;
+    _seccionAbierta = null;
+    renderPanel();
+  };
+
+  window.dlAbrirModulo = function (mod, loteId) {
+    // Asegurar lote activo correcto
+    if (loteId && loteId !== window.AM_LOTE_ACTIVO) {
+      window.AM_LOTE_ACTIVO = loteId;
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    }
+    // Ir a vista clásica y abrir el módulo
+    window.dlIrClasica();
+    if (typeof switchMod === 'function') switchMod(mod);
+  };
+
+  // Vista clásica: activar sidebar + mostrar dashboard clásico
+  // Activamos el panel directamente para no pasar por amTieneAcceso
+  window.dlIrClasica = function () {
+    document.body.classList.add('dl-modo-clasico');
+    document.body.classList.remove('dl-modo-nuevo');
+    // Activar mod-dashboard directamente (bypass amTieneAcceso)
+    document.querySelectorAll('.module-panel').forEach(function (p) {
+      p.classList.remove('active');
+    });
+    var dash = document.getElementById('mod-dashboard');
+    if (dash) dash.classList.add('active');
+    // Sincronizar nav tab
+    document.querySelectorAll('.nav-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.mod === 'dashboard');
+    });
+  };
+
+  // Volver a la nueva UX desde la vista clásica
+  window.dlVolverNueva = function () {
+    document.body.classList.remove('dl-modo-clasico');
+    document.body.classList.add('dl-modo-nuevo');
+    // Activar mod-lotes directamente (bypass amTieneAcceso)
+    document.querySelectorAll('.module-panel').forEach(function (p) {
+      p.classList.remove('active');
+    });
+    var lotes = document.getElementById('mod-lotes');
+    if (lotes) lotes.classList.add('active');
+    document.querySelectorAll('.nav-tab').forEach(function (t) {
+      t.classList.toggle('active', t.dataset.mod === 'lotes');
+    });
+    window.dlRefrescar();
+  };
+
+  // Refrescar el panel de lotes (útil tras crear/editar lotes)
+  window.dlRefrescar = function () {
+    renderPanel();
+  };
+
+  // ══════════════════════════════════════════════════════
+  // INICIALIZACIÓN
+  // ══════════════════════════════════════════════════════
+  function init() {
+    // Activar modo nueva UX por defecto
+    document.body.classList.add('dl-modo-nuevo');
+
+    // Parchear switchMod para gestionar visibilidad del sidebar
+    patchSwitchMod();
+
+    // Renderizar panel inicial
+    renderPanel();
+
+    // Patch: cuando se actualicen los lotes, refrescar las tarjetas
+    var _origRender = window.amRenderSelectLotes;
+    if (typeof _origRender === 'function') {
+      window.amRenderSelectLotes = function () {
+        _origRender.apply(this, arguments);
+        // Solo refrescar si estamos en la vista de cards (no en hub ni módulo)
+        if (!_loteAbierto && !_seccionAbierta) {
+          renderPanel();
+        }
+      };
+    }
+  }
+
+  // Exponer init para ser llamado desde app.html
+  window.dlInit = init;
+
+  // ── PATCH switchMod: gestionar visibilidad de sidebar ──
+  // Se ejecuta en init() una vez que switchMod está disponible
+  function patchSwitchMod() {
+    var _orig = window.switchMod;
+    if (typeof _orig !== 'function') return;
+    window.switchMod = function (mod) {
+      if (mod === 'lotes') {
+        document.body.classList.add('dl-modo-nuevo');
+        document.body.classList.remove('dl-modo-clasico');
+      } else {
+        document.body.classList.remove('dl-modo-nuevo');
+        document.body.classList.add('dl-modo-clasico');
+      }
+      return _orig.apply(this, arguments);
+    };
+  }
+
+})();

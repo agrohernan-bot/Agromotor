@@ -79,6 +79,7 @@
       <button onclick="amMostrarModal('registro')" id="am-btn-registro" class="btn-hdr btn-hdr-green">✨ Registrarse gratis</button>
       <button onclick="amMostrarModal('login')" id="am-btn-login" class="btn-hdr btn-hdr-amber">🔑 Ingresar</button>
       <button id="am-btn-user" onclick="amMostrarPerfil()" class="btn-hdr btn-hdr-green hidden"></button>
+      <button id="dl-btn-nueva-vista" onclick="window.dlVolverNueva(); switchMod('lotes')" title="Volver al nuevo dashboard de lotes">🏠 Mis Lotes</button>
       <!-- INTERRUPTOR GLOBAL DE MODO (PLANIFICACIÓN vs SEGUIMIENTO) -->
       <div id="am-modo-badge" onclick="if(window.ModoSwitch) { window.ModoSwitch.toggleModo({motivo: 'Click en cabecera'}); if(typeof window.dashCampanaRefresh === 'function') window.dashCampanaRefresh(); }" style="cursor:pointer; transition:transform 0.2s; display:inline-flex;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1.0)'" title="Hacé click para cambiar de modo global"></div>
       
@@ -101,8 +102,10 @@
 
 <nav class="module-nav">
   <div class="nav-inner">
+    <!-- 0. NUEVA UX -->
+    <div class="nav-tab active" data-mod="lotes" onclick="switchMod('lotes')"><span class="dot"></span>🏠 Mis Lotes</div>
     <!-- 1. PLANIFICACIÓN -->
-    <div class="nav-tab active" data-mod="dashboard" onclick="switchMod('dashboard')"><span class="dot"></span>🏠 Dashboard</div>
+    <div class="nav-tab" data-mod="dashboard" onclick="switchMod('dashboard')"><span class="dot"></span>📋 Dashboard</div>
     <div class="nav-tab" data-mod="decision" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
     <div class="nav-tab" data-mod="cultivares" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
     <div class="nav-sep"></div>
@@ -142,8 +145,11 @@
 
 <main>
 
+<!-- ══ MÓDULO LOTES (Nueva UX — dashboard de tarjetas) ══ -->
+<div id="mod-lotes" class="module-panel active"></div>
+
 <!-- ══ MÓDULO DASHBOARD ══ -->
-<div id="mod-dashboard" class="module-panel active">
+<div id="mod-dashboard" class="module-panel">
 
   <!-- ── HEADER ────────────────────────────────────────── -->
   <div class="dash-header-wrap">
@@ -4309,6 +4315,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=85"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
+<script src="js/dashboard-lotes.js?v=87"></script>
 <script src="js/graficos-economia.js?v=85"></script>
 <script src="js/decision.js?v=85"></script>
 <script src="js/comparador-campana.js?v=85"></script>

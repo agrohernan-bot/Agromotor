@@ -576,6 +576,8 @@ window.amActualizarBadgesLote = function() {
 // Inicializar global
 document.addEventListener('DOMContentLoaded', () => {
   amCargarLotesGlobales();
+  // Inicializar nueva UX de lotes
+  if (typeof window.dlInit === 'function') window.dlInit();
   setTimeout(() => {
     cacheCargar();
     amActualizarBadgesLote();

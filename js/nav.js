@@ -11,6 +11,7 @@
 // â”€â”€ ORDEN DE PESTAÃ‘AS (Ãºnica fuente de verdad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Coincide con el orden visual del nav en index.html.
 var AM_TAB_ORDER = [
+  'lotes',
   'dashboard','decision','cultivares',
   'siembra','suelo','hidrico',
   'nutricion','rotacion',
