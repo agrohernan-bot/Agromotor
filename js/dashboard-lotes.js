@@ -192,6 +192,8 @@
         html += '</div>';
       }
       if (coord) html += '<div class="dl-coord">📍 ' + esc(coord) + '</div>';
+      // Barra de progreso fenológico del ciclo
+      html += renderBarraCiclo(ck, fecha);
       html += '</div>';
     }
 
@@ -289,6 +291,10 @@
     html +=   '<span class="dl-sec-titulo">' + sec.titulo + '</span>';
     html += '</div>';
 
+    // Widgets contextuales según sección
+    if (secKey === 'monitoreo') html += renderWidgetMonitoreo(lote);
+    if (secKey === 'planfina')  html += renderWidgetPlanFina(lote);
+
     // Grid de módulos
     html += '<div class="dl-modulos-grid">';
     sec.modulos.forEach(function (m) {
@@ -305,6 +311,164 @@
 
     html += '</div>'; // .dl-page
     return html;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // WIDGETS DE DATOS EN TIEMPO REAL
+  // ══════════════════════════════════════════════════════
+
+  // ── Panel de estado para Monitoreo ────────────────────
+  function renderWidgetMonitoreo(lote) {
+    var d  = lote.data || {};
+    var ck = d.calcKeys || {};
+
+    var fenEtapa     = ck['am_fen_etapa_hoy']       || '';
+    var fenFechaFin  = ck['am_fen_fecha_etapa_fin']  || '';
+    var fenDurCiclo  = parseFloat(ck['am_fen_duracion_ciclo']) || 0;
+    var cultivo      = d.cultivo || ck['am_siembra_cultivo']   || '';
+    var fechaSiembra = d.fecha   || ck['am_siembra_fecha']     || '';
+    var aguaMm       = parseFloat(ck['am_hidrico_agua_actual_mm'])  || 0;
+    var aguaCC       = parseFloat(ck['am_hidrico_cap_max_mm'])      || 0;
+    var deficitAcum  = parseFloat(ck['am_hidrico_deficit_acum_mm']) || 0;
+    var diasEstres   = parseFloat(ck['am_hidrico_dias_estres'])     || 0;
+    var ensoFase     = ck['am_enso_fase'] || '';
+    var alertas      = [];
+    try { alertas = JSON.parse(ck['am_alertas_activas'] || '[]'); } catch(e) {}
+
+    // Verificar si hay datos suficientes para mostrar el panel
+    var tieneDatos = fenEtapa || (aguaCC > 0) || ensoFase;
+    if (!tieneDatos) return '';
+
+    // Calcular % del ciclo
+    var pctCiclo = 0;
+    var diasTranscurridos = 0;
+    if (fechaSiembra && fenDurCiclo > 0) {
+      var hoy     = new Date();
+      var siembra = new Date(fechaSiembra + 'T12:00:00');
+      diasTranscurridos = Math.max(0, Math.round((hoy - siembra) / 86400000));
+      pctCiclo = Math.min(100, Math.round(diasTranscurridos / fenDurCiclo * 100));
+    }
+
+    // Estado hídrico
+    var pctAgua   = aguaCC > 0 ? Math.min(100, Math.round(aguaMm / aguaCC * 100)) : -1;
+    var colorAgua = pctAgua < 30 ? '#D4522A' : pctAgua < 55 ? '#C8A255' : '#6DBF82';
+    var labelAgua = pctAgua < 30 ? 'Déficit severo' : pctAgua < 55 ? 'Bajo estrés' : 'Bien hidratado';
+
+    // ENSO
+    var ensoColor = ensoFase.includes('Niño') ? '#E87A5A' : ensoFase.includes('Niña') ? '#7AAEF5' : '#C8A255';
+    var ensoIco   = ensoFase.includes('Niño') ? '🌡️' : ensoFase.includes('Niña') ? '💧' : '⚖️';
+
+    var html = '<div class="dlw-panel">';
+
+    // Título del panel
+    html += '<div class="dlw-panel-titulo">📊 Estado actual del lote</div>';
+    html += '<div class="dlw-grid">';
+
+    // Fenología
+    if (fenEtapa || pctCiclo > 0) {
+      html += '<div class="dlw-card">';
+      html +=   '<div class="dlw-card-titulo">🌱 Fenología</div>';
+      if (fenEtapa) html += '<div class="dlw-valor">' + esc(fenEtapa) + '</div>';
+      if (cultivo)  html += '<div class="dlw-meta">' + esc(cultivo) + (fechaSiembra ? ' · sembrado ' + fechaSiembra : '') + '</div>';
+      if (pctCiclo > 0) {
+        html += '<div class="dlw-barra-wrap">';
+        html +=   '<div class="dlw-barra-label"><span>Ciclo</span><span style="color:#6DBF82">' + pctCiclo + '%</span></div>';
+        html +=   '<div class="dlw-barra"><div class="dlw-barra-fill dlw-barra-verde" style="width:' + pctCiclo + '%"></div></div>';
+        html += '</div>';
+        if (diasTranscurridos > 0) html += '<div class="dlw-meta">' + diasTranscurridos + ' días desde siembra' + (fenDurCiclo > 0 ? ' / ' + fenDurCiclo + ' del ciclo' : '') + '</div>';
+      }
+      if (fenFechaFin) html += '<div class="dlw-meta">Próxima etapa: ' + esc(fenFechaFin) + '</div>';
+      html += '</div>';
+    }
+
+    // Balance hídrico
+    if (pctAgua >= 0) {
+      html += '<div class="dlw-card">';
+      html +=   '<div class="dlw-card-titulo">💧 Balance hídrico</div>';
+      html +=   '<div class="dlw-valor" style="color:' + colorAgua + '">' + labelAgua + '</div>';
+      html +=   '<div class="dlw-barra-wrap">';
+      html +=     '<div class="dlw-barra-label"><span>' + aguaMm.toFixed(0) + ' mm</span><span style="color:' + colorAgua + '">' + pctAgua + '%</span></div>';
+      html +=     '<div class="dlw-barra"><div class="dlw-barra-fill" style="width:' + pctAgua + '%;background:' + colorAgua + '"></div></div>';
+      html +=   '</div>';
+      if (deficitAcum > 0) html += '<div class="dlw-meta">Déficit acumulado: ' + deficitAcum.toFixed(0) + ' mm</div>';
+      if (diasEstres > 0)  html += '<div class="dlw-meta" style="color:#D4522A">⚠ ' + diasEstres + ' días de estrés hídrico</div>';
+      html += '</div>';
+    }
+
+    // ENSO + Alertas (columna derecha)
+    html += '<div class="dlw-card">';
+    if (ensoFase) {
+      html += '<div class="dlw-card-titulo">' + ensoIco + ' ENSO / Clima</div>';
+      html += '<div class="dlw-valor" style="color:' + ensoColor + '">' + esc(ensoFase) + '</div>';
+      html += '<div class="dlw-meta">Condición climática de la campaña</div>';
+    }
+    if (alertas.length > 0) {
+      html += '<div class="dlw-card-titulo" style="margin-top:' + (ensoFase ? '.75rem' : '0') + '">⚠ Alertas activas</div>';
+      alertas.slice(0, 3).forEach(function (a) {
+        var txt = typeof a === 'string' ? a : (a.mensaje || a.texto || JSON.stringify(a));
+        html += '<div class="dlw-alerta-item">' + esc(txt.substring(0, 80)) + '</div>';
+      });
+      if (alertas.length > 3) html += '<div class="dlw-meta">' + (alertas.length - 3) + ' alertas más →</div>';
+    } else if (!ensoFase) {
+      html += '<div class="dlw-meta dlw-sin-datos">Sin datos de campaña todavía.<br>Completá la Planificación Fina primero.</div>';
+    }
+    html += '</div>';
+
+    html += '</div>'; // .dlw-grid
+    html += '</div>'; // .dlw-panel
+    return html;
+  }
+
+  // ── Panel de contexto para Planificación Fina ─────────
+  function renderWidgetPlanFina(lote) {
+    var d  = lote.data || {};
+    var ck = d.calcKeys || {};
+
+    var cultivo     = d.cultivo || ck['am_siembra_cultivo']       || '';
+    var fecha       = d.fecha   || ck['am_siembra_fecha']         || '';
+    var coord       = d.coord   || '';
+    var sueloTex    = ck['am_sg_textura'] || ck['sg-textura']     || '';
+    var sueloPH     = ck['am_sg_ph']      || '';
+    var nitrogeno   = ck['am_sg_n']       || '';
+    var ensoFase    = ck['am_enso_fase']  || '';
+    var sup         = d.superficie        || '';
+
+    var tieneDatos  = cultivo || fecha || coord || sueloTex;
+    if (!tieneDatos) return '';
+
+    var html = '<div class="dlw-panel dlw-panel-fina">';
+    html += '<div class="dlw-panel-titulo">📋 Contexto del lote</div>';
+    html += '<div class="dlw-chips-row">';
+
+    if (cultivo)  html += '<span class="dlw-chip-data">🌾 ' + esc(cultivo) + '</span>';
+    if (fecha)    html += '<span class="dlw-chip-data">📅 Siembra: ' + esc(fecha) + '</span>';
+    if (coord)    html += '<span class="dlw-chip-data">📍 ' + esc(coord) + '</span>';
+    if (sup)      html += '<span class="dlw-chip-data">📐 ' + esc(sup) + ' has</span>';
+    if (sueloTex) html += '<span class="dlw-chip-data">🌍 ' + esc(sueloTex) + '</span>';
+    if (sueloPH)  html += '<span class="dlw-chip-data">⚗️ pH: ' + esc(sueloPH) + '</span>';
+    if (ensoFase) html += '<span class="dlw-chip-data">🌡️ ' + esc(ensoFase) + '</span>';
+
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  // ── Barra de progreso fenológico para las cards ───────
+  function renderBarraCiclo(ck, fechaSiembra) {
+    var fenDurCiclo = parseFloat(ck['am_fen_duracion_ciclo']) || 0;
+    if (!fechaSiembra || fenDurCiclo <= 0) return '';
+    var hoy = new Date();
+    var siem = new Date(fechaSiembra + 'T12:00:00');
+    var dias = Math.max(0, Math.round((hoy - siem) / 86400000));
+    var pct  = Math.min(100, Math.round(dias / fenDurCiclo * 100));
+    if (pct <= 0) return '';
+    var col  = pct > 85 ? '#C8A255' : '#6DBF82';
+    return [
+      '<div class="dl-ciclo">',
+        '<div class="dl-ciclo-label"><span>🌱 Ciclo</span><span style="color:' + col + '">' + pct + '%</span></div>',
+        '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + col + '"></div></div>',
+      '</div>'
+    ].join('');
   }
 
   // ── HELPERS DE HTML ──────────────────────────────────

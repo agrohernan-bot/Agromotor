@@ -838,3 +838,134 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
     grid-template-columns: 1fr;
   }
 }
+
+/* ════════════════════════════════════════════════════════
+   WIDGETS DE DATOS EN TIEMPO REAL (dlw-*)
+   ════════════════════════════════════════════════════════ */
+
+/* ── Panel contenedor ─────────────────────────────────── */
+.dlw-panel {
+  background: rgba(10,22,14,.55);
+  border: 1px solid rgba(237,224,196,.08);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(6px);
+}
+.dlw-panel-fina {
+  background: rgba(30,77,43,.2);
+  border-color: rgba(109,191,130,.12);
+}
+.dlw-panel-titulo {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.4);
+  margin-bottom: .85rem;
+}
+
+/* ── Grid de 3 columnas ───────────────────────────────── */
+.dlw-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .85rem;
+}
+@media (max-width: 720px) {
+  .dlw-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Card individual dentro del panel ────────────────── */
+.dlw-card {
+  background: rgba(15,31,20,.4);
+  border: 1px solid rgba(237,224,196,.07);
+  border-radius: 10px;
+  padding: .75rem .85rem;
+}
+.dlw-card-titulo {
+  font-size: .64rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.35);
+  margin-bottom: .4rem;
+}
+.dlw-valor {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1rem;
+  color: rgba(237,224,196,.9);
+  margin-bottom: .25rem;
+  line-height: 1.2;
+}
+.dlw-meta {
+  font-size: .68rem;
+  color: rgba(237,224,196,.35);
+  line-height: 1.4;
+  margin-top: .2rem;
+}
+.dlw-sin-datos {
+  color: rgba(237,224,196,.25);
+  font-style: italic;
+}
+
+/* ── Barra de progreso en widget ─────────────────────── */
+.dlw-barra-wrap {
+  margin-top: .5rem;
+}
+.dlw-barra-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .68rem;
+  color: rgba(237,224,196,.4);
+  margin-bottom: .2rem;
+}
+.dlw-barra {
+  height: 5px;
+  background: rgba(237,224,196,.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.dlw-barra-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .5s ease;
+}
+.dlw-barra-verde { background: #6DBF82; }
+
+/* ── Alertas en widget ────────────────────────────────── */
+.dlw-alerta-item {
+  font-size: .7rem;
+  color: rgba(232,122,90,.8);
+  padding: .2rem 0;
+  border-bottom: 1px solid rgba(237,224,196,.05);
+  line-height: 1.35;
+}
+.dlw-alerta-item:last-child { border-bottom: none; }
+
+/* ── Chips contextuales (Planif. Fina) ───────────────── */
+.dlw-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.dlw-chip-data {
+  background: rgba(109,191,130,.1);
+  color: rgba(237,224,196,.65);
+  border: 1px solid rgba(109,191,130,.2);
+  border-radius: 20px;
+  padding: .25em .7em;
+  font-size: .72rem;
+  white-space: nowrap;
+}
+
+/* ── Barra de ciclo en card ───────────────────────────── */
+.dl-ciclo {
+  margin-top: .4rem;
+}
+.dl-ciclo-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .65rem;
+  color: rgba(237,224,196,.35);
+  margin-bottom: .2rem;
+}
