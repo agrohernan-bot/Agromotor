@@ -229,28 +229,29 @@
     // Estado
     html += '<div class="dl-card-estado" style="color:' + eConf.texto + '">' + eConf.label + '</div>';
 
-    // Contenido según estado
-    if (estado === 'vacio') {
-      html += '<div class="dl-card-empty">Tocá para comenzar a planificar este lote</div>';
-    } else {
-      html += '<div class="dl-card-body">';
-      if (cultivo)  html += kv('🌾 Cultivo', cultivo);
-      if (fecha)    html += kv('📅 Siembra', fecha);
-      if (fenEtapa) html += kv('🌱 Etapa',   fenEtapa);
-      if (sup)      html += kv('📐 Área',    sup + ' ha');
-      if (sueloTex) html += kv('🌍 Suelo',   sueloTex);
-      if (aguaCC > 0) {
-        var pct = Math.min(100, Math.round(aguaMm / aguaCC * 100));
-        var bcolor = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
-        html += '<div class="dl-hidrico">';
-        html +=   '<div class="dl-hidrico-top"><span>💧 Humedad suelo</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
-        html +=   '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + bcolor + '"></div></div>';
-        html += '</div>';
-      }
-      if (coords) html += '<div id="dl-clima-' + esc(lote.id) + '"></div>';
-      html += renderBarraCiclo(ck, fecha);
+    // Cuerpo de la card: datos de suelo/clima siempre que estén disponibles;
+    // cultivo/fecha/fenología solo aparecen una vez planificado.
+    var tieneDatos = sup || sueloTex || coords || aguaCC > 0;
+    html += '<div class="dl-card-body">';
+    if (cultivo)  html += kv('🌾 Cultivo', cultivo);
+    if (fecha)    html += kv('📅 Siembra', fecha);
+    if (fenEtapa) html += kv('🌱 Etapa',   fenEtapa);
+    if (sup)      html += kv('📐 Área',    sup + ' ha');
+    if (sueloTex) html += kv('🌍 Suelo',   sueloTex);
+    if (aguaCC > 0) {
+      var pct = Math.min(100, Math.round(aguaMm / aguaCC * 100));
+      var bcolor = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
+      html += '<div class="dl-hidrico">';
+      html +=   '<div class="dl-hidrico-top"><span>💧 Humedad suelo</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
+      html +=   '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + bcolor + '"></div></div>';
       html += '</div>';
     }
+    if (coords) html += '<div id="dl-clima-' + esc(lote.id) + '"></div>';
+    html += renderBarraCiclo(ck, fecha);
+    if (!tieneDatos && estado === 'vacio') {
+      html += '<div class="dl-card-empty">Tocá para comenzar a planificar este lote</div>';
+    }
+    html += '</div>';
 
     // Footer con flecha
     html += '<div class="dl-card-footer">Ver lote →</div>';
