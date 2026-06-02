@@ -11,6 +11,35 @@
   margin-bottom: 1.5rem;
   backdrop-filter: blur(6px);
 }
+.sp-widget-empty {
+  border-color: rgba(200,162,85,.18);
+  background: rgba(12,24,15,.54);
+}
+.sp-empty-body {
+  padding: .85rem 1.1rem 1rem;
+}
+.sp-empty-title {
+  color: rgba(237,224,196,.82);
+  font-size: .82rem;
+  font-weight: 700;
+  margin-bottom: .25rem;
+}
+.sp-empty-text {
+  color: rgba(237,224,196,.48);
+  font-size: .72rem;
+  line-height: 1.45;
+  max-width: 720px;
+}
+.sp-empty-actions {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  gap: .5rem;
+  margin-top: .7rem;
+}
+.sp-btn-score {
+  border-color: rgba(109,191,130,.2);
+  color: rgba(109,191,130,.76);
+}
 
 /* ── Header ─────────────────────────────────────────── */
 .sp-header {
@@ -354,4 +383,5 @@
 @media (max-width: 480px) {
   .sp-anl-row { grid-template-columns: auto 1fr auto; }
   .sp-anl-fin { display: none; }
+  .sp-empty-actions { grid-template-columns: 1fr; }
 }

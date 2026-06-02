@@ -80,6 +80,14 @@
   var DEFAULT_VEL    = 7;   // km/h
   var DEFAULT_EFIC   = 0.80; // eficiencia operativa
   var HORAS_DIA      = 9.7;
+  var CULTIVOS_POR_GRUPO = {
+    invierno: ['trigo', 'cebada', 'colza'],
+    verano: ['soja', 'maiz', 'girasol', 'sorgo']
+  };
+  var GRUPO_LABEL = {
+    invierno: 'Trigo, Cebada o Colza',
+    verano: 'Soja, Maiz, Girasol o Sorgo'
+  };
 
   // ── Utilidades de fecha ───────────────────────────────
   var MESES_IDX = { ene:0, feb:1, mar:2, abr:3, may:4, jun:5, jul:6, ago:7, sep:8, oct:9, nov:10, dic:11 };
@@ -329,6 +337,44 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function cultivoEnGrupo(cultivo, grupo) {
+    if (!grupo || !cultivo) return true;
+    var permitidos = CULTIVOS_POR_GRUPO[grupo] || [];
+    var key = String(cultivo || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/Ã¡|á/g, 'a').replace(/Ã©|é/g, 'e')
+      .replace(/Ã­|í/g, 'i').replace(/Ã³|ó/g, 'o')
+      .replace(/Ãº|ú/g, 'u').replace(/ñ|Ã±/g, 'n');
+    return permitidos.indexOf(key) >= 0;
+  }
+
+  function renderPendienteCultivo(lote, grupo, cultivoActual) {
+    var loteId = esc(lote.id);
+    var grupoTxt = GRUPO_LABEL[grupo] || 'un cultivo del score';
+    var motivo = cultivoActual
+      ? 'El cultivo activo del lote es ' + esc(cultivoActual) + ', que no corresponde a esta secciÃ³n.'
+      : 'TodavÃ­a no hay cultivo activo para este lote.';
+    var html = '<div class="sp-widget sp-widget-empty">';
+    html += '<div class="sp-header">';
+    html +=   '<span class="sp-titulo">ðŸ“… Operativa de siembra</span>';
+    html +=   '<span class="sp-zona-chip">Pendiente de cultivo</span>';
+    html += '</div>';
+    html += '<div class="sp-empty-body">';
+    html +=   '<div class="sp-empty-title">ElegÃ­ un cultivo del score para activar la operativa</div>';
+    html +=   '<div class="sp-empty-text">' + motivo + ' En esta planificaciÃ³n corresponde usar ' + esc(grupoTxt) + '.</div>';
+    html +=   '<div class="sp-empty-actions">';
+    html +=     '<button class="sp-btn-maquinaria sp-btn-score" onclick="window.spScrollScore()">';
+    html +=       '<span>Volver al score y tocar Usar</span><span>â†‘</span>';
+    html +=     '</button>';
+    html +=     '<button class="sp-btn-maquinaria" onclick="window.dlAbrirLote(\'' + loteId + '\')">';
+    html +=       '<span>Volver al hub del lote</span><span>â†’</span>';
+    html +=     '</button>';
+    html +=   '</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
   function _reabrirSeccion() {
     if (typeof window.dlAbrirSeccion !== 'function') return;
     var sec = (typeof window.dlGetSeccionAbierta === 'function') ? window.dlGetSeccionAbierta() : null;
@@ -345,7 +391,9 @@
     var esVerano = grupo === 'verano';
     var loteId  = esc(lote.id);
 
-    if (!cultivo) return ''; // No mostrar si no hay cultivo elegido
+    if (!cultivo || !cultivoEnGrupo(cultivo, grupo)) {
+      return renderPendienteCultivo(lote, grupo, cultivo);
+    }
 
     // Zona agronómica
     var zona = null;
@@ -580,6 +628,11 @@
     lote.data.sembConfig.n = n;
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     _reabrirSeccion();
+  };
+
+  window.spScrollScore = function () {
+    var el = document.querySelector('.sc-widget');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
 })();
