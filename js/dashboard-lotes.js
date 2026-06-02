@@ -664,8 +664,9 @@
       var [omData, nasaProps, ensoResult] = await Promise.all([
         fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
           '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,soil_moisture_3_9cm' +
-          '&daily=et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum' +
-          '&timezone=auto&forecast_days=1').then(function(r) { return r.json(); }),
+          '&daily=et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum,' +
+          'temperature_2m_max,temperature_2m_min,weather_code' +
+          '&timezone=auto&forecast_days=7').then(function(r) { return r.json(); }),
         (typeof window.buscarNASAPower === 'function'
           ? window.buscarNASAPower(lat, lng, mes)
           : Promise.resolve(null)),
@@ -829,7 +830,60 @@
       }
     }
 
+    // ── Pronóstico 7 días ────────────────────────────────────
+    var omF = data.om || {};
+    var dF  = omF.daily || {};
+    if (dF.time && dF.time.length > 0) {
+      var diasNom = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      html += '<div class="dl-hdatos-sec dl-hdatos-sec-prono">';
+      html +=   '<div class="dl-hdatos-titulo">🌧️ Pronóstico 7 días · Open-Meteo</div>';
+      html +=   '<div class="dl-prono-row">';
+      for (var di = 0; di < Math.min(7, dF.time.length); di++) {
+        var fecha   = new Date(dF.time[di] + 'T12:00:00');
+        var dNom    = di === 0 ? 'Hoy' : di === 1 ? 'Mañana' : diasNom[fecha.getDay()];
+        var wco     = dF.weather_code ? dF.weather_code[di] : 0;
+        var wEmoji  = _wmoEmoji(wco);
+        var tmax    = dF.temperature_2m_max ? dF.temperature_2m_max[di] : null;
+        var tmin    = dF.temperature_2m_min ? dF.temperature_2m_min[di] : null;
+        var prob    = dF.precipitation_probability_max ? dF.precipitation_probability_max[di] : null;
+        var mm      = dF.precipitation_sum ? dF.precipitation_sum[di] : null;
+        var probPct = prob != null ? Math.round(prob) : 0;
+        var barColor = probPct >= 70 ? '#5A9FD4' : probPct >= 40 ? '#7BB8D4' : 'rgba(237,224,196,.2)';
+        var textColor = probPct >= 40 ? '#9CCFE8' : 'rgba(237,224,196,.45)';
+
+        html += '<div class="dl-prono-dia">';
+        html +=   '<div class="dl-prono-nom">' + esc(dNom) + '</div>';
+        html +=   '<div class="dl-prono-ico">' + wEmoji + '</div>';
+        html +=   '<div class="dl-prono-temp">';
+        html +=     (tmax != null ? '<span class="dl-prono-tmax">' + Math.round(tmax) + '°</span>' : '');
+        html +=     (tmin != null ? '<span class="dl-prono-tmin">' + Math.round(tmin) + '°</span>' : '');
+        html +=   '</div>';
+        html +=   '<div class="dl-prono-bar-wrap">';
+        html +=     '<div class="dl-prono-bar" style="height:' + probPct + '%;background:' + barColor + '"></div>';
+        html +=   '</div>';
+        html +=   '<div class="dl-prono-prob" style="color:' + textColor + '">' + (prob != null ? probPct + '%' : '—') + '</div>';
+        html +=   '<div class="dl-prono-mm">' + (mm != null && mm > 0 ? mm.toFixed(1) + ' mm' : '—') + '</div>';
+        html += '</div>';
+      }
+      html +=   '</div>';
+      html += '</div>';
+    }
+
     el.innerHTML = html || '<div class="dl-hub-datos-empty">Sin datos disponibles.</div>';
+  }
+
+  function _wmoEmoji(code) {
+    if (code === 0)                          return '☀️';
+    if (code <= 2)                           return '🌤️';
+    if (code === 3)                          return '☁️';
+    if (code <= 48)                          return '🌫️';
+    if (code <= 57)                          return '🌦️';
+    if (code <= 67)                          return '🌧️';
+    if (code <= 77)                          return '❄️';
+    if (code <= 82)                          return '🌦️';
+    if (code <= 86)                          return '🌨️';
+    if (code <= 99)                          return '⛈️';
+    return '🌡';
   }
 
   function _hdKV(ico, label, val, raw) {

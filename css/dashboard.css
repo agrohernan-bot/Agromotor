@@ -1352,3 +1352,70 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   font-style: italic;
   padding: .3rem 0;
 }
+
+/* ── Pronóstico 7 días ──────────────────────────────── */
+.dl-hdatos-sec-prono {
+  border-color: rgba(90,159,212,.15);
+  background: rgba(10,20,40,.35);
+}
+.dl-prono-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .25rem;
+}
+.dl-prono-dia {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+  padding: .35rem .1rem;
+}
+.dl-prono-nom {
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.45);
+  white-space: nowrap;
+}
+.dl-prono-ico { font-size: 1.25rem; line-height: 1; }
+.dl-prono-temp {
+  display: flex;
+  gap: .25rem;
+  font-size: .65rem;
+  font-family: 'DM Mono', monospace;
+}
+.dl-prono-tmax { color: rgba(237,224,196,.85); font-weight: 700; }
+.dl-prono-tmin { color: rgba(237,224,196,.4); }
+.dl-prono-bar-wrap {
+  width: 100%;
+  height: 32px;
+  background: rgba(237,224,196,.07);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+.dl-prono-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+  transition: height .3s ease;
+}
+.dl-prono-prob {
+  font-size: .68rem;
+  font-weight: 700;
+  font-family: 'DM Mono', monospace;
+}
+.dl-prono-mm {
+  font-size: .6rem;
+  color: rgba(237,224,196,.35);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+@media (max-width: 400px) {
+  .dl-prono-nom  { font-size: .52rem; }
+  .dl-prono-ico  { font-size: 1.1rem; }
+  .dl-prono-temp { font-size: .58rem; }
+  .dl-prono-prob { font-size: .6rem; }
+}
