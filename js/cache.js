@@ -453,7 +453,9 @@ function cacheCargar() {
 
     if (datos.coord   && document.getElementById('s-coord'))   document.getElementById('s-coord').value   = datos.coord;
     if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
-    if (datos.fecha   && document.getElementById('s-fecha'))   document.getElementById('s-fecha').value   = datos.fecha;
+    // Priorizar fecha confirmada o planeada del widget de siembra antes que la del form clásico
+    var fechaEfectiva = datos.fechaSiembraConf || datos.fechaSiembraPlan || datos.fecha || '';
+    if (fechaEfectiva && document.getElementById('s-fecha')) document.getElementById('s-fecha').value = fechaEfectiva;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
 
     // ── Restaurar o limpiar claves de localStorage correspondientes a este lote ──
@@ -474,9 +476,9 @@ function cacheCargar() {
     // módulos que lean del Store (o _syncCultivo) reciban el valor correcto.
     if (typeof AM !== 'undefined' && AM.store) {
       var storeUpd = {};
-      if (datos.cultivo)  storeUpd.cultivo      = datos.cultivo;
-      if (datos.fecha)    storeUpd.fecha         = datos.fecha;
-      if (datos.coord)    storeUpd.coordenadas   = datos.coord;
+      if (datos.cultivo)    storeUpd.cultivo    = datos.cultivo;
+      if (fechaEfectiva)    storeUpd.fecha      = fechaEfectiva;
+      if (datos.coord)      storeUpd.coordenadas = datos.coord;
       if (Object.keys(storeUpd).length) AM.store.update(storeUpd);
     }
     // ── Cosecha usa id="cultivo" con valores en minúscula ─

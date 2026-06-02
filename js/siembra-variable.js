@@ -156,9 +156,12 @@
     var loteCoord = _parsLoteCoord();
 
     if (svIniciado) {
-      if (svMap) setTimeout(function () { svMap.invalidateSize(); }, 100);
-      // Re-verificar lote activo cada vez que se abre el módulo
-      if (!loteCoord) { _mostrarOverlayLote(); } else { _ocultarOverlayLote(); if (svMap) svMap.setView([loteCoord.lat, loteCoord.lon], 14); _aplicarLoteActivo(); }
+      // Esperar a que el mapa tenga sus dimensiones reales antes de fitBounds
+      setTimeout(function () {
+        if (svMap) svMap.invalidateSize();
+        if (!loteCoord) { _mostrarOverlayLote(); }
+        else { _ocultarOverlayLote(); setTimeout(function () { _aplicarLoteActivo(); }, 60); }
+      }, 120);
       return;
     }
     svIniciado = true;
@@ -173,9 +176,12 @@
       el('api-key').value = AM_CONFIG.agromonitoringKey;
       el('bdemo').style.display = 'none';
       el('bapi').classList.add('show');
-      el('demo-badge').style.display = 'none';
-      el('chart-tag').textContent = 'Sentinel-2 real';
+      if (el('demo-badge')) el('demo-badge').style.display = 'none';
+      if (el('chart-tag')) el('chart-tag').textContent = 'Sentinel-2 real';
       el('api-status').innerHTML = '<span class="sv-dot sv-dot-ok"></span> Conectado · Agromonitoring';
+      // Ocultar el panel de API key: el usuario no necesita verlo ni manejarlo
+      var apiPanelEl = el('api-key') && el('api-key').closest ? el('api-key').closest('.sv-panel') : null;
+      if (apiPanelEl) apiPanelEl.style.display = 'none';
     }
 
     // Centrar mapa en lote activo (o fallback a pampa húmeda)
@@ -190,7 +196,8 @@
     sat.addTo(svMap);
     L.control.layers({ 'Satélite': sat, 'Callejero': osm }).addTo(svMap);
     svDrawnItems = new L.FeatureGroup().addTo(svMap);
-    _aplicarLoteActivo();
+    // Esperar render inicial del mapa antes de fitBounds
+    setTimeout(function () { _aplicarLoteActivo(); }, 200);
   };
 
   // ── DIBUJO NATIVO ──────────────────────────────────
@@ -259,7 +266,7 @@
     el('l-peri').textContent = peri + ' m';
     el('l-cent').textContent = c[1].toFixed(4) + '°, ' + c[0].toFixed(4) + '°';
     el('btn-analizar').disabled = false;
-    svMap.fitBounds(layer.getBounds().pad(0.12));
+    svMap.fitBounds(layer.getBounds().pad(0.04));
   }
   function limpiarLote() {
     if (svLoteBloqueado) return;
