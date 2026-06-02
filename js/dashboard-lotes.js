@@ -744,7 +744,7 @@
       var faseLabel = fase === 'niño' ? 'El Niño' : fase === 'niña' ? 'La Niña' : 'Neutro';
       var faseColor = fase === 'niño' ? '#D4835A' : fase === 'niña' ? '#7B8DC8' : '#6DBF82';
       var pctStr = factorAdj !== 0 ? ' · ' + (factorAdj > 0 ? '+' : '') + Math.round(factorAdj * 100) + '% prec.' : '';
-      ensoBadge = '<span class="dl-hdatos-badge" style="background:' + faseColor + '22;border-color:' + faseColor + '44;color:' + faseColor + '">ENSO: ' + faseLabel + pctStr + '</span>';
+      ensoBadge = '<span class="dl-hdatos-badge" style="background:' + faseColor + '22;border-color:' + faseColor + '44;color:' + faseColor + '">' + esc(mesNom) + ' · ' + faseLabel + pctStr + '</span>';
     }
 
     if (nasa) {
@@ -761,9 +761,7 @@
       var drd    = precM  != null ? Math.round(precM / 3.5) : null;
 
       html += '<div class="dl-hdatos-sec dl-hdatos-sec-nasa">';
-      html +=   '<div class="dl-hdatos-titulo">🚀 NASA POWER · Histórico 30 años · ' + esc(mesNom);
-      html +=   ensoBadge;
-      html +=   '</div>';
+      html +=   '<div class="dl-hdatos-titulo"><span>🚀 NASA POWER · Histórico 30 años</span>' + ensoBadge + '</div>';
       html +=   '<div class="dl-hdatos-grid">';
       html +=     _hdKV('☀️', 'Radiación', rad != null ? rad.toFixed(1) + ' MJ/m²/d' : '—');
       html +=     _hdKV('💧', 'Prec/mes', precM != null ? precM.toFixed(0) + ' mm' : '—');
@@ -836,9 +834,13 @@
 
   function _hdKV(ico, label, val, raw) {
     var valStr = raw ? val : esc(String(val));
-    return '<div class="dl-hdatos-item"><span class="dl-hdatos-ico">' + ico + '</span>' +
-      '<span class="dl-hdatos-label">' + esc(label) + '</span>' +
-      '<span class="dl-hdatos-val">' + valStr + '</span></div>';
+    return '<div class="dl-hdatos-item">' +
+      '<span class="dl-hdatos-ico">' + ico + '</span>' +
+      '<div class="dl-hdatos-content">' +
+        '<span class="dl-hdatos-label">' + esc(label) + '</span>' +
+        '<span class="dl-hdatos-val">' + valStr + '</span>' +
+      '</div>' +
+      '</div>';
   }
 
   function _renderClimaInCard(el, data) {

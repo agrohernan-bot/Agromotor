@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v90';
+const CACHE_NAME    = 'agromotor-v91';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install

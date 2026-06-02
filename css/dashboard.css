@@ -1311,39 +1311,44 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
 .dl-hdatos-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: .3rem .6rem;
+  gap: .5rem .5rem;
 }
 .dl-hdatos-item {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: .3rem;
-  font-size: .77rem;
-  line-height: 1.4;
 }
 .dl-hdatos-ico {
-  font-size: .85rem;
+  font-size: .9rem;
   flex-shrink: 0;
-  width: 1.1rem;
+  width: 1.15rem;
   text-align: center;
+  margin-top: .15rem;
+}
+.dl-hdatos-content {
+  display: flex;
+  flex-direction: column;
+  gap: .05rem;
+  min-width: 0;
 }
 .dl-hdatos-label {
-  color: rgba(237,224,196,.4);
-  font-size: .68rem;
-  flex-shrink: 0;
+  color: rgba(237,224,196,.38);
+  font-size: .6rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 .dl-hdatos-val {
-  color: rgba(237,224,196,.88);
-  font-weight: 600;
+  color: rgba(237,224,196,.9);
+  font-weight: 700;
   font-family: 'DM Mono', monospace;
-  font-size: .77rem;
+  font-size: .8rem;
+  white-space: nowrap;
 }
 .dl-hdatos-loading-sub {
   font-size: .72rem;
   color: rgba(237,224,196,.3);
   font-style: italic;
   padding: .3rem 0;
-}
-@media (max-width: 480px) {
-  .dl-hdatos-grid { grid-template-columns: 1fr 1fr; }
-  .dl-hdatos-item { font-size: .72rem; }
 }
