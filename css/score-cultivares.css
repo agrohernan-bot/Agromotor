@@ -1,6 +1,5 @@
 /* ════════════════════════════════════════════════════════
    SCORE DE CULTIVARES (sc-*)
-   feature/nueva-ux
    ════════════════════════════════════════════════════════ */
 
 .sc-widget {
@@ -50,13 +49,57 @@
   border-color: rgba(212,82,42,.25);
 }
 
+/* ── Selector de cultivo antecesor ───────────────────── */
+.sc-antecesor {
+  padding: .65rem 1.1rem .6rem;
+  border-bottom: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.sc-ant-label {
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: rgba(237,224,196,.32);
+}
+.sc-ant-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .28rem;
+}
+.sc-ant-btn {
+  background: rgba(237,224,196,.05);
+  border: 1px solid rgba(237,224,196,.1);
+  color: rgba(237,224,196,.48);
+  border-radius: 8px;
+  padding: .2em .65em;
+  font-size: .72rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  line-height: 1.4;
+}
+.sc-ant-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.8);
+  border-color: rgba(237,224,196,.22);
+}
+.sc-ant-btn-activo {
+  background: rgba(200,162,85,.14);
+  border-color: rgba(200,162,85,.3);
+  color: #C8A255;
+  font-weight: 700;
+}
+
 /* ── Tabla ─────────────────────────────────────────────── */
 .sc-tabla {
   overflow-x: auto;
 }
 .sc-tabla-head {
   display: grid;
-  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .55fr .4fr;
+  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .65fr auto;
   gap: .25rem;
   padding: .4rem 1.1rem;
   background: rgba(237,224,196,.04);
@@ -67,20 +110,24 @@
   text-transform: uppercase;
   color: rgba(237,224,196,.3);
 }
+
+/* Row wrapper handles the border */
+.sc-row-wrap {
+  border-bottom: 1px solid rgba(237,224,196,.05);
+}
+.sc-row-wrap:last-child { border-bottom: none; }
+
 .sc-row {
   display: grid;
-  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .55fr .4fr;
+  grid-template-columns: 1.6fr .6fr .6fr .6fr .6fr .65fr auto;
   gap: .25rem;
   align-items: center;
   padding: .55rem 1.1rem;
-  border-bottom: 1px solid rgba(237,224,196,.05);
   transition: background .15s;
 }
-.sc-row:last-child { border-bottom: none; }
 .sc-row:hover { background: rgba(237,224,196,.04); }
 .sc-row-activa {
   background: rgba(109,191,130,.07) !important;
-  border-color: rgba(109,191,130,.12);
 }
 .sc-row-top {
   background: rgba(109,191,130,.04);
@@ -90,7 +137,7 @@
 .sc-cultivo {
   display: flex;
   align-items: center;
-  gap: .4rem;
+  gap: .35rem;
   flex-wrap: wrap;
 }
 .sc-emoji { font-size: 1rem; line-height: 1; flex-shrink: 0; }
@@ -122,6 +169,60 @@
   letter-spacing: .04em;
 }
 
+/* ── Botón info ───────────────────────────────────────── */
+.sc-info-btn {
+  background: none;
+  border: 1px solid rgba(237,224,196,.16);
+  color: rgba(237,224,196,.38);
+  border-radius: 50%;
+  width: 17px;
+  height: 17px;
+  font-size: .6rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: all .15s;
+  line-height: 1;
+}
+.sc-info-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.8);
+  border-color: rgba(237,224,196,.35);
+}
+
+/* ── Panel de detalle del score (expandible) ─────────── */
+.sc-info-panel {
+  padding: .5rem 1.1rem .65rem;
+  background: rgba(0,0,0,.18);
+  border-top: 1px solid rgba(237,224,196,.05);
+}
+.sc-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .45rem .8rem;
+}
+.sc-info-kv {
+  display: flex;
+  flex-direction: column;
+  gap: .1rem;
+}
+.sc-info-k {
+  font-size: .6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: rgba(237,224,196,.3);
+}
+.sc-info-v {
+  font-size: .73rem;
+  color: rgba(237,224,196,.68);
+  line-height: 1.35;
+}
+
 /* ── Celdas de sub-scores ─────────────────────────────── */
 .sc-pts-cell {
   display: flex;
@@ -146,11 +247,20 @@
 }
 
 /* ── Score total ──────────────────────────────────────── */
+.sc-col-total { text-align: right; }
 .sc-total {
   font-family: 'DM Serif Display', serif;
   font-size: 1rem;
   font-weight: 400;
   white-space: nowrap;
+}
+
+/* ── Columna acción ───────────────────────────────────── */
+.sc-col-accion {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
 }
 
 /* ── Botón seleccionar ────────────────────────────────── */
@@ -159,7 +269,7 @@
   border: 1px solid rgba(109,191,130,.25);
   color: #6DBF82;
   border-radius: 8px;
-  padding: .25rem .5rem;
+  padding: .28rem .55rem;
   font-size: .68rem;
   font-weight: 700;
   cursor: pointer;
@@ -188,23 +298,73 @@
   border-top: 1px solid rgba(237,224,196,.05);
 }
 
-/* ── Alineación columnas específicas ─────────────────── */
-.sc-col-total { text-align: right; }
+/* ── CTA inferior ─────────────────────────────────────── */
+.sc-cta {
+  padding: .7rem 1.1rem .85rem;
+  border-top: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+.sc-cta-nav {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+}
+.sc-cta-nav-btn {
+  background: rgba(237,224,196,.05);
+  border: 1px solid rgba(237,224,196,.1);
+  color: rgba(237,224,196,.45);
+  border-radius: 8px;
+  padding: .3rem .75rem;
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.sc-cta-nav-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.85);
+  border-color: rgba(237,224,196,.22);
+}
+.sc-btn-cultivares {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: rgba(109,191,130,.08);
+  border: 1px solid rgba(109,191,130,.2);
+  color: #6DBF82;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all .2s;
+}
+.sc-btn-cultivares:hover {
+  background: rgba(109,191,130,.15);
+  border-color: rgba(109,191,130,.35);
+}
 
 /* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 640px) {
   .sc-tabla-head,
   .sc-row {
-    grid-template-columns: 1.4fr .5fr .5fr 0 0 .55fr .35fr;
+    grid-template-columns: 1.4fr .5fr .5fr 0 0 .6fr auto;
   }
   .sc-col-enso,
   .sc-col-zona { display: none; }
   .sc-titulo { font-size: .82rem; }
+  .sc-info-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 480px) {
   .sc-tabla-head,
   .sc-row {
-    grid-template-columns: 1.3fr .5fr 0 0 0 .5fr .35fr;
+    grid-template-columns: 1.3fr .5fr 0 0 0 .55fr auto;
   }
   .sc-col-agua { display: none; }
 }

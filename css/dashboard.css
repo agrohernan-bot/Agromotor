@@ -695,19 +695,20 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   flex-wrap: wrap;
 }
 .dl-bc-btn {
-  background: none;
-  border: none;
-  color: rgba(237,224,196,.4);
+  background: rgba(237,224,196,.06);
+  border: 1px solid rgba(237,224,196,.1);
+  color: rgba(237,224,196,.6);
   font-size: .8rem;
   cursor: pointer;
   font-family: inherit;
-  padding: .2rem .4rem;
-  border-radius: 6px;
-  transition: color .15s, background .15s;
+  padding: .25rem .55rem;
+  border-radius: 8px;
+  transition: color .15s, background .15s, border-color .15s;
 }
 .dl-bc-btn:hover {
-  color: rgba(237,224,196,.85);
-  background: rgba(237,224,196,.07);
+  color: rgba(237,224,196,.95);
+  background: rgba(237,224,196,.12);
+  border-color: rgba(237,224,196,.22);
 }
 .dl-bc-sep {
   color: rgba(237,224,196,.2);

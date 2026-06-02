@@ -22,6 +22,19 @@
     { key: 'Sorgo',   emoji: '🌾', label: 'Sorgo',   grupo: 'verano'   },
   ];
 
+  // ── Cultivos antecesores disponibles ─────────────────
+  var ANTECESORES = [
+    { key: 'ninguno', label: 'Ninguno' },
+    { key: 'no_se',   label: 'No sé' },
+    { key: 'Soja',    label: '🌱 Soja' },
+    { key: 'Maíz',    label: '🌽 Maíz' },
+    { key: 'Trigo',   label: '🌾 Trigo' },
+    { key: 'Cebada',  label: '🌾 Cebada' },
+    { key: 'Girasol', label: '🌻 Girasol' },
+    { key: 'Sorgo',   label: '🌾 Sorgo' },
+    { key: 'Colza',   label: '🟡 Colza' },
+  ];
+
   // ── Ventanas de siembra para cultivos sin datos en CV_ZONAS ──
   // (Cebada, Colza, Sorgo — datos INTA Argentina)
   var VENTANAS_EXTRA = {
@@ -243,6 +256,7 @@
     var aguaMm     = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
     var aguaCC     = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
     var fase       = ck['am_enso_fase'] || '';
+    var antecesor  = d.antecesor || '';
 
     var lat = coord ? coord.split(',')[0] : null;
     var zona = detectarZona(lat);
@@ -275,6 +289,20 @@
     html +=   '</div>';
     html += '</div>';
 
+    // Selector de cultivo antecesor
+    html += '<div class="sc-antecesor">';
+    html +=   '<span class="sc-ant-label">Cultivo antecesor</span>';
+    html +=   '<div class="sc-ant-opciones">';
+    ANTECESORES.forEach(function (a) {
+      var isActivo = antecesor ? (antecesor === a.key) : (a.key === 'no_se');
+      html += '<button class="sc-ant-btn' + (isActivo ? ' sc-ant-btn-activo' : '') + '"';
+      html +=   ' onclick="window.dlSetAntecesor(\'' + a.key + '\',\'' + esc(lote.id) + '\')">';
+      html +=   a.label;
+      html += '</button>';
+    });
+    html +=   '</div>';
+    html += '</div>';
+
     // Tabla
     html += '<div class="sc-tabla">';
     html += '<div class="sc-tabla-head">';
@@ -295,46 +323,87 @@
                 : s.total >= 45 ? '#E8A040'
                 : '#D4522A';
       var emoji_nivel = s.total >= 85 ? '✅' : s.total >= 65 ? '🟡' : s.total >= 45 ? '🟠' : '🔴';
+      var infoId = 'sci-' + c.key + '_' + lote.id;
 
+      html += '<div class="sc-row-wrap">';
+
+      // Fila principal
       html += '<div class="sc-row' + (esActivo ? ' sc-row-activa' : '') + (idx === 0 ? ' sc-row-top' : '') + '">';
 
-      // Cultivo
+      // Cultivo + botón info
       html += '<div class="sc-cultivo">';
       html +=   '<span class="sc-emoji">' + c.emoji + '</span>';
       html +=   '<span class="sc-nombre">' + c.label + '</span>';
+      html +=   '<button class="sc-info-btn" onclick="window.dlToggleScoreInfo(\'' + infoId + '\')">ℹ</button>';
       if (esActivo) html += '<span class="sc-activo-badge">activo</span>';
       if (idx === 0 && !esActivo) html += '<span class="sc-top-badge">mejor opción</span>';
       html += '</div>';
 
-      // Sub-scores con tooltip
-      html += ptsCell(s.fecha.pts,  30, s.fecha.label,  'sc-col-fecha');
-      html += ptsCell(s.hidro.pts,  25, s.hidro.label,  'sc-col-agua');
-      html += ptsCell(s.enso.pts,   20, s.enso.label,   'sc-col-enso');
-      html += ptsCell(s.zona.pts,   25, s.zona.label,   'sc-col-zona');
+      // Sub-scores
+      html += ptsCell(s.fecha.pts, 30, s.fecha.label, 'sc-col-fecha');
+      html += ptsCell(s.hidro.pts, 25, s.hidro.label, 'sc-col-agua');
+      html += ptsCell(s.enso.pts,  20, s.enso.label,  'sc-col-enso');
+      html += ptsCell(s.zona.pts,  25, s.zona.label,  'sc-col-zona');
 
       // Total
       html += '<div class="sc-col-total">';
       html +=   '<span class="sc-total" style="color:' + color + '">' + emoji_nivel + ' ' + s.total + '</span>';
       html += '</div>';
 
-      // Botón seleccionar
-      html += '<div>';
+      // Acción
+      html += '<div class="sc-col-accion">';
       if (esActivo) {
         html += '<span class="sc-sel-actual">✓</span>';
       } else {
-        html += '<button class="sc-btn-sel" onclick="window.dlSeleccionarCultivo(\'' + c.key + '\',\'' + lote.id + '\')">Usar</button>';
+        html += '<button class="sc-btn-sel" onclick="window.dlSeleccionarCultivo(\'' + c.key + '\',\'' + esc(lote.id) + '\')">Usar</button>';
       }
       html += '</div>';
 
       html += '</div>'; // .sc-row
+
+      // Panel de detalle (oculto, se expande con ℹ)
+      html += '<div class="sc-info-panel" id="' + infoId + '" style="display:none">';
+      html +=   '<div class="sc-info-grid">';
+      html +=     '<div class="sc-info-kv">';
+      html +=       '<span class="sc-info-k">📅 Fecha (' + s.fecha.pts + '/30 pts)</span>';
+      html +=       '<span class="sc-info-v">' + esc(s.fecha.label) + '</span>';
+      html +=     '</div>';
+      html +=     '<div class="sc-info-kv">';
+      html +=       '<span class="sc-info-k">💧 Agua (' + s.hidro.pts + '/25 pts)</span>';
+      html +=       '<span class="sc-info-v">' + esc(s.hidro.label) + '</span>';
+      html +=     '</div>';
+      html +=     '<div class="sc-info-kv">';
+      html +=       '<span class="sc-info-k">🌡️ ENSO (' + s.enso.pts + '/20 pts)</span>';
+      html +=       '<span class="sc-info-v">' + esc(s.enso.label) + '</span>';
+      html +=     '</div>';
+      html +=     '<div class="sc-info-kv">';
+      html +=       '<span class="sc-info-k">📍 Zona (' + s.zona.pts + '/25 pts)</span>';
+      html +=       '<span class="sc-info-v">' + esc(s.zona.label) + '</span>';
+      html +=     '</div>';
+      html +=   '</div>';
+      html += '</div>';
+
+      html += '</div>'; // .sc-row-wrap
     });
 
     html += '</div>'; // .sc-tabla
 
     // Nota metodológica
     html += '<div class="sc-nota">Criterios: ventanas RECSO/INTA · Balance hídrico actual · Fase ENSO/NOAA · Zona agroecológica por latitud. No reemplaza el análisis profesional.</div>';
-    html += '</div>'; // .sc-widget
 
+    // CTA: navegación + acceso a cultivares
+    html += '<div class="sc-cta">';
+    html +=   '<div class="sc-cta-nav">';
+    html +=     '<button class="sc-cta-nav-btn" onclick="window.dlVolverCards()">← Mis Lotes</button>';
+    html +=     '<button class="sc-cta-nav-btn" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">← Hub del lote</button>';
+    html +=   '</div>';
+    html +=   '<button class="sc-btn-cultivares" onclick="window.dlAbrirModulo(\'cultivares\',\'' + esc(lote.id) + '\')">';
+    html +=     '<span>🌾 Ver ranking de cultivares (RECSO/INTA)</span>';
+    html +=     '<span>→</span>';
+    html +=   '</button>';
+    html += '</div>';
+
+    html += '</div>'; // .sc-widget
     return html;
   };
 
@@ -342,7 +411,7 @@
     var pct  = Math.round(pts / max * 100);
     var col  = pct >= 85 ? '#6DBF82' : pct >= 60 ? '#C8A255' : '#D4522A';
     return [
-      '<div class="sc-pts-cell ' + clase + '" title="' + esc(tooltip) + '">',
+      '<div class="sc-pts-cell ' + clase + '">',
         '<div class="sc-pts-bar"><div style="width:' + pct + '%;background:' + col + '" class="sc-pts-fill"></div></div>',
         '<span class="sc-pts-num" style="color:' + col + '">' + pts + '</span>',
       '</div>'
@@ -353,7 +422,23 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // ── Acción: seleccionar cultivo ────────────────────────
+  // ── Acciones globales ──────────────────────────────────
+
+  window.dlToggleScoreInfo = function (id) {
+    var panel = document.getElementById(id);
+    if (!panel) return;
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  };
+
+  window.dlSetAntecesor = function (cultivo, loteId) {
+    var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
+    if (!lote) return;
+    lote.data = lote.data || {};
+    lote.data.antecesor = cultivo;
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof window.dlAbrirSeccion === 'function') window.dlAbrirSeccion('planfina');
+  };
+
   window.dlSeleccionarCultivo = function (cultivo, loteId) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
     if (!lote) return;
