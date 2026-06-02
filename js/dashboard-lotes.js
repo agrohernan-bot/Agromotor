@@ -133,7 +133,10 @@
     } else if (_loteAbierto) {
       panel.innerHTML = renderHub(_loteAbierto);
       var _loteHub = _loteAbierto;
-      setTimeout(function() { _fetchHubData(_loteHub); }, 50);
+      setTimeout(function() {
+        _fetchHubData(_loteHub);
+        _fetchLugar(_loteHub);
+      }, 50);
     } else {
       panel.innerHTML = renderCards();
       var lotes = window.AM_LOTES || [];
@@ -298,10 +301,14 @@
     html += '<div class="dl-hub-header">';
     html +=   '<div class="dl-hub-nombre"><span class="dl-dot dl-dot-lg" style="background:' + eConf.dot + '"></span>' + esc(lote.nombre) + '</div>';
     html +=   '<div class="dl-hub-chips">';
-    if (cultivo) html += chip('🌾 ' + cultivo);
-    html +=     chip('<span style="color:' + eConf.texto + '">' + eConf.label + '</span>');
-    if (coord)  html += chip('📍 ' + esc(coord));
-    if (sup)    html += chip('📐 ' + esc(sup) + ' has');
+    if (cultivo) html += chip('🌾 ' + cultivo, 'lg');
+    html +=     chip('<span style="color:' + eConf.texto + '">' + eConf.label + '</span>', 'lg');
+    if (sup)    html += chip('📐 ' + esc(sup) + ' has', 'lg');
+    // Lugar: usar caché en lote.data o placeholder para fetch async
+    var lugarGuardado = d['geo-lugar'] || '';
+    html +=   '<span class="dl-chip dl-chip-lugar" id="dl-hub-lugar-' + esc(loteId) + '">' +
+                (lugarGuardado ? '📍 ' + esc(lugarGuardado) : '📍&hairsp;<span class="dl-lugar-cargando">···</span>') +
+              '</span>';
     html +=   '</div>';
 
     // Acciones rápidas del lote
@@ -924,8 +931,40 @@
     return html;
   }
 
-  function chip(contenido) {
-    return '<span class="dl-chip">' + contenido + '</span>';
+  function chip(contenido, size) {
+    var cls = 'dl-chip' + (size === 'lg' ? ' dl-chip-lg' : '');
+    return '<span class="' + cls + '">' + contenido + '</span>';
+  }
+
+  async function _fetchLugar(loteId) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    // Si ya está guardado, no hacer nada (renderHub ya lo mostró)
+    if (lote.data && lote.data['geo-lugar']) return;
+    var coords = _coordsFromLote(lote);
+    if (!coords) return;
+    var el = document.getElementById('dl-hub-lugar-' + loteId);
+    if (!el) return;
+    try {
+      var res = await fetch(
+        'https://nominatim.openstreetmap.org/reverse?lat=' + coords.lat +
+        '&lon=' + coords.lng + '&format=json&zoom=10&accept-language=es',
+        { headers: { 'Accept': 'application/json' } }
+      );
+      var json = await res.json();
+      var addr = json.address || {};
+      var loc  = addr.city || addr.town || addr.village || addr.hamlet || '';
+      var dist = addr.county || addr.state_district || '';
+      var lugar = loc && dist ? loc + ', ' + dist : loc || dist || addr.state || '';
+      if (!lugar) return;
+      lote.data['geo-lugar'] = lugar;
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+      var elNow = document.getElementById('dl-hub-lugar-' + loteId);
+      if (elNow) elNow.innerHTML = '📍 ' + esc(lugar);
+    } catch(_e) {
+      var elNow = document.getElementById('dl-hub-lugar-' + loteId);
+      if (elNow) elNow.style.display = 'none';
+    }
   }
 
   function getLote(id) {

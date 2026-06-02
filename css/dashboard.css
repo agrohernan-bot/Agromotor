@@ -751,6 +751,22 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   padding: .2em .65em;
   font-size: .72rem;
 }
+.dl-chip-lg {
+  font-size: .88rem;
+  padding: .3em .9em;
+  border-radius: 12px;
+  color: rgba(237,224,196,.82);
+  font-weight: 600;
+}
+.dl-chip-lugar {
+  font-size: .78rem;
+  color: rgba(237,224,196,.5);
+  font-style: italic;
+}
+.dl-lugar-cargando {
+  opacity: .4;
+  letter-spacing: .1em;
+}
 .dl-hub-acciones {
   display: flex;
   gap: .5rem;
