@@ -1359,16 +1359,22 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   background: rgba(10,20,40,.35);
 }
 .dl-prono-row {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: .25rem;
+  display: flex;
+  gap: .2rem;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-bottom: .2rem;
+  scrollbar-width: none;
 }
+.dl-prono-row::-webkit-scrollbar { display: none; }
 .dl-prono-dia {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: .15rem;
   padding: .35rem .1rem;
+  flex: 1 0 0;
+  min-width: 42px;
 }
 .dl-prono-nom {
   font-size: .6rem;
