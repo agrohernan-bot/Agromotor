@@ -180,7 +180,7 @@
       if (el('chart-tag')) el('chart-tag').textContent = 'Sentinel-2 real';
       el('api-status').innerHTML = '<span class="sv-dot sv-dot-ok"></span> Conectado · Agromonitoring';
       // Ocultar el panel de API key: el usuario no necesita verlo ni manejarlo
-      var apiPanelEl = el('api-key') && el('api-key').closest ? el('api-key').closest('.sv-panel') : null;
+      var apiPanelEl = document.getElementById('sv-panel-api');
       if (apiPanelEl) apiPanelEl.style.display = 'none';
     }
 
