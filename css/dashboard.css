@@ -1256,3 +1256,94 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   .lnv-btn-cancel,
   .lnv-btn-crear { width: 100%; }
 }
+
+/* ── Hub datos panel (Open-Meteo / NASA / SoilGrids) ─── */
+.dl-hub-datos {
+  margin-top: .9rem;
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+}
+.dl-hub-datos-loading,
+.dl-hub-datos-nocoord,
+.dl-hub-datos-error {
+  font-size: .78rem;
+  color: rgba(237,224,196,.35);
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+}
+.dl-hdatos-sec {
+  background: rgba(15,31,20,.45);
+  border: 1px solid rgba(237,224,196,.08);
+  border-radius: 14px;
+  padding: .85rem 1rem;
+}
+.dl-hdatos-sec-nasa {
+  border-color: rgba(100,130,200,.12);
+  background: rgba(20,25,50,.35);
+}
+.dl-hdatos-sec-sg {
+  border-color: rgba(200,160,80,.1);
+  background: rgba(40,25,10,.3);
+}
+.dl-hdatos-titulo {
+  font-size: .65rem;
+  font-weight: 700;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.4);
+  margin-bottom: .65rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.dl-hdatos-badge {
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  border: 1px solid;
+  border-radius: 20px;
+  padding: .1rem .5rem;
+  text-transform: none;
+}
+.dl-hdatos-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .3rem .6rem;
+}
+.dl-hdatos-item {
+  display: flex;
+  align-items: baseline;
+  gap: .3rem;
+  font-size: .77rem;
+  line-height: 1.4;
+}
+.dl-hdatos-ico {
+  font-size: .85rem;
+  flex-shrink: 0;
+  width: 1.1rem;
+  text-align: center;
+}
+.dl-hdatos-label {
+  color: rgba(237,224,196,.4);
+  font-size: .68rem;
+  flex-shrink: 0;
+}
+.dl-hdatos-val {
+  color: rgba(237,224,196,.88);
+  font-weight: 600;
+  font-family: 'DM Mono', monospace;
+  font-size: .77rem;
+}
+.dl-hdatos-loading-sub {
+  font-size: .72rem;
+  color: rgba(237,224,196,.3);
+  font-style: italic;
+  padding: .3rem 0;
+}
+@media (max-width: 480px) {
+  .dl-hdatos-grid { grid-template-columns: 1fr 1fr; }
+  .dl-hdatos-item { font-size: .72rem; }
+}

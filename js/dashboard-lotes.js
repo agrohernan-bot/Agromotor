@@ -71,6 +71,7 @@
   var _seccionAbierta = null;
   var _modContext = null;
   var _climaCache = {};
+  var _hubDataCache = {};  // keyed by loteId_month
   var _mapaInstances = {};
 
   // ── DETERMINAR ESTADO DEL LOTE ────────────────────────
@@ -131,6 +132,8 @@
       panel.innerHTML = renderSeccion(_loteAbierto, _seccionAbierta);
     } else if (_loteAbierto) {
       panel.innerHTML = renderHub(_loteAbierto);
+      var _loteHub = _loteAbierto;
+      setTimeout(function() { _fetchHubData(_loteHub); }, 50);
     } else {
       panel.innerHTML = renderCards();
       var lotes = window.AM_LOTES || [];
@@ -314,6 +317,13 @@
       var s = SECCIONES[key];
       html += hubBtn(key, s.emoji, s.titulo, s.desc, s.color);
     });
+    html += '</div>';
+
+    // Panel de datos (Open-Meteo / NASA / SoilGrids) — se rellena async
+    html += '<div class="dl-hub-datos" id="dl-hub-datos-' + esc(loteId) + '">';
+    html +=   '<div class="dl-hub-datos-loading">';
+    html +=     '<span class="dl-hub-datos-spinner">⟳</span> Cargando datos del lote...';
+    html +=   '</div>';
     html += '</div>';
 
     html += '</div>'; // .dl-page
@@ -624,6 +634,211 @@
         window.sgAutoFetchLote(lote);
       }
     });
+  }
+
+  // ── HUB DATA PANEL ─────────────────────────────────────
+  async function _fetchHubData(loteId) {
+    var el = document.getElementById('dl-hub-datos-' + loteId);
+    if (!el) return;
+
+    var lote = getLote(loteId);
+    if (!lote) return;
+    var coords = _coordsFromLote(lote);
+    if (!coords) {
+      el.innerHTML = '<div class="dl-hub-datos-nocoord">📍 Agregá coordenadas al lote para ver datos climáticos y de suelo.</div>';
+      return;
+    }
+
+    var lat = coords.lat, lng = coords.lng;
+    var now = new Date();
+    var mes = now.getMonth() + 1;
+    var cacheKey = loteId + '_' + mes;
+
+    // Check cache (session TTL for NASA, 15min effectively via session)
+    if (_hubDataCache[cacheKey]) {
+      _renderHubDatos(el, _hubDataCache[cacheKey], loteId);
+      return;
+    }
+
+    try {
+      var [omData, nasaProps, ensoResult] = await Promise.all([
+        fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
+          '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,soil_moisture_3_9cm' +
+          '&daily=et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum' +
+          '&timezone=auto&forecast_days=1').then(function(r) { return r.json(); }),
+        (typeof window.buscarNASAPower === 'function'
+          ? window.buscarNASAPower(lat, lng, mes)
+          : Promise.resolve(null)),
+        (window.ENSO && typeof window.ENSO.getFaseENSO === 'function'
+          ? window.ENSO.getFaseENSO().catch(function() { return null; })
+          : Promise.resolve(null))
+      ]);
+
+      var result = { om: omData, nasa: nasaProps, enso: ensoResult };
+      _hubDataCache[cacheKey] = result;
+      if (!document.getElementById('dl-hub-datos-' + loteId)) return; // user navigated away
+      _renderHubDatos(el, result, loteId);
+    } catch(e) {
+      if (el) el.innerHTML = '<div class="dl-hub-datos-error">Error cargando datos. Comprobá la conexión.</div>';
+    }
+  }
+
+  function _renderHubDatos(el, data, loteId) {
+    var html = '';
+
+    // ── Open-Meteo panel ────────────────────────────────────
+    var om = data.om || {};
+    var cur = om.current || {};
+    var day = (om.daily || {});
+
+    var tAire  = cur.temperature_2m != null ? cur.temperature_2m.toFixed(1) + '°C' : '—';
+    var hr     = cur.relative_humidity_2m != null ? Math.round(cur.relative_humidity_2m) + '%' : '—';
+    var viento = cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + ' km/h' : '—';
+    var tSuelo = cur.soil_temperature_0cm != null ? cur.soil_temperature_0cm.toFixed(1) + '°C' : '—';
+    var humSuelo = cur.soil_moisture_3_9cm != null ? (cur.soil_moisture_3_9cm * 100).toFixed(1) + '%' : '—';
+
+    var vpd = '—';
+    if (cur.temperature_2m != null && cur.relative_humidity_2m != null) {
+      var T = cur.temperature_2m, H = cur.relative_humidity_2m;
+      var vpdVal = 0.611 * Math.exp(17.27 * T / (T + 237.3)) * (1 - H / 100);
+      vpd = vpdVal.toFixed(2) + ' kPa';
+    }
+
+    var et0 = (day.et0_fao_evapotranspiration && day.et0_fao_evapotranspiration[0] != null)
+      ? day.et0_fao_evapotranspiration[0].toFixed(1) + ' mm/d' : '—';
+    var pLluvia = (day.precipitation_probability_max && day.precipitation_probability_max[0] != null)
+      ? day.precipitation_probability_max[0] + '%' : '—';
+
+    html += '<div class="dl-hdatos-sec">';
+    html +=   '<div class="dl-hdatos-titulo">📡 Open-Meteo · Tiempo real</div>';
+    html +=   '<div class="dl-hdatos-grid">';
+    html +=     _hdKV('🌡️', 'T° aire', tAire);
+    html +=     _hdKV('💦', 'HR', hr);
+    html +=     _hdKV('🌬️', 'Viento', viento);
+    html +=     _hdKV('🌧️', 'P. lluvia', pLluvia);
+    html +=     _hdKV('🌡', 'T° suelo', tSuelo);
+    html +=     _hdKV('💧', 'Hum. suelo', humSuelo);
+    html +=     _hdKV('🌿', 'ET₀', et0);
+    html +=     _hdKV('🌫️', 'VPD', vpd);
+    html +=   '</div>';
+    html += '</div>';
+
+    // ── NASA POWER + ENSO panel ──────────────────────────
+    var nasaClaves = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var mesNombres = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var nowN = new Date();
+    var mesN = nowN.getMonth() + 1;
+    var mKey = nasaClaves[mesN - 1];
+    var mesNom = mesNombres[mesN];
+
+    var nasa = data.nasa;
+    var enso = data.enso;
+
+    var ensoBadge = '';
+    var precFactor = 1;
+    if (enso) {
+      var fase = enso.fase || 'neutro';
+      var factorAdj = (window.ENSO && typeof window.ENSO.getFactorAjuste === 'function')
+        ? window.ENSO.getFactorAjuste(fase) : 0;
+      precFactor = 1 + factorAdj;
+      var faseLabel = fase === 'niño' ? 'El Niño' : fase === 'niña' ? 'La Niña' : 'Neutro';
+      var faseColor = fase === 'niño' ? '#D4835A' : fase === 'niña' ? '#7B8DC8' : '#6DBF82';
+      var pctStr = factorAdj !== 0 ? ' · ' + (factorAdj > 0 ? '+' : '') + Math.round(factorAdj * 100) + '% prec.' : '';
+      ensoBadge = '<span class="dl-hdatos-badge" style="background:' + faseColor + '22;border-color:' + faseColor + '44;color:' + faseColor + '">ENSO: ' + faseLabel + pctStr + '</span>';
+    }
+
+    if (nasa) {
+      var nGet = function(k) { return nasa[k] ? nasa[k][mKey] : null; };
+      var rad  = nGet('ALLSKY_SFC_SW_DWN');
+      var tmax = nGet('T2M_MAX');
+      var tmin = nGet('T2M_MIN');
+      var precD = nGet('PRECTOTCORR');
+      var et0N = nGet('EVPTRNS');
+      var rhN  = nGet('RH2M');
+      var precM  = precD  != null ? precD  * 30 * precFactor : null;
+      var et0M   = et0N   != null ? et0N   * 30 : null;
+      var balHid = precM  != null && et0M != null ? precM - et0M : null;
+      var drd    = precM  != null ? Math.round(precM / 3.5) : null;
+
+      html += '<div class="dl-hdatos-sec dl-hdatos-sec-nasa">';
+      html +=   '<div class="dl-hdatos-titulo">🚀 NASA POWER · Histórico 30 años · ' + esc(mesNom);
+      html +=   ensoBadge;
+      html +=   '</div>';
+      html +=   '<div class="dl-hdatos-grid">';
+      html +=     _hdKV('☀️', 'Radiación', rad != null ? rad.toFixed(1) + ' MJ/m²/d' : '—');
+      html +=     _hdKV('💧', 'Prec/mes', precM != null ? precM.toFixed(0) + ' mm' : '—');
+      html +=     _hdKV('🌡', 'T°máx', tmax != null ? tmax.toFixed(1) + '°C' : '—');
+      html +=     _hdKV('🥶', 'T°mín', tmin != null ? tmin.toFixed(1) + '°C' : '—');
+      html +=     _hdKV('🌿', 'ET₀/mes', et0M != null ? et0M.toFixed(0) + ' mm' : '—');
+      html +=     _hdKV('💦', 'HR', rhN != null ? rhN.toFixed(0) + '%' : '—');
+      html +=     _hdKV('📅', 'Días lluvia', drd != null ? '~' + drd + ' d' : '—');
+      var balColor = balHid != null ? (balHid >= 0 ? '#6DBF82' : '#D4522A') : '';
+      html +=     _hdKV('📊', 'Balance', balHid != null ? '<strong style="color:' + balColor + '">' + (balHid >= 0 ? '+' : '') + balHid.toFixed(0) + ' mm</strong>' : '—', true);
+      html +=   '</div>';
+      html += '</div>';
+    }
+
+    // ── SoilGrids panel ──────────────────────────────────
+    var loteObj = getLote(loteId);
+    var sgDatos = null;
+    try {
+      var sgRaw = localStorage.getItem('sg_full_' + loteId);
+      if (sgRaw) {
+        var sgCache = JSON.parse(sgRaw);
+        if (sgCache && sgCache.datos) sgDatos = sgCache.datos;
+      }
+    } catch(_e) {}
+
+    // Fallback to lote.data fields
+    if (!sgDatos && loteObj && loteObj.data && loteObj.data['sg-textura']) {
+      sgDatos = {
+        ph: loteObj.data['sg-ph'] != null ? parseFloat(loteObj.data['sg-ph']) : null,
+        textura: loteObj.data['sg-textura'] || null
+      };
+    }
+
+    if (sgDatos) {
+      html += '<div class="dl-hdatos-sec dl-hdatos-sec-sg">';
+      html +=   '<div class="dl-hdatos-titulo">🌍 SoilGrids ISRIC · 250 m</div>';
+      html +=   '<div class="dl-hdatos-grid">';
+      html +=     _hdKV('🧪', 'pH', sgDatos.ph != null ? (sgDatos.ph.toFixed ? sgDatos.ph.toFixed(1) : sgDatos.ph) : '—');
+      html +=     _hdKV('🏺', 'Arcilla', sgDatos.clay != null ? sgDatos.clay.toFixed(0) + '%' : '—');
+      html +=     _hdKV('🏖', 'Arena', sgDatos.sand != null ? sgDatos.sand.toFixed(0) + '%' : '—');
+      html +=     _hdKV('🌿', 'C.org', sgDatos.soc != null ? sgDatos.soc.toFixed(1) + ' g/kg' : '—');
+      html +=     _hdKV('🔬', 'N total', sgDatos.n != null ? sgDatos.n.toFixed(2) + ' g/kg' : '—');
+      html +=     _hdKV('⚖️', 'DA', sgDatos.da != null ? sgDatos.da.toFixed(2) + ' g/cm³' : '—');
+      html +=     _hdKV('⚡', 'CEC', sgDatos.cec != null ? sgDatos.cec.toFixed(1) + ' cmol' : '—');
+      html +=     _hdKV('🗺', 'Textura', sgDatos.textura || '—');
+      html +=   '</div>';
+      html += '</div>';
+    } else {
+      // trigger background fetch if not cached
+      if (loteObj && typeof window.sgAutoFetchLote === 'function') {
+        window.sgAutoFetchLote(loteObj).then(function() {
+          var elNow = document.getElementById('dl-hub-datos-' + loteId);
+          if (elNow) {
+            var sgRaw2 = localStorage.getItem('sg_full_' + loteId);
+            if (sgRaw2) {
+              delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
+              _fetchHubData(loteId);
+            }
+          }
+        });
+        html += '<div class="dl-hdatos-sec dl-hdatos-sec-sg">';
+        html +=   '<div class="dl-hdatos-titulo">🌍 SoilGrids ISRIC · 250 m</div>';
+        html +=   '<div class="dl-hdatos-loading-sub">Consultando base de datos de suelos...</div>';
+        html += '</div>';
+      }
+    }
+
+    el.innerHTML = html || '<div class="dl-hub-datos-empty">Sin datos disponibles.</div>';
+  }
+
+  function _hdKV(ico, label, val, raw) {
+    var valStr = raw ? val : esc(String(val));
+    return '<div class="dl-hdatos-item"><span class="dl-hdatos-ico">' + ico + '</span>' +
+      '<span class="dl-hdatos-label">' + esc(label) + '</span>' +
+      '<span class="dl-hdatos-val">' + valStr + '</span></div>';
   }
 
   function _renderClimaInCard(el, data) {
