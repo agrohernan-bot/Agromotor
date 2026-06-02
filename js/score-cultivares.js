@@ -303,7 +303,7 @@
     var ck = d.calcKeys || {};
 
     var coord      = d.coord   || '';
-    var fechaStr   = d.fecha   || ck['am_siembra_fecha']           || '';
+    var fechaStr   = d.fechaSiembraConf || d.fechaSiembraPlan || d.fecha || ck['am_siembra_fecha'] || '';
     var cultivoAct = d.cultivo || ck['am_siembra_cultivo']         || '';
     var aguaMm     = parseFloat(ck['am_hidrico_agua_actual_mm'])   || 0;
     var aguaCC     = parseFloat(ck['am_hidrico_cap_max_mm'])       || 0;
