@@ -393,6 +393,10 @@
       if (typeof window.dlRenderScoreCultivares === 'function') {
         html += window.dlRenderScoreCultivares(lote, sec.grupo || '');
       }
+      // Widget de operativa de siembra (ventana, duración, análisis)
+      if (typeof window.spRender === 'function') {
+        html += window.spRender(lote, sec.grupo || '');
+      }
     }
 
     // Grid de módulos
