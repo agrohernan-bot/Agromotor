@@ -528,30 +528,16 @@
   function renderWidgetPlanFina(lote) {
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
-
-    var cultivo     = d.cultivo || ck['am_siembra_cultivo']       || '';
-    var fecha       = d.fecha   || ck['am_siembra_fecha']         || '';
-    var coord       = d.coord   || '';
-    var sueloTex    = d['sg-textura'] || ck['am_siembra_suelo'] || '';
-    var sueloPH     = d['sg-ph']      || '';
-    var ensoFase    = ck['am_enso_fase']  || '';
-    var sup         = d.superficie        || '';
-
-    var tieneDatos  = cultivo || fecha || coord || sueloTex;
-    if (!tieneDatos) return '';
+    var sueloTex = d['sg-textura'] || ck['am_siembra_suelo'] || '';
+    var sup      = d.superficie || '';
+    var nombre   = lote.nombre || 'Lote';
 
     var html = '<div class="dlw-panel dlw-panel-fina">';
-    html += '<div class="dlw-panel-titulo">📋 Contexto del lote</div>';
+    html += '<div class="dlw-panel-titulo">Contexto del lote</div>';
     html += '<div class="dlw-chips-row">';
-
-    if (cultivo)  html += '<span class="dlw-chip-data">🌾 ' + esc(cultivo) + '</span>';
-    if (fecha)    html += '<span class="dlw-chip-data">📅 Siembra: ' + esc(fecha) + '</span>';
-    if (coord)    html += '<span class="dlw-chip-data">📍 ' + esc(coord) + '</span>';
-    if (sup)      html += '<span class="dlw-chip-data">📐 ' + esc(sup) + ' has</span>';
-    if (sueloTex) html += '<span class="dlw-chip-data">🌍 ' + esc(sueloTex) + '</span>';
-    if (sueloPH)  html += '<span class="dlw-chip-data">⚗️ pH: ' + esc(sueloPH) + '</span>';
-    if (ensoFase) html += '<span class="dlw-chip-data">🌡️ ' + esc(ensoFase) + '</span>';
-
+    html += '<span class="dlw-chip-data">' + esc(nombre) + '</span>';
+    if (sup) html += '<span class="dlw-chip-data">' + esc(sup) + ' has</span>';
+    if (sueloTex) html += '<span class="dlw-chip-data">' + esc(sueloTex) + '</span>';
     html += '</div>';
     html += '</div>';
     return html;
