@@ -291,6 +291,13 @@
     var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
     var coord   = d.coord   || '';
     var sup     = d.superficie || '';
+    // Recalcular desde GeoJSON para corregir valores históricos incorrectos
+    if (typeof turf !== 'undefined' && d.geojson && d.geojson.geometry) {
+      try {
+        var areaHa = Math.round(turf.area(d.geojson) / 10000 * 10) / 10;
+        if (areaHa > 0) sup = String(areaHa);
+      } catch(_e) {}
+    }
 
     var html = '<div class="dl-page dl-page-hub">';
 
