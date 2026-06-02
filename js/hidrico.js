@@ -404,6 +404,14 @@
         loteHid.data.calcKeys['am_hidrico_dias_estres']     = String(diasEst);
         loteHid.data.calcKeys['am_enso_fase']               = ensoFase;
         if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+
+        // Feedback visual: mostrar indicador de guardado
+        const statusEl = document.getElementById('bh-score-status');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          clearTimeout(statusEl._hideTimer);
+          statusEl._hideTimer = setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+        }
       }
     }
   } catch (_) {}
