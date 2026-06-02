@@ -766,6 +766,17 @@
       var faseColor = fase === 'niño' ? '#D4835A' : fase === 'niña' ? '#7B8DC8' : '#6DBF82';
       var pctStr = factorAdj !== 0 ? ' · ' + (factorAdj > 0 ? '+' : '') + Math.round(factorAdj * 100) + '% prec.' : '';
       ensoBadge = '<span class="dl-hdatos-badge" style="background:' + faseColor + '22;border-color:' + faseColor + '44;color:' + faseColor + '">' + esc(mesNom) + ' · ' + faseLabel + pctStr + '</span>';
+
+      // Persistir fase ENSO en lote.data para que el score widget la use
+      // sin necesidad de que el usuario haya ejecutado el módulo ENSO
+      var loteEnso = getLote(loteId);
+      if (loteEnso) {
+        loteEnso.data = loteEnso.data || {};
+        if (!loteEnso.data['hub-enso-fase']) {
+          loteEnso.data['hub-enso-fase'] = faseLabel;
+          if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+        }
+      }
     }
 
     if (nasa) {

@@ -194,7 +194,7 @@
 
   // ── 2. Agua (20 pts) ──────────────────────────────────
   function calcScoreHidrico(cultivo, pctAgua) {
-    if (pctAgua < 0) return { pts:10, label:'Sin datos de agua disponible' };
+    if (pctAgua < 0) return { pts:10, label:'Sin datos — completá el Balance Hídrico para obtener este criterio (usa valor neutro 10/20 hasta entonces)' };
     var t = TOL_HIDRICA[cultivo] || { opt:55, min:35 };
     if (pctAgua >= t.opt) return { pts:20, label:'Agua disponible óptima ✓' };
     if (pctAgua >= t.min) {
@@ -206,7 +206,7 @@
 
   // ── 3. ENSO (15 pts) ──────────────────────────────────
   function calcScoreENSO(cultivo, fase) {
-    if (!fase) return { pts:9, label:'Sin datos ENSO' };
+    if (!fase) return { pts:9, label:'Sin datos ENSO — abrí el Hub del lote para cargarlos automáticamente' };
     var r = ENSO_RESP[cultivo] || { nino:0, nina:0 };
     var esNino = /niño|nino/i.test(fase);
     var esNina = /niña|nina/i.test(fase);
@@ -307,7 +307,8 @@
     var cultivoAct = d.cultivo || ck['am_siembra_cultivo']         || '';
     var aguaMm     = parseFloat(ck['am_hidrico_agua_actual_mm'])   || 0;
     var aguaCC     = parseFloat(ck['am_hidrico_cap_max_mm'])       || 0;
-    var fase       = ck['am_enso_fase']                            || '';
+    // ENSO: prioridad calcKeys (módulo ENSO), luego dato guardado desde hub
+    var fase       = ck['am_enso_fase'] || d['hub-enso-fase']      || '';
     var antecesor  = d.antecesor || '';
 
     var lat     = coord ? coord.split(',')[0] : null;
@@ -435,11 +436,11 @@
       // Panel ℹ — breakdown de criterios + detalle económico
       html += '<div class="sc-info-panel" id="' + infoId + '" style="display:none">';
       html +=   '<div class="sc-info-grid">';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📅 Fecha (' + s.fecha.pts + '/25)</span><span class="sc-info-v">' + esc(s.fecha.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">💧 Agua (' + s.hidro.pts + '/20)</span><span class="sc-info-v">' + esc(s.hidro.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🌡️ ENSO (' + s.enso.pts + '/15)</span><span class="sc-info-v">' + esc(s.enso.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📍 Zona (' + s.zona.pts + '/25)</span><span class="sc-info-v">' + esc(s.zona.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🔄 Rotación (' + s.rot.pts + '/15)</span><span class="sc-info-v">' + esc(s.rot.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📅 Fecha · ' + s.fecha.pts + ' / 25 pts</span><span class="sc-info-v">' + esc(s.fecha.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">💧 Agua · ' + s.hidro.pts + ' / 20 pts</span><span class="sc-info-v">' + esc(s.hidro.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🌡️ ENSO · ' + s.enso.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.enso.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📍 Zona · ' + s.zona.pts + ' / 25 pts</span><span class="sc-info-v">' + esc(s.zona.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🔄 Rotación · ' + s.rot.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.rot.label) + '</span></div>';
       if (s.eco) {
         html += '<div class="sc-info-kv"><span class="sc-info-k">💰 Precio ref.</span><span class="sc-info-v">USD ' + s.eco.precio + '/t · Ret. ' + s.eco.retencion + '% · Costo base USD ' + s.eco.costoBase + '/ha</span></div>';
         html += '<div class="sc-info-kv"><span class="sc-info-k">📊 Rel. ins/prod.</span><span class="sc-info-v">' + s.eco.relacion + ' qq/' + c.label.substring(0,3) + ' para cubrir insumos</span></div>';
