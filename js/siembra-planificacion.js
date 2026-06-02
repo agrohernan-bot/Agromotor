@@ -68,10 +68,12 @@
   // ── Ajuste días lluvia por ENSO y época ──────────────
   // Pampa argentina: promedio días/mes con lluvia > 5mm
   // Finos (abr-ago), gruesos (sep-feb)
-  var LLUVIA_FACTOR = {
-    invierno: { nino: 0.82, neutro: 0.88, nina: 0.93 },
-    verano:   { nino: 0.70, neutro: 0.80, nina: 0.88 },
+  var LLUVIA_DIAS_MES = {
+    invierno: { nino: 5.4, neutro: 3.6, nina: 2.4 },
+    verano:   { nino: 9.0, neutro: 6.0, nina: 3.6 },
   };
+  var DIAS_PISO_POST_LLUVIA = 2;
+  var EVENTOS_POR_DIA_LLUVIA = 0.55;
 
   // ── Capacidad por defecto de sembradora ───────────────
   var DEFAULT_ANCHO  = 7;   // metros
@@ -124,6 +126,7 @@
   }
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
   function formatFechaES(iso) {
     if (!iso) return '';
@@ -146,7 +149,7 @@
     for (var i = 0; i < Math.ceil(totalDias); i++) {
       var cur = new Date(sd);
       cur.setDate(sd.getDate() + i);
-      var curDOY = adjustedDOY(cur.getMonth(), cur.getDate() + 1, esVerano);
+      var curDOY = adjustedDOY(cur.getMonth(), cur.getDate(), esVerano);
       if (curDOY >= edDOY && curDOY <= efDOY) overlapDias++;
     }
     return Math.min(overlapDias, totalDias);
@@ -170,7 +173,7 @@
       if (!v) continue;
       var ini = adjustedDOY(v.ini.mes, v.ini.dia, esVerano);
       var fin = adjustedDOY(v.fin.mes, v.fin.dia, esVerano);
-      var cur = adjustedDOY(mes, dia + 1, esVerano);
+      var cur = adjustedDOY(mes, dia, esVerano);
       if (cur >= ini && cur <= fin) return { label: t.label, clase: t.clase };
     }
     return { label: 'Fuera de ventana ✗', clase: 'sp-badge-fuera' };
@@ -202,6 +205,23 @@
     if (/niño|nino/i.test(fase || '')) return 'nino';
     if (/niña|nina/i.test(fase || '')) return 'nina';
     return 'neutro';
+  }
+
+  function calcOperatividadClima(esVerano, ensoKey) {
+    var grupo = esVerano ? 'verano' : 'invierno';
+    var tabla = LLUVIA_DIAS_MES[grupo] || LLUVIA_DIAS_MES.verano;
+    var diasLluviaMes = tabla[ensoKey] || tabla.neutro;
+    var eventosMes = diasLluviaMes * EVENTOS_POR_DIA_LLUVIA;
+    var diasPisoMes = eventosMes * DIAS_PISO_POST_LLUVIA;
+    var diasNoOperativosMes = clamp(diasLluviaMes + diasPisoMes, 1, 24);
+    var factor = clamp(1 - (diasNoOperativosMes / 30), 0.20, 0.97);
+    return {
+      factor: factor,
+      diasLluviaMes: diasLluviaMes,
+      diasPisoMes: diasPisoMes,
+      diasNoOperativosMes: diasNoOperativosMes,
+      pctNoOperativo: Math.round((1 - factor) * 100)
+    };
   }
 
   // ── Timeline HTML ─────────────────────────────────────
@@ -361,8 +381,8 @@
     var faseCode  = ck['am_enso_fase'] || d['hub-enso-fase'] || '';
     var ensoKey   = ensoFaseLluvia(faseCode);
     var faseLabel = ensoKey === 'nino' ? 'El Niño' : ensoKey === 'nina' ? 'La Niña' : 'Neutro';
-    var factLluvia = (LLUVIA_FACTOR[esVerano ? 'verano' : 'invierno'] || LLUVIA_FACTOR.verano)[ensoKey] || 0.80;
-    var pctLluvia  = Math.round((1 - factLluvia) * 100);
+    var lluviaOp  = calcOperatividadClima(esVerano, ensoKey);
+    var factLluvia = lluviaOp.factor;
 
     // Fecha planeada
     var fechaISO = d.fechaSiembraPlan || '';
@@ -457,7 +477,12 @@
       html +=   ' onclick="window.spSetNSembradoras(' + n + ',\'' + loteId + '\')">&times;' + n + '</button>';
     });
     html +=   '</div>';
-    if (faseCode) html += '<span class="sp-enso-adj">ENSO ' + faseLabel + ': −' + pctLluvia + '% días efectivos</span>';
+    if (faseCode) {
+      html += '<span class="sp-enso-adj">ENSO ' + faseLabel + ': ';
+      html += lluviaOp.diasLluviaMes.toFixed(1) + ' d lluvia + ';
+      html += lluviaOp.diasPisoMes.toFixed(1) + ' d piso/mes';
+      html += '</span>';
+    }
     html += '</div>';
 
     // Tabla análisis

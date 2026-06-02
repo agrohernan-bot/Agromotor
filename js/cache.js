@@ -384,6 +384,13 @@ function cacheGuardar() {
       polygon: lote.data?.polygon || null,
       geojson: lote.data?.geojson || null
     };
+    const workflowData = {
+      fechaSiembraPlan: lote.data?.fechaSiembraPlan || '',
+      fechaSiembraConf: lote.data?.fechaSiembraConf || '',
+      sembConfig: lote.data?.sembConfig || null,
+      antecesor: lote.data?.antecesor || '',
+      'hub-enso-fase': lote.data?.['hub-enso-fase'] || ''
+    };
     
     lote.data = {
       ts: Date.now(),
@@ -394,6 +401,11 @@ function cacheGuardar() {
       superficie: geometry.superficie,
       polygon: geometry.polygon,
       geojson: geometry.geojson,
+      fechaSiembraPlan: workflowData.fechaSiembraPlan,
+      fechaSiembraConf: workflowData.fechaSiembraConf,
+      sembConfig: workflowData.sembConfig,
+      antecesor: workflowData.antecesor,
+      'hub-enso-fase': workflowData['hub-enso-fase'],
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,

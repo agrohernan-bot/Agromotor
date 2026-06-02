@@ -37,7 +37,7 @@
     monumentalAd8300: 'Monumental AD-8300 8.3 m',
     monumentalAd12000: 'Monumental AD-12000 11.5 m',
     monumentalAd16000: 'Monumental AD-16000 16 m',
-    custom: 'Maquina personalizada'
+    custom: 'Promedio nacional / personalizada 7 m'
   };
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -62,7 +62,7 @@
   function maqRegistrarPropias(propias) {
     propias.forEach(m => {
       DB.maqs[m.id] = {
-        a: +m.a || 9,
+        a: +m.a || 7,
         t: (m.t || []).map(t => ({ n: t.n || 'Tolva', v: +t.v || 0 })).filter(t => t.v > 0),
         f: m.f || 'Maquina propia cargada por el usuario.'
       };
@@ -78,7 +78,7 @@
   function maqRenderSelector() {
     const sel = $('m-maq');
     if (!sel || !DB || !DB.maqs) return;
-    const actual = sel.value || 'mixia';
+    const actual = sel.value || 'custom';
     const propias = maqLeerPropias();
     maqRegistrarPropias(propias);
     sel.innerHTML = '';
@@ -88,7 +88,7 @@
     });
     propias.forEach(m => sel.appendChild(maqOption(m.id, 'Propia - ' + m.nombre, true)));
     sel.appendChild(maqOption('custom', MAQ_LABELS.custom, false));
-    sel.value = DB.maqs[actual] ? actual : 'mixia';
+    sel.value = DB.maqs[actual] ? actual : 'custom';
   }
 
   // ── Sincronizar máquinas propias al selector ──────────────────────────────
@@ -196,7 +196,7 @@
   window.maqNuevaPropia = function () {
     _maqTolvasPropias = [{ n: 'T1 Principal', v: 4000 }, { n: 'T2 Secundaria', v: 2000 }];
     $('mc-nombre').value = '';
-    $('mc-ancho').value = $('m-ancho')?.value || 9;
+    $('mc-ancho').value = $('m-ancho')?.value || 7;
     $('mc-ficha').value = '';
     $('m-custom-panel').classList.remove('hidden');
     maqRenderTolvasPropias();
