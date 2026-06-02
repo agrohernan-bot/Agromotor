@@ -16,35 +16,41 @@
     cosechando:   { label: 'Cosechando',      dot: '#C8A255',               texto: '#C8A255' },
   };
 
+  // ── MÓDULOS COMUNES A PLANIFICACIÓN GRUESA Y FINA ─────
+  // Ambas secciones tienen los mismos módulos; la diferencia
+  // está en los cultivos que evalúa el score (invierno vs verano).
+  var MOD_PLAN_COMUN = [
+    { mod: 'siembra',          emoji: '🌱', titulo: 'Siembra',                desc: 'Fecha óptima, densidad y ambientes de siembra' },
+    { mod: 'cultivares',       emoji: '🌾', titulo: 'Cultivares RECSO/INTA',   desc: 'Ranking de cultivares por zona y ciclo' },
+    { mod: 'suelo',            emoji: '🌍', titulo: 'Suelo P/K/Zn',           desc: 'Análisis de suelo · IDECOR · OLM · SoilGrids ISRIC' },
+    { mod: 'hidrico',          emoji: '💧', titulo: 'Balance hídrico',         desc: 'ETC FAO + ENSO/NOAA + proyección de lluvias' },
+    { mod: 'nutricion',        emoji: '🌿', titulo: 'Nutrición N/P/K',         desc: 'Balance nutricional — tablas Echeverría & García INTA' },
+    { mod: 'siembra-variable', emoji: '🗺', titulo: 'Siembra variable',        desc: 'Ambientes por zona · prescripción · shapefile export' },
+    { mod: 'fen-plan',         emoji: '📅', titulo: 'Simular fenología',       desc: 'Predicción de estadios con corrección ENSO/NOAA' },
+    { mod: 'economia',         emoji: '💰', titulo: 'Presupuesto de campaña',  desc: 'Costos de insumos, maquinaria y labores' },
+    { mod: 'maquinaria',       emoji: '🚜', titulo: 'Maquinaria',              desc: 'Inventario y costos de maquinaria propia o contratada' },
+    { mod: 'decision',         emoji: '⚖️', titulo: '¿Qué sembrar?',          desc: 'Análisis multicriterio: rentabilidad vs. aptitud agronómica' },
+    { mod: 'rotacion',         emoji: '🔄', titulo: 'Rotación',                desc: 'Planificación de rotación multiañal de cultivos' },
+    { mod: 'hist-campanas',    emoji: '📊', titulo: 'Historial de campañas',   desc: 'Comparativo entre campañas anteriores del lote' },
+  ];
+
   // ── MAPA DE SECCIONES ─────────────────────────────────
   var SECCIONES = {
     plangruesa: {
       titulo: 'Planificación Gruesa',
-      emoji:  '🧭',
-      desc:   '¿Qué sembrar? · Cultivares · Rotación · Historial',
+      emoji:  '🌽',
+      desc:   'Soja · Maíz · Girasol · Sorgo — cultivos de verano',
       color:  '#2A5A8C',
-      modulos: [
-        { mod: 'decision',      emoji: '⚖️', titulo: '¿Qué sembrar?',          desc: 'Análisis multicriterio para elegir el cultivo correcto' },
-        { mod: 'cultivares',    emoji: '🌾', titulo: 'Cultivares RECSO/INTA',   desc: 'Catálogo 2024-25 con recomendaciones por zona y ciclo' },
-        { mod: 'rotacion',      emoji: '🔄', titulo: 'Rotación',                desc: 'Planificación de rotación multiañal de cultivos' },
-        { mod: 'hist-campanas', emoji: '📊', titulo: 'Historial de campañas',   desc: 'Comparativo entre campañas anteriores del lote' },
-      ]
+      grupo:  'verano',
+      modulos: MOD_PLAN_COMUN,
     },
     planfina: {
       titulo: 'Planificación Fina',
-      emoji:  '🎯',
-      desc:   'Siembra · Suelo · Hídrico · Nutrición · Siembra variable',
+      emoji:  '🌾',
+      desc:   'Trigo · Cebada · Colza — cultivos de invierno',
       color:  '#1E4D2B',
-      modulos: [
-        { mod: 'siembra',          emoji: '🌱', titulo: 'Siembra',                desc: 'Diagnóstico de fecha óptima, densidad y ambientes' },
-        { mod: 'suelo',            emoji: '🌍', titulo: 'Suelo P/K/Zn',           desc: 'Análisis de suelo · IDECOR · OLM · SoilGrids ISRIC' },
-        { mod: 'hidrico',          emoji: '💧', titulo: 'Balance hídrico',         desc: 'ETC FAO + ENSO/NOAA + proyección de lluvias' },
-        { mod: 'nutricion',        emoji: '🌿', titulo: 'Nutrición N/P/K',         desc: 'Balance nutricional — tablas Echeverría & García INTA' },
-        { mod: 'siembra-variable', emoji: '🗺', titulo: 'Siembra variable',        desc: 'Ambientes por zona · prescripción · shapefile export' },
-        { mod: 'fen-plan',         emoji: '📅', titulo: 'Simular fenología',       desc: 'Predicción de estadios con corrección ENSO/NOAA' },
-        { mod: 'economia',         emoji: '💰', titulo: 'Presupuesto de campaña',  desc: 'Costos de insumos, maquinaria y labores' },
-        { mod: 'maquinaria',       emoji: '🚜', titulo: 'Maquinaria',              desc: 'Inventario y costos de maquinaria propia o contratada' },
-      ]
+      grupo:  'invierno',
+      modulos: MOD_PLAN_COMUN,
     },
     monitoreo: {
       titulo: 'Monitoreo',
@@ -381,11 +387,11 @@
 
     // Widgets contextuales según sección
     if (secKey === 'monitoreo') html += renderWidgetMonitoreo(lote);
-    if (secKey === 'planfina') {
+    if (secKey === 'planfina' || secKey === 'plangruesa') {
       html += renderWidgetPlanFina(lote);
-      // Score de cultivos (si score-cultivares.js está cargado)
+      // Score de cultivos filtrado por grupo (invierno / verano)
       if (typeof window.dlRenderScoreCultivares === 'function') {
-        html += window.dlRenderScoreCultivares(lote);
+        html += window.dlRenderScoreCultivares(lote, sec.grupo || '');
       }
     }
 
@@ -993,6 +999,8 @@
     _seccionAbierta = secKey;
     renderPanel();
   };
+
+  window.dlGetSeccionAbierta = function () { return _seccionAbierta; };
 
   window.dlVolverCards = function () {
     _loteAbierto    = null;
