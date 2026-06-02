@@ -199,6 +199,13 @@
     var aguaMm   = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
     var aguaCC   = parseFloat(ck['am_hidrico_cap_max_mm']) || 0;
     var sup      = d.superficie || '';
+    // Recalcular desde el GeoJSON guardado para corregir valores históricos incorrectos
+    if (typeof turf !== 'undefined' && d.geojson && d.geojson.geometry) {
+      try {
+        var areaHa = Math.round(turf.area(d.geojson) / 10000 * 10) / 10;
+        if (areaHa > 0) sup = String(areaHa);
+      } catch(_e) {}
+    }
     var sueloTex = d['sg-textura'] || ck['am_siembra_suelo'] || '';
     var alertas  = 0;
     try { alertas = (JSON.parse(ck['am_alertas_activas'] || '[]') || []).length; } catch(e) {}

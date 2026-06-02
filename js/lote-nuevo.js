@@ -318,9 +318,9 @@
       if (wrap) wrap.style.display = '';
       if (calc) calc.textContent = _supPoly + ' has';
 
-      // Pre-llenar input manual si está vacío
+      // Actualizar siempre el input con el área calculada del polígono
       var supInp = document.getElementById('lnv-sup');
-      if (supInp && !supInp.value) supInp.value = _supPoly;
+      if (supInp) supInp.value = _supPoly;
 
     } catch (err) {
       console.warn('[lote-nuevo] Error calculando área:', err);
