@@ -230,6 +230,12 @@ function _activarModulo(mod) {
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
+    // Auto-cargar ENSO si no fue consultado aún o si los datos tienen más de 1 hora
+    if (typeof consultarENSO === 'function') {
+      var ensoTs = (typeof ENSO_DATA !== 'undefined') ? ENSO_DATA.ts : null;
+      var ensoVencido = !ensoTs || (Date.now() - ensoTs.getTime() > 3600000);
+      if (ensoVencido) consultarENSO();
+    }
     // Gráfico diario automático
     setTimeout(function() { if (typeof window.ghDiarioRender === 'function') window.ghDiarioRender(); }, 500);
   }

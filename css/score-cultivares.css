@@ -282,6 +282,50 @@
 .sc-info-k    { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: rgba(237,224,196,.3); }
 .sc-info-v    { font-size: .73rem; color: rgba(237,224,196,.68); line-height: 1.35; }
 
+/* ── Banner datos pendientes ─────────────────────────── */
+.sc-pendiente {
+  padding: .55rem 1.1rem;
+  border-bottom: 1px solid rgba(237,224,196,.06);
+  background: rgba(212,82,42,.06);
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.sc-pendiente-titulo {
+  font-size: .63rem;
+  font-weight: 700;
+  color: rgba(232,122,90,.75);
+  letter-spacing: .03em;
+}
+.sc-pendiente-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  background: rgba(212,82,42,.08);
+  border: 1px solid rgba(212,82,42,.2);
+  color: #E87A5A;
+  border-radius: 8px;
+  padding: .3rem .75rem;
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all .15s;
+  width: 100%;
+}
+.sc-pendiente-btn:hover {
+  background: rgba(212,82,42,.16);
+  border-color: rgba(212,82,42,.4);
+}
+.sc-pendiente-pts {
+  font-size: .62rem;
+  font-weight: 400;
+  color: rgba(232,122,90,.55);
+  white-space: nowrap;
+}
+
 /* ── Nota metodológica ────────────────────────────────── */
 .sc-nota {
   padding: .55rem 1.1rem;

@@ -327,6 +327,12 @@
 
     var params = { zona:zona, fechaStr:fechaStr, pctAgua:pctAgua, aguaMm:aguaMm, fase:fase, antecesor:antecesor };
 
+    // Normalizar fase ENSO a etiqueta legible para chips
+    var faseLabel = !fase ? ''
+                  : /niño|nino/i.test(fase) ? 'El Niño'
+                  : /niña|nina/i.test(fase) ? 'La Niña'
+                  : 'Neutro';
+
     var scored = listaCultivos.map(function (c) {
       return Object.assign({}, c, { score: calcularScore(c.key, params) });
     });
@@ -342,7 +348,7 @@
     if (zona && CV && CV[zona]) html += '<span class="sc-chip">📍 ' + CV[zona].label + '</span>';
     if (fechaStr)    html += '<span class="sc-chip">📅 ' + fechaStr + '</span>';
     if (pctAgua >= 0) html += '<span class="sc-chip">💧 ' + pctAgua + '% CC</span>';
-    if (fase)        html += '<span class="sc-chip">🌡️ ' + fase + '</span>';
+    if (faseLabel)   html += '<span class="sc-chip">🌡️ ' + faseLabel + '</span>';
     if (!coord)      html += '<span class="sc-chip sc-chip-warn">⚠ Sin coordenadas — score aproximado</span>';
     html +=   '</div>';
     html += '</div>';
@@ -359,6 +365,27 @@
     });
     html +=   '</div>';
     html += '</div>';
+
+    // Banner de datos pendientes (solo cuando falta agua o ENSO)
+    var sinAgua = pctAgua < 0;
+    var sinENSO = !fase;
+    if (sinAgua || sinENSO) {
+      html += '<div class="sc-pendiente">';
+      html +=   '<div class="sc-pendiente-titulo">⚠ Datos incompletos · score calculado con valores por defecto</div>';
+      if (sinAgua) {
+        html += '<button class="sc-pendiente-btn" onclick="window.dlAbrirModulo(\'hidrico\',\'' + esc(lote.id) + '\')">';
+        html +=   '💧 Completar Balance Hídrico';
+        html +=   '<span class="sc-pendiente-pts">criterio agua +10 pts posibles</span>';
+        html += '</button>';
+      }
+      if (sinENSO) {
+        html += '<button class="sc-pendiente-btn" onclick="window.dlAbrirModulo(\'hidrico\',\'' + esc(lote.id) + '\')">';
+        html +=   '🌡️ Cargar ENSO';
+        html +=   '<span class="sc-pendiente-pts">se carga solo al abrir Hídrico</span>';
+        html += '</button>';
+      }
+      html += '</div>';
+    }
 
     // Tabla — columnas: Cultivo | Score | Rend. | Margen | Acción
     // Los sub-scores (fecha/agua/ENSO/zona/rot) van en el panel ℹ
