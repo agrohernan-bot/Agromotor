@@ -80,6 +80,65 @@
   var _hubDataCache = {};  // keyed by loteId_month
   var _mapaInstances = {};
 
+  var CULTIVOS_CAMPANA = {
+    planfina: ['Trigo', 'Cebada', 'Colza'],
+    plangruesa: ['Soja', 'Maíz', 'Girasol', 'Sorgo']
+  };
+
+  var VENTANAS_CAMPANA = {
+    Trigo: {
+      pampeana_norte: { primera:'1-jun al 30-jun', segunda:'1-jul al 20-jul', temprana:'15-may al 31-may', tardia:'21-jul al 10-ago' },
+      pampeana_sur:   { primera:'1-may al 31-may', segunda:'1-jun al 30-jun', temprana:'15-abr al 30-abr', tardia:'1-jul al 20-jul' },
+      semiarida:      { primera:'1-jun al 30-jun', segunda:'1-jul al 20-jul', temprana:'15-may al 31-may', tardia:'21-jul al 10-ago' },
+      nea:            { primera:'15-jun al 15-jul', segunda:'16-jul al 10-ago', temprana:'1-jun al 14-jun', tardia:'11-ago al 31-ago' },
+      noa:            { primera:'1-jun al 31-jul', segunda:'1-ago al 31-ago', temprana:'15-may al 31-may', tardia:'1-sep al 20-sep' }
+    },
+    Cebada: {
+      pampeana_norte: { primera:'15-jun al 10-jul', segunda:'11-jul al 31-jul', temprana:'1-jun al 14-jun', tardia:'1-ago al 15-ago' },
+      pampeana_sur:   { primera:'1-jun al 30-jun', segunda:'1-jul al 31-jul', temprana:'15-may al 31-may', tardia:'1-ago al 15-ago' },
+      semiarida:      { primera:'15-jun al 10-jul', segunda:'11-jul al 31-jul', temprana:'1-jun al 14-jun', tardia:'1-ago al 15-ago' },
+      nea:            { primera:'15-jun al 15-jul', segunda:'16-jul al 15-ago', temprana:'1-jun al 14-jun', tardia:'16-ago al 31-ago' },
+      noa:            { primera:'15-jun al 31-jul', segunda:'1-ago al 31-ago', temprana:'1-jun al 14-jun', tardia:'1-sep al 30-sep' }
+    },
+    Colza: {
+      pampeana_norte: { primera:'1-abr al 30-abr', segunda:'1-may al 15-may', temprana:'15-mar al 31-mar', tardia:'16-may al 15-jun' },
+      pampeana_sur:   { primera:'1-mar al 30-abr', segunda:'1-may al 15-may', temprana:'15-feb al 28-feb', tardia:'16-may al 31-may' },
+      semiarida:      { primera:'1-abr al 30-abr', segunda:'1-may al 15-may', temprana:'15-mar al 31-mar', tardia:'16-may al 15-jun' },
+      nea: null,
+      noa: null
+    },
+    Soja: {
+      pampeana_norte: { primera:'15-oct al 30-nov', segunda:'1-dic al 15-ene', temprana:'1-oct al 14-oct', tardia:'16-ene al 28-feb' },
+      pampeana_sur:   { primera:'1-nov al 30-nov', segunda:'1-dic al 31-dic', temprana:'15-oct al 31-oct', tardia:'1-ene al 31-ene' },
+      semiarida:      { primera:'1-nov al 30-nov', segunda:'1-dic al 15-ene', temprana:'15-oct al 31-oct', tardia:'16-ene al 28-feb' },
+      nea:            { primera:'1-oct al 30-nov', segunda:'1-dic al 15-ene', temprana:'15-sep al 30-sep', tardia:'16-ene al 28-feb' },
+      noa:            { primera:'1-oct al 15-nov', segunda:'16-nov al 31-dic', temprana:'15-sep al 30-sep', tardia:'1-ene al 31-ene' }
+    },
+    'Maíz': {
+      pampeana_norte: { primera:'15-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'1-sep al 14-sep', tardia:'1-dic al 31-dic' },
+      pampeana_sur:   { primera:'1-oct al 15-nov', segunda:'16-nov al 30-nov', temprana:'15-sep al 30-sep', tardia:'1-dic al 15-dic' },
+      semiarida:      { primera:'1-oct al 15-nov', segunda:'16-nov al 30-nov', temprana:'15-sep al 30-sep', tardia:'1-dic al 15-dic' },
+      nea:            { primera:'15-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'1-sep al 14-sep', tardia:'1-dic al 15-dic' },
+      noa:            { primera:'1-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'15-ago al 31-ago', tardia:'1-dic al 15-dic' }
+    },
+    Girasol: {
+      pampeana_norte: { primera:'15-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'1-sep al 14-sep', tardia:'1-dic al 15-dic' },
+      pampeana_sur:   { primera:'1-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'15-ago al 31-ago', tardia:'1-dic al 15-dic' },
+      semiarida:      { primera:'15-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'1-sep al 14-sep', tardia:'1-dic al 15-dic' },
+      nea:            { primera:'1-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'15-ago al 31-ago', tardia:'1-dic al 15-dic' },
+      noa:            { primera:'1-sep al 31-oct', segunda:'1-nov al 30-nov', temprana:'15-ago al 31-ago', tardia:'1-dic al 15-dic' }
+    },
+    Sorgo: {
+      pampeana_norte: { primera:'1-nov al 15-dic', segunda:'16-dic al 15-ene', temprana:'15-oct al 31-oct', tardia:'16-ene al 28-feb' },
+      pampeana_sur:   { primera:'1-nov al 30-nov', segunda:'1-dic al 15-ene', temprana:'15-oct al 31-oct', tardia:'16-ene al 28-feb' },
+      semiarida:      { primera:'15-nov al 15-dic', segunda:'16-dic al 31-ene', temprana:'1-nov al 14-nov', tardia:'1-feb al 28-feb' },
+      nea:            { primera:'1-oct al 30-nov', segunda:'1-dic al 31-ene', temprana:'15-sep al 30-sep', tardia:'1-feb al 28-feb' },
+      noa:            { primera:'1-oct al 15-nov', segunda:'16-nov al 31-dic', temprana:'15-sep al 30-sep', tardia:'1-ene al 31-ene' }
+    }
+  };
+
+  var MESES_CAMPANA = { ene:0, feb:1, mar:2, abr:3, may:4, jun:5, jul:6, ago:7, sep:8, oct:9, nov:10, dic:11 };
+
   // ── DETERMINAR ESTADO DEL LOTE ────────────────────────
   function getEstado(lote) {
     var d  = lote.data || {};
@@ -126,6 +185,103 @@
       }
     }
     return null;
+  }
+
+  function _zonaCampana(lote) {
+    var coords = _coordsFromLote(lote);
+    if (!coords) return 'pampeana_norte';
+    var lat = parseFloat(coords.lat);
+    if (isNaN(lat)) return 'pampeana_norte';
+    if (typeof window.CV_ZONAS !== 'undefined') {
+      for (var z in window.CV_ZONAS) {
+        if (!Object.prototype.hasOwnProperty.call(window.CV_ZONAS, z)) continue;
+        var cfg = window.CV_ZONAS[z];
+        if (cfg && lat >= cfg.latMin && lat <= cfg.latMax) return z;
+      }
+    }
+    if (lat > -29) return 'noa';
+    if (lat < -39) return 'pampeana_sur';
+    return 'pampeana_norte';
+  }
+
+  function _parseFechaVentana(str) {
+    if (!str) return null;
+    var p = String(str).trim().split('-');
+    var dia = parseInt(p[0], 10);
+    var mes = MESES_CAMPANA[p[1] && p[1].toLowerCase()];
+    return (isNaN(dia) || mes === undefined) ? null : { dia: dia, mes: mes };
+  }
+
+  function _partesVentana(str) {
+    if (!str) return null;
+    var p = String(str).split(' al ');
+    if (p.length !== 2) return null;
+    return { ini: p[0], fin: p[1] };
+  }
+
+  function _cierreCampana(secKey, zona, baseYear) {
+    var cultivos = CULTIVOS_CAMPANA[secKey] || [];
+    var esGruesa = secKey === 'plangruesa';
+    var cierre = null;
+    cultivos.forEach(function(cultivo) {
+      var porZona = VENTANAS_CAMPANA[cultivo] && VENTANAS_CAMPANA[cultivo][zona];
+      if (!porZona) return;
+      Object.keys(porZona).forEach(function(k) {
+        var partes = _partesVentana(porZona[k]);
+        if (!partes) return;
+        var ini = _parseFechaVentana(partes.ini);
+        var fin = _parseFechaVentana(partes.fin);
+        if (!ini || !fin) return;
+        var finYear = baseYear;
+        if (esGruesa && fin.mes <= 1) finYear += 1;
+        if (!esGruesa && fin.mes < ini.mes) finYear += 1;
+        var f = new Date(finYear, fin.mes, fin.dia, 23, 59, 59, 999);
+        if (!cierre || f > cierre) cierre = f;
+      });
+    });
+    return cierre;
+  }
+
+  function getCampanaPlanificacion(lote, secKey, fechaBase) {
+    if (secKey !== 'planfina' && secKey !== 'plangruesa') return null;
+    var hoy = fechaBase ? new Date(fechaBase) : new Date();
+    if (isNaN(hoy.getTime())) hoy = new Date();
+    var zona = _zonaCampana(lote);
+    var year = hoy.getFullYear();
+
+    if (secKey === 'planfina') {
+      var cierreFina = _cierreCampana(secKey, zona, year);
+      var campYear = cierreFina && hoy > cierreFina ? year + 1 : year;
+      return {
+        tipo: 'fina',
+        label: String(campYear),
+        clave: 'fina-' + campYear,
+        zona: zona,
+        cierre: cierreFina
+      };
+    }
+
+    var baseYear = hoy.getMonth() <= 1 ? year - 1 : year;
+    var cierreGruesa = _cierreCampana(secKey, zona, baseYear);
+    if (cierreGruesa && hoy > cierreGruesa) {
+      baseYear += 1;
+      cierreGruesa = _cierreCampana(secKey, zona, baseYear);
+    }
+    return {
+      tipo: 'gruesa',
+      label: baseYear + '/' + (baseYear + 1),
+      clave: 'gruesa-' + baseYear + '-' + (baseYear + 1),
+      zona: zona,
+      cierre: cierreGruesa
+    };
+  }
+
+  function tituloSeccion(lote, secKey) {
+    var sec = SECCIONES[secKey];
+    if (!sec) return '';
+    if (!lote) return sec.titulo;
+    var camp = getCampanaPlanificacion(lote, secKey);
+    return camp ? (sec.titulo + ' ' + camp.label) : sec.titulo;
   }
 
   // ── RENDER PANEL RAÍZ ─────────────────────────────────
@@ -304,6 +460,11 @@
         if (areaHa > 0) sup = String(areaHa);
       } catch(_e) {}
     }
+    d.campanasActivas = d.campanasActivas || {};
+    ['plangruesa', 'planfina'].forEach(function(key) {
+      var camp = getCampanaPlanificacion(lote, key);
+      if (camp) d.campanasActivas[key] = camp.clave;
+    });
 
     var html = '<div class="dl-page dl-page-hub">';
 
@@ -335,7 +496,8 @@
     html += '<div class="dl-hub-grid">';
     Object.keys(SECCIONES).forEach(function (key) {
       var s = SECCIONES[key];
-      html += hubBtn(key, s.emoji, s.titulo, s.desc, s.color);
+      var titulo = tituloSeccion(lote, key);
+      html += hubBtn(key, s.emoji, titulo, s.desc, s.color);
     });
     html += '</div>';
 
@@ -370,6 +532,13 @@
     var lote = getLote(loteId);
     var sec  = SECCIONES[secKey];
     if (!lote || !sec) return '';
+    var titulo = tituloSeccion(lote, secKey);
+    var camp = getCampanaPlanificacion(lote, secKey);
+    if (camp) {
+      lote.data = lote.data || {};
+      lote.data.campanasActivas = lote.data.campanasActivas || {};
+      lote.data.campanasActivas[secKey] = camp.clave;
+    }
 
     var html = '<div class="dl-page dl-page-sec">';
 
@@ -377,12 +546,12 @@
     html += breadcrumb([
       { label: 'Mis Lotes',      onclick: 'window.dlVolverCards()' },
       { label: esc(lote.nombre), onclick: 'window.dlAbrirLote(\'' + esc(loteId) + '\')' }
-    ], sec.titulo);
+    ], titulo);
 
     // Header sección
     html += '<div class="dl-sec-header" style="border-left-color:' + sec.color + '">';
     html +=   '<span class="dl-sec-emoji">' + sec.emoji + '</span>';
-    html +=   '<span class="dl-sec-titulo">' + sec.titulo + '</span>';
+    html +=   '<span class="dl-sec-titulo">' + titulo + '</span>';
     html += '</div>';
 
     // Widgets contextuales según sección
@@ -1176,6 +1345,7 @@
 
   // Exponer init para ser llamado desde app.html
   window.dlInit = init;
+  window.dlGetCampanaPlanificacion = getCampanaPlanificacion;
 
   // ── PATCH switchMod: gestionar visibilidad de sidebar ──
   // Se ejecuta en init() una vez que switchMod está disponible
@@ -1204,7 +1374,8 @@
       return;
     }
     btnVolver.classList.remove('hidden');
-    btnVolver.textContent = _modContext && _modContext.secKey ? '← Volver a ' + SECCIONES[_modContext.secKey].titulo : '← Mis Lotes';
+    var tituloVolver = _modContext && _modContext.secKey ? tituloSeccion(getLote(_modContext.loteId), _modContext.secKey) : '';
+    btnVolver.textContent = tituloVolver ? '← Volver a ' + tituloVolver : '← Mis Lotes';
     btnVolver.title = _modContext && _modContext.secKey ? 'Volver al hub anterior' : 'Volver a Mis Lotes';
   }
 
