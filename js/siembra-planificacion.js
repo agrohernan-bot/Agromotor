@@ -68,16 +68,26 @@
   // ── Ajuste días lluvia por ENSO y época ──────────────
   // Pampa argentina: promedio días/mes con lluvia > 5mm
   // Finos (abr-ago), gruesos (sep-feb)
-  var LLUVIA_FACTOR = {
-    invierno: { nino: 0.82, neutro: 0.88, nina: 0.93 },
-    verano:   { nino: 0.70, neutro: 0.80, nina: 0.88 },
+  var LLUVIA_DIAS_MES = {
+    invierno: { nino: 5.4, neutro: 3.6, nina: 2.4 },
+    verano:   { nino: 9.0, neutro: 6.0, nina: 3.6 },
   };
+  var DIAS_PISO_POST_LLUVIA = 2;
+  var EVENTOS_POR_DIA_LLUVIA = 0.55;
 
   // ── Capacidad por defecto de sembradora ───────────────
   var DEFAULT_ANCHO  = 7;   // metros
   var DEFAULT_VEL    = 7;   // km/h
   var DEFAULT_EFIC   = 0.80; // eficiencia operativa
   var HORAS_DIA      = 9.7;
+  var CULTIVOS_POR_GRUPO = {
+    invierno: ['trigo', 'cebada', 'colza'],
+    verano: ['soja', 'maiz', 'girasol', 'sorgo']
+  };
+  var GRUPO_LABEL = {
+    invierno: 'Trigo, Cebada o Colza',
+    verano: 'Soja, Maiz, Girasol o Sorgo'
+  };
 
   // ── Utilidades de fecha ───────────────────────────────
   var MESES_IDX = { ene:0, feb:1, mar:2, abr:3, may:4, jun:5, jul:6, ago:7, sep:8, oct:9, nov:10, dic:11 };
@@ -124,6 +134,7 @@
   }
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
+  function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
 
   function formatFechaES(iso) {
     if (!iso) return '';
@@ -146,7 +157,7 @@
     for (var i = 0; i < Math.ceil(totalDias); i++) {
       var cur = new Date(sd);
       cur.setDate(sd.getDate() + i);
-      var curDOY = adjustedDOY(cur.getMonth(), cur.getDate() + 1, esVerano);
+      var curDOY = adjustedDOY(cur.getMonth(), cur.getDate(), esVerano);
       if (curDOY >= edDOY && curDOY <= efDOY) overlapDias++;
     }
     return Math.min(overlapDias, totalDias);
@@ -170,7 +181,7 @@
       if (!v) continue;
       var ini = adjustedDOY(v.ini.mes, v.ini.dia, esVerano);
       var fin = adjustedDOY(v.fin.mes, v.fin.dia, esVerano);
-      var cur = adjustedDOY(mes, dia + 1, esVerano);
+      var cur = adjustedDOY(mes, dia, esVerano);
       if (cur >= ini && cur <= fin) return { label: t.label, clase: t.clase };
     }
     return { label: 'Fuera de ventana ✗', clase: 'sp-badge-fuera' };
@@ -202,6 +213,23 @@
     if (/niño|nino/i.test(fase || '')) return 'nino';
     if (/niña|nina/i.test(fase || '')) return 'nina';
     return 'neutro';
+  }
+
+  function calcOperatividadClima(esVerano, ensoKey) {
+    var grupo = esVerano ? 'verano' : 'invierno';
+    var tabla = LLUVIA_DIAS_MES[grupo] || LLUVIA_DIAS_MES.verano;
+    var diasLluviaMes = tabla[ensoKey] || tabla.neutro;
+    var eventosMes = diasLluviaMes * EVENTOS_POR_DIA_LLUVIA;
+    var diasPisoMes = eventosMes * DIAS_PISO_POST_LLUVIA;
+    var diasNoOperativosMes = clamp(diasLluviaMes + diasPisoMes, 1, 24);
+    var factor = clamp(1 - (diasNoOperativosMes / 30), 0.20, 0.97);
+    return {
+      factor: factor,
+      diasLluviaMes: diasLluviaMes,
+      diasPisoMes: diasPisoMes,
+      diasNoOperativosMes: diasNoOperativosMes,
+      pctNoOperativo: Math.round((1 - factor) * 100)
+    };
   }
 
   // ── Timeline HTML ─────────────────────────────────────
@@ -309,6 +337,44 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function cultivoEnGrupo(cultivo, grupo) {
+    if (!grupo || !cultivo) return true;
+    var permitidos = CULTIVOS_POR_GRUPO[grupo] || [];
+    var key = String(cultivo || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/Ã¡|á/g, 'a').replace(/Ã©|é/g, 'e')
+      .replace(/Ã­|í/g, 'i').replace(/Ã³|ó/g, 'o')
+      .replace(/Ãº|ú/g, 'u').replace(/ñ|Ã±/g, 'n');
+    return permitidos.indexOf(key) >= 0;
+  }
+
+  function renderPendienteCultivo(lote, grupo, cultivoActual) {
+    var loteId = esc(lote.id);
+    var grupoTxt = GRUPO_LABEL[grupo] || 'un cultivo del score';
+    var motivo = cultivoActual
+      ? 'El cultivo activo del lote es ' + esc(cultivoActual) + ', que no corresponde a esta secciÃ³n.'
+      : 'TodavÃ­a no hay cultivo activo para este lote.';
+    var html = '<div class="sp-widget sp-widget-empty">';
+    html += '<div class="sp-header">';
+    html +=   '<span class="sp-titulo">ðŸ“… Operativa de siembra</span>';
+    html +=   '<span class="sp-zona-chip">Pendiente de cultivo</span>';
+    html += '</div>';
+    html += '<div class="sp-empty-body">';
+    html +=   '<div class="sp-empty-title">ElegÃ­ un cultivo del score para activar la operativa</div>';
+    html +=   '<div class="sp-empty-text">' + motivo + ' En esta planificaciÃ³n corresponde usar ' + esc(grupoTxt) + '.</div>';
+    html +=   '<div class="sp-empty-actions">';
+    html +=     '<button class="sp-btn-maquinaria sp-btn-score" onclick="window.spScrollScore()">';
+    html +=       '<span>Volver al score y tocar Usar</span><span>â†‘</span>';
+    html +=     '</button>';
+    html +=     '<button class="sp-btn-maquinaria" onclick="window.dlAbrirLote(\'' + loteId + '\')">';
+    html +=       '<span>Volver al hub del lote</span><span>â†’</span>';
+    html +=     '</button>';
+    html +=   '</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
   function _reabrirSeccion() {
     if (typeof window.dlAbrirSeccion !== 'function') return;
     var sec = (typeof window.dlGetSeccionAbierta === 'function') ? window.dlGetSeccionAbierta() : null;
@@ -325,7 +391,9 @@
     var esVerano = grupo === 'verano';
     var loteId  = esc(lote.id);
 
-    if (!cultivo) return ''; // No mostrar si no hay cultivo elegido
+    if (!cultivo || !cultivoEnGrupo(cultivo, grupo)) {
+      return renderPendienteCultivo(lote, grupo, cultivo);
+    }
 
     // Zona agronómica
     var zona = null;
@@ -361,8 +429,8 @@
     var faseCode  = ck['am_enso_fase'] || d['hub-enso-fase'] || '';
     var ensoKey   = ensoFaseLluvia(faseCode);
     var faseLabel = ensoKey === 'nino' ? 'El Niño' : ensoKey === 'nina' ? 'La Niña' : 'Neutro';
-    var factLluvia = (LLUVIA_FACTOR[esVerano ? 'verano' : 'invierno'] || LLUVIA_FACTOR.verano)[ensoKey] || 0.80;
-    var pctLluvia  = Math.round((1 - factLluvia) * 100);
+    var lluviaOp  = calcOperatividadClima(esVerano, ensoKey);
+    var factLluvia = lluviaOp.factor;
 
     // Fecha planeada
     var fechaISO = d.fechaSiembraPlan || '';
@@ -457,7 +525,12 @@
       html +=   ' onclick="window.spSetNSembradoras(' + n + ',\'' + loteId + '\')">&times;' + n + '</button>';
     });
     html +=   '</div>';
-    if (faseCode) html += '<span class="sp-enso-adj">ENSO ' + faseLabel + ': −' + pctLluvia + '% días efectivos</span>';
+    if (faseCode) {
+      html += '<span class="sp-enso-adj">ENSO ' + faseLabel + ': ';
+      html += lluviaOp.diasLluviaMes.toFixed(1) + ' d lluvia + ';
+      html += lluviaOp.diasPisoMes.toFixed(1) + ' d piso/mes';
+      html += '</span>';
+    }
     html += '</div>';
 
     // Tabla análisis
@@ -555,6 +628,11 @@
     lote.data.sembConfig.n = n;
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     _reabrirSeccion();
+  };
+
+  window.spScrollScore = function () {
+    var el = document.querySelector('.sc-widget');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
 })();

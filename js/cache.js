@@ -8,16 +8,32 @@
   window.AM.cache = {};
 
   const LOTES_LEGACY_KEY = 'am_global_lotes_v2'; // clave pre-fix (compartida por todos)
+  let _amLotesRemoteTimer = null;
+  let _amLotesRemoteLoading = false;
+  let _amLotesRemoteLoadUid = null;
 
   function getLotesKey() {
     var uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
     return uid ? ('am_lotes_v2_' + uid) : LOTES_LEGACY_KEY;
+  }
+  function amLotesRemoteDisponible() {
+    return !!(window.AM_SB && typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id);
+  }
+  function amLotesDataJson(data) {
+    try { return JSON.parse(JSON.stringify(data || {})); }
+    catch (_) { return {}; }
+  }
+  function amLotesTieneDatosReales(lote) {
+    if (!lote || !lote.data) return false;
+    const d = lote.data;
+    return !!(d.coord || d.cultivo || d.superficie || d.polygon || d.geojson || d.fecha || d.fechaSiembraPlan);
   }
   window.AM_LOTES = [];
   window.AM_LOTE_ACTIVO = 'default';
 
 function amCargarLotesGlobales() {
   var _uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
+  if (!_uid) _amLotesRemoteLoadUid = null;
   if (_uid) {
     var _newKey = 'am_lotes_v2_' + _uid;
     var _legacyData = localStorage.getItem(LOTES_LEGACY_KEY);
@@ -44,6 +60,7 @@ function amCargarLotesGlobales() {
   }
   
   amRenderSelectLotes();
+  if (_uid) amCargarLotesRemotos();
 }
 
 function amGetLoteLimit() {
@@ -363,7 +380,109 @@ window.amCambiarLoteGlobal = function() {
 
 function amGuardarLotesEstado() {
   localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+  amProgramarGuardarLotesRemotos();
 }
+
+function amProgramarGuardarLotesRemotos() {
+  if (!amLotesRemoteDisponible() || _amLotesRemoteLoading) return;
+  clearTimeout(_amLotesRemoteTimer);
+  _amLotesRemoteTimer = setTimeout(amGuardarLotesRemotos, 700);
+}
+
+async function amGuardarLotesRemotos(force) {
+  if (!amLotesRemoteDisponible() || (_amLotesRemoteLoading && !force)) return;
+  const uid = AM_SESION.id;
+  const lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
+  if (!lotes.length) return;
+
+  const rows = lotes.map(l => ({
+    user_id: uid,
+    lote_id: String(l.id || ('lote_' + Date.now())),
+    nombre: String(l.nombre || 'Lote'),
+    data: amLotesDataJson(l.data),
+    activo: String(l.id) === String(AM_LOTE_ACTIVO)
+  }));
+
+  const up = await AM_SB
+    .from('lotes')
+    .upsert(rows, { onConflict: 'user_id,lote_id' });
+
+  if (up.error) {
+    console.warn('Lotes remote save skipped:', up.error.message);
+    return;
+  }
+
+  const rem = await AM_SB
+    .from('lotes')
+    .select('lote_id')
+    .eq('user_id', uid);
+
+  if (rem.error || !Array.isArray(rem.data)) return;
+  const actuales = new Set(rows.map(r => r.lote_id));
+  const stale = rem.data.map(r => r.lote_id).filter(id => !actuales.has(id));
+  if (stale.length) {
+    const del = await AM_SB
+      .from('lotes')
+      .delete()
+      .eq('user_id', uid)
+      .in('lote_id', stale);
+    if (del.error) console.warn('Lotes remote delete skipped:', del.error.message);
+  }
+}
+
+async function amCargarLotesRemotos(force) {
+  if (!amLotesRemoteDisponible()) return false;
+  const uid = AM_SESION.id;
+  if (_amLotesRemoteLoading || (!force && _amLotesRemoteLoadUid === uid)) return false;
+  _amLotesRemoteLoading = true;
+  _amLotesRemoteLoadUid = uid;
+  try {
+    const res = await AM_SB
+      .from('lotes')
+      .select('lote_id,nombre,data,activo,updated_at')
+      .eq('user_id', uid)
+      .order('updated_at', { ascending: true });
+
+    if (res.error) {
+      console.warn('Lotes remote load skipped:', res.error.message);
+      _amLotesRemoteLoadUid = null;
+      return false;
+    }
+
+    const remotos = Array.isArray(res.data) ? res.data : [];
+    if (remotos.length) {
+      AM_LOTES = remotos.map(r => ({
+        id: r.lote_id,
+        nombre: r.nombre || 'Lote',
+        data: r.data || {}
+      }));
+      const activo = remotos.find(r => r.activo) || remotos[0];
+      AM_LOTE_ACTIVO = activo.lote_id;
+
+      localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+      amRenderSelectLotes();
+      if (typeof cacheCargar === 'function') cacheCargar();
+      if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
+      if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
+      return true;
+    }
+
+    const localesConDatos = (AM_LOTES || []).some(amLotesTieneDatosReales);
+    if (localesConDatos || (AM_LOTES || []).length > 1) {
+      await amGuardarLotesRemotos(true);
+    }
+    return false;
+  } catch (e) {
+    console.warn('Lotes remote load error:', e.message);
+    _amLotesRemoteLoadUid = null;
+    return false;
+  } finally {
+    _amLotesRemoteLoading = false;
+  }
+}
+
+window.amGuardarLotesRemotos = amGuardarLotesRemotos;
+window.amCargarLotesRemotos = amCargarLotesRemotos;
 
 const CALC_KEYS = [
   'am_siembra_fecha', 'am_siembra_cultivo', 'am_siembra_lat', 'am_siembra_lon', 'am_siembra_suelo',
@@ -384,6 +503,13 @@ function cacheGuardar() {
       polygon: lote.data?.polygon || null,
       geojson: lote.data?.geojson || null
     };
+    const workflowData = {
+      fechaSiembraPlan: lote.data?.fechaSiembraPlan || '',
+      fechaSiembraConf: lote.data?.fechaSiembraConf || '',
+      sembConfig: lote.data?.sembConfig || null,
+      antecesor: lote.data?.antecesor || '',
+      'hub-enso-fase': lote.data?.['hub-enso-fase'] || ''
+    };
     
     lote.data = {
       ts: Date.now(),
@@ -394,6 +520,11 @@ function cacheGuardar() {
       superficie: geometry.superficie,
       polygon: geometry.polygon,
       geojson: geometry.geojson,
+      fechaSiembraPlan: workflowData.fechaSiembraPlan,
+      fechaSiembraConf: workflowData.fechaSiembraConf,
+      sembConfig: workflowData.sembConfig,
+      antecesor: workflowData.antecesor,
+      'hub-enso-fase': workflowData['hub-enso-fase'],
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,

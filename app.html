@@ -37,7 +37,7 @@
   <link rel="stylesheet" href="css/dashboard.css?v=99">
   <link rel="stylesheet" href="css/lote-nuevo.css?v=92">
   <link rel="stylesheet" href="css/score-cultivares.css?v=94">
-  <link rel="stylesheet" href="css/siembra-planificacion.css?v=1">
+  <link rel="stylesheet" href="css/siembra-planificacion.css?v=2">
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json">
@@ -877,14 +877,14 @@
       <div class="sl">Máquina y parámetros operativos</div>
       <div class="fg"><label>Modelo de máquina</label>
         <select id="m-maq" onchange="loadMaq()">
+          <option value="custom" selected>Promedio nacional / personalizada 7 m</option>
           <option value="mixia">Crucianelli Mixia 13.5 m</option>
           <option value="plantor">Crucianelli Plantor 9 m</option>
           <option value="drilor">Crucianelli Drilor GF 7.5 m</option>
-          <option value="custom">Máquina personalizada</option>
         </select>
       </div>
       <div class="grid-3">
-        <div class="fg"><label>Ancho (m)</label><input type="number" id="m-ancho" value="13.5" step="0.5" min="3" max="36"></div>
+        <div class="fg"><label>Ancho (m)</label><input type="number" id="m-ancho" value="7" step="0.5" min="3" max="36"></div>
         <div class="fg"><label>Velocidad (km/h)</label><input type="number" id="m-vel" value="7.5" step="0.1" min="3" max="15"></div>
         <div class="fg"><label>Eficiencia</label>
           <div class="sw"><input type="range" id="m-efic" min="0.5" max="1" step="0.01" value="0.85" oninput="sv('sv-efic',Math.round(this.value*100)+'%')"><span class="sv" id="sv-efic">85%</span></div>
@@ -910,7 +910,7 @@
         <div style="font-size:.83rem;font-weight:700;color:#5A3A10;margin-bottom:.7rem">📋 Nueva máquina propia</div>
         <div class="grid-2">
           <div class="fg"><label>Nombre / Modelo</label><input type="text" id="mc-nombre" placeholder="Ej: Mi sembradora 12 m"></div>
-          <div class="fg"><label>Ancho de labor (m)</label><input type="number" id="mc-ancho" value="9" step="0.5" min="1" max="50"></div>
+          <div class="fg"><label>Ancho de labor (m)</label><input type="number" id="mc-ancho" value="7" step="0.5" min="1" max="50"></div>
         </div>
         <div class="fg"><label>Notas técnicas (opcional)</label><textarea id="mc-ficha" rows="2" placeholder="Motor, año, equipamiento, etc." style="width:100%;font-family:inherit;font-size:.82rem;padding:.45rem .65rem;border:1px solid rgba(74,46,26,.2);border-radius:6px;resize:vertical"></textarea></div>
         <div class="sl" style="margin-top:.5rem">Tolvas</div>
@@ -4290,10 +4290,10 @@ function _fsRender(res, diasTranscurridos) {
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
-<script src="js/core.js?v=85"></script>
-<script src="js/config.js?v=86"></script>
+<script src="js/core.js?v=86"></script>
+<script src="js/config.js?v=88"></script>
 <script src="js/login.js?v=85"></script>
-<script src="js/cache.js?v=92"></script>
+<script src="js/cache.js?v=93"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
@@ -4313,7 +4313,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/siembra.js?v=85"></script>
 <script src="js/siembra-apis.js?v=86"></script>
 <script src="js/economia.js?v=85"></script>
-<script src="js/maquinaria.js?v=85"></script>
+<script src="js/maquinaria.js?v=86"></script>
 <script src="js/asistente.js?v=85"></script>
 <script src="js/pdf.js?v=85"></script>
 <script src="js/pdf-modulo.js?v=85"></script>
@@ -4321,11 +4321,11 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=85"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
-<script src="js/dashboard-lotes.js?v=109"></script>
+<script src="js/dashboard-lotes.js?v=111"></script>
 <script src="js/lote-nuevo.js?v=99"></script>
 <script src="js/cultivares.js?v=92"></script>
-<script src="js/score-cultivares.js?v=96"></script>
-<script src="js/siembra-planificacion.js?v=1"></script>
+<script src="js/score-cultivares.js?v=98"></script>
+<script src="js/siembra-planificacion.js?v=3"></script>
 <script src="js/graficos-economia.js?v=85"></script>
 <script src="js/decision.js?v=85"></script>
 <script src="js/comparador-campana.js?v=85"></script>

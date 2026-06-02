@@ -303,7 +303,7 @@
     var ck = d.calcKeys || {};
 
     var coord      = d.coord   || '';
-    var fechaStr   = d.fecha   || ck['am_siembra_fecha']           || '';
+    var fechaStr   = d.fechaSiembraConf || d.fechaSiembraPlan || d.fecha || ck['am_siembra_fecha'] || '';
     var cultivoAct = d.cultivo || ck['am_siembra_cultivo']         || '';
     var aguaMm     = parseFloat(ck['am_hidrico_agua_actual_mm'])   || 0;
     var aguaCC     = parseFloat(ck['am_hidrico_cap_max_mm'])       || 0;
@@ -344,13 +344,6 @@
     // Header
     html += '<div class="sc-header">';
     html +=   '<div class="sc-titulo">🏆 Score de cultivos <span class="sc-subtitulo">' + grupoLabel + '</span></div>';
-    html +=   '<div class="sc-meta">';
-    if (zona && CV && CV[zona]) html += '<span class="sc-chip">📍 ' + CV[zona].label + '</span>';
-    if (fechaStr)    html += '<span class="sc-chip">📅 ' + fechaStr + '</span>';
-    if (pctAgua >= 0) html += '<span class="sc-chip">💧 ' + pctAgua + '% CC</span>';
-    if (faseLabel)   html += '<span class="sc-chip">🌡️ ' + faseLabel + '</span>';
-    if (!coord)      html += '<span class="sc-chip sc-chip-warn">⚠ Sin coordenadas — score aproximado</span>';
-    html +=   '</div>';
     html += '</div>';
 
     // Selector antecesor
@@ -484,10 +477,6 @@
 
     // CTA
     html += '<div class="sc-cta">';
-    html +=   '<div class="sc-cta-nav">';
-    html +=     '<button class="sc-cta-nav-btn" onclick="window.dlVolverCards()">← Mis Lotes</button>';
-    html +=     '<button class="sc-cta-nav-btn" onclick="window.dlAbrirLote(\'' + esc(lote.id) + '\')">← Hub del lote</button>';
-    html +=   '</div>';
     html +=   '<button class="sc-btn-cultivares" onclick="window.dlAbrirModulo(\'cultivares\',\'' + esc(lote.id) + '\')">';
     html +=     '<span>🌾 Ver ranking de cultivares (RECSO/INTA)</span><span>→</span>';
     html +=   '</button>';
