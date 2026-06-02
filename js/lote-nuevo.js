@@ -428,8 +428,9 @@
 
     if (typeof amToast === 'function') amToast('Lote "' + nombre + '" ' + (editando ? 'actualizado' : 'creado') + ' ✓', 'ok');
 
-    // Ir directo al hub del nuevo lote
-    if (typeof window.dlAbrirLote === 'function') window.dlAbrirLote(id);
+    // Volver a Mis Lotes para que el usuario elija con qué lote continuar
+    if (typeof window.dlVolverCards === 'function') window.dlVolverCards();
+    else if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
   };
 
   // ══════════════════════════════════════════════════════
