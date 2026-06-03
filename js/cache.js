@@ -92,6 +92,7 @@ function amRenderSelectLotes() {
     counter.style.borderColor = color + '44';
   }
 
+  // Poblar selects (sin agrupación)
   AM_LOTES.forEach(L => {
     if(sel) {
       const opt = document.createElement('option');
@@ -105,78 +106,97 @@ function amRenderSelectLotes() {
       if(L.id === AM_LOTE_ACTIVO) opt2.selected = true;
       selDash.appendChild(opt2);
     }
+  });
 
-    if(listCont) {
-      const coord   = L.data?.coord   || null;
-      const cultivo = L.data?.cultivo  || null;
-      const isActive = L.id === AM_LOTE_ACTIVO;
+  // Tarjetas agrupadas por cliente
+  if(listCont) {
+    // Agrupar lotes por clienteNombre
+    const grupos = {};
+    AM_LOTES.forEach(L => {
+      const key = (L.data?.clienteNombre || '').trim();
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(L);
+    });
+    const clientes = Object.keys(grupos).sort((a, b) => {
+      if (!a) return 1; if (!b) return -1;
+      return a.localeCompare(b, 'es');
+    });
+    const mostrarGrupos = clientes.length > 1 || (clientes.length === 1 && clientes[0] !== '');
 
-      // ── Semáforo: leer del snapshot calcKeys ──────────
-      const ck = L.data?.calcKeys || {};
-      const aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
-      const capMax  = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
-      const etapa   = ck['am_fen_etapa_hoy']  || '';
-      const diasEstres = parseInt(ck['am_hidrico_dias_estres'])   || 0;
-      let alertCount = 0;
-      try { alertCount = JSON.parse(ck['am_alertas_activas'] || '[]').length; } catch(_) {}
-
-      // Semáforo hídrico
-      let hidDot = '#cbd5e1'; let hidPct = '—'; let hidLabel = 'Sin datos';
-      if (capMax > 0) {
-        const pct = Math.min(100, Math.round(aguaMm / capMax * 100));
-        hidPct = pct + '%';
-        if (pct >= 60)      { hidDot = '#2A7A4A'; hidLabel = 'Óptimo';    }
-        else if (pct >= 35) { hidDot = '#C8A255'; hidLabel = 'Moderado';  }
-        else                { hidDot = '#D4522A'; hidLabel = 'Estrés';    }
+    clientes.forEach(cliente => {
+      // Encabezado de grupo
+      if (mostrarGrupos) {
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:.7rem;font-weight:700;color:#3A7A4A;letter-spacing:.04em;text-transform:uppercase;padding:.5rem .2rem .25rem;margin-top:.5rem;border-bottom:1px solid rgba(58,122,74,.2);display:flex;align-items:center;gap:.4rem';
+        header.innerHTML = `<span style="font-size:.9rem">👤</span>${cliente || '<span style="color:#9ca3af;font-weight:500;text-transform:none">Sin cliente asignado</span>'}<span style="margin-left:auto;font-size:.65rem;color:#6b7280;font-weight:500;text-transform:none">${grupos[cliente].length} lote${grupos[cliente].length!==1?'s':''}</span>`;
+        listCont.appendChild(header);
       }
 
-      // Etapa corta (max 14 chars)
-      const etapaCorta = etapa ? (etapa.length > 14 ? etapa.slice(0,13)+'…' : etapa) : '';
+      grupos[cliente].forEach(L => {
+        const coord   = L.data?.coord   || null;
+        const cultivo = L.data?.cultivo  || null;
+        const isActive = L.id === AM_LOTE_ACTIVO;
 
-      // Días de estrés badge
-      const estresBadge = diasEstres > 3
-        ? `<span style="font-size:.6rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">${diasEstres}d estrés</span>`
-        : '';
+        const ck = L.data?.calcKeys || {};
+        const aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
+        const capMax  = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
+        const etapa   = ck['am_fen_etapa_hoy']  || '';
+        const diasEstres = parseInt(ck['am_hidrico_dias_estres'])   || 0;
+        let alertCount = 0;
+        try { alertCount = JSON.parse(ck['am_alertas_activas'] || '[]').length; } catch(_) {}
 
-      // Alertas badge
-      const alertBadge = alertCount > 0
-        ? `<span style="font-size:.6rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700">🚨 ${alertCount}</span>`
-        : '';
+        let hidDot = '#cbd5e1'; let hidPct = '—'; let hidLabel = 'Sin datos';
+        if (capMax > 0) {
+          const pct = Math.min(100, Math.round(aguaMm / capMax * 100));
+          hidPct = pct + '%';
+          if (pct >= 60)      { hidDot = '#2A7A4A'; hidLabel = 'Óptimo';   }
+          else if (pct >= 35) { hidDot = '#C8A255'; hidLabel = 'Moderado'; }
+          else                { hidDot = '#D4522A'; hidLabel = 'Estrés';   }
+        }
 
-      const card = document.createElement('div');
-      card.style.cssText = `
-        border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
-        border-radius: 10px;
-        background: ${isActive ? 'rgba(122,174,245,.1)' : '#fff'};
-        padding: .75rem .9rem;
-        cursor: pointer;
-        transition: all .18s;
-        display: flex; flex-direction: column; gap: .4rem;
-        box-shadow: ${isActive ? '0 2px 8px rgba(122,174,245,.2)' : '0 1px 3px rgba(0,0,0,.06)'};
-      `;
-      card.onclick = () => amCambiarLoteGlobalDesdeDash(L.id);
-      card.onmouseover = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.4)'; card.style.boxShadow='0 2px 8px rgba(122,174,245,.15)'; }};
-      card.onmouseout  = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.15)'; card.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'; }};
+        const etapaCorta = etapa ? (etapa.length > 14 ? etapa.slice(0,13)+'…' : etapa) : '';
+        const estresBadge = diasEstres > 3
+          ? `<span style="font-size:.6rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">${diasEstres}d estrés</span>`
+          : '';
+        const alertBadge = alertCount > 0
+          ? `<span style="font-size:.6rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700">🚨 ${alertCount}</span>`
+          : '';
 
-      card.innerHTML = `
-        <div style="display:flex;align-items:center;gap:.45rem">
-          <span style="font-size:1.1rem">${isActive ? '🗺️' : '📍'}</span>
-          <div style="font-weight:700;color:#1A3A6C;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${L.nombre}</div>
-          ${isActive ? '<span style="margin-left:auto;font-size:.6rem;font-weight:700;background:#7AAEF5;color:#fff;padding:1px 6px;border-radius:6px">ACTIVO</span>' : ''}
-        </div>
-        ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
-        ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
-        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.1rem">
-          <span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;font-weight:700;color:${hidDot};background:${hidDot}18;padding:2px 6px;border-radius:5px;border:1px solid ${hidDot}44" title="Balance hídrico: ${hidLabel}">
-            <span style="width:7px;height:7px;border-radius:50%;background:${hidDot};display:inline-block"></span>💧 ${hidPct}
-          </span>
-          ${etapaCorta ? `<span style="font-size:.65rem;color:#374151;background:#f1f5f9;padding:2px 6px;border-radius:5px;border:1px solid #e2e8f0" title="Etapa fenológica: ${etapa}">🌱 ${etapaCorta}</span>` : ''}
-          ${estresBadge}${alertBadge}
-        </div>
-      `;
-      listCont.appendChild(card);
-    }
-  });
+        const card = document.createElement('div');
+        card.style.cssText = `
+          border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
+          border-radius: 10px;
+          background: ${isActive ? 'rgba(122,174,245,.1)' : '#fff'};
+          padding: .75rem .9rem;
+          cursor: pointer;
+          transition: all .18s;
+          display: flex; flex-direction: column; gap: .4rem;
+          box-shadow: ${isActive ? '0 2px 8px rgba(122,174,245,.2)' : '0 1px 3px rgba(0,0,0,.06)'};
+        `;
+        card.onclick = () => amCambiarLoteGlobalDesdeDash(L.id);
+        card.onmouseover = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.4)'; card.style.boxShadow='0 2px 8px rgba(122,174,245,.15)'; }};
+        card.onmouseout  = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.15)'; card.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'; }};
+
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:.45rem">
+            <span style="font-size:1.1rem">${isActive ? '🗺️' : '📍'}</span>
+            <div style="font-weight:700;color:#1A3A6C;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${L.nombre}</div>
+            ${isActive ? '<span style="margin-left:auto;font-size:.6rem;font-weight:700;background:#7AAEF5;color:#fff;padding:1px 6px;border-radius:6px">ACTIVO</span>' : ''}
+          </div>
+          ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
+          ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
+          <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.1rem">
+            <span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;font-weight:700;color:${hidDot};background:${hidDot}18;padding:2px 6px;border-radius:5px;border:1px solid ${hidDot}44" title="Balance hídrico: ${hidLabel}">
+              <span style="width:7px;height:7px;border-radius:50%;background:${hidDot};display:inline-block"></span>💧 ${hidPct}
+            </span>
+            ${etapaCorta ? `<span style="font-size:.65rem;color:#374151;background:#f1f5f9;padding:2px 6px;border-radius:5px;border:1px solid #e2e8f0" title="Etapa fenológica: ${etapa}">🌱 ${etapaCorta}</span>` : ''}
+            ${estresBadge}${alertBadge}
+          </div>
+        `;
+        listCont.appendChild(card);
+      });
+    });
+  }
 }
 
 window.amCambiarLoteGlobalDesdeDash = function(val) {

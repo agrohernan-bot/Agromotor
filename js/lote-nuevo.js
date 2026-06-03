@@ -105,6 +105,15 @@
             '  autocomplete="off" oninput="this.style.borderColor=\'\'">',
           '</div>',
 
+          // Cliente / campo
+          '<div class="lnv-fg">',
+            '<label class="lnv-label">Cliente / Campo <span class="lnv-opt">(para agrupar)</span></label>',
+            '<input id="lnv-cliente" class="lnv-input" type="text"',
+            '  placeholder="Ej: Estancia Don Pedro, Hermanos García..."',
+            '  value="' + escAttr((loteEdit && loteEdit.data && loteEdit.data.clienteNombre) ? loteEdit.data.clienteNombre : '') + '"',
+            '  autocomplete="off">',
+          '</div>',
+
           // Cultivo inicial
           '<div class="lnv-fg">',
             '<label class="lnv-label">Cultivo inicial <span class="lnv-opt">(opcional)</span></label>',
@@ -362,6 +371,7 @@
   window.lnvCrearLote = function () {
     var editando = !!_editLoteId;
     var nombre  = (document.getElementById('lnv-nombre')?.value  || '').trim();
+    var cliente = (document.getElementById('lnv-cliente')?.value || '').trim();
     var cultivo = (document.getElementById('lnv-cultivo')?.value || '');
     var supVal  = (document.getElementById('lnv-sup')?.value     || '');
 
@@ -387,10 +397,11 @@
 
     var id = _editLoteId || ('lote_' + Date.now());
     var data = {
-      cultivo:    cultivo,
-      coord:      coordStr,
-      superficie: supFinal,
-      ts:         Date.now(),
+      cultivo:       cultivo,
+      clienteNombre: cliente,
+      coord:         coordStr,
+      superficie:    supFinal,
+      ts:            Date.now(),
     };
     data.polygon = poligono.puntos;
     data.geojson = poligono.geojson;
