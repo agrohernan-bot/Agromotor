@@ -181,3 +181,50 @@
   font-weight: 700; padding: 3px 12px; border-radius: 12px;
   z-index: 1000; letter-spacing: .4px; pointer-events: none;
 }
+
+/* ── Responsive mobile ───────────────────────────────── */
+@media (max-width: 640px) {
+  #mod-siembra-variable.active {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+  .sv-wrap {
+    flex-direction: column;
+    overflow: visible;
+  }
+  /* Mapa arriba, altura fija */
+  .sv-map-area {
+    order: -1;
+    height: 45vh;
+    min-height: 220px;
+    flex-shrink: 0;
+  }
+  #sv-map { height: 100%; }
+
+  /* Sidebar debajo del mapa, ancho completo */
+  .sv-sidebar {
+    width: 100%;
+    max-height: none;
+    overflow-y: visible;
+    border-right: none;
+    border-top: 2px solid var(--sv-bdr);
+  }
+
+  /* Leyenda: reubicada arriba-derecha para no tapar controles */
+  .sv-legend-box {
+    bottom: auto;
+    top: 8px;
+    right: 8px;
+  }
+
+  /* Panel de prescripción y exportar: ancho completo */
+  #sv-panel-prescripcion,
+  #sv-panel-exportar {
+    width: 100%;
+  }
+
+  /* Chart más compacto en mobile */
+  .sv-chart-panel { height: auto; max-height: none; }
+  #sv-ndvi-chart { max-height: 60px !important; }
+}
