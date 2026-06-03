@@ -14,6 +14,7 @@
   var svYieldPuntos = null, svCsvHeaders = [], svCsvRows = [];
   var svIniciado = false;
   var svLoteBloqueado = false;
+  var svSubParcelaActiva = false;
 
   var ZONE_COLORS = ['#1a6b3c', '#f59e0b', '#e05a3a', '#7c3aed'];
   var ZONE_NAMES  = ['Ambiente A', 'Ambiente B', 'Ambiente C', 'Ambiente D'];
@@ -68,7 +69,12 @@
   }
 
   function _dentroGeofence(latlng) {
-    var c = _parsLoteCoord(); if (!c) return true; // sin lote → no bloquear aquí (ya bloqueado en init)
+    // En modo sub-parcela: el punto debe estar dentro del polígono del lote activo
+    if (_dibujarParcela) {
+      var geo = _geoJSONLoteActivo();
+      if (geo) return turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), geo);
+    }
+    var c = _parsLoteCoord(); if (!c) return true;
     return _distKm(c, { lat: latlng.lat, lon: latlng.lng }) <= GF_KM;
   }
 
@@ -76,7 +82,9 @@
     var hint = el('draw-hint');
     hint.style.display = 'block';
     hint.style.color = '#e05a3a';
-    hint.innerHTML = '⚠️ Fuera del área del lote activo (' + GF_KM + ' km). Dibujá dentro del lote seleccionado en el Dashboard.';
+    hint.innerHTML = _dibujarParcela
+      ? '⚠️ El punto está fuera del perímetro del lote. Dibujá dentro del borde verde.'
+      : '⚠️ Fuera del área del lote activo (' + GF_KM + ' km). Dibujá dentro del lote seleccionado en el Dashboard.';
     setTimeout(function () {
       hint.style.color = '';
       hint.innerHTML = '<strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar';
@@ -138,17 +146,30 @@
   }
 
   function _actualizarBloqueoLote(bloqueado) {
-    var btn = el('btn-dibujar');
-    var limpiar = document.querySelector('#mod-siembra-variable .sv-btn-danger');
-    var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
-    var empty = el('lote-empty');
-    if (btn) {
-      btn.disabled = bloqueado;
-      btn.textContent = bloqueado ? '🔒 Polígono del lote activo' : '✏️ Dibujar lote en el mapa';
+    var btnUsar    = el('btn-usar-lote');
+    var btnDibujar = el('btn-dibujar');
+    var btnParcela = el('btn-parcela');
+    var limpiar    = document.querySelector('#mod-siembra-variable .sv-btn-danger');
+    var fileBtn    = document.querySelector('#mod-siembra-variable input[type="file"]');
+    var empty      = el('lote-empty');
+
+    if (bloqueado) {
+      // Lote predelimitado disponible → mostrar dos botones de opción
+      if (btnDibujar) btnDibujar.style.display = 'none';
+      if (btnUsar)    { btnUsar.style.display = 'block'; btnUsar.disabled = false; }
+      if (btnParcela) { btnParcela.style.display = 'block'; btnParcela.disabled = false; btnParcela.textContent = '✏️ Dibujar parcela en el lote'; btnParcela.style.background = ''; }
+      if (limpiar)    limpiar.disabled = false;
+      if (fileBtn)    fileBtn.disabled = true;
+      if (empty)      empty.innerHTML = svSubParcelaActiva ? 'Parcela personalizada · Limpiar para volver al lote completo' : 'Perímetro del lote activo aplicado';
+    } else {
+      // Sin lote predelimitado → solo botón de dibujo libre
+      if (btnUsar)    btnUsar.style.display = 'none';
+      if (btnDibujar) { btnDibujar.style.display = 'block'; btnDibujar.disabled = false; btnDibujar.textContent = '✏️ Dibujar lote en el mapa'; btnDibujar.style.background = ''; }
+      if (btnParcela) btnParcela.style.display = 'none';
+      if (limpiar)    limpiar.disabled = false;
+      if (fileBtn)    fileBtn.disabled = false;
+      if (empty)      empty.innerHTML = 'o importá un GeoJSON ↓';
     }
-    if (limpiar) limpiar.disabled = bloqueado;
-    if (fileBtn) fileBtn.disabled = bloqueado;
-    if (empty && bloqueado) empty.innerHTML = 'El perímetro viene del lote activo. Para cambiarlo, editá el lote desde Mis Lotes.';
   }
 
   // ── INIT (llamado desde nav.js al activar el módulo) ─
@@ -201,19 +222,49 @@
   };
 
   // ── DIBUJO NATIVO ──────────────────────────────────
-  var _d = false, _pts = [], _mks = [], _pl = null, _pv = null;
+  var _d = false, _pts = [], _mks = [], _pl = null, _pv = null, _dibujarParcela = false;
 
   function activarDibujo() {
     if (svLoteBloqueado) return;
+    _iniciarDibujo(false);
+  }
+
+  function dibujarParcela() {
+    _iniciarDibujo(true);
+  }
+
+  function usarLoteCompleto() {
+    if (_d) cancelarDibujo();
+    svSubParcelaActiva = false;
+    // Limpiar resultados de análisis previos (pueden ser de la sub-parcela)
+    [svNdviLayer, svZonaLayer, svYieldLayer].forEach(function (l) { if (l) svMap.removeLayer(l); });
+    svNdviLayer = svZonaLayer = svYieldLayer = null;
+    ['ndvi-result', 'zona-result', 'chart-panel', 'legend', 'panel-prescripcion', 'panel-exportar'].forEach(function (id) {
+      var e = el(id); if (e) e.style.display = 'none';
+    });
+    svLastGridValues = svLastGridInfo = svLastElevValues = null;
+    if (svNdviChart) { svNdviChart.destroy(); svNdviChart = null; }
+    el('btn-analizar').disabled = true;
+    el('btn-zonificar').disabled = true;
+    _aplicarLoteActivo();
+  }
+
+  function _iniciarDibujo(esParcela) {
     if (_d) { cancelarDibujo(); return; }
+    _dibujarParcela = esParcela;
     _d = true; _pts = [];
     svMap.getContainer().style.cursor = 'crosshair';
     svMap.doubleClickZoom.disable();
     svMap.on('click', _ck); svMap.on('dblclick', _dk); svMap.on('mousemove', _mv);
     document.addEventListener('keydown', _es);
     el('draw-hint').style.display = 'block';
-    el('btn-dibujar').textContent = '⏹ Cancelar dibujo';
-    el('btn-dibujar').style.background = '#92400e';
+    if (esParcela) {
+      var btnParcela = el('btn-parcela');
+      if (btnParcela) { btnParcela.textContent = '⏹ Cancelar dibujo'; btnParcela.style.background = '#92400e'; }
+    } else {
+      el('btn-dibujar').textContent = '⏹ Cancelar dibujo';
+      el('btn-dibujar').style.background = '#92400e';
+    }
   }
   function _ck(e) {
     if (!_dentroGeofence(e.latlng)) { _mostrarErrorGeoFence(); return; }
@@ -231,7 +282,9 @@
     if (_pts.length > 0) _pts.pop();
     if (_mks.length > 0) { svMap.removeLayer(_mks.pop()); }
     if (_pts.length < 3) { cancelarDibujo(); return; }
+    var esParcela = _dibujarParcela;
     var layer = L.polygon(_pts, { color: '#1b5e35', weight: 2, fillColor: '#1b5e35', fillOpacity: .08 });
+    if (esParcela) svSubParcelaActiva = true;
     _reset(); setLote(layer);
   }
   function _es(e) { if (e.key === 'Escape') cancelarDibujo(); }
@@ -245,10 +298,17 @@
     if (_pv) { svMap.removeLayer(_pv); _pv = null; }
   }
   function cancelarDibujo() {
+    var wasParcela = _dibujarParcela;
+    _dibujarParcela = false;
     _reset();
     el('draw-hint').style.display = 'none';
-    el('btn-dibujar').textContent = '✏️ Dibujar lote en el mapa';
-    el('btn-dibujar').style.background = '';
+    if (wasParcela) {
+      var btnParcela = el('btn-parcela');
+      if (btnParcela) { btnParcela.textContent = '✏️ Dibujar parcela en el lote'; btnParcela.style.background = ''; }
+    } else {
+      var btnD = el('btn-dibujar');
+      if (btnD) { btnD.textContent = '✏️ Dibujar lote en el mapa'; btnD.style.background = ''; }
+    }
   }
 
   // ── LOTE ───────────────────────────────────────────
@@ -269,7 +329,13 @@
     svMap.fitBounds(layer.getBounds().pad(0.04));
   }
   function limpiarLote() {
+    // En modo sub-parcela con lote predelimitado: volver al lote completo
+    if (svSubParcelaActiva && svLoteBloqueado) {
+      usarLoteCompleto();
+      return;
+    }
     if (svLoteBloqueado) return;
+    svSubParcelaActiva = false;
     svDrawnItems.clearLayers(); svLoteGeoJSON = null;
     [svNdviLayer, svZonaLayer, svYieldLayer].forEach(function (l) { if (l) svMap.removeLayer(l); });
     svNdviLayer = svZonaLayer = svYieldLayer = null;
@@ -796,6 +862,8 @@
 
   // ── Exponer funciones al scope global (onclick) ──
   window.svActivarDibujo   = function () { activarDibujo(); };
+  window.svUsarLoteCompleto = function () { usarLoteCompleto(); };
+  window.svDibujarParcela  = function () { dibujarParcela(); };
   window.svLimpiarLote     = function () { limpiarLote(); };
   window.svImportarGeoJSON = function (ev) { importarGeoJSON(ev); };
   window.svConectarAPI     = function () { conectarAPI(); };

@@ -3639,7 +3639,9 @@
     <div class="sv-panel">
       <div class="sv-ph" onclick="svTogglePanel(this)"><span>📍 Lote</span><span class="sv-arr">▾</span></div>
       <div class="sv-pb">
+        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-usar-lote" onclick="svUsarLoteCompleto()" style="display:none">📐 Usar lote predelimitado</button>
         <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-dibujar" onclick="svActivarDibujo()">✏️ Dibujar lote en el mapa</button>
+        <button class="sv-btn sv-btn-sec sv-btn-full" id="sv-btn-parcela" onclick="svDibujarParcela()" style="display:none">✏️ Dibujar parcela en el lote</button>
         <div id="sv-draw-hint" class="sv-draw-hint" style="display:none">
           <strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar
         </div>
