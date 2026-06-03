@@ -505,7 +505,9 @@ async function amRegistrar() {
 
   // Persistir matrícula en la tabla profiles (handle_new_user puede no copiar todos los metadata)
   if (data?.user?.id) {
-    const updates = { rol, matricula_declarada_at: new Date().toISOString() };
+    const trialHasta = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+    const planFinal  = (plan && plan !== 'free') ? plan : 'asesor';
+    const updates = { rol, plan: planFinal, trial_hasta: trialHasta, matricula_declarada_at: new Date().toISOString() };
     if (rol === 'agronomo') { updates.cpia = cpia; updates.matricula_numero = matricula; }
     await AM_SB.from('profiles').update(updates).eq('id', data.user.id);
   }
