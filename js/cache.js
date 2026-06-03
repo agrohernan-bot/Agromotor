@@ -11,6 +11,7 @@
   let _amLotesRemoteTimer = null;
   let _amLotesRemoteLoading = false;
   let _amLotesRemoteLoadUid = null;
+  let _amClienteFiltro = null; // null = Todos; '' = Sin cliente; 'NombreCliente' = filtrar por ese cliente
 
   function getLotesKey() {
     var uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
@@ -108,11 +109,62 @@ function amRenderSelectLotes() {
     }
   });
 
+  // ── Chips de filtro por cliente ──────────────────────
+  const filtrosCont = document.getElementById('am-lotes-filtros');
+  if (filtrosCont) {
+    filtrosCont.innerHTML = '';
+    const clientesUnicos = {};
+    AM_LOTES.forEach(L => {
+      const cn = (L.data?.clienteNombre || '').trim();
+      clientesUnicos[cn] = (clientesUnicos[cn] || 0) + 1;
+    });
+    const nombresClientes = Object.keys(clientesUnicos);
+    const hayFiltros = nombresClientes.length > 1 ||
+                       (nombresClientes.length === 1 && nombresClientes[0] !== '');
+
+    if (hayFiltros && AM_LOTES.length > 1) {
+      // Validar que el filtro activo siga siendo válido
+      if (_amClienteFiltro !== null && !((_amClienteFiltro in clientesUnicos))) {
+        _amClienteFiltro = null;
+      }
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;gap:.35rem;flex-wrap:wrap;padding:.4rem 0 .8rem';
+
+      const chipTodos = document.createElement('button');
+      chipTodos.textContent = 'Todos (' + AM_LOTES.length + ')';
+      chipTodos.className = _amClienteFiltro === null ? 'am-chip am-chip-active' : 'am-chip';
+      chipTodos.onclick = function () { _amClienteFiltro = null; amRenderSelectLotes(); };
+      wrap.appendChild(chipTodos);
+
+      nombresClientes.sort((a, b) => {
+        if (!a) return 1; if (!b) return -1;
+        return a.localeCompare(b, 'es');
+      }).forEach(cn => {
+        const chip = document.createElement('button');
+        chip.textContent = (cn || 'Sin cliente') + ' (' + clientesUnicos[cn] + ')';
+        chip.className = _amClienteFiltro === cn ? 'am-chip am-chip-active' : 'am-chip';
+        chip.onclick = (function (nombre) {
+          return function () { _amClienteFiltro = nombre; amRenderSelectLotes(); };
+        })(cn);
+        wrap.appendChild(chip);
+      });
+
+      filtrosCont.appendChild(wrap);
+    } else {
+      _amClienteFiltro = null;
+    }
+  }
+
   // Tarjetas agrupadas por cliente
   if(listCont) {
+    // Aplicar filtro
+    const lotesVista = _amClienteFiltro !== null
+      ? AM_LOTES.filter(L => ((L.data?.clienteNombre || '').trim()) === _amClienteFiltro)
+      : AM_LOTES;
+
     // Agrupar lotes por clienteNombre
     const grupos = {};
-    AM_LOTES.forEach(L => {
+    lotesVista.forEach(L => {
       const key = (L.data?.clienteNombre || '').trim();
       if (!grupos[key]) grupos[key] = [];
       grupos[key].push(L);

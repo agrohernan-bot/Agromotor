@@ -105,13 +105,14 @@
             '  autocomplete="off" oninput="this.style.borderColor=\'\'">',
           '</div>',
 
-          // Cliente / campo
+          // Cliente
           '<div class="lnv-fg">',
-            '<label class="lnv-label">Cliente / Campo <span class="lnv-opt">(para agrupar)</span></label>',
-            '<input id="lnv-cliente" class="lnv-input" type="text"',
-            '  placeholder="Ej: Estancia Don Pedro, Hermanos García..."',
-            '  value="' + escAttr((loteEdit && loteEdit.data && loteEdit.data.clienteNombre) ? loteEdit.data.clienteNombre : '') + '"',
-            '  autocomplete="off">',
+            '<label class="lnv-label">Cliente <span class="lnv-opt">(para agrupar)</span></label>',
+            '<select id="lnv-cliente-sel" class="lnv-select" onchange="lnvOnClienteChange(this)">' +
+              (typeof window.amClienteOptions === 'function'
+                ? window.amClienteOptions((d && d.clienteId) ? d.clienteId : '')
+                : '<option value="">Sin cliente asignado</option><option value="__nuevo__">+ Nuevo cliente...</option>') +
+            '</select>',
           '</div>',
 
           // Cultivo inicial
@@ -371,8 +372,15 @@
   window.lnvCrearLote = function () {
     var editando = !!_editLoteId;
     var nombre  = (document.getElementById('lnv-nombre')?.value  || '').trim();
-    var cliente = (document.getElementById('lnv-cliente')?.value || '').trim();
     var cultivo = (document.getElementById('lnv-cultivo')?.value || '');
+    var clienteSel = document.getElementById('lnv-cliente-sel');
+    var clienteId  = clienteSel ? clienteSel.value : '';
+    if (clienteId === '__nuevo__') clienteId = '';
+    var clienteNombre = '';
+    if (clienteId && window.AM_CLIENTES) {
+      var _cli = (window.AM_CLIENTES || []).find(function (c) { return c.id === clienteId; });
+      if (_cli) clienteNombre = _cli.nombre;
+    }
     var supVal  = (document.getElementById('lnv-sup')?.value     || '');
 
     // Validar nombre
@@ -398,7 +406,8 @@
     var id = _editLoteId || ('lote_' + Date.now());
     var data = {
       cultivo:       cultivo,
-      clienteNombre: cliente,
+      clienteId:     clienteId,
+      clienteNombre: clienteNombre,
       coord:         coordStr,
       superficie:    supFinal,
       ts:            Date.now(),
@@ -546,6 +555,16 @@
       if (el) el.remove();
     }
   }
+
+  // ══════════════════════════════════════════════════════
+  // HANDLER: cambio en select de cliente
+  // ══════════════════════════════════════════════════════
+  window.lnvOnClienteChange = function (sel) {
+    if (sel.value === '__nuevo__') {
+      sel.value = '';
+      if (typeof window.amMostrarModalClientes === 'function') window.amMostrarModalClientes();
+    }
+  };
 
   // ══════════════════════════════════════════════════════
   // INIT: sobreescribir dlCrearLote de dashboard-lotes.js

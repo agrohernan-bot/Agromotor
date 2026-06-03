@@ -1,0 +1,228 @@
+/* ════════════════════════════════════════════════════════
+   AGROMOTOR — clientes.css v1
+   Modal gestión de clientes + chips de filtro en Mis Lotes
+   ════════════════════════════════════════════════════════ */
+
+/* ── Overlay del modal ──────────────────────────────── */
+.am-cli-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .52);
+  z-index: 9990;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem 3rem;
+  backdrop-filter: blur(4px);
+  overflow-y: auto;
+}
+
+/* ── Caja del modal ─────────────────────────────────── */
+.am-cli-box {
+  background: #fff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .22);
+  font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+/* ── Cabecera ────────────────────────────────────────── */
+.am-cli-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem .9rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.am-cli-head-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1A3A6C;
+}
+.am-cli-close {
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: .85rem;
+  transition: background .15s;
+}
+.am-cli-close:hover { background: #e5e7eb; }
+
+/* ── Cuerpo ──────────────────────────────────────────── */
+.am-cli-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.am-cli-section-title {
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: .6rem;
+}
+
+/* ── Lista de clientes ──────────────────────────────── */
+.am-cli-empty {
+  font-size: .82rem;
+  color: #9ca3af;
+  padding: .5rem 0 .75rem;
+  margin: 0;
+}
+
+.am-cli-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .55rem .1rem;
+  border-bottom: 1px solid #f3f4f6;
+  gap: .5rem;
+}
+.am-cli-row:last-child { border-bottom: none; }
+
+.am-cli-info { flex: 1; min-width: 0; }
+.am-cli-nombre {
+  font-size: .86rem;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.am-cli-sub {
+  font-size: .72rem;
+  color: #6b7280;
+  margin-top: .1rem;
+}
+
+.am-cli-acciones {
+  display: flex;
+  gap: .35rem;
+  flex-shrink: 0;
+}
+.am-cli-btn-edit,
+.am-cli-btn-del {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: .25rem .55rem;
+  font-size: .72rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+.am-cli-btn-edit { background: #f0fdf4; color: #15803d; }
+.am-cli-btn-edit:hover { background: #dcfce7; border-color: #86efac; }
+.am-cli-btn-del  { background: #fff7f7; color: #dc2626; }
+.am-cli-btn-del:hover  { background: #fee2e2; border-color: #fca5a5; }
+
+/* ── Formulario ──────────────────────────────────────── */
+.am-cli-form {
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+.am-cli-fg {
+  display: flex;
+  flex-direction: column;
+  gap: .25rem;
+}
+.am-cli-fg-row {
+  display: flex;
+  gap: .65rem;
+}
+.am-cli-fg-row .am-cli-fg { flex: 1; }
+.am-cli-label {
+  font-size: .68rem;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.am-cli-req { color: #dc2626; }
+.am-cli-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  padding: .55rem .75rem;
+  font-size: .85rem;
+  font-family: inherit;
+  color: #111827;
+  outline: none;
+  transition: border-color .15s;
+}
+.am-cli-input:focus { border-color: #3A7A4A; }
+
+.am-cli-footer-form {
+  display: flex;
+  gap: .6rem;
+  justify-content: flex-end;
+  padding-top: .25rem;
+}
+.am-cli-btn-cancel {
+  border: 1.5px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: .5rem 1rem;
+  font-size: .82rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+}
+.am-cli-btn-cancel:hover { background: #f9fafb; }
+
+.am-cli-btn-guardar {
+  border: none;
+  background: #1A3A6C;
+  color: #fff;
+  border-radius: 8px;
+  padding: .5rem 1.1rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s;
+}
+.am-cli-btn-guardar:hover { background: #1E4D2B; }
+
+/* ── Chips de filtro (Mis Lotes) ─────────────────────── */
+.am-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: .28rem .75rem;
+  border-radius: 20px;
+  border: 1.5px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  white-space: nowrap;
+}
+.am-chip:hover:not(.am-chip-active) {
+  border-color: #7AAEF5;
+  color: #1A3A6C;
+  background: #eff6ff;
+}
+.am-chip-active {
+  border-color: #1A3A6C;
+  background: #1A3A6C;
+  color: #fff;
+}
+
+/* ── Mobile ──────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .am-cli-fg-row { flex-direction: column; }
+  .am-cli-overlay { padding: 1rem .5rem 2rem; }
+}
