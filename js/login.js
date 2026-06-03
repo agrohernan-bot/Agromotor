@@ -635,6 +635,17 @@ function amMostrarPerfil() {
   if (AM_SESION.rol === 'admin') {
     btns.appendChild(mkBtn('Panel admin', '#1A3A6C', function() { window.location.href = '/admin.html'; }));
   }
+
+  // Dar de baja
+  const btnBaja = document.createElement('button');
+  btnBaja.textContent = '🗑 Dar de baja mi cuenta';
+  btnBaja.style.cssText = 'width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:.5rem .9rem;font-size:.78rem;cursor:pointer;font-family:inherit;background:#fff;color:#9ca3af;text-align:left;margin-top:.3rem';
+  btnBaja.addEventListener('click', function() {
+    overlay.remove();
+    amSolicitarBajaCuenta();
+  });
+  btns.appendChild(btnBaja);
+
   const btnCerrar = document.createElement('button');
   btnCerrar.textContent = 'Cancelar';
   btnCerrar.style.cssText = 'width:100%;border:1.5px solid #d4c9b8;border-radius:9px;padding:.5rem .9rem;font-size:.82rem;cursor:pointer;font-family:inherit;background:#fff;color:#5a4a32';
@@ -730,6 +741,53 @@ function amToast(msg, tipo = 'ok') {
 // Compatibilidad: función vacía, onAuthStateChange maneja el init
 function amCargarSesion() {}
 
+// ── SOLICITUD DE BAJA DE CUENTA ───────────────────────
+async function amSolicitarBajaCuenta() {
+  if (!AM_SESION) return;
+
+  // Diálogo de confirmación
+  const conf = document.createElement('div');
+  conf.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(28,18,8,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box';
+  conf.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:340px;width:100%;padding:1.5rem;font-family:'DM Sans',sans-serif;box-shadow:0 16px 48px rgba(28,18,8,.25)">
+      <div style="font-size:1.6rem;text-align:center;margin-bottom:.6rem">⚠️</div>
+      <div style="font-weight:700;font-size:1rem;color:#1c1912;margin-bottom:.5rem;text-align:center">¿Dar de baja tu cuenta?</div>
+      <div style="font-size:.8rem;color:#5a4a32;line-height:1.55;margin-bottom:1.1rem">
+        Registraremos tu solicitud de baja. En menos de <strong>48 horas</strong> eliminamos tu cuenta y todos tus datos de nuestros servidores.<br><br>
+        Recibirás confirmación en <strong>${AM_SESION.email}</strong>.<br><br>
+        Esta acción no se puede deshacer.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem">
+        <button id="am-baja-confirmar" style="width:100%;padding:.6rem;border-radius:9px;border:none;background:#C94A2A;color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;font-family:inherit">
+          Sí, quiero dar de baja mi cuenta
+        </button>
+        <button id="am-baja-cancelar" style="width:100%;padding:.55rem;border-radius:9px;border:1.5px solid #d4c9b8;background:#fff;color:#5a4a32;font-size:.85rem;cursor:pointer;font-family:inherit">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(conf);
+
+  document.getElementById('am-baja-cancelar').addEventListener('click', function() { conf.remove(); });
+  document.getElementById('am-baja-confirmar').addEventListener('click', async function() {
+    this.disabled = true; this.textContent = 'Registrando solicitud...';
+    try {
+      await AM_SB.from('profiles').update({
+        deletion_requested_at: new Date().toISOString(),
+        plan: 'free'
+      }).eq('id', AM_SESION.id);
+      conf.remove();
+      amToast('Solicitud de baja registrada. Te contactaremos en menos de 48 horas.', 'ok');
+      setTimeout(function() { amCerrarSesion(); }, 2000);
+    } catch(e) {
+      conf.remove();
+      amToast('Error al registrar la solicitud. Escribinos a soporte@agromotor.app', 'error');
+    }
+  });
+  conf.addEventListener('click', function(e) { if (e.target === conf) conf.remove(); });
+}
+
   // Exponer a global
   window.AM_PLANES = AM_PLANES;
   window.amTieneAcceso = amTieneAcceso;
@@ -744,6 +802,7 @@ function amCargarSesion() {}
   window.amOlvidarContrasena = amOlvidarContrasena;
   window.amProcesarUrlParams = amProcesarUrlParams;
   window.amRegistrar = amRegistrar;
+  window.amSolicitarBajaCuenta = amSolicitarBajaCuenta;
   window.amCerrarSesion = amCerrarSesion;
   window.amMostrarPerfil = amMostrarPerfil;
   window.amRegistrarPlan = amRegistrarPlan;
