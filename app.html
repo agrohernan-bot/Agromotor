@@ -4426,5 +4426,115 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
+<!-- ══ DISCLAIMER LEGAL ══════════════════════════════════════════════ -->
+<div id="am-disclaimer-bar">
+  <span>⚖</span>
+  <span>AgroMotor es una herramienta de apoyo a la decisión agronómica. Los datos y proyecciones son orientativos y no reemplazan el criterio profesional del Ing. Agrónomo responsable del establecimiento.</span>
+  <button onclick="amMostrarTerminos()" title="Ver términos completos">Ver términos</button>
+</div>
+
+<style>
+#am-disclaimer-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  z-index: 800;
+  background: rgba(10,18,12,.88);
+  backdrop-filter: blur(6px);
+  border-top: 1px solid rgba(255,255,255,.07);
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .35rem .9rem;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: .62rem;
+  color: rgba(237,224,196,.45);
+  line-height: 1.4;
+}
+#am-disclaimer-bar span:first-child { flex-shrink: 0; font-size: .75rem; }
+#am-disclaimer-bar span:nth-child(2) { flex: 1; }
+#am-disclaimer-bar button {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid rgba(237,224,196,.2);
+  border-radius: 8px;
+  color: rgba(237,224,196,.4);
+  font-size: .6rem;
+  padding: .2rem .55rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all .15s;
+}
+#am-disclaimer-bar button:hover {
+  border-color: rgba(237,224,196,.45);
+  color: rgba(237,224,196,.7);
+}
+/* Ajuste para que el contenido no quede tapado */
+body { padding-bottom: 32px; }
+</style>
+
+<script>
+(function () {
+  var TOS_KEY = 'am_tos_v1';
+
+  var TEXTO_LEGAL = [
+    '<h3 style="margin:0 0 1rem;font-size:1.05rem;color:#1A3A6C">⚖ Aviso legal · Limitación de responsabilidad</h3>',
+    '<p><strong>AgroMotor</strong> es una herramienta digital de apoyo a la decisión agronómica, desarrollada para profesionales de las ciencias agropecuarias.</p>',
+    '<p>Los datos meteorológicos, proyecciones de rendimiento, balances hídricos, análisis de suelo, alertas sanitarias y demás información provista por la plataforma <strong>se basan en modelos matemáticos y fuentes de datos externas</strong> (NASA POWER, Open-Meteo, SoilGrids ISRIC, entre otras), y tienen <strong>carácter estrictamente orientativo</strong>.</p>',
+    '<p>Esta información <strong>no constituye asesoramiento profesional vinculante</strong> y no reemplaza el juicio técnico del Ingeniero Agrónomo matriculado responsable de cada establecimiento. Las condiciones agroclimáticas, edáficas y biológicas son variables y pueden diferir significativamente de las proyecciones del sistema.</p>',
+    '<p><strong>AgroMotor, sus desarrolladores y colaboradores no asumen responsabilidad</strong> por pérdidas económicas, productivas, ambientales o de cualquier otra naturaleza derivadas del uso de la información provista en esta plataforma.</p>',
+    '<p>Al utilizar AgroMotor confirmás que sos un profesional agronómico habilitado y que ejercerás tu criterio técnico independiente al momento de tomar decisiones que afecten a terceros.</p>',
+  ].join('');
+
+  window.amMostrarTerminos = function () {
+    var overlay = document.createElement('div');
+    overlay.id = 'am-tos-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9995;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;backdrop-filter:blur(5px);overflow-y:auto';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:16px;padding:1.75rem 1.5rem 1.5rem;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.25);font-family:\'DM Sans\',system-ui,sans-serif;font-size:.84rem;line-height:1.7;color:#374151';
+    card.innerHTML = TEXTO_LEGAL +
+      '<div style="margin-top:1.25rem;display:flex;justify-content:flex-end;gap:.6rem">' +
+        '<button id="am-tos-cerrar" style="border:1.5px solid #d1d5db;background:#fff;color:#374151;border-radius:8px;padding:.55rem 1rem;font-size:.82rem;cursor:pointer;font-family:inherit">Cerrar</button>' +
+      '</div>';
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+    document.getElementById('am-tos-cerrar').addEventListener('click', function () { overlay.remove(); });
+  };
+
+  function mostrarModalPrimeraVez() {
+    var overlay = document.createElement('div');
+    overlay.id = 'am-tos-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9995;display:flex;align-items:center;justify-content:center;padding:1.5rem 1rem;backdrop-filter:blur(5px);overflow-y:auto';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:16px;padding:1.75rem 1.5rem 1.5rem;max-width:520px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.28);font-family:\'DM Sans\',system-ui,sans-serif;font-size:.84rem;line-height:1.7;color:#374151';
+    card.innerHTML = TEXTO_LEGAL +
+      '<div style="margin-top:1.25rem">' +
+        '<button id="am-tos-aceptar" style="width:100%;border:none;background:#1A3A6C;color:#fff;border-radius:10px;padding:.7rem 1.25rem;font-size:.88rem;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s">Entendido · Soy Ing. Agrónomo matriculado →</button>' +
+      '</div>';
+
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    document.getElementById('am-tos-aceptar').addEventListener('click', function () {
+      localStorage.setItem(TOS_KEY, new Date().toISOString());
+      overlay.remove();
+    });
+  }
+
+  // Mostrar modal solo si nunca fue aceptado
+  document.addEventListener('DOMContentLoaded', function () {
+    if (!localStorage.getItem(TOS_KEY)) {
+      // Pequeño delay para que la app cargue primero
+      setTimeout(mostrarModalPrimeraVez, 1200);
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
