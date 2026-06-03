@@ -74,6 +74,7 @@
 
   // ── ESTADO INTERNO ────────────────────────────────────
   var _loteAbierto = null;
+  var _dlClienteFiltro = null;
   var _seccionAbierta = null;
   var _modContext = null;
   var _climaCache = {};
@@ -331,9 +332,36 @@
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
     html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
+    html +=     '<button class="dl-btn-clasica" onclick="window.amMostrarModalClientes && window.amMostrarModalClientes()" title="Gestionar clientes" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);color:#fff">👤 Clientes</button>';
     html +=     '<button class="dl-btn-clasica" onclick="window.dlIrClasica()" title="Acceder a todos los módulos individualmente">⚙ Vista clásica</button>';
     html +=   '</div>';
     html += '</div>';
+
+    // ── Chips de filtro por cliente ───────────────────────
+    var clientesUnicos = {};
+    lotes.forEach(function (L) {
+      var cn = (L.data && L.data.clienteNombre) ? L.data.clienteNombre.trim() : '';
+      clientesUnicos[cn] = (clientesUnicos[cn] || 0) + 1;
+    });
+    var nomClientes = Object.keys(clientesUnicos);
+    var hayFiltros = nomClientes.length > 1 || (nomClientes.length === 1 && nomClientes[0] !== '');
+    if (hayFiltros && lotes.length > 1) {
+      html += '<div id="dl-filtros-wrap" style="display:flex;gap:.35rem;flex-wrap:wrap;padding:.2rem 0 .85rem">';
+      html += '<button class="am-chip' + (_dlClienteFiltro === null ? ' am-chip-active' : '') + '" style="border-color:rgba(255,255,255,.3);' + (_dlClienteFiltro === null ? 'background:#3A7A4A;color:#fff;border-color:#3A7A4A' : 'background:rgba(255,255,255,.1);color:#e2e8d0') + '" onclick="window._dlFiltrar(null)">Todos (' + lotes.length + ')</button>';
+      nomClientes.slice().sort(function(a,b){ if(!a)return 1;if(!b)return -1;return a.localeCompare(b,'es');}).forEach(function(cn) {
+        var activo = _dlClienteFiltro === cn;
+        html += '<button class="am-chip' + (activo ? ' am-chip-active' : '') + '" style="' + (activo ? 'background:#3A7A4A;color:#fff;border-color:#3A7A4A' : 'background:rgba(255,255,255,.1);color:#e2e8d0;border-color:rgba(255,255,255,.25)') + '" onclick="window._dlFiltrar(\'' + cn.replace(/'/g,"\\'") + '\')">' + (cn || 'Sin cliente') + ' (' + clientesUnicos[cn] + ')</button>';
+      });
+      html += '</div>';
+      // Aplicar filtro al array de lotes
+      if (_dlClienteFiltro !== null) {
+        lotes = lotes.filter(function(L) {
+          return ((L.data && L.data.clienteNombre) ? L.data.clienteNombre.trim() : '') === _dlClienteFiltro;
+        });
+      }
+    } else {
+      _dlClienteFiltro = null;
+    }
 
     // ── Grid de cards ─────────────────────────────────────
     html += '<div class="dl-grid">';
@@ -1314,6 +1342,12 @@
 
   // Refrescar el panel de lotes (útil tras crear/editar lotes)
   window.dlRefrescar = function () {
+    renderPanel();
+  };
+
+  // Filtrar por cliente en la vista de tarjetas
+  window._dlFiltrar = function (nombre) {
+    _dlClienteFiltro = nombre;
     renderPanel();
   };
 

@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v114';
+const CACHE_NAME    = 'agromotor-v115';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -68,6 +68,7 @@ const ASSETS_LOCAL = [
   './js/historial-campanas.js',
   './js/siembra-planificacion.js',
   './css/siembra-planificacion.css',
+  './js/dashboard-lotes.js',
   './js/clientes.js',
   './css/clientes.css',
   './manifest.json',
