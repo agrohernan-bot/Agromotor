@@ -9,11 +9,9 @@
   try { localStorage.removeItem('am_god'); } catch (_) {}
 
 // ── LÍMITES POR PLAN ──────────────────────────────────
-// PERÍODO PROMO (hasta 01-ago-2026): login obligatorio, 5 lotes, 15 IA/mes
-// TODO: restaurar selector de planes y precios el 1° de agosto de 2026
+// Plan único: 20 lotes base + USD 1 por cada lote extra
 const AM_PLANES = {
   free: {
-    // Plan post-promo: solo siembra, sin IA, 1 lote
     nombre: 'Demo',
     precio: 'Gratis',
     lotes: 1,
@@ -24,10 +22,9 @@ const AM_PLANES = {
     desc: 'Probá AgroMotor con un lote · Diagnóstico básico de siembra'
   },
   asesor: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Asesor',
+    nombre: 'Profesional',
     precio: 'USD 35/mes',
-    lotes: 5,
+    lotes: 20,
     iaCallsMes: 30,
     modulos: [
       'siembra','suelo','decision','economia','nutricion',
@@ -37,53 +34,21 @@ const AM_PLANES = {
     ],
     color: '#3A7A4A',
     icon: '🌾',
-    desc: 'Para asesor independiente · 5 lotes · IA 30 consultas/mes · Todo el motor agronómico'
+    desc: 'Para asesores · 20 lotes base · lotes extra USD 1/mes c/u · Todo el motor agronómico'
   },
-  pro: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Pro',
-    precio: 'USD 90/mes',
-    lotes: 25,
-    iaCallsMes: 100,
-    modulos: [
-      'siembra','suelo','decision','economia','nutricion',
-      'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','plagas','pulverizacion',
-      'cosecha','alerta-sanitaria','siembra-variable'
-    ],
-    color: '#C8A255',
-    icon: '⚡',
-    desc: 'Para estudio chico · 25 lotes · IA 100 consultas/mes · PDF brandeable · Historial extendido'
-  },
-  empresa: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Empresa',
-    precio: 'USD 230/mes',
-    lotes: 75,
-    iaCallsMes: 300,
-    modulos: [
-      'siembra','suelo','decision','economia','nutricion',
-      'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','plagas','pulverizacion',
-      'cosecha','alerta-sanitaria','siembra-variable'
-    ],
-    color: '#2A5A8C',
-    icon: '🏢',
-    desc: 'Para cooperativas y empresas · 75 lotes · IA 300 consultas/mes · NDVI satelital · API export · Soporte directo'
-  }
+  // Alias legacy para usuarios con plan pro/empresa — redirigen a asesor en UI
+  pro:     { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' },
+  empresa: { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' }
 };
 
 // ── FECHA FIN DE PROMOCIÓN ────────────────────────────
-// Cambiar esta fecha para activar/desactivar el período promo.
-// Hasta esta fecha: acceso total con login, sin restricciones de plan.
-// Después: se aplican límites por plan (lotes, módulos, IA).
 const AM_PROMO_HASTA = new Date('2026-08-02');
 
 // ── ESTADO DE SESIÓN ──────────────────────────────────
-// { id, email, nombre, plan, planHasta, trialHasta, token }
+// { id, email, nombre, plan, planHasta, trialHasta, lotesExtra, token }
 let AM_SESION = null;
 
-// Flag activo durante el flujo PASSWORD_RECOVERY. Suprime la apertura normal
+// Flag activo durante el flujo PASSWORD_RECOVERY.
 // de la app cuando SIGNED_IN dispara justo después de PASSWORD_RECOVERY,
 // y se limpia solo cuando USER_UPDATED confirma que la contraseña fue cambiada.
 let _modoRecovery = false;
@@ -99,6 +64,7 @@ function amSetSesion(session) {
     plan:      meta.plan || 'free',
     planHasta: null,
     trialHasta:null,
+    lotesExtra:meta.lotes_extra || 0,
     rol:       meta.rol || 'agronomo',
     cpia:      meta.cpia || null,
     matricula: meta.matricula_numero || null,
@@ -112,7 +78,7 @@ function amEnrichPerfil(session) {
   setTimeout(function() {
     Promise.race([
       AM_SB.from('profiles')
-        .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
+        .select('nombre, plan, plan_hasta, trial_hasta, lotes_extra, rol, cpia, matricula_numero, matricula_verificada')
         .eq('id', session.user.id).maybeSingle(),
       new Promise(function(resolve) { setTimeout(function() { resolve({ data: null, error: { message: 'timeout' } }); }, 5000); })
     ]).then(function(res) {
@@ -122,6 +88,7 @@ function amEnrichPerfil(session) {
       AM_SESION.plan      = p.plan      || AM_SESION.plan;
       AM_SESION.planHasta = p.plan_hasta;
       AM_SESION.trialHasta= p.trial_hasta;
+      AM_SESION.lotesExtra= p.lotes_extra || 0;
       AM_SESION.rol       = p.rol       || AM_SESION.rol;
       AM_SESION.cpia      = p.cpia      || AM_SESION.cpia;
       AM_SESION.matricula = p.matricula_numero || AM_SESION.matricula;

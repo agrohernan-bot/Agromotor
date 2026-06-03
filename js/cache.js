@@ -64,14 +64,13 @@ function amCargarLotesGlobales() {
 }
 
 function amGetLoteLimit() {
-  // Promoci�n lanzamiento: hasta el 01 Agosto 2026 -> m�x 5 lotes con sesi�n activa.
-  if (new Date() < new Date('2026-08-02')) {
-    return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 5 : 1;
-  }
-  if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
-    return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
-  }
-  return 1;
+  if (typeof AM_SESION === 'undefined' || !AM_SESION) return 1;
+  // Promo hasta 01-ago-2026: 20 lotes con login
+  if (new Date() < new Date('2026-08-02')) return 20;
+  // Post-promo: 20 base + lotes extra contratados
+  var base = 20;
+  var extra = AM_SESION.lotesExtra || 0;
+  return base + extra;
 }
 function amRenderSelectLotes() {
   const sel = document.getElementById('am-global-lotes');
@@ -219,8 +218,8 @@ window.amCrearLoteGlobal = function() {
   const limite = amGetLoteLimit();
   if (AM_LOTES.length >= limite) {
     const msg = limite === 1
-      ? 'El plan Free permite 1 lote. Actualizá a Asesor para tener hasta 5 lotes.'
-      : `Tu plan permite hasta ${limite} lotes y ya los usaste todos. Considerá actualizar tu plan.`;
+      ? 'Iniciá sesión para acceder a tus 20 lotes incluidos.'
+      : `Alcanzaste el límite de ${limite} lotes. Podés agregar lotes extra por USD 1/mes c/u — escribinos.`;
     if(typeof amToast === 'function') amToast(msg, 'error');
     else alert(msg);
     return;

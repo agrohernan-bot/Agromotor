@@ -100,7 +100,7 @@
 
 <!-- ══ BANNER PROMOCIÓN LANZAMIENTO ══ -->
 <div id="am-promo-banner" style="background: linear-gradient(90deg, #1E4D2B, #6DBF82); color: white; text-align: center; font-size: 0.8rem; padding: 0.4rem; font-weight: 600; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-  🎉 Lanzamiento especial: acceso profesional gratuito hasta el 1° de agosto de 2026 · 5 lotes · login obligatorio
+  🎉 Lanzamiento especial: acceso profesional gratuito hasta el 1° de agosto de 2026 · <strong>20 lotes</strong> · login obligatorio
 </div>
 
 <nav class="module-nav">
@@ -3360,7 +3360,6 @@
       onmouseleave="this.style.background='rgba(61,34,16,.1)'">✕</button>
 
     <!-- ── VISTA PLANES ── -->
-    <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
     <div id="am-vista-planes" style="display:none">
       <!-- Header -->
       <div style="padding:1.6rem 2rem 1rem;text-align:center;border-bottom:1px solid var(--border)">
@@ -3368,11 +3367,11 @@
           🎓 Exclusivo para Ingenieros Agrónomos
         </div>
         <div style="font-family:'DM Serif Display',serif;font-size:1.5rem;color:var(--earth);margin-bottom:.25rem">
-          Elegí tu plan
+          Un solo plan, sin complicaciones
         </div>
         <div id="am-upgrade-modulo-msg" style="font-size:.78rem;color:rgba(61,34,16,.6);line-height:1.5">
-          Una herramienta diseñada por y para profesionales matriculados.<br>
-          Si sos productor o trabajás con un ingeniero, <strong>pediles que la evalúen</strong>.
+          Diseñado por y para profesionales matriculados.<br>
+          Si sos productor, <strong>pedile a tu ingeniero que lo evalúe</strong>.
         </div>
         <div style="font-size:.74rem;color:rgba(61,34,16,.4);margin-top:.3rem">
           Módulo premium: <strong id="am-upgrade-modulo" style="color:var(--canopy)"></strong>
@@ -3380,118 +3379,73 @@
       </div>
 
       <!-- Banner lanzamiento gratis -->
-      <div style="margin:0 1.5rem .75rem;padding:.7rem 1.1rem;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:1.5px solid rgba(58,122,74,.45);border-radius:10px;font-size:.82rem;color:#1b5e35;font-weight:700;text-align:center">
+      <div style="margin:1rem 1.5rem .75rem;padding:.7rem 1.1rem;background:linear-gradient(135deg,#e8f5e9,#f1f8e9);border:1.5px solid rgba(58,122,74,.45);border-radius:10px;font-size:.82rem;color:#1b5e35;font-weight:700;text-align:center">
         🎉 ¡Todos los módulos premium <u>gratis hasta el 1° de agosto de 2026</u>! Registrate y aprovechá el lanzamiento.
       </div>
 
-      <!-- Banner ROI -->
-      <div style="margin:0 1.5rem 1rem;padding:.8rem 1.1rem;background:linear-gradient(135deg,#fbf8f1,#fbf6e9);border:1px solid rgba(200,162,85,.35);border-radius:10px;font-size:.78rem;color:#5a4a32;line-height:1.5">
-        💡 <strong>El cálculo simple:</strong> AgroMotor te ahorra 2 viajes al campo por mes (combustible + tiempo del asesor) — ya se paga solo con un viaje evitado.
+      <!-- Card plan único -->
+      <div style="padding:0 1.5rem .75rem">
+        <div style="border:2px solid rgba(58,122,74,.5);border-radius:16px;background:#fff;overflow:hidden;box-shadow:0 6px 24px rgba(58,122,74,.12)">
+
+          <!-- Cabecera del plan -->
+          <div style="background:linear-gradient(135deg,#1b5e35,#3A7A4A);padding:1.1rem 1.4rem;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:.1rem">🌾 Plan Profesional</div>
+              <div style="font-size:.72rem;color:rgba(255,255,255,.75)">Todo el motor agronómico · sin restricciones</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:1.7rem;font-weight:700;color:#fff;line-height:1">USD 35</div>
+              <div style="font-size:.65rem;color:rgba(255,255,255,.7)">/mes</div>
+            </div>
+          </div>
+
+          <!-- Lotes incluidos -->
+          <div style="padding:.9rem 1.4rem;border-bottom:1px solid #f0f4f0">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+              <span style="font-size:.84rem;font-weight:700;color:#1b5e35">20 lotes incluidos</span>
+              <span style="font-size:.7rem;color:#6b7280;background:#f3f4f6;padding:.2rem .65rem;border-radius:10px">+ USD 1/lote/mes adicional</span>
+            </div>
+            <div style="font-size:.7rem;color:#6b7280;line-height:1.5">
+              Un ingeniero con 5 clientes y 4 lotes cada uno tiene 20 lotes — incluidos en el precio base.<br>
+              ¿Tenés más? Agregás los que necesités a un dólar por lote por mes.
+            </div>
+          </div>
+
+          <!-- Features -->
+          <div style="padding:.9rem 1.4rem;display:grid;grid-template-columns:1fr 1fr;gap:.35rem .8rem">
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ <strong>Todos los módulos</strong></div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ Soja, maíz, trigo, girasol</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ SoilGrids · NASA · ENSO</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ Cultivares RECSO/INTA</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ Asistente IA · 30/mes</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ Agrupación por cliente</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ Siembra variable · NDVI</div>
+            <div style="font-size:.72rem;color:rgba(61,34,16,.75)">✅ PDF brandeable</div>
+          </div>
+
+          <!-- CTA -->
+          <div style="padding:.9rem 1.4rem 1.1rem">
+            <button onclick="amRegistrarPlan('asesor')" style="
+              width:100%;padding:.7rem;border-radius:10px;border:none;
+              background:linear-gradient(135deg,#1b5e35,#3A7A4A);color:white;
+              font-weight:700;font-size:.88rem;cursor:pointer;font-family:inherit;
+              box-shadow:0 4px 12px rgba(58,122,74,.35);transition:all .2s"
+              onmouseenter="this.style.transform='translateY(-1px)'"
+              onmouseleave="this.style.transform='translateY(0)'">
+              Registrarme gratis · Acceso hasta agosto 2026
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Cards de planes -->
-      <div class="planes-grid" style="padding:0 1.5rem 1.5rem;display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem">
-
-        <!-- DEMO -->
-        <div style="display:none;border:1.5px solid rgba(58,122,74,.3);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f4faf6;flex-direction:column">
-          <div style="font-size:1.6rem;margin-bottom:.3rem">🌱</div>
-          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Demo</div>
-          <div style="font-size:1.3rem;font-weight:700;color:var(--canopy);margin-bottom:0">Gratis</div>
-          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">para probar</div>
-          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
-            <li>✅ 1 lote</li>
-            <li>✅ Diagnóstico siembra</li>
-            <li>✅ Open-Meteo 7 días</li>
-            <li style="color:rgba(61,34,16,.35)">❌ Otros módulos</li>
-            <li style="color:rgba(61,34,16,.35)">❌ Asistente IA</li>
-          </ul>
-          <button onclick="amRegistrarPlan('free')" style="
-            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid var(--canopy);
-            background:transparent;color:var(--canopy);font-weight:600;font-size:.78rem;
-            cursor:pointer;font-family:inherit;transition:all .2s"
-            onmouseenter="this.style.background='rgba(58,122,74,.08)'"
-            onmouseleave="this.style.background='transparent'">
-            Empezar
-          </button>
-        </div>
-
-        <!-- ASESOR -->
-        <div style="border:1.5px solid rgba(58,122,74,.4);border-radius:14px;padding:1rem .9rem;text-align:center;background:#fff;display:flex;flex-direction:column">
-          <div style="font-size:1.6rem;margin-bottom:.3rem">🌾</div>
-          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Asesor</div>
-          <div style="font-size:1.3rem;font-weight:700;color:#1b5e35;margin-bottom:0">USD 35</div>
-          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 5 lotes</div>
-          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
-            <li>✅ <strong>Todos los módulos</strong></li>
-            <li>✅ Soja, maíz, trigo, girasol, sorgo</li>
-            <li>✅ SoilGrids · NASA · ENSO</li>
-            <li>✅ Cultivares RECSO/INTA</li>
-            <li>✅ Asistente IA · 30 cons./mes</li>
-          </ul>
-          <button onclick="amRegistrarPlan('asesor')" style="
-            width:100%;padding:.55rem;border-radius:8px;border:none;
-            background:linear-gradient(135deg,#1b5e35,#3A7A4A);color:white;
-            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
-            box-shadow:0 3px 8px rgba(58,122,74,.3);transition:all .2s"
-            onmouseenter="this.style.transform='translateY(-1px)'"
-            onmouseleave="this.style.transform='translateY(0)'">
-            Gratis hasta agosto
-          </button>
-        </div>
-
-        <!-- PRO ⭐ -->
-        <div style="border:2px solid var(--grain);border-radius:14px;padding:1rem .9rem;text-align:center;background:linear-gradient(180deg,#fbf6e9,#fff);position:relative;display:flex;flex-direction:column;box-shadow:0 6px 20px rgba(200,162,85,.2)">
-          <div style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:var(--grain);color:var(--ink);font-size:.6rem;font-weight:700;padding:.22rem .65rem;border-radius:20px;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 6px rgba(200,162,85,.35)">⭐ Más popular</div>
-          <div style="font-size:1.6rem;margin-bottom:.3rem">⚡</div>
-          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Pro</div>
-          <div style="font-size:1.3rem;font-weight:700;color:#8A6A20;margin-bottom:0">USD 90</div>
-          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 25 lotes</div>
-          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
-            <li>✅ Todo de Asesor +</li>
-            <li>✅ <strong>25 lotes</strong> simultáneos</li>
-            <li>✅ Asistente IA · 100 cons./mes</li>
-            <li>✅ PDF brandeable</li>
-            <li>✅ Historial extendido</li>
-          </ul>
-          <button onclick="amRegistrarPlan('pro')" style="
-            width:100%;padding:.55rem;border-radius:8px;border:none;
-            background:linear-gradient(135deg,#8A6A20,var(--grain));color:white;
-            font-weight:700;font-size:.78rem;cursor:pointer;font-family:inherit;
-            box-shadow:0 4px 12px rgba(200,162,85,.4);transition:all .2s"
-            onmouseenter="this.style.transform='translateY(-1px)'"
-            onmouseleave="this.style.transform='translateY(0)'">
-            Gratis hasta agosto
-          </button>
-        </div>
-
-        <!-- EMPRESA -->
-        <div style="border:1.5px solid rgba(42,90,140,.35);border-radius:14px;padding:1rem .9rem;text-align:center;background:#f3f7fd;display:flex;flex-direction:column">
-          <div style="font-size:1.6rem;margin-bottom:.3rem">🏢</div>
-          <div style="font-weight:700;font-size:.92rem;color:var(--earth);margin-bottom:.1rem">Empresa</div>
-          <div style="font-size:1.3rem;font-weight:700;color:#1A4A7A;margin-bottom:0">USD 230</div>
-          <div style="font-size:.66rem;color:rgba(61,34,16,.5);margin-bottom:.7rem">/mes · 75 lotes</div>
-          <ul style="font-size:.7rem;color:rgba(61,34,16,.65);text-align:left;list-style:none;margin-bottom:.9rem;line-height:1.7;flex:1">
-            <li>✅ Todo de Pro +</li>
-            <li>✅ <strong>75 lotes</strong> simultáneos</li>
-            <li>✅ Asistente IA · 300 cons./mes</li>
-            <li>✅ NDVI satelital · API export</li>
-            <li>✅ Soporte directo</li>
-            <li style="color:rgba(26,74,122,.7);font-size:.66rem;margin-top:.3rem">¿Más volumen? Cotizamos a medida</li>
-          </ul>
-          <button onclick="amRegistrarPlan('empresa')" style="
-            width:100%;padding:.55rem;border-radius:8px;border:1.5px solid #2A5A8C;
-            background:transparent;color:#2A5A8C;font-weight:600;font-size:.78rem;
-            cursor:pointer;font-family:inherit;transition:all .2s"
-            onmouseenter="this.style.background='rgba(42,90,140,.08)'"
-            onmouseleave="this.style.background='transparent'">
-            Contactar ventas
-          </button>
-        </div>
+      <!-- Banner ROI -->
+      <div style="margin:0 1.5rem .75rem;padding:.8rem 1.1rem;background:linear-gradient(135deg,#fbf8f1,#fbf6e9);border:1px solid rgba(200,162,85,.35);border-radius:10px;font-size:.78rem;color:#5a4a32;line-height:1.5">
+        💡 <strong>El cálculo simple:</strong> AgroMotor te ahorra 2 viajes al campo por mes — ya se paga solo con el combustible de un viaje evitado.
       </div>
 
       <!-- Founders deal -->
       <div style="margin:0 1.5rem 1rem;padding:.7rem 1rem;background:#0e2016;border:1px solid rgba(200,162,85,.3);border-radius:10px;font-size:.74rem;color:rgba(237,224,196,.85);text-align:center">
-        🚀 <strong style="color:var(--amber)">Oferta Fundadores:</strong> los primeros 100 usuarios bloquean su precio actual <strong>de por vida</strong>. Cuando subamos los precios, vos seguís pagando lo mismo.
+        🚀 <strong style="color:var(--amber)">Oferta Fundadores:</strong> los primeros 100 usuarios bloquean su precio actual <strong>de por vida</strong>.
       </div>
 
       <!-- Footer del modal -->
@@ -3629,7 +3583,7 @@
         <div style="background:linear-gradient(135deg,#1b5e35 0%,#2d7a4a 100%);border-radius:10px;padding:.8rem 1rem;margin:.65rem 0;text-align:center">
           <div style="font-size:1.05rem;margin-bottom:.15rem">🎉</div>
           <div style="color:#fff;font-weight:700;font-size:.86rem;margin-bottom:.2rem">Lanzamiento — acceso completo gratuito</div>
-          <div style="color:rgba(255,255,255,.85);font-size:.72rem;line-height:1.4">Todas las funciones habilitadas <strong style="color:#AFFFD4">hasta el 1° de agosto de 2026</strong>.<br>Incluye 5 lotes y 15 consultas IA/mes durante la promoción.</div>
+          <div style="color:rgba(255,255,255,.85);font-size:.72rem;line-height:1.4">Todas las funciones habilitadas <strong style="color:#AFFFD4">hasta el 1° de agosto de 2026</strong>.<br>Incluye <strong style="color:#AFFFD4">20 lotes</strong> y 30 consultas IA/mes durante la promoción.</div>
         </div>
         <button id="am-btn-reg-submit" onclick="amRegistrar()" class="btn btn-p btn-full btn-lg" style="margin-top:.5rem">Crear cuenta</button>
         <div style="text-align:center;margin-top:.8rem">
@@ -4292,8 +4246,8 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
 <script src="js/config.js?v=89"></script>
-<script src="js/login.js?v=85"></script>
-<script src="js/cache.js?v=93"></script>
+<script src="js/login.js?v=86"></script>
+<script src="js/cache.js?v=94"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
