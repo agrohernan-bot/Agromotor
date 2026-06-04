@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v119';
+const CACHE_NAME    = 'agromotor-v120';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -103,6 +103,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(ASSETS_LOCAL))
+      .then(() => self.skipWaiting()) // Tomar control inmediatamente sin esperar cierre de tabs
       .catch(err => console.warn('[SW] Error en install:', err))
   );
 });
