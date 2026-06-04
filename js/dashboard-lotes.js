@@ -1023,7 +1023,7 @@
 
     if (sgDatos) {
       html += '<div class="dl-hdatos-sec dl-hdatos-sec-sg">';
-      html +=   '<div class="dl-hdatos-titulo">🌍 SoilGrids ISRIC · 250 m</div>';
+      html +=   '<div class="dl-hdatos-titulo" style="display:flex;align-items:center;justify-content:space-between">🌍 SoilGrids ISRIC · 250 m <button onclick="dlSgRefrescar(\'' + loteId + '\')" style="background:none;border:none;font-size:.75rem;cursor:pointer;color:rgba(237,224,196,.45);padding:0 0 0 .4rem" title="Forzar nueva consulta">🔄</button></div>';
       html +=   '<div class="dl-hdatos-grid">';
       html +=     _hdKV('🧪', 'pH', sgDatos.ph != null ? (sgDatos.ph.toFixed ? sgDatos.ph.toFixed(1) : sgDatos.ph) : '—');
       html +=     _hdKV('🏺', 'Arcilla', sgDatos.clay != null ? sgDatos.clay.toFixed(0) + '%' : '—');
@@ -1387,6 +1387,30 @@
   // Exponer init para ser llamado desde app.html
   window.dlInit = init;
   window.dlGetCampanaPlanificacion = getCampanaPlanificacion;
+
+  // Forzar re-fetch de SoilGrids para un lote (llamado desde botón 🔄)
+  window.dlSgRefrescar = function(loteId) {
+    var loteObj = getLote(loteId);
+    if (!loteObj || typeof window.sgAutoFetchLote !== 'function') return;
+
+    // Invalidar cache local
+    localStorage.removeItem('sg_full_' + loteId);
+    delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
+
+    // Mostrar estado de carga en el panel SoilGrids
+    var sgSec = document.querySelector('#dl-hub-datos-' + loteId + ' .dl-hdatos-sec-sg');
+    if (sgSec) {
+      sgSec.innerHTML = '<div class="dl-hdatos-titulo">🌍 SoilGrids ISRIC · 250 m</div>' +
+        '<div class="dl-hdatos-loading-sub">Consultando base de datos de suelos...</div>';
+    }
+
+    window.sgAutoFetchLote(loteObj).then(function() {
+      var elNow = document.getElementById('dl-hub-datos-' + loteId);
+      if (elNow) _fetchHubData(loteId);
+    }).catch(function() {
+      if (typeof amToast === 'function') amToast('Error al consultar SoilGrids', 'err');
+    });
+  };
 
   // ── PATCH switchMod: gestionar visibilidad de sidebar ──
   // Se ejecuta en init() una vez que switchMod está disponible
