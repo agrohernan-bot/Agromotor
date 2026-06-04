@@ -1006,11 +1006,18 @@
       }
     } catch(_e) {}
 
-    // Fallback to lote.data fields
+    // Fallback to lote.data fields (persisten sin TTL en el lote)
     if (!sgDatos && loteObj && loteObj.data && loteObj.data['sg-textura']) {
+      var d = loteObj.data;
       sgDatos = {
-        ph: loteObj.data['sg-ph'] != null ? parseFloat(loteObj.data['sg-ph']) : null,
-        textura: loteObj.data['sg-textura'] || null
+        ph:      d['sg-ph']   !== '' && d['sg-ph']   != null ? parseFloat(d['sg-ph'])   : null,
+        clay:    d['sg-clay'] !== '' && d['sg-clay']  != null ? parseFloat(d['sg-clay']) : null,
+        sand:    d['sg-sand'] !== '' && d['sg-sand']  != null ? parseFloat(d['sg-sand']) : null,
+        soc:     d['sg-soc']  !== '' && d['sg-soc']   != null ? parseFloat(d['sg-soc'])  : null,
+        n:       d['sg-n']    !== '' && d['sg-n']     != null ? parseFloat(d['sg-n'])    : null,
+        da:      d['sg-da']   !== '' && d['sg-da']    != null ? parseFloat(d['sg-da'])   : null,
+        cec:     d['sg-cec']  !== '' && d['sg-cec']   != null ? parseFloat(d['sg-cec'])  : null,
+        textura: d['sg-textura'] || null
       };
     }
 
