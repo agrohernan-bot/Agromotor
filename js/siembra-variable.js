@@ -23,7 +23,6 @@
   function el(id) { return document.getElementById('sv-' + id); }
 
   // ── GEOFENCE ────────────────────────────────────────
-  var GF_KM = 5; // radio máximo desde el centro del lote activo
 
   function _parsLoteCoord() {
     // Preferir lote.data (nueva UX) → fallback a #s-coord (dashboard clásico)
@@ -61,30 +60,17 @@
     return (isNaN(lat) || isNaN(lon)) ? null : { lat: lat, lon: lon };
   }
 
-  // Distancia haversine en km entre dos {lat,lon}
-  function _distKm(a, b) {
-    var R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
-    var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
-    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
-  }
-
   function _dentroGeofence(latlng) {
-    // En modo sub-parcela: el punto debe estar dentro del polígono del lote activo
-    if (_dibujarParcela) {
-      var geo = _geoJSONLoteActivo();
-      if (geo) return turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), geo);
-    }
-    var c = _parsLoteCoord(); if (!c) return true;
-    return _distKm(c, { lat: latlng.lat, lon: latlng.lng }) <= GF_KM;
+    var geo = _geoJSONLoteActivo();
+    if (geo) return turf.booleanPointInPolygon(turf.point([latlng.lng, latlng.lat]), geo);
+    return false;
   }
 
   function _mostrarErrorGeoFence() {
     var hint = el('draw-hint');
     hint.style.display = 'block';
     hint.style.color = '#e05a3a';
-    hint.innerHTML = _dibujarParcela
-      ? '⚠️ El punto está fuera del perímetro del lote. Dibujá dentro del borde verde.'
-      : '⚠️ Fuera del área del lote activo (' + GF_KM + ' km). Dibujá dentro del lote seleccionado en el Dashboard.';
+    hint.innerHTML = '⚠️ El punto está fuera del perímetro del lote. Dibujá dentro del borde verde.';
     setTimeout(function () {
       hint.style.color = '';
       hint.innerHTML = '<strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar';
@@ -94,9 +80,6 @@
   function _mostrarOverlayLote() {
     var overlay = el('lote-overlay');
     if (overlay) overlay.style.display = 'flex';
-    var btn = el('btn-dibujar');
-    if (btn) btn.disabled = true;
-    // Deshabilitar importar GeoJSON
     var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
     if (fileBtn) fileBtn.disabled = true;
   }
@@ -104,8 +87,6 @@
   function _ocultarOverlayLote() {
     var overlay = el('lote-overlay');
     if (overlay) overlay.style.display = 'none';
-    var btn = el('btn-dibujar');
-    if (btn) btn.disabled = false;
     var fileBtn = document.querySelector('#mod-siembra-variable input[type="file"]');
     if (fileBtn) fileBtn.disabled = false;
   }
@@ -154,21 +135,23 @@
     var empty      = el('lote-empty');
 
     if (bloqueado) {
-      // Lote predelimitado disponible → mostrar dos botones de opción
+      // Lote predelimitado disponible → dos botones de opción + importar GeoJSON habilitado
       if (btnDibujar) btnDibujar.style.display = 'none';
       if (btnUsar)    { btnUsar.style.display = 'block'; btnUsar.disabled = false; }
       if (btnParcela) { btnParcela.style.display = 'block'; btnParcela.disabled = false; btnParcela.textContent = '✏️ Dibujar parcela en el lote'; btnParcela.style.background = ''; }
       if (limpiar)    limpiar.disabled = false;
-      if (fileBtn)    fileBtn.disabled = true;
-      if (empty)      empty.innerHTML = svSubParcelaActiva ? 'Parcela personalizada · Limpiar para volver al lote completo' : 'Perímetro del lote activo aplicado';
-    } else {
-      // Sin lote predelimitado → solo botón de dibujo libre
-      if (btnUsar)    btnUsar.style.display = 'none';
-      if (btnDibujar) { btnDibujar.style.display = 'block'; btnDibujar.disabled = false; btnDibujar.textContent = '✏️ Dibujar lote en el mapa'; btnDibujar.style.background = ''; }
-      if (btnParcela) btnParcela.style.display = 'none';
-      if (limpiar)    limpiar.disabled = false;
       if (fileBtn)    fileBtn.disabled = false;
-      if (empty)      empty.innerHTML = 'o importá un GeoJSON ↓';
+      if (empty)      empty.innerHTML = svSubParcelaActiva ? 'Parcela personalizada · Limpiar para volver al lote completo' : 'Perímetro del lote activo aplicado';
+      _ocultarOverlayLote();
+    } else {
+      // Sin lote predelimitado → bloquear módulo
+      if (btnUsar)    btnUsar.style.display = 'none';
+      if (btnDibujar) btnDibujar.style.display = 'none';
+      if (btnParcela) btnParcela.style.display = 'none';
+      if (limpiar)    limpiar.disabled = true;
+      if (fileBtn)    fileBtn.disabled = true;
+      if (empty)      empty.innerHTML = 'Seleccioná un lote con polígono desde el Dashboard';
+      _mostrarOverlayLote();
     }
   }
 
@@ -224,10 +207,6 @@
   // ── DIBUJO NATIVO ──────────────────────────────────
   var _d = false, _pts = [], _mks = [], _pl = null, _pv = null, _dibujarParcela = false;
 
-  function activarDibujo() {
-    if (svLoteBloqueado) return;
-    _iniciarDibujo(false);
-  }
 
   function dibujarParcela() {
     _iniciarDibujo(true);
@@ -258,13 +237,8 @@
     svMap.on('click', _ck); svMap.on('dblclick', _dk); svMap.on('mousemove', _mv);
     document.addEventListener('keydown', _es);
     el('draw-hint').style.display = 'block';
-    if (esParcela) {
-      var btnParcela = el('btn-parcela');
-      if (btnParcela) { btnParcela.textContent = '⏹ Cancelar dibujo'; btnParcela.style.background = '#92400e'; }
-    } else {
-      el('btn-dibujar').textContent = '⏹ Cancelar dibujo';
-      el('btn-dibujar').style.background = '#92400e';
-    }
+    var btnParcela = el('btn-parcela');
+    if (btnParcela) { btnParcela.textContent = '⏹ Cancelar dibujo'; btnParcela.style.background = '#92400e'; }
   }
   function _ck(e) {
     if (!_dentroGeofence(e.latlng)) { _mostrarErrorGeoFence(); return; }
@@ -284,7 +258,19 @@
     if (_pts.length < 3) { cancelarDibujo(); return; }
     var esParcela = _dibujarParcela;
     var layer = L.polygon(_pts, { color: '#1b5e35', weight: 2, fillColor: '#1b5e35', fillOpacity: .08 });
-    if (esParcela) svSubParcelaActiva = true;
+    if (esParcela) {
+      var loteGeo = _geoJSONLoteActivo();
+      if (loteGeo) {
+        try {
+          if (!turf.booleanContains(loteGeo, layer.toGeoJSON())) {
+            alert('⚠️ La parcela dibujada sale del perímetro del lote.\nDibujá dentro del borde verde del lote activo.');
+            cancelarDibujo();
+            return;
+          }
+        } catch (err) {}
+      }
+      svSubParcelaActiva = true;
+    }
     _reset(); setLote(layer);
   }
   function _es(e) { if (e.key === 'Escape') cancelarDibujo(); }
@@ -298,17 +284,11 @@
     if (_pv) { svMap.removeLayer(_pv); _pv = null; }
   }
   function cancelarDibujo() {
-    var wasParcela = _dibujarParcela;
     _dibujarParcela = false;
     _reset();
     el('draw-hint').style.display = 'none';
-    if (wasParcela) {
-      var btnParcela = el('btn-parcela');
-      if (btnParcela) { btnParcela.textContent = '✏️ Dibujar parcela en el lote'; btnParcela.style.background = ''; }
-    } else {
-      var btnD = el('btn-dibujar');
-      if (btnD) { btnD.textContent = '✏️ Dibujar lote en el mapa'; btnD.style.background = ''; }
-    }
+    var btnParcela = el('btn-parcela');
+    if (btnParcela) { btnParcela.textContent = '✏️ Dibujar parcela en el lote'; btnParcela.style.background = ''; }
   }
 
   // ── LOTE ───────────────────────────────────────────
@@ -356,21 +336,25 @@
         var data = JSON.parse(e.target.result);
         var feat = data.type === 'FeatureCollection' ? data.features[0] : data.type === 'Feature' ? data : { type: 'Feature', geometry: data, properties: {} };
         if (!feat) { alert('GeoJSON sin polígono'); return; }
-        var coords = feat.geometry.type === 'Polygon'
-          ? feat.geometry.coordinates[0].map(function (c) { return [c[1], c[0]]; })
-          : feat.geometry.coordinates[0][0].map(function (c) { return [c[1], c[0]]; });
-        // Geofence: verificar que el centroide del GeoJSON esté dentro del radio
-        var loteCoord = _parsLoteCoord();
-        if (loteCoord) {
-          var sumLat = 0, sumLng = 0;
-          coords.forEach(function(c) { sumLat += c[0]; sumLng += c[1]; });
-          var centroid = { lat: sumLat / coords.length, lon: sumLng / coords.length };
-          if (_distKm(loteCoord, centroid) > GF_KM) {
-            alert('⚠️ El archivo GeoJSON corresponde a un lote fuera del área permitida (' + GF_KM + ' km del lote activo en el Dashboard).\n\nSeleccioná primero el lote correcto en el Dashboard.');
+        // Requiere lote activo con polígono
+        var loteGeo = _geoJSONLoteActivo();
+        if (!loteGeo) {
+          alert('⚠️ Necesitás un lote activo con polígono para importar un GeoJSON.\nSeleccioná primero el lote correcto en el Dashboard.');
+          ev.target.value = '';
+          return;
+        }
+        // Validar que el polígono importado quede contenido dentro del lote activo
+        var importFeat = feat.type === 'Feature' ? feat : { type: 'Feature', properties: {}, geometry: feat.geometry };
+        try {
+          if (!turf.booleanContains(loteGeo, importFeat)) {
+            alert('⚠️ El archivo GeoJSON no está contenido dentro del lote activo.\nVerificá que el polígono importado corresponda al lote seleccionado en el Dashboard.');
             ev.target.value = '';
             return;
           }
-        }
+        } catch (err) {}
+        var coords = feat.geometry.type === 'Polygon'
+          ? feat.geometry.coordinates[0].map(function (c) { return [c[1], c[0]]; })
+          : feat.geometry.coordinates[0][0].map(function (c) { return [c[1], c[0]]; });
         setLote(L.polygon(coords, { color: '#1b5e35', weight: 2, fillOpacity: .08 }));
       } catch (err) { alert('Error: ' + err.message); }
     };
@@ -861,7 +845,6 @@
   }
 
   // ── Exponer funciones al scope global (onclick) ──
-  window.svActivarDibujo   = function () { activarDibujo(); };
   window.svUsarLoteCompleto = function () { usarLoteCompleto(); };
   window.svDibujarParcela  = function () { dibujarParcela(); };
   window.svLimpiarLote     = function () { limpiarLote(); };

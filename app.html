@@ -3664,16 +3664,15 @@
     <!-- Overlay de bloqueo cuando no hay lote activo -->
     <div id="sv-lote-overlay" style="display:none;position:absolute;inset:0;z-index:9999;background:rgba(10,18,12,.92);border-radius:16px;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center">
       <div style="font-size:2.5rem">📍</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:#EDE0C4">Seleccioná un lote primero</div>
-      <div style="font-size:.82rem;color:rgba(237,224,196,.6);line-height:1.55">El análisis de siembra variable está vinculado al lote activo del Dashboard.<br>Cargá las coordenadas del lote allí para continuar.</div>
-      <button onclick="switchMod('siembra')" style="margin-top:.5rem;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#E8B84B;font-size:.84rem;font-weight:600;padding:.6rem 1.4rem;border-radius:10px;cursor:pointer;font-family:inherit">→ Ir al módulo Siembra</button>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:#EDE0C4">Lote con polígono requerido</div>
+      <div style="font-size:.82rem;color:rgba(237,224,196,.6);line-height:1.55">Siembra Variable requiere un lote con polígono delimitado.<br>Creá o seleccioná un lote desde Mis Lotes para continuar.</div>
+      <button onclick="switchMod('dashboard'); setTimeout(function(){if(typeof window.dlVolverCards==='function')window.dlVolverCards();},300)" style="margin-top:.5rem;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#E8B84B;font-size:.84rem;font-weight:600;padding:.6rem 1.4rem;border-radius:10px;cursor:pointer;font-family:inherit">→ Ir a Mis Lotes</button>
     </div>
 
     <div class="sv-panel">
       <div class="sv-ph" onclick="svTogglePanel(this)"><span>📍 Lote</span><span class="sv-arr">▾</span></div>
       <div class="sv-pb">
         <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-usar-lote" onclick="svUsarLoteCompleto()" style="display:none">📐 Usar lote predelimitado</button>
-        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-dibujar" onclick="svActivarDibujo()">✏️ Dibujar lote en el mapa</button>
         <button class="sv-btn sv-btn-sec sv-btn-full" id="sv-btn-parcela" onclick="svDibujarParcela()" style="display:none">✏️ Dibujar parcela en el lote</button>
         <div id="sv-draw-hint" class="sv-draw-hint" style="display:none">
           <strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar

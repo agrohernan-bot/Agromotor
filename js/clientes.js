@@ -6,13 +6,31 @@
 (function () {
   'use strict';
 
-  var CLIENTES_KEY = 'am_clientes_v1';
+  var CLIENTES_KEY_BASE = 'am_clientes_v1';
+
+  function _clientesKey() {
+    try {
+      var uid = window.AM_SESION && window.AM_SESION.user && window.AM_SESION.user.id;
+      if (uid) return CLIENTES_KEY_BASE + '_' + uid;
+    } catch (e) {}
+    return CLIENTES_KEY_BASE;
+  }
 
   window.AM_CLIENTES = [];
 
   function cargarClientes() {
     try {
-      var raw = localStorage.getItem(CLIENTES_KEY);
+      var key = _clientesKey();
+      var raw = localStorage.getItem(key);
+      // Migrar desde clave legacy al primer login
+      if (!raw && key !== CLIENTES_KEY_BASE) {
+        var legacyRaw = localStorage.getItem(CLIENTES_KEY_BASE);
+        if (legacyRaw) {
+          localStorage.setItem(key, legacyRaw);
+          localStorage.removeItem(CLIENTES_KEY_BASE);
+          raw = legacyRaw;
+        }
+      }
       if (raw) window.AM_CLIENTES = JSON.parse(raw) || [];
     } catch (e) {
       window.AM_CLIENTES = [];
@@ -22,7 +40,7 @@
 
   function guardarClientes() {
     try {
-      localStorage.setItem(CLIENTES_KEY, JSON.stringify(window.AM_CLIENTES));
+      localStorage.setItem(_clientesKey(), JSON.stringify(window.AM_CLIENTES));
     } catch (e) {}
   }
 
