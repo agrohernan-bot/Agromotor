@@ -246,7 +246,7 @@ function amMostrarModal(vista = 'planes') {
 
 function amCerrarModal() {
   if (!AM_SESION) {
-    var visible = document.querySelector('#am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
+    var visible = document.querySelector('#am-vista-bienvenida:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
     var err = visible ? visible.querySelector('.alert.danger') : null;
     if (err) amMostrarError(err, 'NecesitÃ¡s iniciar sesiÃ³n para ingresar a AgroMotor.');
     return;
@@ -271,8 +271,8 @@ function amCerrarModal() {
 function amCambiarVista(vista) {
   // Durante la promo redirigimos 'planes' a 'registro' directamente.
   // Cuando AM_PROMO_HASTA expire, eliminar este bloque para mostrar el selector de planes.
-  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'registro';
-  ['am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
+  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'bienvenida';
+  ['am-vista-bienvenida','am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
   $(`am-vista-${vista}`)?.classList.remove('hidden');
@@ -283,7 +283,7 @@ function amResetModalScroll() {
   requestAnimationFrame(function() {
     var modal = $('am-modal');
     var shell = modal ? modal.firstElementChild : null;
-    var visible = modal ? modal.querySelector('#am-vista-planes:not(.hidden), #am-vista-login:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-recovery:not(.hidden)') : null;
+    var visible = modal ? modal.querySelector('#am-vista-bienvenida:not(.hidden), #am-vista-planes:not(.hidden), #am-vista-login:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-recovery:not(.hidden)') : null;
     [modal, shell, visible].forEach(function(el) {
       if (el) el.scrollTop = 0;
     });
