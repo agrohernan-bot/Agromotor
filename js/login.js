@@ -9,11 +9,9 @@
   try { localStorage.removeItem('am_god'); } catch (_) {}
 
 // ── LÍMITES POR PLAN ──────────────────────────────────
-// PERÍODO PROMO (hasta 01-ago-2026): login obligatorio, 5 lotes, 15 IA/mes
-// TODO: restaurar selector de planes y precios el 1° de agosto de 2026
+// Plan único: 20 lotes base + USD 1 por cada lote extra
 const AM_PLANES = {
   free: {
-    // Plan post-promo: solo siembra, sin IA, 1 lote
     nombre: 'Demo',
     precio: 'Gratis',
     lotes: 1,
@@ -24,10 +22,9 @@ const AM_PLANES = {
     desc: 'Probá AgroMotor con un lote · Diagnóstico básico de siembra'
   },
   asesor: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Asesor',
+    nombre: 'Profesional',
     precio: 'USD 35/mes',
-    lotes: 5,
+    lotes: 20,
     iaCallsMes: 30,
     modulos: [
       'siembra','suelo','decision','economia','nutricion',
@@ -37,53 +34,21 @@ const AM_PLANES = {
     ],
     color: '#3A7A4A',
     icon: '🌾',
-    desc: 'Para asesor independiente · 5 lotes · IA 30 consultas/mes · Todo el motor agronómico'
+    desc: 'Para asesores · 20 lotes base · lotes extra USD 1/mes c/u · Todo el motor agronómico'
   },
-  pro: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Pro',
-    precio: 'USD 90/mes',
-    lotes: 25,
-    iaCallsMes: 100,
-    modulos: [
-      'siembra','suelo','decision','economia','nutricion',
-      'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','plagas','pulverizacion',
-      'cosecha','alerta-sanitaria','siembra-variable'
-    ],
-    color: '#C8A255',
-    icon: '⚡',
-    desc: 'Para estudio chico · 25 lotes · IA 100 consultas/mes · PDF brandeable · Historial extendido'
-  },
-  empresa: {
-    // TODO: activar precio y mostrar en selector el 1° de agosto de 2026
-    nombre: 'Empresa',
-    precio: 'USD 230/mes',
-    lotes: 75,
-    iaCallsMes: 300,
-    modulos: [
-      'siembra','suelo','decision','economia','nutricion',
-      'maquinaria','hidrico','cultivares','asistente','mapa',
-      'seguimiento','plagas','pulverizacion',
-      'cosecha','alerta-sanitaria','siembra-variable'
-    ],
-    color: '#2A5A8C',
-    icon: '🏢',
-    desc: 'Para cooperativas y empresas · 75 lotes · IA 300 consultas/mes · NDVI satelital · API export · Soporte directo'
-  }
+  // Alias legacy para usuarios con plan pro/empresa — redirigen a asesor en UI
+  pro:     { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' },
+  empresa: { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' }
 };
 
 // ── FECHA FIN DE PROMOCIÓN ────────────────────────────
-// Cambiar esta fecha para activar/desactivar el período promo.
-// Hasta esta fecha: acceso total con login, sin restricciones de plan.
-// Después: se aplican límites por plan (lotes, módulos, IA).
 const AM_PROMO_HASTA = new Date('2026-08-02');
 
 // ── ESTADO DE SESIÓN ──────────────────────────────────
-// { id, email, nombre, plan, planHasta, trialHasta, token }
+// { id, email, nombre, plan, planHasta, trialHasta, lotesExtra, token }
 let AM_SESION = null;
 
-// Flag activo durante el flujo PASSWORD_RECOVERY. Suprime la apertura normal
+// Flag activo durante el flujo PASSWORD_RECOVERY.
 // de la app cuando SIGNED_IN dispara justo después de PASSWORD_RECOVERY,
 // y se limpia solo cuando USER_UPDATED confirma que la contraseña fue cambiada.
 let _modoRecovery = false;
@@ -99,6 +64,7 @@ function amSetSesion(session) {
     plan:      meta.plan || 'free',
     planHasta: null,
     trialHasta:null,
+    lotesExtra:meta.lotes_extra || 0,
     rol:       meta.rol || 'agronomo',
     cpia:      meta.cpia || null,
     matricula: meta.matricula_numero || null,
@@ -112,7 +78,7 @@ function amEnrichPerfil(session) {
   setTimeout(function() {
     Promise.race([
       AM_SB.from('profiles')
-        .select('nombre, plan, plan_hasta, trial_hasta, rol, cpia, matricula_numero, matricula_verificada')
+        .select('nombre, plan, plan_hasta, trial_hasta, lotes_extra, rol, cpia, matricula_numero, matricula_verificada')
         .eq('id', session.user.id).maybeSingle(),
       new Promise(function(resolve) { setTimeout(function() { resolve({ data: null, error: { message: 'timeout' } }); }, 5000); })
     ]).then(function(res) {
@@ -122,6 +88,7 @@ function amEnrichPerfil(session) {
       AM_SESION.plan      = p.plan      || AM_SESION.plan;
       AM_SESION.planHasta = p.plan_hasta;
       AM_SESION.trialHasta= p.trial_hasta;
+      AM_SESION.lotesExtra= p.lotes_extra || 0;
       AM_SESION.rol       = p.rol       || AM_SESION.rol;
       AM_SESION.cpia      = p.cpia      || AM_SESION.cpia;
       AM_SESION.matricula = p.matricula_numero || AM_SESION.matricula;
@@ -279,7 +246,7 @@ function amMostrarModal(vista = 'planes') {
 
 function amCerrarModal() {
   if (!AM_SESION) {
-    var visible = document.querySelector('#am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
+    var visible = document.querySelector('#am-vista-bienvenida:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
     var err = visible ? visible.querySelector('.alert.danger') : null;
     if (err) amMostrarError(err, 'NecesitÃ¡s iniciar sesiÃ³n para ingresar a AgroMotor.');
     return;
@@ -304,8 +271,8 @@ function amCerrarModal() {
 function amCambiarVista(vista) {
   // Durante la promo redirigimos 'planes' a 'registro' directamente.
   // Cuando AM_PROMO_HASTA expire, eliminar este bloque para mostrar el selector de planes.
-  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'registro';
-  ['am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
+  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'bienvenida';
+  ['am-vista-bienvenida','am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
   $(`am-vista-${vista}`)?.classList.remove('hidden');
@@ -316,7 +283,7 @@ function amResetModalScroll() {
   requestAnimationFrame(function() {
     var modal = $('am-modal');
     var shell = modal ? modal.firstElementChild : null;
-    var visible = modal ? modal.querySelector('#am-vista-planes:not(.hidden), #am-vista-login:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-recovery:not(.hidden)') : null;
+    var visible = modal ? modal.querySelector('#am-vista-bienvenida:not(.hidden), #am-vista-planes:not(.hidden), #am-vista-login:not(.hidden), #am-vista-registro:not(.hidden), #am-vista-recovery:not(.hidden)') : null;
     [modal, shell, visible].forEach(function(el) {
       if (el) el.scrollTop = 0;
     });
@@ -538,7 +505,9 @@ async function amRegistrar() {
 
   // Persistir matrícula en la tabla profiles (handle_new_user puede no copiar todos los metadata)
   if (data?.user?.id) {
-    const updates = { rol, matricula_declarada_at: new Date().toISOString() };
+    const trialHasta = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+    const planFinal  = (plan && plan !== 'free') ? plan : 'asesor';
+    const updates = { rol, plan: planFinal, trial_hasta: trialHasta, matricula_declarada_at: new Date().toISOString() };
     if (rol === 'agronomo') { updates.cpia = cpia; updates.matricula_numero = matricula; }
     await AM_SB.from('profiles').update(updates).eq('id', data.user.id);
   }
@@ -666,6 +635,17 @@ function amMostrarPerfil() {
   if (AM_SESION.rol === 'admin') {
     btns.appendChild(mkBtn('Panel admin', '#1A3A6C', function() { window.location.href = '/admin.html'; }));
   }
+
+  // Dar de baja
+  const btnBaja = document.createElement('button');
+  btnBaja.textContent = '🗑 Dar de baja mi cuenta';
+  btnBaja.style.cssText = 'width:100%;border:1.5px solid #e5e7eb;border-radius:9px;padding:.5rem .9rem;font-size:.78rem;cursor:pointer;font-family:inherit;background:#fff;color:#9ca3af;text-align:left;margin-top:.3rem';
+  btnBaja.addEventListener('click', function() {
+    overlay.remove();
+    amSolicitarBajaCuenta();
+  });
+  btns.appendChild(btnBaja);
+
   const btnCerrar = document.createElement('button');
   btnCerrar.textContent = 'Cancelar';
   btnCerrar.style.cssText = 'width:100%;border:1.5px solid #d4c9b8;border-radius:9px;padding:.5rem .9rem;font-size:.82rem;cursor:pointer;font-family:inherit;background:#fff;color:#5a4a32';
@@ -761,6 +741,53 @@ function amToast(msg, tipo = 'ok') {
 // Compatibilidad: función vacía, onAuthStateChange maneja el init
 function amCargarSesion() {}
 
+// ── SOLICITUD DE BAJA DE CUENTA ───────────────────────
+async function amSolicitarBajaCuenta() {
+  if (!AM_SESION) return;
+
+  // Diálogo de confirmación
+  const conf = document.createElement('div');
+  conf.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(28,18,8,.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box';
+  conf.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:340px;width:100%;padding:1.5rem;font-family:'DM Sans',sans-serif;box-shadow:0 16px 48px rgba(28,18,8,.25)">
+      <div style="font-size:1.6rem;text-align:center;margin-bottom:.6rem">⚠️</div>
+      <div style="font-weight:700;font-size:1rem;color:#1c1912;margin-bottom:.5rem;text-align:center">¿Dar de baja tu cuenta?</div>
+      <div style="font-size:.8rem;color:#5a4a32;line-height:1.55;margin-bottom:1.1rem">
+        Registraremos tu solicitud de baja. En menos de <strong>48 horas</strong> eliminamos tu cuenta y todos tus datos de nuestros servidores.<br><br>
+        Recibirás confirmación en <strong>${AM_SESION.email}</strong>.<br><br>
+        Esta acción no se puede deshacer.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:.5rem">
+        <button id="am-baja-confirmar" style="width:100%;padding:.6rem;border-radius:9px;border:none;background:#C94A2A;color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;font-family:inherit">
+          Sí, quiero dar de baja mi cuenta
+        </button>
+        <button id="am-baja-cancelar" style="width:100%;padding:.55rem;border-radius:9px;border:1.5px solid #d4c9b8;background:#fff;color:#5a4a32;font-size:.85rem;cursor:pointer;font-family:inherit">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(conf);
+
+  document.getElementById('am-baja-cancelar').addEventListener('click', function() { conf.remove(); });
+  document.getElementById('am-baja-confirmar').addEventListener('click', async function() {
+    this.disabled = true; this.textContent = 'Registrando solicitud...';
+    try {
+      await AM_SB.from('profiles').update({
+        deletion_requested_at: new Date().toISOString(),
+        plan: 'free'
+      }).eq('id', AM_SESION.id);
+      conf.remove();
+      amToast('Solicitud de baja registrada. Te contactaremos en menos de 48 horas.', 'ok');
+      setTimeout(function() { amCerrarSesion(); }, 2000);
+    } catch(e) {
+      conf.remove();
+      amToast('Error al registrar la solicitud. Escribinos a soporte@agromotor.app', 'error');
+    }
+  });
+  conf.addEventListener('click', function(e) { if (e.target === conf) conf.remove(); });
+}
+
   // Exponer a global
   window.AM_PLANES = AM_PLANES;
   window.amTieneAcceso = amTieneAcceso;
@@ -775,6 +802,7 @@ function amCargarSesion() {}
   window.amOlvidarContrasena = amOlvidarContrasena;
   window.amProcesarUrlParams = amProcesarUrlParams;
   window.amRegistrar = amRegistrar;
+  window.amSolicitarBajaCuenta = amSolicitarBajaCuenta;
   window.amCerrarSesion = amCerrarSesion;
   window.amMostrarPerfil = amMostrarPerfil;
   window.amRegistrarPlan = amRegistrarPlan;

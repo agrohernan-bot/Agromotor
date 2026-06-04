@@ -8,16 +8,33 @@
   window.AM.cache = {};
 
   const LOTES_LEGACY_KEY = 'am_global_lotes_v2'; // clave pre-fix (compartida por todos)
+  let _amLotesRemoteTimer = null;
+  let _amLotesRemoteLoading = false;
+  let _amLotesRemoteLoadUid = null;
+  let _amClienteFiltro = null; // null = Todos; '' = Sin cliente; 'NombreCliente' = filtrar por ese cliente
 
   function getLotesKey() {
     var uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
     return uid ? ('am_lotes_v2_' + uid) : LOTES_LEGACY_KEY;
+  }
+  function amLotesRemoteDisponible() {
+    return !!(window.AM_SB && typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id);
+  }
+  function amLotesDataJson(data) {
+    try { return JSON.parse(JSON.stringify(data || {})); }
+    catch (_) { return {}; }
+  }
+  function amLotesTieneDatosReales(lote) {
+    if (!lote || !lote.data) return false;
+    const d = lote.data;
+    return !!(d.coord || d.cultivo || d.superficie || d.polygon || d.geojson || d.fecha || d.fechaSiembraPlan);
   }
   window.AM_LOTES = [];
   window.AM_LOTE_ACTIVO = 'default';
 
 function amCargarLotesGlobales() {
   var _uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
+  if (!_uid) _amLotesRemoteLoadUid = null;
   if (_uid) {
     var _newKey = 'am_lotes_v2_' + _uid;
     var _legacyData = localStorage.getItem(LOTES_LEGACY_KEY);
@@ -44,17 +61,17 @@ function amCargarLotesGlobales() {
   }
   
   amRenderSelectLotes();
+  if (_uid) amCargarLotesRemotos();
 }
 
 function amGetLoteLimit() {
-  // Promoci�n lanzamiento: hasta el 01 Agosto 2026 -> m�x 5 lotes con sesi�n activa.
-  if (new Date() < new Date('2026-08-02')) {
-    return (typeof AM_SESION !== 'undefined' && AM_SESION) ? 5 : 1;
-  }
-  if (typeof AM_SESION !== 'undefined' && AM_SESION && typeof AM_PLANES !== 'undefined') {
-    return AM_PLANES[AM_SESION.plan]?.lotes ?? 1;
-  }
-  return 1;
+  if (typeof AM_SESION === 'undefined' || !AM_SESION) return 1;
+  // Promo hasta 01-ago-2026: 20 lotes con login
+  if (new Date() < new Date('2026-08-02')) return 20;
+  // Post-promo: 20 base + lotes extra contratados
+  var base = 20;
+  var extra = AM_SESION.lotesExtra || 0;
+  return base + extra;
 }
 function amRenderSelectLotes() {
   const sel = document.getElementById('am-global-lotes');
@@ -76,6 +93,7 @@ function amRenderSelectLotes() {
     counter.style.borderColor = color + '44';
   }
 
+  // Poblar selects (sin agrupación)
   AM_LOTES.forEach(L => {
     if(sel) {
       const opt = document.createElement('option');
@@ -89,78 +107,148 @@ function amRenderSelectLotes() {
       if(L.id === AM_LOTE_ACTIVO) opt2.selected = true;
       selDash.appendChild(opt2);
     }
+  });
 
-    if(listCont) {
-      const coord   = L.data?.coord   || null;
-      const cultivo = L.data?.cultivo  || null;
-      const isActive = L.id === AM_LOTE_ACTIVO;
+  // ── Chips de filtro por cliente ──────────────────────
+  const filtrosCont = document.getElementById('am-lotes-filtros');
+  if (filtrosCont) {
+    filtrosCont.innerHTML = '';
+    const clientesUnicos = {};
+    AM_LOTES.forEach(L => {
+      const cn = (L.data?.clienteNombre || '').trim();
+      clientesUnicos[cn] = (clientesUnicos[cn] || 0) + 1;
+    });
+    const nombresClientes = Object.keys(clientesUnicos);
+    const hayFiltros = nombresClientes.length > 1 ||
+                       (nombresClientes.length === 1 && nombresClientes[0] !== '');
 
-      // ── Semáforo: leer del snapshot calcKeys ──────────
-      const ck = L.data?.calcKeys || {};
-      const aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
-      const capMax  = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
-      const etapa   = ck['am_fen_etapa_hoy']  || '';
-      const diasEstres = parseInt(ck['am_hidrico_dias_estres'])   || 0;
-      let alertCount = 0;
-      try { alertCount = JSON.parse(ck['am_alertas_activas'] || '[]').length; } catch(_) {}
+    if (hayFiltros && AM_LOTES.length > 1) {
+      // Validar que el filtro activo siga siendo válido
+      if (_amClienteFiltro !== null && !((_amClienteFiltro in clientesUnicos))) {
+        _amClienteFiltro = null;
+      }
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:flex;gap:.35rem;flex-wrap:wrap;padding:.4rem 0 .8rem';
 
-      // Semáforo hídrico
-      let hidDot = '#cbd5e1'; let hidPct = '—'; let hidLabel = 'Sin datos';
-      if (capMax > 0) {
-        const pct = Math.min(100, Math.round(aguaMm / capMax * 100));
-        hidPct = pct + '%';
-        if (pct >= 60)      { hidDot = '#2A7A4A'; hidLabel = 'Óptimo';    }
-        else if (pct >= 35) { hidDot = '#C8A255'; hidLabel = 'Moderado';  }
-        else                { hidDot = '#D4522A'; hidLabel = 'Estrés';    }
+      const chipTodos = document.createElement('button');
+      chipTodos.textContent = 'Todos (' + AM_LOTES.length + ')';
+      chipTodos.className = _amClienteFiltro === null ? 'am-chip am-chip-active' : 'am-chip';
+      chipTodos.onclick = function () { _amClienteFiltro = null; amRenderSelectLotes(); };
+      wrap.appendChild(chipTodos);
+
+      nombresClientes.sort((a, b) => {
+        if (!a) return 1; if (!b) return -1;
+        return a.localeCompare(b, 'es');
+      }).forEach(cn => {
+        const chip = document.createElement('button');
+        chip.textContent = (cn || 'Sin cliente') + ' (' + clientesUnicos[cn] + ')';
+        chip.className = _amClienteFiltro === cn ? 'am-chip am-chip-active' : 'am-chip';
+        chip.onclick = (function (nombre) {
+          return function () { _amClienteFiltro = nombre; amRenderSelectLotes(); };
+        })(cn);
+        wrap.appendChild(chip);
+      });
+
+      filtrosCont.appendChild(wrap);
+    } else {
+      _amClienteFiltro = null;
+    }
+  }
+
+  // Tarjetas agrupadas por cliente
+  if(listCont) {
+    // Aplicar filtro
+    const lotesVista = _amClienteFiltro !== null
+      ? AM_LOTES.filter(L => ((L.data?.clienteNombre || '').trim()) === _amClienteFiltro)
+      : AM_LOTES;
+
+    // Agrupar lotes por clienteNombre
+    const grupos = {};
+    lotesVista.forEach(L => {
+      const key = (L.data?.clienteNombre || '').trim();
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(L);
+    });
+    const clientes = Object.keys(grupos).sort((a, b) => {
+      if (!a) return 1; if (!b) return -1;
+      return a.localeCompare(b, 'es');
+    });
+    const mostrarGrupos = clientes.length > 1 || (clientes.length === 1 && clientes[0] !== '');
+
+    clientes.forEach(cliente => {
+      // Encabezado de grupo
+      if (mostrarGrupos) {
+        const header = document.createElement('div');
+        header.style.cssText = 'font-size:.7rem;font-weight:700;color:#3A7A4A;letter-spacing:.04em;text-transform:uppercase;padding:.5rem .2rem .25rem;margin-top:.5rem;border-bottom:1px solid rgba(58,122,74,.2);display:flex;align-items:center;gap:.4rem';
+        header.innerHTML = `<span style="font-size:.9rem">👤</span>${cliente || '<span style="color:#9ca3af;font-weight:500;text-transform:none">Sin cliente asignado</span>'}<span style="margin-left:auto;font-size:.65rem;color:#6b7280;font-weight:500;text-transform:none">${grupos[cliente].length} lote${grupos[cliente].length!==1?'s':''}</span>`;
+        listCont.appendChild(header);
       }
 
-      // Etapa corta (max 14 chars)
-      const etapaCorta = etapa ? (etapa.length > 14 ? etapa.slice(0,13)+'…' : etapa) : '';
+      grupos[cliente].forEach(L => {
+        const coord   = L.data?.coord   || null;
+        const cultivo = L.data?.cultivo  || null;
+        const isActive = L.id === AM_LOTE_ACTIVO;
 
-      // Días de estrés badge
-      const estresBadge = diasEstres > 3
-        ? `<span style="font-size:.6rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">${diasEstres}d estrés</span>`
-        : '';
+        const ck = L.data?.calcKeys || {};
+        const aguaMm  = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
+        const capMax  = parseFloat(ck['am_hidrico_cap_max_mm'])     || 0;
+        const etapa   = ck['am_fen_etapa_hoy']  || '';
+        const diasEstres = parseInt(ck['am_hidrico_dias_estres'])   || 0;
+        let alertCount = 0;
+        try { alertCount = JSON.parse(ck['am_alertas_activas'] || '[]').length; } catch(_) {}
 
-      // Alertas badge
-      const alertBadge = alertCount > 0
-        ? `<span style="font-size:.6rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700">🚨 ${alertCount}</span>`
-        : '';
+        let hidDot = '#cbd5e1'; let hidPct = '—'; let hidLabel = 'Sin datos';
+        if (capMax > 0) {
+          const pct = Math.min(100, Math.round(aguaMm / capMax * 100));
+          hidPct = pct + '%';
+          if (pct >= 60)      { hidDot = '#2A7A4A'; hidLabel = 'Óptimo';   }
+          else if (pct >= 35) { hidDot = '#C8A255'; hidLabel = 'Moderado'; }
+          else                { hidDot = '#D4522A'; hidLabel = 'Estrés';   }
+        }
 
-      const card = document.createElement('div');
-      card.style.cssText = `
-        border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
-        border-radius: 10px;
-        background: ${isActive ? 'rgba(122,174,245,.1)' : '#fff'};
-        padding: .75rem .9rem;
-        cursor: pointer;
-        transition: all .18s;
-        display: flex; flex-direction: column; gap: .4rem;
-        box-shadow: ${isActive ? '0 2px 8px rgba(122,174,245,.2)' : '0 1px 3px rgba(0,0,0,.06)'};
-      `;
-      card.onclick = () => amCambiarLoteGlobalDesdeDash(L.id);
-      card.onmouseover = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.4)'; card.style.boxShadow='0 2px 8px rgba(122,174,245,.15)'; }};
-      card.onmouseout  = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.15)'; card.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'; }};
+        const etapaCorta = etapa ? (etapa.length > 14 ? etapa.slice(0,13)+'…' : etapa) : '';
+        const estresBadge = diasEstres > 3
+          ? `<span style="font-size:.6rem;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 5px;font-weight:700">${diasEstres}d estrés</span>`
+          : '';
+        const alertBadge = alertCount > 0
+          ? `<span style="font-size:.6rem;background:#fee2e2;color:#991b1b;border-radius:4px;padding:1px 5px;font-weight:700">🚨 ${alertCount}</span>`
+          : '';
 
-      card.innerHTML = `
-        <div style="display:flex;align-items:center;gap:.45rem">
-          <span style="font-size:1.1rem">${isActive ? '🗺️' : '📍'}</span>
-          <div style="font-weight:700;color:#1A3A6C;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${L.nombre}</div>
-          ${isActive ? '<span style="margin-left:auto;font-size:.6rem;font-weight:700;background:#7AAEF5;color:#fff;padding:1px 6px;border-radius:6px">ACTIVO</span>' : ''}
-        </div>
-        ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
-        ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
-        <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.1rem">
-          <span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;font-weight:700;color:${hidDot};background:${hidDot}18;padding:2px 6px;border-radius:5px;border:1px solid ${hidDot}44" title="Balance hídrico: ${hidLabel}">
-            <span style="width:7px;height:7px;border-radius:50%;background:${hidDot};display:inline-block"></span>💧 ${hidPct}
-          </span>
-          ${etapaCorta ? `<span style="font-size:.65rem;color:#374151;background:#f1f5f9;padding:2px 6px;border-radius:5px;border:1px solid #e2e8f0" title="Etapa fenológica: ${etapa}">🌱 ${etapaCorta}</span>` : ''}
-          ${estresBadge}${alertBadge}
-        </div>
-      `;
-      listCont.appendChild(card);
-    }
-  });
+        const card = document.createElement('div');
+        card.style.cssText = `
+          border: 2px solid ${isActive ? 'rgba(122,174,245,.6)' : 'rgba(122,174,245,.15)'};
+          border-radius: 10px;
+          background: ${isActive ? 'rgba(122,174,245,.1)' : '#fff'};
+          padding: .75rem .9rem;
+          cursor: pointer;
+          transition: all .18s;
+          display: flex; flex-direction: column; gap: .4rem;
+          box-shadow: ${isActive ? '0 2px 8px rgba(122,174,245,.2)' : '0 1px 3px rgba(0,0,0,.06)'};
+        `;
+        card.onclick = () => amCambiarLoteGlobalDesdeDash(L.id);
+        card.onmouseover = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.4)'; card.style.boxShadow='0 2px 8px rgba(122,174,245,.15)'; }};
+        card.onmouseout  = () => { if(!isActive) { card.style.borderColor='rgba(122,174,245,.15)'; card.style.boxShadow='0 1px 3px rgba(0,0,0,.06)'; }};
+
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;gap:.45rem">
+            <span style="font-size:1.1rem">${isActive ? '🗺️' : '📍'}</span>
+            <div style="font-weight:700;color:#1A3A6C;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${L.nombre}</div>
+            ${isActive ? '<span style="margin-left:auto;font-size:.6rem;font-weight:700;background:#7AAEF5;color:#fff;padding:1px 6px;border-radius:6px">ACTIVO</span>' : ''}
+          </div>
+          ${cultivo ? `<div style="font-size:.72rem;color:#3A7A4A;font-weight:600">🌾 ${cultivo}</div>` : ''}
+          ${coord ? `<div style="font-size:.68rem;color:#6b7280;font-family:'DM Mono',monospace;background:#f3f4f6;padding:.15rem .4rem;border-radius:4px">${coord.length > 28 ? coord.slice(0,28)+'…' : coord}</div>` : '<div style="font-size:.68rem;color:#9ca3af">Sin coordenadas</div>'}
+          <div style="display:flex;align-items:center;gap:.35rem;flex-wrap:wrap;margin-top:.1rem">
+            <span style="display:inline-flex;align-items:center;gap:.25rem;font-size:.65rem;font-weight:700;color:${hidDot};background:${hidDot}18;padding:2px 6px;border-radius:5px;border:1px solid ${hidDot}44" title="Balance hídrico: ${hidLabel}">
+              <span style="width:7px;height:7px;border-radius:50%;background:${hidDot};display:inline-block"></span>💧 ${hidPct}
+            </span>
+            ${etapaCorta ? `<span style="font-size:.65rem;color:#374151;background:#f1f5f9;padding:2px 6px;border-radius:5px;border:1px solid #e2e8f0" title="Etapa fenológica: ${etapa}">🌱 ${etapaCorta}</span>` : ''}
+            ${estresBadge}${alertBadge}
+          </div>
+        `;
+        listCont.appendChild(card);
+      });
+    });
+  }
 }
 
 window.amCambiarLoteGlobalDesdeDash = function(val) {
@@ -202,8 +290,8 @@ window.amCrearLoteGlobal = function() {
   const limite = amGetLoteLimit();
   if (AM_LOTES.length >= limite) {
     const msg = limite === 1
-      ? 'El plan Free permite 1 lote. Actualizá a Asesor para tener hasta 5 lotes.'
-      : `Tu plan permite hasta ${limite} lotes y ya los usaste todos. Considerá actualizar tu plan.`;
+      ? 'Iniciá sesión para acceder a tus 20 lotes incluidos.'
+      : `Alcanzaste el límite de ${limite} lotes. Podés agregar lotes extra por USD 1/mes c/u — escribinos.`;
     if(typeof amToast === 'function') amToast(msg, 'error');
     else alert(msg);
     return;
@@ -363,7 +451,109 @@ window.amCambiarLoteGlobal = function() {
 
 function amGuardarLotesEstado() {
   localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+  amProgramarGuardarLotesRemotos();
 }
+
+function amProgramarGuardarLotesRemotos() {
+  if (!amLotesRemoteDisponible() || _amLotesRemoteLoading) return;
+  clearTimeout(_amLotesRemoteTimer);
+  _amLotesRemoteTimer = setTimeout(amGuardarLotesRemotos, 700);
+}
+
+async function amGuardarLotesRemotos(force) {
+  if (!amLotesRemoteDisponible() || (_amLotesRemoteLoading && !force)) return;
+  const uid = AM_SESION.id;
+  const lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
+  if (!lotes.length) return;
+
+  const rows = lotes.map(l => ({
+    user_id: uid,
+    lote_id: String(l.id || ('lote_' + Date.now())),
+    nombre: String(l.nombre || 'Lote'),
+    data: amLotesDataJson(l.data),
+    activo: String(l.id) === String(AM_LOTE_ACTIVO)
+  }));
+
+  const up = await AM_SB
+    .from('lotes')
+    .upsert(rows, { onConflict: 'user_id,lote_id' });
+
+  if (up.error) {
+    console.warn('Lotes remote save skipped:', up.error.message);
+    return;
+  }
+
+  const rem = await AM_SB
+    .from('lotes')
+    .select('lote_id')
+    .eq('user_id', uid);
+
+  if (rem.error || !Array.isArray(rem.data)) return;
+  const actuales = new Set(rows.map(r => r.lote_id));
+  const stale = rem.data.map(r => r.lote_id).filter(id => !actuales.has(id));
+  if (stale.length) {
+    const del = await AM_SB
+      .from('lotes')
+      .delete()
+      .eq('user_id', uid)
+      .in('lote_id', stale);
+    if (del.error) console.warn('Lotes remote delete skipped:', del.error.message);
+  }
+}
+
+async function amCargarLotesRemotos(force) {
+  if (!amLotesRemoteDisponible()) return false;
+  const uid = AM_SESION.id;
+  if (_amLotesRemoteLoading || (!force && _amLotesRemoteLoadUid === uid)) return false;
+  _amLotesRemoteLoading = true;
+  _amLotesRemoteLoadUid = uid;
+  try {
+    const res = await AM_SB
+      .from('lotes')
+      .select('lote_id,nombre,data,activo,updated_at')
+      .eq('user_id', uid)
+      .order('updated_at', { ascending: true });
+
+    if (res.error) {
+      console.warn('Lotes remote load skipped:', res.error.message);
+      _amLotesRemoteLoadUid = null;
+      return false;
+    }
+
+    const remotos = Array.isArray(res.data) ? res.data : [];
+    if (remotos.length) {
+      AM_LOTES = remotos.map(r => ({
+        id: r.lote_id,
+        nombre: r.nombre || 'Lote',
+        data: r.data || {}
+      }));
+      const activo = remotos.find(r => r.activo) || remotos[0];
+      AM_LOTE_ACTIVO = activo.lote_id;
+
+      localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+      amRenderSelectLotes();
+      if (typeof cacheCargar === 'function') cacheCargar();
+      if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
+      if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
+      return true;
+    }
+
+    const localesConDatos = (AM_LOTES || []).some(amLotesTieneDatosReales);
+    if (localesConDatos || (AM_LOTES || []).length > 1) {
+      await amGuardarLotesRemotos(true);
+    }
+    return false;
+  } catch (e) {
+    console.warn('Lotes remote load error:', e.message);
+    _amLotesRemoteLoadUid = null;
+    return false;
+  } finally {
+    _amLotesRemoteLoading = false;
+  }
+}
+
+window.amGuardarLotesRemotos = amGuardarLotesRemotos;
+window.amCargarLotesRemotos = amCargarLotesRemotos;
 
 const CALC_KEYS = [
   'am_siembra_fecha', 'am_siembra_cultivo', 'am_siembra_lat', 'am_siembra_lon', 'am_siembra_suelo',
@@ -379,6 +569,18 @@ function cacheGuardar() {
   try {
     const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
     if(!lote) return;
+    const geometry = {
+      superficie: lote.data?.superficie || '',
+      polygon: lote.data?.polygon || null,
+      geojson: lote.data?.geojson || null
+    };
+    const workflowData = {
+      fechaSiembraPlan: lote.data?.fechaSiembraPlan || '',
+      fechaSiembraConf: lote.data?.fechaSiembraConf || '',
+      sembConfig: lote.data?.sembConfig || null,
+      antecesor: lote.data?.antecesor || '',
+      'hub-enso-fase': lote.data?.['hub-enso-fase'] || ''
+    };
     
     lote.data = {
       ts: Date.now(),
@@ -386,6 +588,14 @@ function cacheGuardar() {
       cultivo: document.getElementById('s-cultivo')?.value,
       fecha:   document.getElementById('s-fecha')?.value,
       suelo:   document.getElementById('s-suelo')?.value,
+      superficie: geometry.superficie,
+      polygon: geometry.polygon,
+      geojson: geometry.geojson,
+      fechaSiembraPlan: workflowData.fechaSiembraPlan,
+      fechaSiembraConf: workflowData.fechaSiembraConf,
+      sembConfig: workflowData.sembConfig,
+      antecesor: workflowData.antecesor,
+      'hub-enso-fase': workflowData['hub-enso-fase'],
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,
@@ -445,7 +655,9 @@ function cacheCargar() {
 
     if (datos.coord   && document.getElementById('s-coord'))   document.getElementById('s-coord').value   = datos.coord;
     if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
-    if (datos.fecha   && document.getElementById('s-fecha'))   document.getElementById('s-fecha').value   = datos.fecha;
+    // Priorizar fecha confirmada o planeada del widget de siembra antes que la del form clásico
+    var fechaEfectiva = datos.fechaSiembraConf || datos.fechaSiembraPlan || datos.fecha || '';
+    if (fechaEfectiva && document.getElementById('s-fecha')) document.getElementById('s-fecha').value = fechaEfectiva;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
 
     // ── Restaurar o limpiar claves de localStorage correspondientes a este lote ──
@@ -466,9 +678,9 @@ function cacheCargar() {
     // módulos que lean del Store (o _syncCultivo) reciban el valor correcto.
     if (typeof AM !== 'undefined' && AM.store) {
       var storeUpd = {};
-      if (datos.cultivo)  storeUpd.cultivo      = datos.cultivo;
-      if (datos.fecha)    storeUpd.fecha         = datos.fecha;
-      if (datos.coord)    storeUpd.coordenadas   = datos.coord;
+      if (datos.cultivo)    storeUpd.cultivo    = datos.cultivo;
+      if (fechaEfectiva)    storeUpd.fecha      = fechaEfectiva;
+      if (datos.coord)      storeUpd.coordenadas = datos.coord;
       if (Object.keys(storeUpd).length) AM.store.update(storeUpd);
     }
     // ── Cosecha usa id="cultivo" con valores en minúscula ─
@@ -576,6 +788,8 @@ window.amActualizarBadgesLote = function() {
 // Inicializar global
 document.addEventListener('DOMContentLoaded', () => {
   amCargarLotesGlobales();
+  // Inicializar nueva UX de lotes
+  if (typeof window.dlInit === 'function') window.dlInit();
   setTimeout(() => {
     cacheCargar();
     amActualizarBadgesLote();
@@ -601,6 +815,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amCargarLotesGlobales = amCargarLotesGlobales;
   window.amRenderSelectLotes = amRenderSelectLotes;
   window.amGuardarLotesEstado = amGuardarLotesEstado;
+  window.amGetLoteLimit = amGetLoteLimit;
 
 })();
 

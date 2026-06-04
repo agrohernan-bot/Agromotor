@@ -11,6 +11,7 @@
 // â”€â”€ ORDEN DE PESTAÃ‘AS (Ãºnica fuente de verdad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Coincide con el orden visual del nav en index.html.
 var AM_TAB_ORDER = [
+  'lotes',
   'dashboard','decision','cultivares',
   'siembra','suelo','hidrico',
   'nutricion','rotacion',
@@ -27,6 +28,14 @@ var AM_MODULOS_CARGADOS = {};
 
 function amCargarModulo(archivo, callback) {
   if (AM_MODULOS_CARGADOS[archivo]) {
+    if (callback) callback();
+    return;
+  }
+  var yaExiste = Array.prototype.some.call(document.scripts, function(s) {
+    return s.src && s.src.indexOf('/js/' + archivo) !== -1;
+  });
+  if (yaExiste) {
+    AM_MODULOS_CARGADOS[archivo] = true;
     if (callback) callback();
     return;
   }
@@ -107,7 +116,7 @@ function _activarModulo(mod) {
   // Mostrar/ocultar botÃ³n "Volver al Dashboard"
   var btnVolver = document.getElementById('btn-volver-dash');
   if (btnVolver) {
-    if (mod === 'dashboard') btnVolver.classList.add('hidden');
+    if (mod === 'dashboard' || mod === 'lotes') btnVolver.classList.add('hidden');
     else btnVolver.classList.remove('hidden');
   }
 
@@ -221,6 +230,12 @@ function _activarModulo(mod) {
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
     if (typeof bhActualizar === 'function') bhActualizar();
+    // Auto-cargar ENSO si no fue consultado aún o si los datos tienen más de 1 hora
+    if (typeof consultarENSO === 'function') {
+      var ensoTs = (typeof ENSO_DATA !== 'undefined') ? ENSO_DATA.ts : null;
+      var ensoVencido = !ensoTs || (Date.now() - ensoTs.getTime() > 3600000);
+      if (ensoVencido) consultarENSO();
+    }
     // Gráfico diario automático
     setTimeout(function() { if (typeof window.ghDiarioRender === 'function') window.ghDiarioRender(); }, 500);
   }

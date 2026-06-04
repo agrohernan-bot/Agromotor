@@ -580,11 +580,12 @@ function cvActualizar() {
 
   // Alerta ENSO si está disponible
   let alertaEnso = '';
-  if (ENSO_DATA.fase === 'nina' && cultivo === 'Soja') {
+  const ensoFase = (typeof ENSO_DATA !== 'undefined' && ENSO_DATA && ENSO_DATA.fase) ? ENSO_DATA.fase : '';
+  if (ensoFase === 'nina' && cultivo === 'Soja') {
     alertaEnso = `<div class="alert warn" style="margin-bottom:.8rem"><span class="ai">🌊</span><div class="ac">
       <strong>Año Niña detectado</strong> — Priorizar cultivares con mayor precocidad o genética de tolerancia a sequía (HB4). Los GMs más cortos escapan mejor al déficit hídrico típico de fin de ciclo en años Niña.
     </div></div>`;
-  } else if (ENSO_DATA.fase === 'nino' && cultivo === 'Soja') {
+  } else if (ensoFase === 'nino' && cultivo === 'Soja') {
     alertaEnso = `<div class="alert ok" style="margin-bottom:.8rem"><span class="ai">🌊</span><div class="ac">
       <strong>Año Niño detectado</strong> — Mayor disponibilidad hídrica esperada. Los GMs más tardíos pueden aprovechar mejor la mayor radiación y agua disponible para maximizar rendimiento.
     </div></div>`;

@@ -1,0 +1,392 @@
+/* ════════════════════════════════════════════════════════
+   SCORE DE CULTIVARES (sc-*)
+   Columnas: Cultivo | Score | Rend. | Margen | Acción
+   Criterios en panel ℹ expandible
+   ════════════════════════════════════════════════════════ */
+
+.sc-widget {
+  background: rgba(10,22,14,.6);
+  border: 1px solid rgba(237,224,196,.09);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(6px);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+.sc-header {
+  padding: .85rem 1.1rem .7rem;
+  border-bottom: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+}
+.sc-titulo {
+  font-size: .88rem;
+  font-weight: 700;
+  color: rgba(237,224,196,.85);
+}
+.sc-subtitulo {
+  font-size: .72rem;
+  font-weight: 400;
+  color: rgba(237,224,196,.38);
+  margin-left: .35rem;
+}
+.sc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.sc-chip {
+  background: rgba(237,224,196,.07);
+  color: rgba(237,224,196,.5);
+  border: 1px solid rgba(237,224,196,.1);
+  border-radius: 10px;
+  padding: .18em .6em;
+  font-size: .68rem;
+}
+.sc-chip-warn {
+  background: rgba(212,82,42,.12);
+  color: #E87A5A;
+  border-color: rgba(212,82,42,.25);
+}
+
+/* ── Selector de cultivo antecesor ───────────────────── */
+.sc-antecesor {
+  padding: .65rem 1.1rem .6rem;
+  border-bottom: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.sc-ant-label {
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: rgba(237,224,196,.32);
+}
+.sc-ant-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .28rem;
+}
+.sc-ant-btn {
+  background: rgba(237,224,196,.05);
+  border: 1px solid rgba(237,224,196,.1);
+  color: rgba(237,224,196,.48);
+  border-radius: 8px;
+  padding: .2em .65em;
+  font-size: .72rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  line-height: 1.4;
+}
+.sc-ant-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.8);
+  border-color: rgba(237,224,196,.22);
+}
+.sc-ant-btn-activo {
+  background: rgba(200,162,85,.14);
+  border-color: rgba(200,162,85,.3);
+  color: #C8A255;
+  font-weight: 700;
+}
+
+/* ── Tabla ─────────────────────────────────────────────── */
+.sc-tabla { overflow-x: auto; }
+
+.sc-tabla-head {
+  display: grid;
+  grid-template-columns: 1.6fr .55fr .55fr .75fr auto;
+  gap: .25rem;
+  padding: .4rem 1.1rem;
+  background: rgba(237,224,196,.04);
+  border-bottom: 1px solid rgba(237,224,196,.06);
+  font-size: .6rem;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: rgba(237,224,196,.3);
+}
+
+.sc-row-wrap { border-bottom: 1px solid rgba(237,224,196,.05); }
+.sc-row-wrap:last-child { border-bottom: none; }
+
+.sc-row {
+  display: grid;
+  grid-template-columns: 1.6fr .55fr .55fr .75fr auto;
+  gap: .25rem;
+  align-items: center;
+  padding: .55rem 1.1rem;
+  transition: background .15s;
+}
+.sc-row:hover { background: rgba(237,224,196,.04); }
+.sc-row-activa { background: rgba(109,191,130,.07) !important; }
+.sc-row-top    { background: rgba(109,191,130,.04); }
+
+/* ── Columna cultivo ──────────────────────────────────── */
+.sc-cultivo {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+}
+.sc-emoji  { font-size: 1rem; line-height: 1; flex-shrink: 0; }
+.sc-nombre { font-size: .85rem; font-weight: 600; color: rgba(237,224,196,.8); }
+.sc-activo-badge {
+  font-size: .58rem;
+  background: rgba(109,191,130,.15);
+  color: #6DBF82;
+  border: 1px solid rgba(109,191,130,.25);
+  border-radius: 6px;
+  padding: .05em .4em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.sc-top-badge {
+  font-size: .58rem;
+  background: rgba(200,162,85,.15);
+  color: #C8A255;
+  border: 1px solid rgba(200,162,85,.25);
+  border-radius: 6px;
+  padding: .05em .4em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+/* ── Botón info ───────────────────────────────────────── */
+.sc-info-btn {
+  background: none;
+  border: 1px solid rgba(237,224,196,.16);
+  color: rgba(237,224,196,.38);
+  border-radius: 50%;
+  width: 17px;
+  height: 17px;
+  font-size: .6rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: all .15s;
+  line-height: 1;
+}
+.sc-info-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.8);
+  border-color: rgba(237,224,196,.35);
+}
+
+/* ── Columna Score ───────────────────────────────────── */
+.sc-col-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .2rem;
+}
+.sc-total {
+  font-family: 'DM Mono', monospace;
+  font-size: .9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1;
+}
+.sc-score-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(237,224,196,.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sc-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+/* ── Columnas económicas ─────────────────────────────── */
+.sc-col-rend,
+.sc-col-margen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: .05rem;
+}
+.sc-eco-val {
+  font-family: 'DM Mono', monospace;
+  font-size: .78rem;
+  font-weight: 700;
+  color: rgba(237,224,196,.75);
+  white-space: nowrap;
+}
+.sc-eco-unit {
+  font-size: .58rem;
+  color: rgba(237,224,196,.3);
+  white-space: nowrap;
+}
+.sc-eco-nd {
+  font-size: .75rem;
+  color: rgba(237,224,196,.2);
+}
+
+/* ── Columna acción ───────────────────────────────────── */
+.sc-col-accion {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 44px;
+}
+.sc-btn-sel {
+  background: rgba(109,191,130,.12);
+  border: 1px solid rgba(109,191,130,.25);
+  color: #6DBF82;
+  border-radius: 8px;
+  padding: .28rem .55rem;
+  font-size: .68rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.sc-btn-sel:hover {
+  background: rgba(109,191,130,.22);
+  border-color: rgba(109,191,130,.45);
+}
+.sc-sel-actual {
+  font-size: .9rem;
+  color: #6DBF82;
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Panel de detalle ℹ ──────────────────────────────── */
+.sc-info-panel {
+  padding: .5rem 1.1rem .65rem;
+  background: rgba(0,0,0,.18);
+  border-top: 1px solid rgba(237,224,196,.05);
+}
+.sc-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .45rem .8rem;
+}
+.sc-info-kv   { display: flex; flex-direction: column; gap: .08rem; }
+.sc-info-k    { font-size: .6rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: rgba(237,224,196,.3); }
+.sc-info-v    { font-size: .73rem; color: rgba(237,224,196,.68); line-height: 1.35; }
+
+/* ── Banner datos pendientes ─────────────────────────── */
+.sc-pendiente {
+  padding: .55rem 1.1rem;
+  border-bottom: 1px solid rgba(237,224,196,.06);
+  background: rgba(212,82,42,.06);
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+.sc-pendiente-titulo {
+  font-size: .63rem;
+  font-weight: 700;
+  color: rgba(232,122,90,.75);
+  letter-spacing: .03em;
+}
+.sc-pendiente-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  background: rgba(212,82,42,.08);
+  border: 1px solid rgba(212,82,42,.2);
+  color: #E87A5A;
+  border-radius: 8px;
+  padding: .3rem .75rem;
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all .15s;
+  width: 100%;
+}
+.sc-pendiente-btn:hover {
+  background: rgba(212,82,42,.16);
+  border-color: rgba(212,82,42,.4);
+}
+.sc-pendiente-pts {
+  font-size: .62rem;
+  font-weight: 400;
+  color: rgba(232,122,90,.55);
+  white-space: nowrap;
+}
+
+/* ── Nota metodológica ────────────────────────────────── */
+.sc-nota {
+  padding: .55rem 1.1rem;
+  font-size: .62rem;
+  color: rgba(237,224,196,.2);
+  font-style: italic;
+  line-height: 1.4;
+  border-top: 1px solid rgba(237,224,196,.05);
+}
+
+/* ── CTA inferior ─────────────────────────────────────── */
+.sc-cta {
+  padding: .7rem 1.1rem .85rem;
+  border-top: 1px solid rgba(237,224,196,.07);
+  display: flex;
+  flex-direction: column;
+  gap: .55rem;
+}
+.sc-cta-nav { display: flex; gap: .5rem; flex-wrap: wrap; }
+.sc-cta-nav-btn {
+  background: rgba(237,224,196,.05);
+  border: 1px solid rgba(237,224,196,.1);
+  color: rgba(237,224,196,.45);
+  border-radius: 8px;
+  padding: .3rem .75rem;
+  font-size: .74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all .15s;
+}
+.sc-cta-nav-btn:hover {
+  background: rgba(237,224,196,.1);
+  color: rgba(237,224,196,.85);
+  border-color: rgba(237,224,196,.22);
+}
+.sc-btn-cultivares {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: rgba(109,191,130,.08);
+  border: 1px solid rgba(109,191,130,.2);
+  color: #6DBF82;
+  border-radius: 10px;
+  padding: .6rem 1rem;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: all .2s;
+}
+.sc-btn-cultivares:hover {
+  background: rgba(109,191,130,.15);
+  border-color: rgba(109,191,130,.35);
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 480px) {
+  .sc-tabla-head,
+  .sc-row { grid-template-columns: 1.5fr .5fr .6fr .7fr auto; }
+  .sc-info-grid { grid-template-columns: 1fr; }
+}

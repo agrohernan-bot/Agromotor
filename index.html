@@ -641,9 +641,7 @@
       <a href="#modulos">Módulos</a>
       <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
       <a href="#planes" style="display:none">Planes</a>
-      <a href="app.html?signup=1" class="nav-cta" style="display:none">Probar gratis →</a>
-      <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios y eliminar este botón temporal -->
-      <a href="app.html" class="nav-cta">Ingresar →</a>
+      <a href="app.html?signup=1" class="nav-cta">Crear cuenta →</a>
     </nav>
   </div>
 </header>
@@ -660,14 +658,25 @@
       Selección de ambientes y cultivares, planificación nutricional, evaluación climática
       y análisis económico — todo el ciclo profesional resuelto desde una sola plataforma.
     </p>
-    <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
-    <div class="hero-ctas" style="display:none">
-      <a href="app.html?signup=1" class="btn-primary">🚀 Probar gratis hasta agosto</a>
-      <a href="#planes" class="btn-secondary">Ver planes</a>
-    </div>
-    <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios y eliminar este botón temporal -->
-    <div class="hero-ctas">
-      <a href="app.html" class="btn-primary">🚀 Ingresar a la herramienta</a>
+    <!-- Formulario de acceso directo -->
+    <div style="margin-top:1.6rem;background:rgba(15,31,20,.7);border:1px solid rgba(200,162,85,.25);border-radius:14px;padding:1.2rem 1.25rem">
+      <div id="hl-err" style="display:none;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.35);color:#fca5a5;border-radius:8px;padding:.5rem .75rem;font-size:.8rem;margin-bottom:.75rem"></div>
+      <div style="display:flex;flex-direction:column;gap:.6rem">
+        <input id="hl-email" type="email" placeholder="tu@email.com" autocomplete="email"
+          style="background:rgba(255,255,255,.07);border:1px solid rgba(200,162,85,.25);border-radius:9px;padding:.65rem .9rem;color:var(--straw);font-size:.9rem;font-family:inherit;outline:none;width:100%"
+          onkeydown="if(event.key==='Enter')hlLogin()">
+        <input id="hl-pass" type="password" placeholder="Contraseña" autocomplete="current-password"
+          style="background:rgba(255,255,255,.07);border:1px solid rgba(200,162,85,.25);border-radius:9px;padding:.65rem .9rem;color:var(--straw);font-size:.9rem;font-family:inherit;outline:none;width:100%"
+          onkeydown="if(event.key==='Enter')hlLogin()">
+        <button id="hl-btn" onclick="hlLogin()"
+          style="background:linear-gradient(135deg,var(--canopy),var(--leaf));color:white;border:none;border-radius:9px;padding:.7rem;font-size:.92rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(58,122,74,.35)">
+          Entrar →
+        </button>
+      </div>
+      <div style="margin-top:.75rem;display:flex;justify-content:space-between;font-size:.75rem;flex-wrap:wrap;gap:.3rem">
+        <a href="app.html?signup=1" style="color:var(--sprout);text-decoration:none">¿Primera vez? Crear cuenta gratis</a>
+        <a href="app.html?recovery=1" style="color:rgba(237,224,196,.4);text-decoration:none">Olvidé mi contraseña</a>
+      </div>
     </div>
     <div class="hero-trust">
       <span>🛰️ Datos satelitales en tiempo real</span>
@@ -936,9 +945,8 @@
 <!-- ════════ CTA FINAL ════════ -->
 <section class="cta-final">
   <h2>Decisiones con <em>respaldo técnico</em>, todo el ciclo.</h2>
-  <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
-  <p style="display:none">Acceso gratuito hasta el 1 de agosto de 2026. Sin tarjeta de crédito al registrarte. Luego deberás elegir un plan para continuar.</p>
-  <a href="app.html?signup=1&plan=pro" class="btn-primary" style="display:none">🚀 Crear cuenta profesional →</a>
+  <p>Acceso gratuito hasta el 1 de agosto de 2026. Sin tarjeta al registrarte.</p>
+  <a href="app.html?signup=1" class="btn-primary">🚀 Crear cuenta gratuita →</a>
 </section>
 
 <!-- ════════ FOOTER ════════ -->
@@ -982,5 +990,44 @@
 </footer>
 
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  var SB = supabase.createClient(
+    'https://xsbaqlqztppdpdcjgazz.supabase.co',
+    'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK'
+  );
+
+  // Si ya tiene sesión, ir directo a la app
+  SB.auth.getSession().then(function (res) {
+    if (res.data && res.data.session) window.location.replace('app.html');
+  });
+
+  window.hlLogin = async function () {
+    var email = document.getElementById('hl-email').value.trim();
+    var pass  = document.getElementById('hl-pass').value;
+    var err   = document.getElementById('hl-err');
+    var btn   = document.getElementById('hl-btn');
+    err.style.display = 'none';
+    if (!email || !pass) {
+      err.textContent = 'Ingresá tu email y contraseña.';
+      err.style.display = 'block';
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = 'Ingresando...';
+    var result = await SB.auth.signInWithPassword({ email: email, password: pass });
+    if (result.error) {
+      err.textContent = 'Email o contraseña incorrectos.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Entrar →';
+    } else {
+      window.location.href = 'app.html';
+    }
+  };
+})();
+</script>
 </body>
 </html>

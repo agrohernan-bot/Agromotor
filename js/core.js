@@ -69,7 +69,7 @@ const DB={
     monumentalAd8300:{a:8.3,t:[{n:'Semilla',v:3250},{n:'Fertilizante',v:3250}],f:'Monumental AD-8300. Air Drill compacta. Ancho 8,30 m. Fino 17,5 cm; gruesos 35 y 52 cm. Tolva 6.500 L compartimentada 50/50. Sistema de carga en carretón vial sin desarmar.'},
     monumentalAd12000:{a:11.5,t:[{n:'Semilla',v:6380},{n:'Fertilizante',v:5220},{n:'Tercera tolva opcional',v:1400}],f:'Monumental AD-10000/AD-12000. Air Drill multipropósito. Anchos 9,80 y 11,50 m. Fino 17,5/19/21/26 cm; gruesos 35/38/42/52/70 cm. 11.600 L 55/45, con opción de 3ra tolva de 1.400 L para 13.000 L.'},
     monumentalAd16000:{a:16,t:[{n:'Compartimento 1',v:8000},{n:'Compartimento 2',v:8000}],f:'Monumental AD-16000. Air Drill de dimensiones masivas. Ancho 16 m. Fino 17,5/19/21/26 cm; gruesos 42/52/70 cm. Carro tolva 16.000 L dividido en dos compartimentos o versiones compactas de 13.500 L.'},
-    custom:{a:9.0,t:[{n:'T1',v:4000},{n:'T2',v:2000}],f:'Máquina personalizada. Ajustá ancho y tolvas manualmente.'},
+    custom:{a:7.0,t:[{n:'T1',v:4000},{n:'T2',v:2000}],f:'Promedio nacional de 7 m. Ajustá ancho y tolvas manualmente si tu equipo difiere.'},
   },
   prods:{Soja:0.75,Maíz:0.72,Trigo:0.78,Girasol:0.42,Sorgo:0.70,Urea:0.75,MAP:1.0,'Microgranulado Zn':0.95,Vacío:0},
   dosis:{Soja:80,Maíz:20,Trigo:120,Girasol:4,Sorgo:6,Urea:100,MAP:150,'Microgranulado Zn':20,Vacío:0},

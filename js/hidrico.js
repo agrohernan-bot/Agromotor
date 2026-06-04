@@ -116,6 +116,18 @@
       const _factorMap = { nino: 0.18, neutro: 0, nina: -0.18 };
       localStorage.setItem('am_enso_fase',   window.ENSO_DATA.fase);
       localStorage.setItem('am_enso_factor', String(_factorMap[window.ENSO_DATA.fase] ?? 0));
+
+      // Sincronizar ENSO con lote activo (el score lo lee de calcKeys y hub-enso-fase)
+      if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
+        var loteEnsoHid = AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; });
+        if (loteEnsoHid) {
+          loteEnsoHid.data = loteEnsoHid.data || {};
+          loteEnsoHid.data.calcKeys = loteEnsoHid.data.calcKeys || {};
+          loteEnsoHid.data.calcKeys['am_enso_fase'] = window.ENSO_DATA.fase;
+          loteEnsoHid.data['hub-enso-fase'] = window.ENSO_DATA.label;
+          if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+        }
+      }
     } catch (_) {}
 
     renderENSO();
@@ -372,11 +384,36 @@
       etapas:        [],
     };
     localStorage.setItem("am_hidrico_agua_actual_mm",  String(Math.round(aguaFinalMm)));
+    localStorage.setItem("am_hidrico_cap_max_mm",      String(capMax));
     localStorage.setItem("am_hidrico_deficit_acum_mm", String(Math.round(deficit)));
     localStorage.setItem("am_hidrico_dias_estres",     String(diasEst));
     localStorage.setItem("am_hidrico_dias_et_crit",    String(diasEst));
     localStorage.setItem("am_hidrico_etc_total",       String(Math.round(etcUsar)));
     localStorage.setItem("am_hidrico_ultimo",          JSON.stringify(hidricoObj));
+    localStorage.setItem("am_enso_fase",               ensoFase);
+
+    // Sincronizar resultado con el lote activo en memoria (score lo lee de calcKeys)
+    if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
+      var loteHid = AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; });
+      if (loteHid) {
+        loteHid.data = loteHid.data || {};
+        loteHid.data.calcKeys = loteHid.data.calcKeys || {};
+        loteHid.data.calcKeys['am_hidrico_agua_actual_mm']  = String(Math.round(aguaFinalMm));
+        loteHid.data.calcKeys['am_hidrico_cap_max_mm']      = String(capMax);
+        loteHid.data.calcKeys['am_hidrico_deficit_acum_mm'] = String(Math.round(deficit));
+        loteHid.data.calcKeys['am_hidrico_dias_estres']     = String(diasEst);
+        loteHid.data.calcKeys['am_enso_fase']               = ensoFase;
+        if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+
+        // Feedback visual: mostrar indicador de guardado
+        const statusEl = document.getElementById('bh-score-status');
+        if (statusEl) {
+          statusEl.style.display = 'block';
+          clearTimeout(statusEl._hideTimer);
+          statusEl._hideTimer = setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
+        }
+      }
+    }
   } catch (_) {}
 }
 
