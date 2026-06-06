@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v122';
+const CACHE_NAME    = 'agromotor-v123';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -13,6 +13,10 @@ const ASSETS_LOCAL = [
   './',
   './index.html',
   './app.html',
+  './favicon.svg',
+  './favicon-48.png',
+  './favicon-96.png',
+  './apple-touch-icon.png',
   './css/agromotor.css',
   './css/cosecha.css',
   './css/dashboard.css',
