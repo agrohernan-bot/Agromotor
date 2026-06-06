@@ -157,11 +157,13 @@
 #sv-map { flex: 1; }
 
 .sv-legend-box {
+  display: none;
   position: absolute; bottom: 125px; right: 10px;
   background: rgba(255,255,255,.96); border-radius: 8px;
   padding: 10px 12px; box-shadow: 0 2px 8px rgba(0,0,0,.15);
   z-index: 1000; font-size: 11px; min-width: 168px;
 }
+.sv-legend-box.show { display: block; }
 .sv-legend-title { font-weight: 700; font-size: 12px; color: var(--sv-gd); margin-bottom: 7px; }
 .sv-li { display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
 .sv-li-sq { width: 15px; height: 9px; border-radius: 2px; flex-shrink: 0; }
@@ -196,11 +198,16 @@
   /* Mapa arriba, altura fija */
   .sv-map-area {
     order: -1;
-    height: 45vh;
-    min-height: 220px;
+    height: 74vh;
+    min-height: 590px;
+    max-height: 760px;
     flex-shrink: 0;
   }
-  #sv-map { height: 100%; }
+  #sv-map {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 420px;
+  }
 
   /* Sidebar debajo del mapa, ancho completo */
   .sv-sidebar {
@@ -213,9 +220,42 @@
 
   /* Leyenda: reubicada arriba-derecha para no tapar controles */
   .sv-legend-box {
+    position: static;
+    right: auto;
     bottom: auto;
-    top: 8px;
-    right: 8px;
+    top: auto;
+    z-index: 1;
+    width: 100%;
+    min-width: 0;
+    max-height: 104px;
+    overflow-y: auto;
+    border-radius: 0;
+    border-top: 1px solid var(--sv-bdr);
+    border-bottom: 1px solid var(--sv-bdr);
+    box-shadow: none;
+    padding: 7px 12px;
+    background: #fff;
+  }
+  .sv-legend-box.show {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 10px;
+    row-gap: 3px;
+  }
+  .sv-legend-title {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    margin-bottom: 1px;
+  }
+  .sv-li {
+    gap: 5px;
+    margin-bottom: 0;
+    font-size: 10px;
+    line-height: 1.25;
+  }
+  .sv-li-sq {
+    width: 12px;
+    height: 8px;
   }
 
   /* Panel de prescripción y exportar: ancho completo */
@@ -225,6 +265,6 @@
   }
 
   /* Chart más compacto en mobile */
-  .sv-chart-panel { height: auto; max-height: none; }
-  #sv-ndvi-chart { max-height: 60px !important; }
+  .sv-chart-panel { height: 96px; max-height: 96px; padding: 7px 12px; }
+  #sv-ndvi-chart { max-height: 58px !important; }
 }

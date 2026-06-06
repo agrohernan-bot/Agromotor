@@ -379,6 +379,7 @@
     svNdviLayer = svZonaLayer = svYieldLayer = null;
     ['lote-info', 'ndvi-result', 'zona-result', 'chart-panel', 'legend', 'panel-prescripcion', 'panel-exportar'].forEach(function (id) {
       var e = el(id); if (e) e.style.display = 'none';
+      if (id === 'legend' && e) e.classList.remove('show');
     });
     el('lote-empty').style.display = 'block';
     el('btn-analizar').disabled = true;
@@ -759,14 +760,18 @@
         var labels = ['Alto · >0.75', 'Bueno · 0.65–0.75', 'Moderado · 0.55–0.65', 'Bajo · 0.45–0.55', 'Muy bajo · 0.30–0.45', 'Crítico · <0.30'];
         return '<div class="sv-li"><span class="sv-li-sq" style="background:' + c + '"></span>' + labels[i] + '</div>';
       }).join('');
-    el('legend').style.display = 'block';
+    el('legend').classList.add('show');
+    el('legend').style.display = '';
+    setTimeout(function () { if (svMap) svMap.invalidateSize(); }, 50);
   }
   function actualizarLeyendaZonas(k, centroids) {
     el('legend').innerHTML = '<div class="sv-legend-title">Zonas de manejo</div>' +
       Array.from({ length: k }, function (_, i) {
         return '<div class="sv-li"><span class="sv-li-sq" style="background:' + ZONE_COLORS[i] + '"></span>' + ZONE_NAMES[i] + ' · score ' + centroids[i].toFixed(3) + '</div>';
       }).join('');
-    el('legend').style.display = 'block';
+    el('legend').classList.add('show');
+    el('legend').style.display = '';
+    setTimeout(function () { if (svMap) svMap.invalidateSize(); }, 50);
   }
   function statsZonas(zd) {
     var tot = zd.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
