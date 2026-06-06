@@ -303,8 +303,9 @@
     var ck = d.calcKeys || {};
 
     var coord      = d.coord   || '';
-    var fechaStr   = d.fechaSiembraConf || d.fechaSiembraPlan || d.fecha || ck['am_siembra_fecha'] || '';
-    var cultivoAct = d.cultivo || ck['am_siembra_cultivo']         || '';
+    var planGrupo  = leerPlanGrupo(d, grupo);
+    var fechaStr   = planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan || d.fecha || '';
+    var cultivoAct = planGrupo.cultivo || '';
     var aguaMm     = parseFloat(ck['am_hidrico_agua_actual_mm'])   || 0;
     var aguaCC     = parseFloat(ck['am_hidrico_cap_max_mm'])       || 0;
     // ENSO: prioridad calcKeys (módulo ENSO), luego dato guardado desde hub
@@ -447,7 +448,7 @@
       if (esActivo) {
         html += '<span class="sc-sel-actual">✓</span>';
       } else {
-        html += '<button class="sc-btn-sel" onclick="window.dlSeleccionarCultivo(\'' + c.key + '\',\'' + esc(lote.id) + '\')">Usar</button>';
+        html += '<button class="sc-btn-sel" onclick="window.dlSeleccionarCultivo(\'' + c.key + '\',\'' + esc(lote.id) + '\',\'' + esc(grupo || '') + '\')">Usar</button>';
       }
       html += '</div>';
 
@@ -491,6 +492,38 @@
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  function normalizarCultivo(cultivo) {
+    var key = String(cultivo || '').toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/ÃƒÂ¡|Ã¡/g, 'a').replace(/ÃƒÂ©|Ã©/g, 'e')
+      .replace(/ÃƒÂ­|Ã­/g, 'i').replace(/ÃƒÂ³|Ã³/g, 'o')
+      .replace(/ÃƒÂº|Ãº/g, 'u').replace(/Ã±|ÃƒÂ±/g, 'n');
+    if (/^ma.z$/.test(key)) key = 'maiz';
+    return key;
+  }
+
+  function cultivoEnGrupo(cultivo, grupo) {
+    if (!grupo || !cultivo) return false;
+    var permitidos = grupo === 'invierno'
+      ? ['trigo', 'cebada', 'colza']
+      : grupo === 'verano'
+        ? ['soja', 'maiz', 'girasol', 'sorgo']
+        : [];
+    return permitidos.indexOf(normalizarCultivo(cultivo)) >= 0;
+  }
+
+  function leerPlanGrupo(d, grupo) {
+    d = d || {};
+    var plan = (d.planificacionSiembra && d.planificacionSiembra[grupo]) || {};
+    var legacy = grupo === 'verano' ? d.cultivoPlanVerano : grupo === 'invierno' ? d.cultivoPlanInvierno : '';
+    var legacyActivoValido = cultivoEnGrupo(d.cultivo, grupo);
+    return {
+      cultivo: plan.cultivo || legacy || (legacyActivoValido ? d.cultivo : ''),
+      fechaSiembraPlan: plan.fechaSiembraPlan || (legacyActivoValido ? d.fechaSiembraPlan : ''),
+      fechaSiembraConf: plan.fechaSiembraConf || (legacyActivoValido ? d.fechaSiembraConf : '')
+    };
+  }
+
   // ── Helpers internos ──────────────────────────────────
 
   function _reabrirSeccion() {
@@ -516,19 +549,28 @@
     _reabrirSeccion();
   };
 
-  window.dlSeleccionarCultivo = function (cultivo, loteId) {
+  function grupoActualFallback() {
+    var sec = (typeof window.dlGetSeccionAbierta === 'function') ? window.dlGetSeccionAbierta() : '';
+    if (sec === 'plangruesa') return 'verano';
+    if (sec === 'planfina') return 'invierno';
+    return '';
+  }
+
+  window.dlSeleccionarCultivo = function (cultivo, loteId, grupo) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
     if (!lote) return;
     lote.data = lote.data || {};
-    lote.data.cultivo = cultivo;
+    var g = grupo || grupoActualFallback();
+    if (g) {
+      lote.data.planificacionSiembra = lote.data.planificacionSiembra || {};
+      lote.data.planificacionSiembra[g] = lote.data.planificacionSiembra[g] || {};
+      lote.data.planificacionSiembra[g].cultivo = cultivo;
+    } else {
+      lote.data.cultivoPlanificacion = cultivo;
+    }
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     if (typeof amRenderSelectLotes  === 'function') amRenderSelectLotes();
-    var sSelect = document.getElementById('s-cultivo');
-    if (sSelect) {
-      sSelect.value = cultivo;
-      sSelect.dispatchEvent(new Event('change'));
-    }
-    if (typeof amToast === 'function') amToast(cultivo + ' seleccionado ✓', 'ok');
+    if (typeof amToast === 'function') amToast(cultivo + ' seleccionado para planificar', 'ok');
     _reabrirSeccion();
   };
 

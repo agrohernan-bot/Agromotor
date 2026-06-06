@@ -68,6 +68,8 @@
   // ── Ajuste días lluvia por ENSO y época ──────────────
   // Pampa argentina: promedio días/mes con lluvia > 5mm
   // Finos (abr-ago), gruesos (sep-feb)
+  VENTANAS.Maiz = VENTANAS.Maiz || VENTANAS['Maíz'] || VENTANAS['MaÃ­z'];
+
   var LLUVIA_DIAS_MES = {
     invierno: { nino: 5.4, neutro: 3.6, nina: 2.4 },
     verano:   { nino: 9.0, neutro: 6.0, nina: 3.6 },
@@ -345,36 +347,46 @@
       .replace(/Ã¡|á/g, 'a').replace(/Ã©|é/g, 'e')
       .replace(/Ã­|í/g, 'i').replace(/Ã³|ó/g, 'o')
       .replace(/Ãº|ú/g, 'u').replace(/ñ|Ã±/g, 'n');
+    if (/^ma.z$/.test(key)) key = 'maiz';
     return permitidos.indexOf(key) >= 0;
   }
 
-  function renderPendienteCultivo(lote, grupo, cultivoActual) {
+  function leerPlanGrupo(d, grupo) {
+    d = d || {};
+    var plan = (d.planificacionSiembra && d.planificacionSiembra[grupo]) || {};
+    var legacyCultivo = grupo === 'verano' ? d.cultivoPlanVerano : grupo === 'invierno' ? d.cultivoPlanInvierno : '';
+    var legacyActivoValido = cultivoEnGrupo(d.cultivo, grupo);
+    return {
+      cultivo: plan.cultivo || legacyCultivo || (legacyActivoValido ? d.cultivo : ''),
+      fechaSiembraPlan: plan.fechaSiembraPlan || (legacyActivoValido ? d.fechaSiembraPlan : ''),
+      fechaSiembraConf: plan.fechaSiembraConf || (legacyActivoValido ? d.fechaSiembraConf : ''),
+      sembConfig: plan.sembConfig || d.sembConfig || {}
+    };
+  }
+
+  function renderPendienteCultivo(lote, grupo) {
     var loteId = esc(lote.id);
     var grupoTxt = GRUPO_LABEL[grupo] || 'un cultivo del score';
-    var motivo = cultivoActual
-      ? 'El cultivo activo del lote es ' + esc(cultivoActual) + ', que no corresponde a esta secciÃ³n.'
-      : 'TodavÃ­a no hay cultivo activo para este lote.';
     var html = '<div class="sp-widget sp-widget-empty">';
     html += '<div class="sp-header">';
-    html +=   '<span class="sp-titulo">ðŸ“… Operativa de siembra</span>';
-    html +=   '<span class="sp-zona-chip">Pendiente de cultivo</span>';
+    html +=   '<span class="sp-titulo">Operativa de siembra</span>';
+    html +=   '<span class="sp-zona-chip">Pendiente de planificacion</span>';
     html += '</div>';
     html += '<div class="sp-empty-body">';
-    html +=   '<div class="sp-empty-title">ElegÃ­ un cultivo del score para activar la operativa</div>';
-    html +=   '<div class="sp-empty-text">' + motivo + ' En esta planificaciÃ³n corresponde usar ' + esc(grupoTxt) + '.</div>';
+    html +=   '<div class="sp-empty-title">Elegi un cultivo para esta planificacion</div>';
+    html +=   '<div class="sp-empty-text">El cultivo activo del lote pertenece al monitoreo de la campana actual y no condiciona esta planificacion. Para activar la operativa, elegi ' + esc(grupoTxt) + ' en el score.</div>';
     html +=   '<div class="sp-empty-actions">';
     html +=     '<button class="sp-btn-maquinaria sp-btn-score" onclick="window.spScrollScore()">';
-    html +=       '<span>Volver al score y tocar Usar</span><span>â†‘</span>';
+    html +=       '<span>Volver al score y tocar Usar</span><span>↑</span>';
     html +=     '</button>';
     html +=     '<button class="sp-btn-maquinaria" onclick="window.dlAbrirLote(\'' + loteId + '\')">';
-    html +=       '<span>Volver al hub del lote</span><span>â†’</span>';
+    html +=       '<span>Volver al hub del lote</span><span>→</span>';
     html +=     '</button>';
     html +=   '</div>';
     html += '</div>';
     html += '</div>';
     return html;
   }
-
   function _reabrirSeccion() {
     if (typeof window.dlAbrirSeccion !== 'function') return;
     var sec = (typeof window.dlGetSeccionAbierta === 'function') ? window.dlGetSeccionAbierta() : null;
@@ -384,7 +396,8 @@
   window.spRender = function (lote, grupo) {
     var d       = lote.data || {};
     var ck      = d.calcKeys || {};
-    var cultivo = d.cultivo  || ck['am_siembra_cultivo'] || '';
+    var plan    = leerPlanGrupo(d, grupo);
+    var cultivo = plan.cultivo || '';
     var coord   = d.coord    || '';
     var sup     = parseFloat(d.superficie) || 0;
     var lat     = coord ? coord.split(',')[0] : null;
@@ -392,7 +405,7 @@
     var loteId  = esc(lote.id);
 
     if (!cultivo || !cultivoEnGrupo(cultivo, grupo)) {
-      return renderPendienteCultivo(lote, grupo, cultivo);
+      return renderPendienteCultivo(lote, grupo);
     }
 
     // Zona agronómica
@@ -415,11 +428,14 @@
       ? ({ pampeana_norte:'Pamp. Norte', pampeana_sur:'Pamp. Sur', semiarida:'Semiárida', nea:'NEA', noa:'NOA' }[zona] || zona)
       : 'zona desconocida';
 
-    var ventanas = zona && VENTANAS[cultivo] ? VENTANAS[cultivo][zona] : null;
+    var cultivoNorm = String(cultivo || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    if (/^ma.z$/.test(cultivoNorm)) cultivoNorm = 'maiz';
+    var cultivoKey = cultivoNorm === 'maiz' ? 'Maiz' : cultivo;
+    var ventanas = zona && VENTANAS[cultivoKey] ? VENTANAS[cultivoKey][zona] : null;
 
     // Sembradora
     var sem   = leerSembradora();
-    var cfg   = d.sembConfig || {};
+    var cfg   = plan.sembConfig || {};
     var ancho = cfg.ancho || sem.ancho;
     var vel   = cfg.vel   || DEFAULT_VEL;
     var efic  = cfg.efic  || DEFAULT_EFIC;
@@ -433,8 +449,8 @@
     var factLluvia = lluviaOp.factor;
 
     // Fecha planeada
-    var fechaISO = d.fechaSiembraPlan || '';
-    var fechaConf = d.fechaSiembraConf || '';
+    var fechaISO = plan.fechaSiembraPlan || '';
+    var fechaConf = plan.fechaSiembraConf || '';
     var estaConf  = !!(fechaConf);
 
     // Calcular duración de siembra para cada N
@@ -463,8 +479,8 @@
       : { label: 'Ingresá una fecha', clase: 'sp-badge-nd' };
 
     // Cultivo emoji
-    var emojiMap = { Trigo:'🌾', Cebada:'🌾', Colza:'🟡', Soja:'🌱', 'Maíz':'🌽', Girasol:'🌻', Sorgo:'🌾' };
-    var emoji = emojiMap[cultivo] || '🌾';
+    var emojiMap = { Trigo:'🌾', Cebada:'🌾', Colza:'🟡', Soja:'🌱', Maiz:'🌽', 'Maíz':'🌽', Girasol:'🌻', Sorgo:'🌾' };
+    var emoji = emojiMap[cultivoKey] || emojiMap[cultivo] || '🌾';
 
     // ── Armar HTML ────────────────────────────────────────
     var html = '<div class="sp-widget">';
@@ -481,9 +497,9 @@
     html +=   '<div class="sp-sec-label">Fecha planeada de siembra</div>';
     html +=   '<div class="sp-fecha-row">';
     html +=     '<input type="date" class="sp-fecha-input" value="' + esc(fechaISO) + '"';
-    html +=       ' onchange="window.spSetFechaPlan(this.value,\'' + loteId + '\')">';
+    html +=       ' onchange="window.spSetFechaPlan(this.value,\'' + loteId + '\',\'' + esc(grupo || '') + '\')">';
     html +=     '<button class="sp-confirmar-btn' + (estaConf ? ' sp-conf-activo' : '') + '"';
-    html +=       ' onclick="window.spConfirmarFecha(\'' + loteId + '\')"';
+    html +=       ' onclick="window.spConfirmarFecha(\'' + loteId + '\',\'' + esc(grupo || '') + '\')"';
     html +=       ' title="' + (estaConf ? 'Ya confirmada — clic para desmarcar' : 'Confirmar como fecha real de siembra') + '">';
     html +=       estaConf ? '✓ Confirmada' : '○ Confirmar';
     html +=     '</button>';
@@ -522,7 +538,7 @@
     html +=   '<div class="sp-nsemb-btns">';
     [1, 2, 3].forEach(function (n) {
       html += '<button class="sp-nsemb-btn' + (n === nMaq ? ' sp-nsemb-activo' : '') + '"';
-      html +=   ' onclick="window.spSetNSembradoras(' + n + ',\'' + loteId + '\')">&times;' + n + '</button>';
+      html +=   ' onclick="window.spSetNSembradoras(' + n + ',\'' + loteId + '\',\'' + esc(grupo || '') + '\')">&times;' + n + '</button>';
     });
     html +=   '</div>';
     if (faseCode) {
@@ -597,39 +613,54 @@
 
   // ── Acciones globales ─────────────────────────────────
 
-  window.spSetFechaPlan = function (fechaISO, loteId) {
+  function grupoActualFallback() {
+    var sec = (typeof window.dlGetSeccionAbierta === 'function') ? window.dlGetSeccionAbierta() : '';
+    if (sec === 'plangruesa') return 'verano';
+    if (sec === 'planfina') return 'invierno';
+    return '';
+  }
+
+  function planGrupoMutable(lote, grupo) {
+    lote.data = lote.data || {};
+    var g = grupo || grupoActualFallback();
+    if (!g) return lote.data;
+    lote.data.planificacionSiembra = lote.data.planificacionSiembra || {};
+    lote.data.planificacionSiembra[g] = lote.data.planificacionSiembra[g] || {};
+    return lote.data.planificacionSiembra[g];
+  }
+
+  window.spSetFechaPlan = function (fechaISO, loteId, grupo) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
     if (!lote) return;
-    lote.data = lote.data || {};
-    lote.data.fechaSiembraPlan = fechaISO;
-    lote.data.fechaSiembraConf = ''; // reset confirmación si cambia la fecha
+    var plan = planGrupoMutable(lote, grupo);
+    plan.fechaSiembraPlan = fechaISO;
+    plan.fechaSiembraConf = '';
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     _reabrirSeccion();
   };
 
-  window.spConfirmarFecha = function (loteId) {
+  window.spConfirmarFecha = function (loteId, grupo) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
     if (!lote) return;
-    lote.data = lote.data || {};
-    if (lote.data.fechaSiembraConf) {
-      lote.data.fechaSiembraConf = ''; // desmarcar
+    var plan = planGrupoMutable(lote, grupo);
+    if (plan.fechaSiembraConf) {
+      plan.fechaSiembraConf = '';
     } else {
-      lote.data.fechaSiembraConf = lote.data.fechaSiembraPlan || '';
+      plan.fechaSiembraConf = plan.fechaSiembraPlan || '';
     }
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     _reabrirSeccion();
   };
 
-  window.spSetNSembradoras = function (n, loteId) {
+  window.spSetNSembradoras = function (n, loteId, grupo) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });
     if (!lote) return;
-    lote.data = lote.data || {};
-    lote.data.sembConfig = lote.data.sembConfig || {};
-    lote.data.sembConfig.n = n;
+    var plan = planGrupoMutable(lote, grupo);
+    plan.sembConfig = plan.sembConfig || {};
+    plan.sembConfig.n = n;
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     _reabrirSeccion();
   };
-
   window.spScrollScore = function () {
     var el = document.querySelector('.sc-widget');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
