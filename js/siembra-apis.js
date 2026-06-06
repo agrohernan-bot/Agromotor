@@ -1123,7 +1123,13 @@ function _sgCacheSave(loteId, lat, lon, datos) {
   var lote = (window.AM_LOTES || []).find(function(l) { return l.id === loteId; });
   if (lote) {
     lote.data['sg-textura'] = datos.textura || '';
-    lote.data['sg-ph']      = datos.ph != null ? datos.ph : '';
+    lote.data['sg-ph']      = datos.ph   != null ? datos.ph   : '';
+    lote.data['sg-clay']    = datos.clay != null ? datos.clay : '';
+    lote.data['sg-sand']    = datos.sand != null ? datos.sand : '';
+    lote.data['sg-soc']     = datos.soc  != null ? datos.soc  : '';
+    lote.data['sg-n']       = datos.n    != null ? datos.n    : '';
+    lote.data['sg-da']      = datos.da   != null ? datos.da   : '';
+    lote.data['sg-cec']     = datos.cec  != null ? datos.cec  : '';
     lote.data['sg-lat']     = lat;
     lote.data['sg-lon']     = lon;
     lote.data['sg-ts']      = Date.now();

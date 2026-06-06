@@ -36,6 +36,7 @@
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=85">
   <link rel="stylesheet" href="css/dashboard.css?v=99">
   <link rel="stylesheet" href="css/lote-nuevo.css?v=92">
+  <link rel="stylesheet" href="css/clientes.css?v=1">
   <link rel="stylesheet" href="css/score-cultivares.css?v=94">
   <link rel="stylesheet" href="css/siembra-planificacion.css?v=2">
 
@@ -3627,18 +3628,19 @@
     <div id="sv-lote-overlay" style="display:none;position:absolute;inset:0;z-index:9999;background:rgba(10,18,12,.92);border-radius:16px;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:2rem;text-align:center">
       <div style="font-size:2.5rem">📍</div>
       <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:#EDE0C4">Seleccioná un lote primero</div>
-      <div style="font-size:.82rem;color:rgba(237,224,196,.6);line-height:1.55">El análisis de siembra variable está vinculado al lote activo del Dashboard.<br>Cargá las coordenadas del lote allí para continuar.</div>
-      <button onclick="switchMod('siembra')" style="margin-top:.5rem;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#E8B84B;font-size:.84rem;font-weight:600;padding:.6rem 1.4rem;border-radius:10px;cursor:pointer;font-family:inherit">→ Ir al módulo Siembra</button>
+      <div style="font-size:.82rem;color:rgba(237,224,196,.6);line-height:1.55">El análisis de siembra variable requiere un lote activo con polígono delimitado.<br>Creá o seleccioná el lote desde Mis Lotes para continuar.</div>
+      <button onclick="window.dlVolverNueva()" style="margin-top:.5rem;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#E8B84B;font-size:.84rem;font-weight:600;padding:.6rem 1.4rem;border-radius:10px;cursor:pointer;font-family:inherit">→ Ir a Mis Lotes</button>
     </div>
 
     <div class="sv-panel">
       <div class="sv-ph" onclick="svTogglePanel(this)"><span>📍 Lote</span><span class="sv-arr">▾</span></div>
       <div class="sv-pb">
-        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-dibujar" onclick="svActivarDibujo()">✏️ Dibujar lote en el mapa</button>
+        <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-usar-lote" onclick="svUsarLoteCompleto()" style="display:none">📐 Usar lote predelimitado</button>
+        <button class="sv-btn sv-btn-sec sv-btn-full" id="sv-btn-parcela" onclick="svDibujarParcela()" style="display:none">✏️ Dibujar parcela dentro del lote</button>
         <div id="sv-draw-hint" class="sv-draw-hint" style="display:none">
           <strong>Clic</strong> para agregar vértices · <strong>Doble clic</strong> para confirmar · <strong>Esc</strong> para cancelar
         </div>
-        <div id="sv-lote-empty" class="sv-empty-msg" style="padding:6px 0">o importá un GeoJSON ↓</div>
+        <div id="sv-lote-empty" class="sv-empty-msg" style="padding:6px 0">Seleccioná cómo trabajar sobre el lote delimitado.</div>
         <div id="sv-lote-info" style="display:none;flex-direction:column;gap:0">
           <div class="sv-srow"><span>Superficie</span><span class="sv-sval" id="sv-l-area">—</span></div>
           <div class="sv-srow"><span>Perímetro</span><span class="sv-sval" id="sv-l-peri">—</span></div>
@@ -4188,9 +4190,47 @@ function _fsRender(res, diasTranscurridos) {
 
   <div class="footer-note" style="margin-top:4rem">AgroMotor v3.9 · Open-Meteo · NASA POWER · SoilGrids · ENSO/NOAA · Balance Hídrico · Cultivares RECSO/INTA · Pulverización · Mapa Distribuidores · Asistente IA · PDF · INTA Argentina</div>
 
+  <div id="am-disclaimer-bar">
+    <span>⚖</span>
+    <span>AgroMotor entrega informacion tecnica orientativa basada en modelos y fuentes externas. No reemplaza el criterio profesional, el monitoreo a campo ni analisis de laboratorio cuando correspondan.</span>
+    <button type="button" onclick="amAbrirDisclaimerLegal()">Ver aviso</button>
+  </div>
+
 </main>
 
 <style>
+#am-disclaimer-bar {
+  position: fixed;
+  left: 50%;
+  bottom: .75rem;
+  z-index: 9997;
+  transform: translateX(-50%);
+  width: min(920px, calc(100% - 1.5rem));
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .65rem .75rem;
+  background: rgba(15, 31, 20, .94);
+  border: 1px solid rgba(237, 224, 196, .18);
+  border-radius: 10px;
+  color: rgba(237, 224, 196, .86);
+  box-shadow: 0 12px 36px rgba(10,18,12,.28);
+  font-size: .76rem;
+  line-height: 1.4;
+}
+#am-disclaimer-bar span:first-child { flex-shrink: 0; }
+#am-disclaimer-bar span:nth-child(2) { flex: 1; }
+#am-disclaimer-bar button {
+  flex-shrink: 0;
+  border: 1px solid rgba(200,162,85,.45);
+  border-radius: 7px;
+  background: rgba(200,162,85,.12);
+  color: #e8b84b;
+  padding: .32rem .55rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
 @keyframes amFadeIn  { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
 @keyframes amFadeOut { from{opacity:1;transform:scale(1)} to{opacity:0;transform:scale(.96)} }
 @keyframes amSlideUp { from{opacity:0;transform:translateX(-50%) translateY(20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
@@ -4241,6 +4281,55 @@ function _fsRender(res, diasTranscurridos) {
 </script>
 
 
+<script>
+(function () {
+  var LEGAL_VERSION = 'v1';
+  var LEGAL_KEY = 'am_legal_accepted_' + LEGAL_VERSION;
+  var TEXTO_LEGAL = '<div style="font-size:1rem;font-weight:700;color:#1A3A6C;margin-bottom:.75rem">Aviso legal AgroMotor</div>' +
+    '<div style="font-size:.86rem;line-height:1.65;color:#3d2210">' +
+    '<p>AgroMotor es una herramienta de apoyo tecnico para ingenieros agronomos. Sus resultados se basan en datos satelitales, meteorologicos, edaficos, historicos y modelos agronomicos que pueden tener errores, retrasos, resolucion limitada o incertidumbre.</p>' +
+    '<p>Las recomendaciones y alertas son orientativas. No sustituyen el criterio profesional, el monitoreo a campo, los analisis de laboratorio, las recetas oficiales ni las obligaciones regulatorias aplicables.</p>' +
+    '<p>El usuario es responsable de validar la informacion antes de tomar decisiones productivas, comerciales, ambientales o legales.</p>' +
+    '</div>';
+
+  function abrir(obligatorio) {
+    var old = document.getElementById('am-legal-overlay');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'am-legal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483600;background:rgba(10,18,12,.74);display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(8px)';
+    overlay.innerHTML = '<div style="width:min(560px,100%);background:#fffdf8;border-radius:12px;border:1px solid rgba(60,34,16,.14);box-shadow:0 24px 70px rgba(10,18,12,.34);padding:1.25rem">' +
+      TEXTO_LEGAL +
+      '<div style="display:flex;gap:.6rem;justify-content:flex-end;margin-top:1rem">' +
+        (!obligatorio ? '<button type="button" onclick="document.getElementById(\'am-legal-overlay\').remove()" style="border:1px solid rgba(60,34,16,.15);background:#fff;color:#3d2210;border-radius:8px;padding:.55rem .8rem;cursor:pointer">Cerrar</button>' : '') +
+        '<button type="button" onclick="amAceptarDisclaimerLegal()" style="border:1px solid #3a7a4a;background:#3a7a4a;color:#fff;border-radius:8px;padding:.55rem .9rem;cursor:pointer;font-weight:700">Entiendo y acepto</button>' +
+      '</div>' +
+    '</div>';
+    if (!obligatorio) {
+      overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) overlay.remove();
+      });
+    }
+    document.body.appendChild(overlay);
+  }
+
+  window.amAbrirDisclaimerLegal = function () { abrir(false); };
+  window.amAceptarDisclaimerLegal = function () {
+    try { localStorage.setItem(LEGAL_KEY, String(Date.now())); } catch (_) {}
+    var overlay = document.getElementById('am-legal-overlay');
+    if (overlay) overlay.remove();
+  };
+
+  window.addEventListener('DOMContentLoaded', function () {
+    try {
+      if (!localStorage.getItem(LEGAL_KEY)) setTimeout(function () { abrir(true); }, 700);
+    } catch (_) {
+      setTimeout(function () { abrir(true); }, 700);
+    }
+  });
+})();
+</script>
+
 <!-- ══ LIBRERÍAS EXTERNAS ══ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -4249,7 +4338,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=89"></script>
+<script src="js/config.js?v=92"></script>
 <script src="js/login.js?v=88"></script>
 <script src="js/cache.js?v=95"></script>
 
@@ -4280,6 +4369,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
 <script src="js/dashboard-lotes.js?v=111"></script>
+<script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=92"></script>
 <script src="js/score-cultivares.js?v=98"></script>

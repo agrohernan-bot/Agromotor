@@ -5,7 +5,7 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v113';
+const CACHE_NAME    = 'agromotor-v121';
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -17,6 +17,8 @@ const ASSETS_LOCAL = [
   './css/cosecha.css',
   './css/dashboard.css',
   './css/alerta-sanitaria.css',
+  './css/clientes.css',
+  './css/lote-nuevo.css',
   './css/siembra-variable.css',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -58,8 +60,11 @@ const ASSETS_LOCAL = [
   './js/siembra-variable.js',
   './js/rotacion.js',
   './js/alerta-sanitaria.js',
+  './js/clientes.js',
   './js/dashboard.js',
+  './js/dashboard-lotes.js',
   './js/dashboard-ux.js',
+  './js/lote-nuevo.js',
   './js/bitacora.js',
   './js/rendimiento-predictor.js',
   './js/notificaciones.js',
@@ -100,6 +105,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(ASSETS_LOCAL))
+      .then(() => self.skipWaiting())
       .catch(err => console.warn('[SW] Error en install:', err))
   );
 });

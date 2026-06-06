@@ -105,13 +105,14 @@
             '  autocomplete="off" oninput="this.style.borderColor=\'\'">',
           '</div>',
 
-          // Cliente / campo
+          // Cliente
           '<div class="lnv-fg">',
-            '<label class="lnv-label">Cliente / Campo <span class="lnv-opt">(para agrupar)</span></label>',
-            '<input id="lnv-cliente" class="lnv-input" type="text"',
-            '  placeholder="Ej: Estancia Don Pedro, Hermanos García..."',
-            '  value="' + escAttr((loteEdit && loteEdit.data && loteEdit.data.clienteNombre) ? loteEdit.data.clienteNombre : '') + '"',
-            '  autocomplete="off">',
+            '<label class="lnv-label">Cliente <span class="lnv-opt">(para agrupar)</span></label>',
+            '<select id="lnv-cliente-sel" class="lnv-select" onchange="window.lnvOnClienteChange(this)">',
+              (typeof window.amClienteOptions === 'function'
+                ? window.amClienteOptions(d.clienteId || '')
+                : '<option value="">Sin cliente asignado</option><option value="__nuevo__">+ Nuevo cliente...</option>'),
+            '</select>',
           '</div>',
 
           // Cultivo inicial
@@ -371,9 +372,16 @@
   window.lnvCrearLote = function () {
     var editando = !!_editLoteId;
     var nombre  = (document.getElementById('lnv-nombre')?.value  || '').trim();
-    var cliente = (document.getElementById('lnv-cliente')?.value || '').trim();
     var cultivo = (document.getElementById('lnv-cultivo')?.value || '');
     var supVal  = (document.getElementById('lnv-sup')?.value     || '');
+    var clienteSel = document.getElementById('lnv-cliente-sel');
+    var clienteId  = clienteSel ? clienteSel.value : '';
+    if (clienteId === '__nuevo__') clienteId = '';
+    var clienteNombre = '';
+    if (clienteId && window.AM_CLIENTES) {
+      var cli = (window.AM_CLIENTES || []).find(function (c) { return c.id === clienteId; });
+      if (cli) clienteNombre = cli.nombre;
+    }
 
     // Validar nombre
     if (!nombre) {
@@ -397,11 +405,12 @@
 
     var id = _editLoteId || ('lote_' + Date.now());
     var data = {
-      cultivo:       cultivo,
-      clienteNombre: cliente,
-      coord:         coordStr,
-      superficie:    supFinal,
-      ts:            Date.now(),
+      cultivo:    cultivo,
+      clienteId:  clienteId,
+      clienteNombre: clienteNombre,
+      coord:      coordStr,
+      superficie: supFinal,
+      ts:         Date.now(),
     };
     data.polygon = poligono.puntos;
     data.geojson = poligono.geojson;
@@ -421,7 +430,7 @@
         loteExistente.data = Object.assign({}, loteExistente.data || {}, data);
 
         if (centroideMovido) {
-          ['sg-ts','sg-textura','sg-ph','sg-lat','sg-lon'].forEach(function(k) {
+          ['sg-ts','sg-textura','sg-ph','sg-clay','sg-sand','sg-soc','sg-n','sg-da','sg-cec','sg-lat','sg-lon'].forEach(function(k) {
             delete loteExistente.data[k];
           });
           try { localStorage.removeItem('sg_full_' + _editLoteId); } catch(e) {}
@@ -556,6 +565,12 @@
   };
   window.amCrearLoteGlobal = function () {
     window.dlMostrarModalNuevoLote();
+  };
+
+  window.lnvOnClienteChange = function (sel) {
+    if (!sel || sel.value !== '__nuevo__') return;
+    sel.value = '';
+    if (typeof window.amMostrarModalClientes === 'function') window.amMostrarModalClientes();
   };
 
 })();

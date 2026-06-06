@@ -79,6 +79,7 @@
   var _climaCache = {};
   var _hubDataCache = {};  // keyed by loteId_month
   var _mapaInstances = {};
+  var _dlClienteFiltro = null;
 
   var CULTIVOS_CAMPANA = {
     planfina: ['Trigo', 'Cebada', 'Colza'],
@@ -331,14 +332,39 @@
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
     html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
+    html +=     '<button class="dl-btn-clasica" onclick="window.amMostrarModalClientes && window.amMostrarModalClientes()" title="Gestionar clientes">Clientes</button>';
     html +=     '<button class="dl-btn-clasica" onclick="window.dlIrClasica()" title="Acceder a todos los módulos individualmente">⚙ Vista clásica</button>';
     html +=   '</div>';
     html += '</div>';
 
+    var clientesUnicos = {};
+    lotes.forEach(function (l) {
+      var cn = (l.data && l.data.clienteNombre) ? l.data.clienteNombre.trim() : '';
+      clientesUnicos[cn] = (clientesUnicos[cn] || 0) + 1;
+    });
+    var nomClientes = Object.keys(clientesUnicos);
+    var hayFiltros = nomClientes.length > 1 || (nomClientes.length === 1 && nomClientes[0] !== '');
+    if (hayFiltros) {
+      html += '<div class="dl-cliente-filtros">';
+      html += '<button class="am-chip' + (_dlClienteFiltro === null ? ' am-chip-active' : '') + '" onclick="window._dlFiltrar(null)">Todos (' + lotes.length + ')</button>';
+      nomClientes.slice().sort(function(a,b){ if(!a)return 1;if(!b)return -1;return a.localeCompare(b,'es'); }).forEach(function(cn) {
+        var activo = _dlClienteFiltro === cn;
+        html += '<button class="am-chip' + (activo ? ' am-chip-active' : '') + '" onclick="window._dlFiltrar(\'' + esc(cn).replace(/'/g,"\\'") + '\')">' + esc(cn || 'Sin cliente') + ' (' + clientesUnicos[cn] + ')</button>';
+      });
+      html += '</div>';
+    }
+
+    var lotesRender = lotes;
+    if (_dlClienteFiltro !== null) {
+      lotesRender = lotes.filter(function (l) {
+        return ((l.data && l.data.clienteNombre) ? l.data.clienteNombre.trim() : '') === _dlClienteFiltro;
+      });
+    }
+
     // ── Grid de cards ─────────────────────────────────────
     html += '<div class="dl-grid">';
 
-    lotes.forEach(function (lote) {
+    lotesRender.forEach(function (lote) {
       html += renderCard(lote);
     });
 
@@ -970,6 +996,37 @@
     // ── SoilGrids panel ──────────────────────────────────
     var loteObj = getLote(loteId);
     var sgDatos = null;
+    var sgCacheIncompleto = false;
+    function _sgNum(v) {
+      if (v === '' || v == null) return null;
+      var n = parseFloat(v);
+      return isNaN(n) ? null : n;
+    }
+    function _sgDesdeLoteData(lote) {
+      var d = lote && lote.data ? lote.data : null;
+      if (!d || !d['sg-textura']) return null;
+      return {
+        ph:      _sgNum(d['sg-ph']),
+        clay:    _sgNum(d['sg-clay']),
+        sand:    _sgNum(d['sg-sand']),
+        soc:     _sgNum(d['sg-soc']),
+        n:       _sgNum(d['sg-n']),
+        da:      _sgNum(d['sg-da']),
+        cec:     _sgNum(d['sg-cec']),
+        textura: d['sg-textura'] || null
+      };
+    }
+    function _sgMerge(base, fallback) {
+      base = base || {};
+      fallback = fallback || {};
+      ['ph','clay','sand','soc','n','da','cec','textura'].forEach(function(k) {
+        if ((base[k] === '' || base[k] == null) && fallback[k] != null && fallback[k] !== '') base[k] = fallback[k];
+      });
+      return base;
+    }
+    function _sgCompleto(sg) {
+      return !!(sg && sg.clay != null && sg.sand != null && sg.soc != null && sg.n != null && sg.da != null && sg.cec != null);
+    }
     try {
       var sgRaw = localStorage.getItem('sg_full_' + loteId);
       if (sgRaw) {
@@ -980,15 +1037,25 @@
 
     // Fallback to lote.data fields
     if (!sgDatos && loteObj && loteObj.data && loteObj.data['sg-textura']) {
+      var d = loteObj.data;
       sgDatos = {
-        ph: loteObj.data['sg-ph'] != null ? parseFloat(loteObj.data['sg-ph']) : null,
-        textura: loteObj.data['sg-textura'] || null
+        ph:      d['sg-ph']   !== '' && d['sg-ph']   != null ? parseFloat(d['sg-ph'])   : null,
+        clay:    d['sg-clay'] !== '' && d['sg-clay'] != null ? parseFloat(d['sg-clay']) : null,
+        sand:    d['sg-sand'] !== '' && d['sg-sand'] != null ? parseFloat(d['sg-sand']) : null,
+        soc:     d['sg-soc']  !== '' && d['sg-soc']  != null ? parseFloat(d['sg-soc'])  : null,
+        n:       d['sg-n']    !== '' && d['sg-n']    != null ? parseFloat(d['sg-n'])    : null,
+        da:      d['sg-da']   !== '' && d['sg-da']   != null ? parseFloat(d['sg-da'])   : null,
+        cec:     d['sg-cec']  !== '' && d['sg-cec']  != null ? parseFloat(d['sg-cec'])  : null,
+        textura: d['sg-textura'] || null
       };
     }
 
+    sgDatos = _sgMerge(sgDatos, _sgDesdeLoteData(loteObj));
+    sgCacheIncompleto = !!sgDatos && !_sgCompleto(sgDatos);
+
     if (sgDatos) {
       html += '<div class="dl-hdatos-sec dl-hdatos-sec-sg">';
-      html +=   '<div class="dl-hdatos-titulo">🌍 SoilGrids ISRIC · 250 m</div>';
+      html +=   '<div class="dl-hdatos-titulo" style="display:flex;align-items:center;justify-content:space-between">🌍 SoilGrids ISRIC · 250 m <button onclick="dlSgRefrescar(\'' + loteId + '\')" style="background:none;border:none;font-size:.75rem;cursor:pointer;color:rgba(237,224,196,.45);padding:0 0 0 .4rem" title="Forzar nueva consulta">🔄</button></div>';
       html +=   '<div class="dl-hdatos-grid">';
       html +=     _hdKV('🧪', 'pH', sgDatos.ph != null ? (sgDatos.ph.toFixed ? sgDatos.ph.toFixed(1) : sgDatos.ph) : '—');
       html +=     _hdKV('🏺', 'Arcilla', sgDatos.clay != null ? sgDatos.clay.toFixed(0) + '%' : '—');
@@ -999,7 +1066,17 @@
       html +=     _hdKV('⚡', 'CEC', sgDatos.cec != null ? sgDatos.cec.toFixed(1) + ' cmol' : '—');
       html +=     _hdKV('🗺', 'Textura', sgDatos.textura || '—');
       html +=   '</div>';
+      if (sgCacheIncompleto) html += '<div class="dl-hdatos-loading-sub">Actualizando SoilGrids para completar campos...</div>';
       html += '</div>';
+      if (sgCacheIncompleto && loteObj && typeof window.sgAutoFetchLote === 'function') {
+        setTimeout(function() {
+          try { localStorage.removeItem('sg_full_' + loteId); } catch (_) {}
+          window.sgAutoFetchLote(loteObj).then(function() {
+            delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
+            _fetchHubData(loteId);
+          });
+        }, 80);
+      }
     } else {
       // trigger background fetch if not cached
       if (loteObj && typeof window.sgAutoFetchLote === 'function') {
@@ -1317,6 +1394,11 @@
     renderPanel();
   };
 
+  window._dlFiltrar = function (nombre) {
+    _dlClienteFiltro = nombre;
+    renderPanel();
+  };
+
   // ══════════════════════════════════════════════════════
   // INICIALIZACIÓN
   // ══════════════════════════════════════════════════════
@@ -1344,6 +1426,33 @@
   }
 
   // Exponer init para ser llamado desde app.html
+  window.dlSgRefrescar = function(loteId) {
+    var loteObj = getLote(loteId);
+    if (!loteObj || typeof window.sgAutoFetchLote !== 'function') return;
+
+    try { localStorage.removeItem('sg_full_' + loteId); } catch (_) {}
+    if (loteObj.data) {
+      ['sg-textura','sg-ph','sg-clay','sg-sand','sg-soc','sg-n','sg-da','sg-cec','sg-lat','sg-lon','sg-ts'].forEach(function(k) {
+        delete loteObj.data[k];
+      });
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    }
+    delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
+
+    var sgSec = document.querySelector('#dl-hub-datos-' + loteId + ' .dl-hdatos-sec-sg');
+    if (sgSec) {
+      sgSec.innerHTML = '<div class="dl-hdatos-titulo">SoilGrids ISRIC - 250 m</div>' +
+        '<div class="dl-hdatos-loading-sub">Consultando base de datos de suelos...</div>';
+    }
+
+    window.sgAutoFetchLote(loteObj).then(function() {
+      delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
+      _fetchHubData(loteId);
+    }).catch(function() {
+      if (typeof amToast === 'function') amToast('Error al consultar SoilGrids', 'err');
+    });
+  };
+
   window.dlInit = init;
   window.dlGetCampanaPlanificacion = getCampanaPlanificacion;
 
