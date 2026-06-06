@@ -269,9 +269,6 @@ function amCerrarModal() {
 }
 
 function amCambiarVista(vista) {
-  // Durante la promo redirigimos 'planes' a 'registro' directamente.
-  // Cuando AM_PROMO_HASTA expire, eliminar este bloque para mostrar el selector de planes.
-  if (vista === 'planes' && new Date() < AM_PROMO_HASTA) vista = 'registro';
   ['am-vista-planes','am-vista-login','am-vista-registro','am-vista-recovery'].forEach(id => {
     $(id)?.classList.add('hidden');
   });
@@ -414,16 +411,8 @@ window.addEventListener('DOMContentLoaded', amProcesarUrlParams);
 // Durante la promo: no se abre automáticamente (el guard de módulos lo hace).
 // Post-promo: ídem — solo al tocar un módulo restringido.
 window.addEventListener('DOMContentLoaded', function() {
-  // No abrir modales automáticamente: si el usuario toca un módulo restringido,
-  // amTieneAcceso/amMostrarModalUpgrade muestran el login en ese momento.
+  // No abrir modales automaticamente: el usuario elige Ingresar o Registrarse.
   if (_modoRecovery) return;
-  if (new Date() < new Date('2026-08-02')) {
-    setTimeout(function() {
-      if (!AM_SESION && !_modoRecovery && typeof amMostrarModal === 'function') {
-        amMostrarModal('registro');
-      }
-    }, 900);
-  }
 });
 
 // Toggle bloques agronomo/estudiante en el form de registro

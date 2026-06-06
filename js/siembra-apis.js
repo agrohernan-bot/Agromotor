@@ -245,7 +245,7 @@ async function buscarSoilGrids(lat, lon) {
 
     const res = await Promise.race([
       fetch(urlFinal),
-      new Promise((_,r) => setTimeout(()=>r(new Error('timeout')), 12000))
+      new Promise((_,r) => setTimeout(()=>r(new Error('timeout')), 25000))
     ]);
 
     if (!res.ok) throw new Error('HTTP '+res.status);
@@ -1110,6 +1110,10 @@ function _sgCacheCheck(loteId, lat, lon) {
     if (!cache || !cache.ts || !cache.datos) return null;
     if (Date.now() - cache.ts > _SG_TTL_MS) return null;
     if (cache.lat != null && lat != null && _sgDistKm(cache.lat, cache.lon, lat, lon) > 1) return null;
+    var d = cache.datos;
+    if (!isFinite(parseFloat(d.clay)) || !isFinite(parseFloat(d.sand)) ||
+        !isFinite(parseFloat(d.soc)) || !isFinite(parseFloat(d.n)) ||
+        !isFinite(parseFloat(d.da)) || !isFinite(parseFloat(d.cec))) return null;
     return cache.datos;
   } catch(e) { return null; }
 }

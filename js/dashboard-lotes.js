@@ -998,9 +998,22 @@
     var sgDatos = null;
     var sgCacheIncompleto = false;
     function _sgNum(v) {
-      if (v === '' || v == null) return null;
+      if (v === '' || v == null || String(v).toLowerCase() === 'nan') return null;
       var n = parseFloat(v);
-      return isNaN(n) ? null : n;
+      return isFinite(n) ? n : null;
+    }
+    function _sgSanitize(sg) {
+      if (!sg) return null;
+      return {
+        ph:      _sgNum(sg.ph),
+        clay:    _sgNum(sg.clay),
+        sand:    _sgNum(sg.sand),
+        soc:     _sgNum(sg.soc),
+        n:       _sgNum(sg.n),
+        da:      _sgNum(sg.da),
+        cec:     _sgNum(sg.cec),
+        textura: sg.textura || null
+      };
     }
     function _sgDesdeLoteData(lote) {
       var d = lote && lote.data ? lote.data : null;
@@ -1017,7 +1030,7 @@
       };
     }
     function _sgMerge(base, fallback) {
-      base = base || {};
+      base = _sgSanitize(base) || {};
       fallback = fallback || {};
       ['ph','clay','sand','soc','n','da','cec','textura'].forEach(function(k) {
         if ((base[k] === '' || base[k] == null) && fallback[k] != null && fallback[k] !== '') base[k] = fallback[k];
@@ -1025,6 +1038,7 @@
       return base;
     }
     function _sgCompleto(sg) {
+      sg = _sgSanitize(sg);
       return !!(sg && sg.clay != null && sg.sand != null && sg.soc != null && sg.n != null && sg.da != null && sg.cec != null);
     }
     try {
@@ -1052,6 +1066,14 @@
 
     sgDatos = _sgMerge(sgDatos, _sgDesdeLoteData(loteObj));
     sgCacheIncompleto = !!sgDatos && !_sgCompleto(sgDatos);
+    if (sgCacheIncompleto) {
+      try { localStorage.removeItem('sg_full_' + loteId); } catch (_) {}
+      if (loteObj && loteObj.data) {
+        ['sg-textura','sg-ph','sg-clay','sg-sand','sg-soc','sg-n','sg-da','sg-cec','sg-lat','sg-lon','sg-ts'].forEach(function(k) { delete loteObj.data[k]; });
+        if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+      }
+      sgDatos = null;
+    }
 
     if (sgDatos) {
       html += '<div class="dl-hdatos-sec dl-hdatos-sec-sg">';
@@ -1066,17 +1088,7 @@
       html +=     _hdKV('⚡', 'CEC', sgDatos.cec != null ? sgDatos.cec.toFixed(1) + ' cmol' : '—');
       html +=     _hdKV('🗺', 'Textura', sgDatos.textura || '—');
       html +=   '</div>';
-      if (sgCacheIncompleto) html += '<div class="dl-hdatos-loading-sub">Actualizando SoilGrids para completar campos...</div>';
       html += '</div>';
-      if (sgCacheIncompleto && loteObj && typeof window.sgAutoFetchLote === 'function') {
-        setTimeout(function() {
-          try { localStorage.removeItem('sg_full_' + loteId); } catch (_) {}
-          window.sgAutoFetchLote(loteObj).then(function() {
-            delete _hubDataCache[loteId + '_' + (new Date().getMonth() + 1)];
-            _fetchHubData(loteId);
-          });
-        }, 80);
-      }
     } else {
       // trigger background fetch if not cached
       if (loteObj && typeof window.sgAutoFetchLote === 'function') {

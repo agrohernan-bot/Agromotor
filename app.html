@@ -10,12 +10,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AgroMotor — Motor Agronómico de Decisión · Argentina</title>
   <meta name="description" content="Motor agronómico de decisión: 15 módulos con datos satelitales en tiempo real, IA con criterio INTA, exclusivo para ingenieros agrónomos matriculados.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="canonical" href="https://agromotor.com.ar/">
 
   <!-- OG / Twitter -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="AgroMotor — La herramienta del Ingeniero Agrónomo argentino">
   <meta property="og:description" content="15 módulos agronómicos · Datos NASA, Open-Meteo, SoilGrids · IA con criterio INTA · Para profesionales matriculados.">
-  <meta property="og:url" content="https://agromotor.com.ar/app.html">
+  <meta property="og:url" content="https://agromotor.com.ar/">
   <meta property="og:image" content="https://agromotor.com.ar/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
 
@@ -3610,7 +3612,7 @@
       <div class="sv-pb">
         <span class="sv-flabel">API Key</span>
         <div class="sv-igrp">
-          <input type="password" id="sv-api-key" placeholder="Pegá tu key aquí..."/>
+          <input type="text" id="sv-api-key" placeholder="API key configurada" autocomplete="off" autocapitalize="off" spellcheck="false" readonly/>
           <button class="sv-btn sv-btn-sec" onclick="svConectarAPI()">→</button>
         </div>
         <div class="sv-api-status" id="sv-api-status">
@@ -4200,12 +4202,10 @@ function _fsRender(res, diasTranscurridos) {
 
 <style>
 #am-disclaimer-bar {
-  position: fixed;
-  left: 50%;
-  bottom: .75rem;
-  z-index: 9997;
-  transform: translateX(-50%);
+  position: static;
+  transform: none;
   width: min(920px, calc(100% - 1.5rem));
+  margin: 1rem auto 0;
   display: flex;
   align-items: flex-start;
   gap: .6rem;
@@ -4214,7 +4214,7 @@ function _fsRender(res, diasTranscurridos) {
   border: 1px solid rgba(237, 224, 196, .18);
   border-radius: 10px;
   color: rgba(237, 224, 196, .86);
-  box-shadow: 0 12px 36px rgba(10,18,12,.28);
+  box-shadow: none;
   font-size: .76rem;
   line-height: 1.4;
 }
@@ -4320,13 +4320,7 @@ function _fsRender(res, diasTranscurridos) {
     if (overlay) overlay.remove();
   };
 
-  window.addEventListener('DOMContentLoaded', function () {
-    try {
-      if (!localStorage.getItem(LEGAL_KEY)) setTimeout(function () { abrir(true); }, 700);
-    } catch (_) {
-      setTimeout(function () { abrir(true); }, 700);
-    }
-  });
+  // El aviso legal queda disponible al final de la app y no se abre automaticamente.
 })();
 </script>
 
@@ -4338,8 +4332,8 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=92"></script>
-<script src="js/login.js?v=88"></script>
+<script src="js/config.js?v=93"></script>
+<script src="js/login.js?v=89"></script>
 <script src="js/cache.js?v=95"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
@@ -4358,7 +4352,7 @@ function _fsRender(res, diasTranscurridos) {
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
 <script src="js/siembra.js?v=85"></script>
-<script src="js/siembra-apis.js?v=86"></script>
+<script src="js/siembra-apis.js?v=87"></script>
 <script src="js/economia.js?v=85"></script>
 <script src="js/maquinaria.js?v=86"></script>
 <script src="js/asistente.js?v=85"></script>
@@ -4368,7 +4362,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=85"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
-<script src="js/dashboard-lotes.js?v=111"></script>
+<script src="js/dashboard-lotes.js?v=112"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=92"></script>
