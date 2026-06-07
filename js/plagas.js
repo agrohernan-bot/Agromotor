@@ -1010,9 +1010,7 @@ window.plagasRenderEstacional = function() {
 };
 
   // Exposición a global
-  window.amAnalizarPlagas = amAnalizarPlagas;
   window.selectSev = selectSev;
   window.enviarReporte = enviarReporte;
-  window.plagasRenderEstacional = plagasRenderEstacional;
 
 })();
