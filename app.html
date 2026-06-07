@@ -39,7 +39,7 @@
   <link rel="stylesheet" href="css/agromotor.css?v=86">
   <link rel="stylesheet" href="css/cosecha.css?v=85">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
-  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=85">
+  <link rel="stylesheet" href="css/alerta-sanitaria.css?v=86">
   <link rel="stylesheet" href="css/dashboard.css?v=103">
   <link rel="stylesheet" href="css/lote-nuevo.css?v=92">
   <link rel="stylesheet" href="css/clientes.css?v=1">
@@ -3256,7 +3256,7 @@
   </div>
 
   <!-- Panel de configuración rápida -->
-  <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem 1.2rem;margin-top:1rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end">
+  <div id="plagas-input-card" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:1rem 1.2rem;margin-top:1rem;display:flex;flex-wrap:wrap;gap:.8rem;align-items:flex-end">
     <div style="flex:1;min-width:160px">
       <label style="font-size:.6rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.5);display:block;margin-bottom:.3rem">Fecha de siembra</label>
       <input type="date" id="plagas-siembra" style="background:#1A2A20;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:.45rem .7rem;color:var(--white);font-size:.82rem;width:100%">
@@ -3271,6 +3271,8 @@
       Si no tenés lote seleccionado, ingresá las coords en el mapa primero.
     </div>
   </div>
+
+  <div id="plagas-contexto-lote"></div>
 
   <div class="main" id="plagas-content" style="max-width:820px;margin:0 auto;padding:2rem 0">
     <div class="placeholder">
@@ -3784,7 +3786,7 @@
 
   <div class="as-wrap">
     <!-- Input bar -->
-    <div class="as-input-bar">
+    <div class="as-input-bar" id="as-input-card">
       <div class="as-fg">
         <label>Latitud</label>
         <input type="number" id="as-lat" placeholder="-33.0000" step="0.0001">
@@ -3808,6 +3810,8 @@
       </div>
       <button class="as-btn-analizar" id="as-btn-analizar" onclick="asAnalizar()">🔍 Analizar</button>
     </div>
+
+    <div id="as-contexto-lote"></div>
 
     <!-- Contenido dinámico -->
     <div id="as-main-content">
@@ -4599,7 +4603,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=89"></script>
+<script src="js/nav.js?v=90"></script>
 
 
 
@@ -4612,7 +4616,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/pdf.js?v=85"></script>
 <script src="js/pdf-modulo.js?v=85"></script>
 <script src="js/onboarding.js?v=85"></script>
-<script src="js/alerta-sanitaria.js?v=85"></script>
+<script src="js/alerta-sanitaria.js?v=86"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
 <script src="js/dashboard-lotes.js?v=118"></script>

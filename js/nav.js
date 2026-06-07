@@ -263,13 +263,21 @@ function _activarModulo(mod) {
   if (mod === 'seguimiento' && typeof segInit === 'function') segInit();
   if (mod === 'cosecha' && typeof cosInit === 'function') cosInit();
   if (mod === 'siembra-variable'  && typeof svInit === 'function') svInit();
-  if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') asInit();
+  if (mod === 'alerta-sanitaria'  && typeof asInit === 'function') {
+    asInit();
+    setTimeout(function() {
+      if (typeof window.asPrepararAutoLote === 'function') window.asPrepararAutoLote();
+      if (typeof window.asAnalizar === 'function') window.asAnalizar();
+    }, 250);
+  }
   if (mod === 'plagas') {
     _syncCultivo('plagas-cultivo');
     _syncFecha('plagas-siembra');
     // Mostrar panel estacional inmediatamente al entrar
     setTimeout(function() {
-      if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
+      if (typeof window.plagasPrepararAutoLote === 'function') window.plagasPrepararAutoLote();
+      if (typeof window.amAnalizarPlagas === 'function') window.amAnalizarPlagas();
+      else if (typeof plagasRenderEstacional === 'function') plagasRenderEstacional();
     }, 150);
   }
   if (mod === 'malezas') {

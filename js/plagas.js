@@ -86,6 +86,87 @@ function sevLabel(s) {
 // ═══════════════════════════════════════════════════════════════
 // FENOLOGÍA (igual que módulo de enfermedades)
 // ═══════════════════════════════════════════════════════════════
+function normCultivoAM(cultivo) {
+  var s = String(cultivo || '').toLowerCase();
+  try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+  if (/ma.z/.test(s)) return 'maiz';
+  return s;
+}
+
+function grupoCultivoAM(cultivo) {
+  var c = normCultivoAM(cultivo);
+  if (['trigo','cebada','colza'].indexOf(c) >= 0) return 'invierno';
+  if (['soja','maiz','girasol','sorgo'].indexOf(c) >= 0) return 'verano';
+  return '';
+}
+
+function loteActivoAM() {
+  try {
+    return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
+  } catch(e) { return null; }
+}
+
+function fechaSiembraLoteAM(lote, cultivo) {
+  var d = (lote && lote.data) || {};
+  var ck = d.calcKeys || {};
+  var planes = d.planificacionSiembra || {};
+  var grupo = grupoCultivoAM(cultivo || d.cultivo || ck['am_siembra_cultivo'] || '');
+  var plan = grupo ? (planes[grupo] || {}) : {};
+  return plan.fechaSiembraConf || plan.fechaSiembraPlan
+    || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
+    || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
+    || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
+}
+
+function coordsLoteAM(lote) {
+  var d = (lote && lote.data) || {};
+  if (d.coord) {
+    var p = String(d.coord).replace(/\s/g,'').split(',');
+    if (p.length >= 2) return { lat: parseFloat(p[0]), lon: parseFloat(p[1]) };
+  }
+  if (Array.isArray(d.polygon) && d.polygon.length) {
+    var sLat = 0, sLon = 0;
+    d.polygon.forEach(function(p2) { sLat += parseFloat(p2.lat) || 0; sLon += parseFloat(p2.lng) || 0; });
+    return { lat: sLat / d.polygon.length, lon: sLon / d.polygon.length };
+  }
+  if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+    var ring = d.geojson.geometry.coordinates[0] || [];
+    if (ring.length) {
+      var rLat = 0, rLon = 0;
+      ring.forEach(function(c) { rLat += parseFloat(c[1]) || 0; rLon += parseFloat(c[0]) || 0; });
+      return { lat: rLat / ring.length, lon: rLon / ring.length };
+    }
+  }
+  return null;
+}
+
+function setContextoPlagas(lote, cultivo, fecha, coords) {
+  var form = document.getElementById('plagas-input-card');
+  var ctx = document.getElementById('plagas-contexto-lote');
+  if (form) form.style.display = 'none';
+  if (!ctx) return;
+  ctx.innerHTML = '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:.9rem 1rem;margin-top:1rem">'
+    + '<div style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:.55rem">Contexto heredado del lote</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:.4rem">'
+    + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (lote ? lote.nombre : 'Lote activo') + '</span>'
+    + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (cultivo || '-') + '</span>'
+    + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">Siembra ' + (fecha || '-') + '</span>'
+    + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (coords ? coords.lat.toFixed(4) + ', ' + coords.lon.toFixed(4) : '-') + '</span>'
+    + '</div></div>';
+}
+
+window.plagasPrepararAutoLote = function() {
+  var lote = loteActivoAM();
+  var d = (lote && lote.data) || {};
+  var cultivo = normCultivoAM(d.cultivo || (d.calcKeys || {})['am_siembra_cultivo'] || (document.getElementById('s-cultivo') || {}).value || 'soja');
+  if (!PESTS[cultivo]) cultivo = 'soja';
+  var fecha = fechaSiembraLoteAM(lote, cultivo) || (document.getElementById('s-fecha') || {}).value || '';
+  var coords = coordsLoteAM(lote);
+  var pfEl = document.getElementById('plagas-siembra');
+  if (pfEl && fecha) pfEl.value = fecha;
+  setContextoPlagas(lote, cultivo, fecha, coords);
+};
+
 var PHENOLOGY = {
   soja:    { base:10, icon:'🫘', stages:[
     {gdd:0,code:'VE',name:'Emergencia'},{gdd:120,code:'V2',name:'V2'},
@@ -449,6 +530,28 @@ function getStage(cumGDD,cultivo) {
   return { stage:stage, pct:Math.min(100,Math.round(cumGDD/stages[stages.length-1].gdd*100)) };
 }
 
+var PEST_SEASON = {
+  chinche_cuernos:[12,1,2,3],
+  anticarsia:[11,12,1,2],
+  spodoptera_soja:[10,11,12,1,2],
+  trips_soja:[11,12,1,2],
+  spodoptera_maiz:[9,10,11,12,1],
+  diatraea:[11,12,1,2,3],
+  diabrotica:[10,11,12],
+  pulgon_verde:[6,7,8,9],
+  pulgon_amarillo:[8,9,10],
+  sitobion:[9,10,11],
+  helicoverpa:[11,12,1],
+  trips_girasol:[10,11,12]
+};
+
+function pestInSeason(pest,dateStr) {
+  var months=PEST_SEASON[pest.id];
+  if(!months||!months.length) return true;
+  var d=dateStr?new Date(dateStr+'T12:00:00'):new Date();
+  return months.indexOf(d.getMonth()+1)>=0;
+}
+
 function calcPestRisks(histDays,stageCode,cultivo) {
   var pests=PESTS[cultivo], recent7=histDays.slice(-7), results=[];
   pests.forEach(function(pest) {
@@ -456,16 +559,19 @@ function calcPestRisks(histDays,stageCode,cultivo) {
     recent7.forEach(function(d){ if(pest.check(d)) favDays++; });
     var rawScore=(favDays/7)*100;
     var inVuln=stageInVuln(stageCode,pest.vuln);
-    var score=inVuln?rawScore:rawScore*0.2;
+    var inSeason=pestInSeason(pest);
+    var score=(inVuln&&inSeason)?rawScore:0;
     var rc=riskClass(score);
     var reason=favDays>=3
       ? pest.reasons.fav+' ('+favDays+'/7 días favorables)'
       : favDays>=1 ? pest.reasons.fav+' ('+favDays+'/7 días — incipiente)'
       : pest.reasons.unfav;
+    if(!inSeason) reason='Fuera de epoca esperada para esta plaga. Se informa como vigilancia, sin alarma.';
+    else if(!inVuln) reason='Cultivo fuera de la ventana vulnerable ('+pest.vuln.join(', ')+'). Se informa como vigilancia, sin alarma.';
     results.push({
       id:pest.id, name:pest.name, sci:pest.sci, icon:pest.icon,
       score:Math.round(score), riskClass:rc, favorableDays:favDays,
-      inVuln:inVuln, reason:reason, vulnStages:pest.vuln,
+      inVuln:inVuln, inSeason:inSeason, reason:reason, vulnStages:pest.vuln,
       rec:pest.rec[rc]||pest.rec.none
     });
   });
@@ -479,7 +585,8 @@ function calcForecastRisks(dailySummaries,stageCode,cultivo) {
     var dayRisks=fDays.map(function(d) {
       var raw=pest.checkF(d);
       var inVuln=stageInVuln(stageCode,pest.vuln);
-      var rc=inVuln?raw:(raw==='high'?'med':raw==='med'?'low':'none');
+      var inSeason=pestInSeason(pest,d.date);
+      var rc=(inVuln&&inSeason)?raw:'none';
       return {date:d.date,rc:rc};
     });
     return {id:pest.id,name:pest.name,sci:pest.sci,dayRisks:dayRisks};
@@ -540,7 +647,8 @@ function renderMain(params) {
     html+='</div><div class="risk-badge rb-'+pest.riskClass+'">'+riskLabel(pest.riskClass)+'</div></div>';
     html+='<div class="pc-score-bar"><div class="pc-score-fill" style="width:'+pest.score+'%%"></div></div>';
     html+='<div class="pc-reason">'+pest.reason;
-    if(!pest.inVuln) html+='<br><span class="pc-feno-warn">⏱ Cultivo fuera de la ventana vulnerable ('+pest.vulnStages.join(', ')+')</span>';
+    if(!pest.inSeason) html+='<br><span class="pc-feno-warn">Fuera de epoca estacional esperada - sin alarma</span>';
+    else if(!pest.inVuln) html+='<br><span class="pc-feno-warn">⏱ Cultivo fuera de la ventana vulnerable - sin alarma ('+pest.vulnStages.join(', ')+')</span>';
     html+='</div>';
     html+='<div class="pc-rec">'+pest.rec+'</div>';
     html+='<div class="orientativa-tag">⚠️ Estimación orientativa — validar con monitoreo</div>';
@@ -721,30 +829,40 @@ function showError(msg) {
 }
 
 window.amAnalizarPlagas = function() {
+  if (typeof window.plagasPrepararAutoLote === 'function') window.plagasPrepararAutoLote();
+  var loteAuto = loteActivoAM();
+  var coordsAuto = coordsLoteAM(loteAuto);
   // 1. Coordenadas (siempre del Dashboard/Lote Activo)
   var coordRaw = (document.getElementById('s-coord') || {}).value || '';
   var lat = null, lon = null;
-  if (coordRaw) {
+  if (coordsAuto && !isNaN(coordsAuto.lat) && !isNaN(coordsAuto.lon)) {
+    lat = coordsAuto.lat; lon = coordsAuto.lon;
+  } else if (coordRaw) {
     var parts = coordRaw.replace(/\s/g,'').split(',');
     if (parts.length >= 2) { lat = parseFloat(parts[0]); lon = parseFloat(parts[1]); }
   }
 
   // 2. Cultivo (Dashboard es el master, pero validamos)
+  var dAuto = (loteAuto && loteAuto.data) || {};
   var cultivoEl = document.getElementById('s-cultivo');
-  var cultivo = cultivoEl ? cultivoEl.value.toLowerCase() : 'soja';
+  var cultivo = normCultivoAM(dAuto.cultivo || (dAuto.calcKeys || {})['am_siembra_cultivo'] || (cultivoEl ? cultivoEl.value : 'soja'));
   if (!PESTS[cultivo]) cultivo = 'soja';
 
   // 3. Fecha de siembra (Prioridad al input del módulo, fallback al Dashboard)
   var pfEl = document.getElementById('plagas-siembra');
   var sfEl = document.getElementById('s-fecha');
-  var siembra = (pfEl && pfEl.value) ? pfEl.value : (sfEl ? sfEl.value : '');
+  var siembra = fechaSiembraLoteAM(loteAuto,cultivo) || ((pfEl && pfEl.value) ? pfEl.value : (sfEl ? sfEl.value : ''));
 
   // Sincronizar visualmente si se tomó del dashboard
   if (pfEl && !pfEl.value && siembra) pfEl.value = siembra;
 
   if(lat===null||isNaN(lat)||lon===null||isNaN(lon)){showError('Seleccioná un lote con coordenadas válidas en el Dashboard.');return;}
   if(!siembra){showError('Ingresá la fecha de siembra del cultivo.');return;}
-  if(siembra>today()){showError('La fecha de siembra no puede ser futura.');return;}
+  if(siembra>today()){
+    document.getElementById('plagas-content').innerHTML=
+      '<div class="empty-box">Cultivo planificado para '+formatFecha(siembra)+'. Todavia no corresponde generar alarmas de presion de plagas; se activara automaticamente desde la fecha de siembra.</div>';
+    return;
+  }
 
   var btn=document.getElementById('btn-analizar-plagas');
   if(btn) btn.disabled=true;

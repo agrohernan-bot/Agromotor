@@ -59,6 +59,36 @@
 .as-btn-analizar:disabled{ opacity: .5; cursor: not-allowed; }
 
 /* ── Resultados layout ───────────────────────────────── */
+.as-auto-context {
+  background: #fff;
+  border: 1.5px solid var(--as-border);
+  border-radius: 12px;
+  padding: .85rem 1rem;
+  margin-bottom: 1rem;
+}
+.as-auto-title {
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--as-leaf);
+  margin-bottom: .45rem;
+}
+.as-auto-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+.as-auto-chips span {
+  border: 1px solid rgba(45,106,79,.18);
+  background: rgba(64,145,108,.08);
+  color: var(--as-ink);
+  border-radius: 999px;
+  padding: .24rem .65rem;
+  font-size: .72rem;
+  line-height: 1.15;
+}
+
 .as-results {
   display: grid;
   grid-template-columns: 1fr 360px;
