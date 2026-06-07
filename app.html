@@ -40,7 +40,7 @@
   <link rel="stylesheet" href="css/cosecha.css?v=85">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=85">
-  <link rel="stylesheet" href="css/dashboard.css?v=101">
+  <link rel="stylesheet" href="css/dashboard.css?v=102">
   <link rel="stylesheet" href="css/lote-nuevo.css?v=92">
   <link rel="stylesheet" href="css/clientes.css?v=1">
   <link rel="stylesheet" href="css/score-cultivares.css?v=94">
@@ -4057,6 +4057,31 @@ function _fpRender(res) {
 // FENOLOGÍA · SEGUIMIENTO
 // ════════════════════════════════════════════════
 function fsUsarLote() {
+  var lote = _fsLoteActivo();
+  var d = (lote && lote.data) || {};
+  var ck = d.calcKeys || {};
+  var coords = _fsCoordsLote(lote);
+  if (!coords) {
+    var coordMaster = document.getElementById('s-coord');
+    if (coordMaster && coordMaster.value) {
+      var coordParts = coordMaster.value.split(',');
+      if (coordParts.length === 2) coords = { lat: parseFloat(coordParts[0].trim()), lon: parseFloat(coordParts[1].trim()) };
+    }
+  }
+  if (coords && !isNaN(coords.lat) && !isNaN(coords.lon)) {
+    _fsSetVal('fs-lat', coords.lat.toFixed ? coords.lat.toFixed(5) : coords.lat);
+    _fsSetVal('fs-lon', coords.lon.toFixed ? coords.lon.toFixed(5) : coords.lon);
+  }
+  var fechaLote = d.fechaSiembraConf || d.fechaSiembraPlan || d.fecha || ck['am_siembra_fecha'] || '';
+  var fecMaster = document.getElementById('s-fecha');
+  if (!fechaLote && fecMaster && fecMaster.value) fechaLote = fecMaster.value;
+  _fsSetVal('fs-fecha', fechaLote);
+
+  var cultivoLote = d.cultivo || d.cultivoPlanificacion || ck['am_siembra_cultivo'] || '';
+  var cultMaster = document.getElementById('s-cultivo');
+  if (!cultivoLote && cultMaster && cultMaster.value) cultivoLote = cultMaster.value;
+  _fsSetVal('fs-cultivo', _fsNormCultivo(cultivoLote));
+  return;
   var coordSrc = document.getElementById('s-coord');
   if (coordSrc && coordSrc.value) {
     var parts = coordSrc.value.split(',');
@@ -4076,9 +4101,59 @@ function fsUsarLote() {
 
 var _fsChart = null;
 
+function _fsNormCultivo(c) {
+  var s = String(c || '').toLowerCase();
+  try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+  if (s.indexOf('maiz') >= 0) return 'maiz';
+  if (s.indexOf('trigo') >= 0) return 'trigo';
+  if (s.indexOf('girasol') >= 0) return 'girasol';
+  if (s.indexOf('soja') >= 0) return 'soja';
+  return s;
+}
+
+function _fsLoteActivo() {
+  try {
+    return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
+  } catch(_) { return null; }
+}
+
+function _fsCoordsLote(lote) {
+  var d = (lote && lote.data) || {};
+  if (d.coord) {
+    var parts = String(d.coord).split(',');
+    if (parts.length === 2) {
+      var lat = parseFloat(parts[0]), lon = parseFloat(parts[1]);
+      if (!isNaN(lat) && !isNaN(lon)) return { lat: lat, lon: lon };
+    }
+  }
+  if (Array.isArray(d.polygon) && d.polygon.length) {
+    var sLat = 0, sLon = 0;
+    d.polygon.forEach(function(p) { sLat += parseFloat(p.lat) || 0; sLon += parseFloat(p.lng) || 0; });
+    return { lat: sLat / d.polygon.length, lon: sLon / d.polygon.length };
+  }
+  if (d.geojson && d.geojson.geometry && Array.isArray(d.geojson.geometry.coordinates)) {
+    var ring = d.geojson.geometry.coordinates[0] || [];
+    if (ring.length) {
+      var rLat = 0, rLon = 0;
+      ring.forEach(function(c) { rLat += parseFloat(c[1]) || 0; rLon += parseFloat(c[0]) || 0; });
+      return { lat: rLat / ring.length, lon: rLon / ring.length };
+    }
+  }
+  return null;
+}
+
+function _fsSetVal(id, val) {
+  var el = document.getElementById(id);
+  if (el && val !== undefined && val !== null && val !== '') el.value = val;
+}
+
 async function fsCalcular() {
   if (!window.Fenologia) { alert('Módulo de fenología no disponible'); return; }
   var cultivo = document.getElementById('fs-cultivo').value;
+  if (['soja','maiz','trigo','girasol'].indexOf(cultivo) < 0) {
+    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #C8A255;padding:1.2rem"><p style="color:#C8A255;margin:0"><strong>Modelo fenologico no calibrado para este cultivo.</strong><br>El tablero mantiene el seguimiento resumido, pero el detalle avanzado hoy esta disponible para soja, maiz, trigo y girasol.</p></div>';
+    return;
+  }
   var lat = parseFloat(document.getElementById('fs-lat').value);
   var lon = parseFloat(document.getElementById('fs-lon').value);
   var fechaSiembra = document.getElementById('fs-fecha').value;
@@ -4102,6 +4177,137 @@ async function fsCalcular() {
   } finally {
     btn.disabled = false; btn.textContent = '🌿 Analizar';
   }
+}
+
+function _fsEtapaFin(etapas, idx, totalDias) {
+  var next = etapas[idx + 1];
+  var ini = etapas[idx] && etapas[idx].diasDesdeSiembra != null ? etapas[idx].diasDesdeSiembra : 0;
+  var fin = next && next.diasDesdeSiembra != null ? next.diasDesdeSiembra - 1 : totalDias - 1;
+  return Math.max(ini, fin);
+}
+
+function _fsSum(arr, a, b) {
+  var total = 0;
+  for (var i = Math.max(0, a); i <= b && i < arr.length; i++) total += parseFloat(arr[i]) || 0;
+  return total;
+}
+
+function _fsEt0Ref(cultivo) {
+  return cultivo === 'trigo' ? 3.6 : cultivo === 'girasol' ? 4.8 : 4.5;
+}
+
+function _fsRenderAguaEtapas(res, diasTranscurridos) {
+  var etapas = res.etapas || [];
+  var lluvia = res.lluviaPorDia || [];
+  var kc = res.kcPorDia || [];
+  if (!etapas.length || !lluvia.length) return '';
+  var et0Ref = _fsEt0Ref(res.cultivo);
+  var rows = etapas.map(function(e, idx) {
+    var ini = e.diasDesdeSiembra || 0;
+    var fin = _fsEtapaFin(etapas, idx, lluvia.length);
+    var prec = _fsSum(lluvia, ini, fin);
+    var dem = 0;
+    for (var i = ini; i <= fin && i < kc.length; i++) dem += (parseFloat(kc[i]) || e.kcMedio || 0.8) * et0Ref;
+    var bal = prec - dem;
+    var pct = dem > 0 ? Math.max(0, Math.min(100, Math.round(prec / dem * 100))) : 100;
+    var actual = diasTranscurridos >= ini && diasTranscurridos <= fin;
+    var color = bal >= 0 ? '#6DBF82' : bal > -25 ? '#C8A255' : '#D4522A';
+    return '<tr style="background:' + (actual ? 'rgba(79,195,247,.1)' : 'transparent') + '">'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">' + (actual ? '<span style="color:#4fc3f7">▶ </span>' : '') + e.nombre + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)">' + ini + '-' + fin + '</td>'
+      + '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)">' + Math.round(prec) + ' mm</td>'
+      + '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)">' + Math.round(dem) + ' mm</td>'
+      + '<td style="padding:8px 10px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06);color:' + color + ';font-weight:700">' + (bal >= 0 ? '+' : '') + Math.round(bal) + ' mm</td>'
+      + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06);min-width:82px"><div style="height:6px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden"><div style="height:100%;width:' + pct + '%;background:' + color + '"></div></div></td>'
+      + '</tr>';
+  }).join('');
+  var lluviaHoy = _fsSum(lluvia, 0, Math.min(diasTranscurridos, lluvia.length - 1));
+  return '<div class="card" style="margin-bottom:1rem;overflow-x:auto">'
+    + '<div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Agua por estadio · lluvia real/proyectada vs demanda</div>'
+    + '<div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:.75rem">'
+    + '<span style="font-size:.72rem;color:var(--c2);background:rgba(255,255,255,.05);border-radius:20px;padding:.25rem .55rem">Lluvia acumulada: <b style="color:var(--accent)">' + Math.round(lluviaHoy) + ' mm</b></span>'
+    + '<span style="font-size:.72rem;color:var(--c2);background:rgba(255,255,255,.05);border-radius:20px;padding:.25rem .55rem">ET0 ref usada: ' + et0Ref.toFixed(1) + ' mm/d</span>'
+    + '</div>'
+    + '<table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:rgba(255,255,255,.05)">'
+    + '<th style="padding:10px;text-align:left">Estadio</th><th>Dias</th><th>Lluvia</th><th>Demanda</th><th>Balance</th><th>Cob.</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table>'
+    + '<p style="font-size:.7rem;color:var(--c2);margin:.65rem 0 0">Demanda estimada como Kc diario × ET0 de referencia. Usar como semaforo operativo; el balance hidrico del modulo dedicado sigue siendo la fuente para decision final.</p>'
+    + '</div>';
+}
+
+function _fsPlanNutricionLote() {
+  var lote = _fsLoteActivo();
+  return lote && lote.data ? (lote.data.nutricionPlan || lote.data.planNutricion || null) : null;
+}
+
+function _fsRenderAgendaNutricion(res, etapaActual) {
+  var plan = _fsPlanNutricionLote();
+  var cultivo = res.cultivo || '';
+  var items = [];
+  function dosis(nut) {
+    if (!plan || !plan.resultados || !plan.resultados[nut]) return 'segun plan Nutricion';
+    var r = plan.resultados[nut];
+    return (r.kgFert || r.dosisRec || 0) > 0 ? ((r.kgFert || r.dosisRec) + ' kg/ha ' + (r.fertNombre || nut)) : 'sin reposicion indicada';
+  }
+  if (cultivo === 'trigo') {
+    items = [
+      ['Siembra-emergencia', 'P + arranque', dosis('P') + ' · revisar S si hay deficiencia', 'Aplicacion base incorporada o al costado de linea.'],
+      ['Macollaje', 'N macollaje', dosis('N'), 'Primer refuerzo nitrogenado si humedad y pronostico acompanan.'],
+      ['Encaniado', 'N calidad/rendimiento', dosis('N'), 'Segunda lectura: ajustar por NDVI, agua disponible y objetivo.'],
+      ['Espigazon-antesis', 'No fertilizar salvo foliar especifico', 'solo correcciones justificadas', 'Prioridad: sanidad, agua y riesgo de helada/enfermedades.']
+    ];
+  } else if (cultivo === 'maiz') {
+    items = [
+      ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque, separar de semilla segun fuente.'],
+      ['V4-V6', 'N principal', dosis('N'), 'Momento clave para definir potencial; aplicar con humedad o lluvia cercana.'],
+      ['V8-V10', 'N ajuste', dosis('N'), 'Ajuste por NDVI, ambiente y lluvia acumulada.'],
+      ['VT-R1', 'No entrar salvo rescate', 'solo correccion foliar puntual', 'Prioridad: estres hidrico y sanidad.']
+    ];
+  } else if (cultivo === 'soja') {
+    items = [
+      ['Siembra', 'Inoculacion + P/S', dosis('P') + ' · ' + dosis('S'), 'La FBN cubre la mayor parte del N; cuidar arranque.'],
+      ['V4-R1', 'Chequeo nutricional', 'analisis foliar si hay sintomas', 'Corregir solo deficiencias diagnosticadas.'],
+      ['R1-R5', 'Ventana critica', 'foliar solo con diagnostico', 'Prioridad: agua y sanidad en floracion/llenado.']
+    ];
+  } else if (cultivo === 'girasol') {
+    items = [
+      ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque.'],
+      ['Vegetativo-boton floral', 'N principal', dosis('N'), 'Aplicar antes de maxima demanda si el perfil lo permite.'],
+      ['Boton-floracion', 'Boro / ajuste puntual', 'segun analisis', 'No aplicar sin diagnostico; cuidar estres hidrico.'],
+      ['Llenado', 'Sin fertilizacion de base', 'monitoreo', 'Prioridad: agua, sanidad y cosecha.']
+    ];
+  }
+  if (!items.length) return '';
+  var rows = items.map(function(it) {
+    var active = etapaActual && etapaActual.nombre && it[0].toLowerCase().indexOf(String(etapaActual.nombre).toLowerCase().split(' ')[0]) >= 0;
+    return '<div style="padding:.75rem .85rem;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:' + (active ? 'rgba(79,195,247,.1)' : 'rgba(255,255,255,.03)') + '">'
+      + '<div style="font-size:.7rem;color:var(--c2);text-transform:uppercase;letter-spacing:.06em">' + it[0] + '</div>'
+      + '<div style="font-weight:700;margin:.18rem 0">' + it[1] + '</div>'
+      + '<div style="font-size:.82rem;color:var(--accent);font-weight:700">' + it[2] + '</div>'
+      + '<div style="font-size:.72rem;color:var(--c2);line-height:1.35;margin-top:.25rem">' + it[3] + '</div>'
+      + '</div>';
+  }).join('');
+  var nota = plan ? 'Dosis heredadas del ultimo calculo de Nutricion del lote.' : 'Para completar kg/ha exactos, recalcular Nutricion en este lote; la agenda muestra el momento operativo.';
+  return '<div class="card" style="margin-bottom:1rem">'
+    + '<div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Agenda fenologica de fertilizacion</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.65rem">' + rows + '</div>'
+    + '<p style="font-size:.7rem;color:var(--c2);margin:.7rem 0 0">' + nota + '</p>'
+    + '</div>';
+}
+
+function _fsRenderAlertasOperativas(res, etapaActual, diasTranscurridos) {
+  var lluvia7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
+  var lluviaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
+  var crit = etapaActual && etapaActual.esCritica;
+  var cards = [
+    ['Agua ultima semana', Math.round(lluvia7) + ' mm', lluvia7 < 10 ? 'Baja reposicion reciente.' : 'Reposicion reciente favorable.'],
+    ['Pronostico 7 dias', Math.round(lluviaProx) + ' mm', lluviaProx < 10 ? 'No depender de lluvia cercana.' : 'Hay ventana probable de recarga.'],
+    ['Etapa actual', etapaActual ? etapaActual.nombre : '-', crit ? 'Etapa critica: priorizar monitoreo frecuente.' : 'Etapa no critica, mantener seguimiento.']
+  ];
+  return '<div class="card" style="margin-bottom:1rem"><div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Lectura operativa</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:.55rem">'
+    + cards.map(function(c) { return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:.7rem"><div style="font-size:.65rem;color:var(--c2);text-transform:uppercase">' + c[0] + '</div><div style="font-size:1.15rem;font-weight:800;color:var(--accent);margin:.15rem 0">' + c[1] + '</div><div style="font-size:.7rem;color:var(--c2);line-height:1.3">' + c[2] + '</div></div>'; }).join('')
+    + '</div></div>';
 }
 
 function _fsRender(res, diasTranscurridos) {
@@ -4148,6 +4354,9 @@ function _fsRender(res, diasTranscurridos) {
     + '<div><div style="font-size:.76rem;color:var(--c2)">Días desde siembra</div><div style="font-size:1.7rem;font-weight:700">' + diasTranscurridos + '</div></div>'
     + '<div><div style="font-size:.76rem;color:var(--c2)">GDD acumulado</div><div style="font-size:1.7rem;font-weight:700">' + gddHoy + '</div></div>'
     + '</div></div>'
+    + _fsRenderAlertasOperativas(res, etapaActual, diasTranscurridos)
+    + _fsRenderAguaEtapas(res, diasTranscurridos)
+    + _fsRenderAgendaNutricion(res, etapaActual)
     + '<div class="card" style="margin-bottom:1rem"><div style="font-size:.82rem;font-weight:600;color:var(--c2);margin-bottom:.8rem">Próximos estadios críticos</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:.6rem">' + proximosHtml + '</div></div>'
     + '<div class="card" style="margin-bottom:1rem;overflow-x:auto">'
@@ -4350,7 +4559,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=87"></script>
+<script src="js/nav.js?v=88"></script>
 
 
 
@@ -4366,7 +4575,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=85"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
-<script src="js/dashboard-lotes.js?v=115"></script>
+<script src="js/dashboard-lotes.js?v=116"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=92"></script>

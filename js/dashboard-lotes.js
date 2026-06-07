@@ -778,7 +778,10 @@
     html +=     '<div class="dlw-panel-titulo">Fenologia del cultivo</div>';
     html +=     '<div class="dlw-fen-stage">' + esc(etapaActual || 'Seguimiento activo') + '</div>';
     html +=   '</div>';
-    html +=   '<div class="dlw-fen-pct">' + pctRound + '%</div>';
+    html +=   '<div class="dlw-fen-actions">';
+    html +=     '<div class="dlw-fen-pct">' + pctRound + '%</div>';
+    html +=     '<button type="button" class="dlw-fen-more" onclick="window.dlAbrirFenologiaDetalle && window.dlAbrirFenologiaDetalle(\'' + esc(lote.id) + '\')">Más detalles</button>';
+    html +=   '</div>';
     html += '</div>';
     html += '<div class="dlw-fen-kpis">';
     html +=   '<span>' + esc(cultivo) + '</span>';
@@ -1458,6 +1461,11 @@
     // Ir a vista clásica y abrir el módulo
     window.dlIrClasica();
     if (typeof switchMod === 'function') switchMod(mod);
+  };
+
+  window.dlAbrirFenologiaDetalle = function(loteId) {
+    window.AM_FEN_AUTO_DETALLE = true;
+    window.dlAbrirModulo('fen-seg', loteId);
   };
 
   window.dlVolverAnterior = function () {

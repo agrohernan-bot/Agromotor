@@ -396,6 +396,22 @@ window.ncPlanCalcular = function() {
 
 // ── RENDER PLAN ──────────────────────────────────────────
 function ncRenderPlan(res, ctx) {
+  try {
+    var lotePlan = (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined')
+      ? AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; }) : null;
+    if (lotePlan) {
+      lotePlan.data = lotePlan.data || {};
+      lotePlan.data.nutricionPlan = {
+        ts: Date.now(),
+        cultivo: ctx.cultStr,
+        rendimiento: ctx.rendObj,
+        superficie: ctx.sup,
+        costoTotal: ctx.costoTotal,
+        resultados: res
+      };
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    }
+  } catch(_) {}
   var ph  = document.getElementById('nc-plan-placeholder');
   var out = document.getElementById('nc-plan-resultado');
   if (!out) return;
