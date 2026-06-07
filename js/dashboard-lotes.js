@@ -623,6 +623,7 @@
       html += renderWidgetPlanFina(lote);
       html += renderFenologiaMonitoreo(lote);
       html += renderWidgetMonitoreo(lote);
+      html += renderSanidadMonitoreo(lote);
       html += renderDatosLotePanel(loteId);
     }
     if (secKey === 'planfina' || secKey === 'plangruesa') {
@@ -953,6 +954,135 @@
   }
 
   // ── Barra de progreso fenológico para las cards ───────
+  function _sanNivelCfg(nivel) {
+    return {
+      alto:  { label: 'Atencion alta', cls: 'alto',  color: '#D4522A' },
+      medio: { label: 'Vigilar',       cls: 'medio', color: '#C8A255' },
+      bajo:  { label: 'Controlado',    cls: 'bajo',  color: '#6DBF82' },
+      nd:    { label: 'Sin datos',     cls: 'nd',    color: 'rgba(237,224,196,.45)' }
+    }[nivel || 'nd'] || { label: 'Sin datos', cls: 'nd', color: 'rgba(237,224,196,.45)' };
+  }
+
+  function _sanNombresPlagas(cultivo) {
+    var mes = new Date().getMonth() + 1;
+    var c = _normCultivoPlan(cultivo);
+    var mapa = {
+      soja: [{ n:'Orugas defoliadoras', m:[11,12,1,2] }, { n:'Chinches', m:[12,1,2,3] }, { n:'Trips', m:[11,12,1,2] }],
+      maiz: [{ n:'Cogollero', m:[9,10,11,12,1] }, { n:'Barrenador', m:[11,12,1,2,3] }, { n:'Diabrotica', m:[10,11,12] }],
+      trigo: [{ n:'Pulgon verde', m:[6,7,8,9] }, { n:'Pulgon amarillo', m:[8,9,10] }, { n:'Pulgon de la espiga', m:[9,10,11] }],
+      girasol: [{ n:'Isoca bolillera', m:[11,12,1] }, { n:'Trips', m:[10,11,12] }],
+      sorgo: [{ n:'Pulgones', m:[11,12,1,2] }, { n:'Cogollero', m:[10,11,12,1] }],
+      cebada: [{ n:'Pulgones', m:[6,7,8,9] }, { n:'Trips', m:[9,10] }],
+      colza: [{ n:'Pulgones', m:[5,6,7,8] }, { n:'Orugas', m:[7,8,9] }]
+    };
+    return (mapa[c] || []).filter(function(x) { return x.m.indexOf(mes) >= 0; }).map(function(x) { return x.n; });
+  }
+
+  function _sanEnfermedadesClave(cultivo) {
+    var c = _normCultivoPlan(cultivo);
+    return {
+      soja: ['Roya asiatica', 'Mancha ojo de rana', 'Septoria'],
+      maiz: ['Tizon del norte', 'Roya comun', 'Mancha gris'],
+      trigo: ['Roya de la hoja', 'Septoriosis', 'Fusariosis'],
+      girasol: ['Sclerotinia', 'Roya', 'Alternaria'],
+      sorgo: ['Roya', 'Antracnosis'],
+      cebada: ['Mancha en red', 'Roya', 'Ramularia'],
+      colza: ['Phoma', 'Sclerotinia']
+    }[c] || ['Complejo sanitario'];
+  }
+
+  function _sanClima(data) {
+    data = data || {};
+    var om = data.om || {};
+    var cur = om.current || {};
+    var daily = om.daily || {};
+    var prob = daily.precipitation_probability_max || [];
+    var mm = daily.precipitation_sum || [];
+    var probMax = prob.length ? Math.max.apply(null, prob.slice(0, 3).map(function(v) { return parseFloat(v) || 0; })) : 0;
+    var lluvia3 = mm.slice(0, 3).reduce(function(a, v) { return a + (parseFloat(v) || 0); }, 0);
+    return { hr: parseFloat(cur.relative_humidity_2m), temp: parseFloat(cur.temperature_2m), prob3: probMax, lluvia3: lluvia3 };
+  }
+
+  function _sanEtapaCritica(cultivo, etapa) {
+    var c = _normCultivoPlan(cultivo);
+    var e = String(etapa || '').toLowerCase();
+    if (!e) return false;
+    if (c === 'trigo' || c === 'cebada') return /enca|bota|espig|antes|flora|llen/.test(e);
+    if (c === 'soja') return /r1|r2|r3|r4|r5|flora|vaina|llen/.test(e);
+    if (c === 'maiz' || c === 'sorgo') return /v8|v12|vt|r1|r2|panoja|estigma|flora/.test(e);
+    if (c === 'girasol') return /boton|flora|r5|r6|r7/.test(e);
+    return false;
+  }
+
+  function renderSanidadMonitoreo(lote, hubData) {
+    var d = lote.data || {};
+    var ck = d.calcKeys || {};
+    var loteId = esc(lote.id);
+    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha = _fechaSiembraEfectiva(d, ck, cultivo);
+    var etapa = ck['am_fen_etapa_hoy'] || '';
+    var clima = _sanClima(hubData || _hubDataCache[lote.id + '_' + (new Date().getMonth() + 1)] || {});
+    var plagas = _sanNombresPlagas(cultivo);
+    var enfBase = _sanEnfermedadesClave(cultivo);
+    var alertas = [];
+    try { alertas = JSON.parse(ck['am_alertas_activas'] || '[]'); } catch(e) {}
+    if (!Array.isArray(alertas)) alertas = [];
+
+    var climaHumedo = (clima.hr >= 85) || (clima.prob3 >= 60) || (clima.lluvia3 >= 5);
+    var climaCalido = !isNaN(clima.temp) && clima.temp >= 18;
+    var critica = _sanEtapaCritica(cultivo, etapa);
+    var nivelPlagas = plagas.length >= 2 && climaCalido ? 'alto' : (plagas.length ? 'medio' : 'bajo');
+    var nivelEnf = alertas.length ? 'alto' : ((climaHumedo && critica) ? 'alto' : (climaHumedo || critica ? 'medio' : 'bajo'));
+    if (!cultivo || !fecha) nivelPlagas = nivelEnf = 'nd';
+
+    var pCfg = _sanNivelCfg(nivelPlagas);
+    var eCfg = _sanNivelCfg(nivelEnf);
+    var climaTxt = clima.prob3 || clima.lluvia3 || !isNaN(clima.hr)
+      ? 'HR ' + (isNaN(clima.hr) ? '-' : Math.round(clima.hr) + '%') + ' - lluvia 3d ' + clima.lluvia3.toFixed(0) + ' mm - prob ' + Math.round(clima.prob3) + '%'
+      : 'Esperando datos climaticos del lote';
+    var etapaTxt = etapa ? etapa : (fecha ? 'Seguimiento fenologico activo' : 'Falta fecha de siembra');
+
+    var html = '<div class="dlw-panel dlw-san-panel" id="dl-sanidad-' + loteId + '">';
+    html += '<div class="dlw-san-head">';
+    html +=   '<div><div class="dlw-panel-titulo">Guardia sanitaria</div><div class="dlw-san-sub">Situacion actual para decidir recorridas y entrar al detalle.</div></div>';
+    html +=   '<div class="dlw-san-weather">' + esc(climaTxt) + '</div>';
+    html += '</div>';
+    html += '<div class="dlw-san-grid">';
+
+    html += '<div class="dlw-san-card dlw-san-' + pCfg.cls + '">';
+    html +=   '<div class="dlw-san-card-top"><span class="dlw-san-ico">🐛</span><div><div class="dlw-san-title">Plagas</div><div class="dlw-san-risk" style="color:' + pCfg.color + '">' + pCfg.label + '</div></div></div>';
+    html +=   '<div class="dlw-san-body">';
+    if (plagas.length) {
+      html += '<div class="dlw-san-focus">Mirar: ' + esc(plagas.slice(0, 3).join(' - ')) + '</div>';
+      html += '<div class="dlw-san-note">Presion estacional para ' + esc(cultivo || 'cultivo') + '. Validar con recorrida y umbrales.</div>';
+    } else {
+      html += '<div class="dlw-san-focus">Sin plaga estacional dominante este mes</div>';
+      html += '<div class="dlw-san-note">Mantener monitoreo semanal y revisar bordes/lotes vecinos.</div>';
+    }
+    html +=   '</div>';
+    html +=   "<button type=\"button\" class=\"dlw-san-btn\" onclick=\"window.dlAbrirModulo('plagas','" + loteId + "')\">Ver plagas</button>";
+    html += '</div>';
+
+    html += '<div class="dlw-san-card dlw-san-' + eCfg.cls + '">';
+    html +=   '<div class="dlw-san-card-top"><span class="dlw-san-ico">🦠</span><div><div class="dlw-san-title">Enfermedades</div><div class="dlw-san-risk" style="color:' + eCfg.color + '">' + eCfg.label + '</div></div></div>';
+    html +=   '<div class="dlw-san-body">';
+    if (alertas.length) {
+      var alertaTxt = alertas[0] && (alertas[0].titulo || alertas[0].msg || alertas[0].mensaje || alertas[0]);
+      html += '<div class="dlw-san-focus">Alerta activa: ' + esc(String(alertaTxt).substring(0, 72)) + '</div>';
+    } else {
+      html += '<div class="dlw-san-focus">Mirar: ' + esc(enfBase.slice(0, 3).join(' - ')) + '</div>';
+    }
+    html += '<div class="dlw-san-note">' + esc(etapaTxt) + (climaHumedo ? ' - ambiente humedo favorable.' : ' - sin senal climatica fuerte.') + '</div>';
+    html +=   '</div>';
+    html +=   "<button type=\"button\" class=\"dlw-san-btn\" onclick=\"window.dlAbrirModulo('alerta-sanitaria','" + loteId + "')\">Ver enfermedades</button>";
+    html += '</div>';
+
+    html += '</div>';
+    html += '<div class="dlw-san-foot">Orientativo: prioriza que revisar; la decision requiere monitoreo a campo.</div>';
+    html += '</div>';
+    return html;
+  }
+
   function renderBarraCiclo(ck, fechaSiembra) {
     var fenDurCiclo = parseFloat(ck['am_fen_duracion_ciclo']) || 0;
     if (!fechaSiembra || fenDurCiclo <= 0) return '';
@@ -1363,6 +1493,9 @@
     }
 
     el.innerHTML = html || '<div class="dl-hub-datos-empty">Sin datos disponibles.</div>';
+    var sanEl = document.getElementById('dl-sanidad-' + loteId);
+    var sanLote = getLote(loteId);
+    if (sanEl && sanLote) sanEl.outerHTML = renderSanidadMonitoreo(sanLote, data);
   }
 
   function _wmoEmoji(code) {
