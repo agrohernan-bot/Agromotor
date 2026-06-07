@@ -595,6 +595,7 @@
     // Widgets contextuales según sección
     if (secKey === 'monitoreo') {
       html += renderWidgetPlanFina(lote);
+      html += renderFenologiaMonitoreo(lote);
       html += renderWidgetMonitoreo(lote);
       html += renderDatosLotePanel(loteId);
     }
@@ -613,6 +614,7 @@
     // Grid de módulos
     html += '<div class="dl-modulos-grid">';
     sec.modulos.forEach(function (m) {
+      if (secKey === 'monitoreo' && m.mod === 'fen-seg') return;
       html += '<div class="dl-modulo-card" onclick="window.dlAbrirModulo(\'' + m.mod + '\',\'' + esc(loteId) + '\')">';
       html +=   '<div class="dl-mod-emoji">' + m.emoji + '</div>';
       html +=   '<div class="dl-mod-cuerpo">';
@@ -642,6 +644,164 @@
   // ══════════════════════════════════════════════════════
 
   // ── Panel de estado para Monitoreo ────────────────────
+  var FEN_ETAPAS_MON = {
+    soja: [
+      { label: 'Emergencia', pct: 6, color: '#B8E6B0' },
+      { label: 'Vegetativo', pct: 30, color: '#6DBF82' },
+      { label: 'Floracion', pct: 17, color: '#FFB800' },
+      { label: 'Llenado', pct: 22, color: '#E8860A' },
+      { label: 'Madurez', pct: 25, color: '#8A4A18' }
+    ],
+    maiz: [
+      { label: 'Emergencia', pct: 5, color: '#B8E6B0' },
+      { label: 'Vegetativo', pct: 35, color: '#6DBF82' },
+      { label: 'Floracion', pct: 8, color: '#FFB800' },
+      { label: 'Llenado', pct: 40, color: '#E8860A' },
+      { label: 'Madurez', pct: 12, color: '#8A4A18' }
+    ],
+    trigo: [
+      { label: 'Germinacion', pct: 8, color: '#B8E6B0' },
+      { label: 'Macollaje', pct: 18, color: '#6DBF82' },
+      { label: 'Encaniado', pct: 18, color: '#FFDD66' },
+      { label: 'Espigazon', pct: 10, color: '#FFB800' },
+      { label: 'Llenado', pct: 32, color: '#E8860A' },
+      { label: 'Madurez', pct: 14, color: '#8A4A18' }
+    ],
+    cebada: [
+      { label: 'Germinacion', pct: 7, color: '#B8E6B0' },
+      { label: 'Macollaje', pct: 18, color: '#6DBF82' },
+      { label: 'Encaniado', pct: 20, color: '#FFDD66' },
+      { label: 'Espigazon', pct: 10, color: '#FFB800' },
+      { label: 'Llenado', pct: 31, color: '#E8860A' },
+      { label: 'Madurez', pct: 14, color: '#8A4A18' }
+    ],
+    girasol: [
+      { label: 'Emergencia', pct: 8, color: '#B8E6B0' },
+      { label: 'Vegetativo', pct: 28, color: '#6DBF82' },
+      { label: 'Boton floral', pct: 12, color: '#FFDD66' },
+      { label: 'Floracion', pct: 15, color: '#FFB800' },
+      { label: 'Llenado', pct: 24, color: '#E8860A' },
+      { label: 'Madurez', pct: 13, color: '#8A4A18' }
+    ],
+    sorgo: [
+      { label: 'Emergencia', pct: 6, color: '#B8E6B0' },
+      { label: 'Vegetativo', pct: 28, color: '#6DBF82' },
+      { label: 'Encaniado', pct: 15, color: '#FFDD66' },
+      { label: 'Floracion', pct: 10, color: '#FFB800' },
+      { label: 'Llenado', pct: 18, color: '#E8860A' },
+      { label: 'Madurez', pct: 23, color: '#8A4A18' }
+    ],
+    colza: [
+      { label: 'Emergencia', pct: 8, color: '#B8E6B0' },
+      { label: 'Roseta', pct: 24, color: '#6DBF82' },
+      { label: 'Elongacion', pct: 20, color: '#FFDD66' },
+      { label: 'Floracion', pct: 18, color: '#FFB800' },
+      { label: 'Llenado', pct: 18, color: '#E8860A' },
+      { label: 'Madurez', pct: 12, color: '#8A4A18' }
+    ]
+  };
+
+  var FEN_CICLO_DEFAULT_MON = {
+    soja: 150, maiz: 150, trigo: 190, cebada: 180, girasol: 130, sorgo: 140, colza: 170
+  };
+
+  function normCultivoFen(cultivo) {
+    var s = (cultivo || '').toLowerCase();
+    try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+    if (s.indexOf('maiz') >= 0) return 'maiz';
+    if (s.indexOf('trigo') >= 0) return 'trigo';
+    if (s.indexOf('cebada') >= 0) return 'cebada';
+    if (s.indexOf('girasol') >= 0) return 'girasol';
+    if (s.indexOf('sorgo') >= 0) return 'sorgo';
+    if (s.indexOf('colza') >= 0) return 'colza';
+    if (s.indexOf('soja') >= 0) return 'soja';
+    return '';
+  }
+
+  function diasDesdeIso(fechaISO) {
+    if (!fechaISO) return null;
+    var d = new Date(fechaISO + 'T12:00:00');
+    if (isNaN(d.getTime())) return null;
+    var hoy = new Date();
+    hoy.setHours(12, 0, 0, 0);
+    return Math.round((hoy - d) / 86400000);
+  }
+
+  function fmtFechaCorta(fechaISO) {
+    if (!fechaISO) return '';
+    var p = String(fechaISO).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] : fechaISO;
+  }
+
+  function etapaPorPct(etapas, pctHoy) {
+    var acum = 0;
+    for (var i = 0; i < etapas.length; i++) {
+      acum += etapas[i].pct;
+      if (pctHoy <= acum) return { actual: etapas[i], idx: i };
+    }
+    return { actual: etapas[etapas.length - 1], idx: etapas.length - 1 };
+  }
+
+  function renderFenologiaMonitoreo(lote) {
+    var d  = lote.data || {};
+    var ck = d.calcKeys || {};
+    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fechaSiembra = d.fecha || ck['am_siembra_fecha'] || '';
+    var key = normCultivoFen(cultivo);
+    var etapas = key ? FEN_ETAPAS_MON[key] : null;
+    var ciclo = parseFloat(ck['am_fen_duracion_ciclo']) || (key ? FEN_CICLO_DEFAULT_MON[key] : 0);
+    var etapaGuardada = ck['am_fen_etapa_hoy'] || '';
+    var finEtapa = ck['am_fen_fecha_etapa_fin'] || '';
+
+    if (!cultivo || !fechaSiembra || !etapas || ciclo <= 0) {
+      var falta = !cultivo ? 'cultivo' : (!fechaSiembra ? 'fecha de siembra' : 'cultivo compatible');
+      return [
+        '<div class="dlw-panel dlw-fen-panel dlw-fen-empty">',
+          '<div class="dlw-panel-titulo">Fenologia del cultivo</div>',
+          '<div class="dlw-fen-empty-title">Sin grafica fenologica activa</div>',
+          '<div class="dlw-meta">Falta ' + esc(falta) + ' para ubicar el cultivo en el ciclo.</div>',
+        '</div>'
+      ].join('');
+    }
+
+    var dias = diasDesdeIso(fechaSiembra);
+    if (dias === null || dias < 0) dias = 0;
+    var pctHoy = Math.min(100, Math.max(0, dias / ciclo * 100));
+    var pctRound = Math.round(pctHoy);
+    var ep = etapaPorPct(etapas, pctHoy);
+    var etapaActual = etapaGuardada || (ep.actual ? ep.actual.label : '');
+    var diasRestantes = Math.max(0, Math.round(ciclo - dias));
+
+    var html = '<div class="dlw-panel dlw-fen-panel">';
+    html += '<div class="dlw-fen-head">';
+    html +=   '<div>';
+    html +=     '<div class="dlw-panel-titulo">Fenologia del cultivo</div>';
+    html +=     '<div class="dlw-fen-stage">' + esc(etapaActual || 'Seguimiento activo') + '</div>';
+    html +=   '</div>';
+    html +=   '<div class="dlw-fen-pct">' + pctRound + '%</div>';
+    html += '</div>';
+    html += '<div class="dlw-fen-kpis">';
+    html +=   '<span>' + esc(cultivo) + '</span>';
+    html +=   '<span>Siembra ' + esc(fmtFechaCorta(fechaSiembra)) + '</span>';
+    html +=   '<span>Dia ' + Math.round(dias) + ' / ' + Math.round(ciclo) + '</span>';
+    if (diasRestantes > 0) html += '<span>Restan ~' + diasRestantes + ' d</span>';
+    html += '</div>';
+    html += '<div class="dlw-fen-track-wrap"><div class="dlw-fen-track">';
+    etapas.forEach(function(e, idx) {
+      var cls = 'dlw-fen-seg' + (idx === etapas.length - 1 ? ' dlw-fen-seg-last' : '');
+      var segLabel = e.pct >= 10 ? esc(e.label) : '';
+      html += '<div class="' + cls + '" style="width:' + e.pct + '%;background:' + e.color + '"><span>' + segLabel + '</span></div>';
+    });
+    html += '<div class="dlw-fen-marker" style="left:' + pctRound + '%"><span>Hoy</span></div>';
+    html += '</div></div>';
+    html += '<div class="dlw-fen-foot">';
+    if (finEtapa) html += '<span>Proxima etapa estimada: ' + esc(finEtapa) + '</span>';
+    else if (ep.idx < etapas.length - 1) html += '<span>Proxima etapa: ' + esc(etapas[ep.idx + 1].label) + '</span>';
+    else html += '<span>Ciclo en tramo final</span>';
+    html += '</div></div>';
+    return html;
+  }
+
   function renderWidgetMonitoreo(lote) {
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
@@ -661,7 +821,7 @@
     if (!Array.isArray(alertas)) alertas = [];
 
     // Verificar si hay datos suficientes para mostrar el panel
-    var tieneDatos = fenEtapa || (aguaCC > 0) || ensoFase;
+    var tieneDatos = (aguaCC > 0) || ensoFase || alertas.length > 0;
     if (!tieneDatos) return '';
 
     // Calcular % del ciclo
@@ -690,7 +850,7 @@
     html += '<div class="dlw-grid">';
 
     // Fenología
-    if (fenEtapa || pctCiclo > 0) {
+    if (false && (fenEtapa || pctCiclo > 0)) {
       html += '<div class="dlw-card">';
       html +=   '<div class="dlw-card-titulo">🌱 Fenología</div>';
       if (fenEtapa) html += '<div class="dlw-valor">' + esc(fenEtapa) + '</div>';
