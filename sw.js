@@ -5,7 +5,8 @@
 //             Offline fallback para uso en campo
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-const CACHE_NAME    = 'agromotor-v137';
+const SW_VERSION    = new URL(self.location.href).searchParams.get('v') || 'dev';
+const CACHE_NAME    = 'agromotor-' + SW_VERSION;
 const CACHE_CDN     = 'agromotor-cdn-v1';
 
 // Assets locales - se pre-cachean en el install
@@ -88,6 +89,8 @@ const CDN_HOSTS = [
   'unpkg.com',
 ];
 
+const LOCAL_NETWORK_FIRST_EXT = ['.html', '.js', '.css', '.json', '.webmanifest'];
+
 // APIs de datos â€” siempre Network First (datos en tiempo real)
 const API_HOSTS = [
   'api.open-meteo.com',
@@ -163,7 +166,13 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Assets locales â†’ Cache First
+  // Assets versionados locales â†’ Network First para no servir JS/CSS viejos.
+  if (url.origin === self.location.origin && LOCAL_NETWORK_FIRST_EXT.some(ext => url.pathname.endsWith(ext))) {
+    event.respondWith(networkFirst(request, 3500));
+    return;
+  }
+
+  // Assets locales pesados â†’ Cache First
   event.respondWith(cacheFirst(request));
 });
 
@@ -200,12 +209,12 @@ async function staleWhileRevalidate(request, cacheName) {
 }
 
 // Network First: intenta red, si falla sirve del cache
-async function networkFirst(request) {
+async function networkFirst(request, timeoutMs = 8000) {
   try {
     const response = await Promise.race([
       fetch(request),
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 8000)
+        setTimeout(() => reject(new Error('timeout')), timeoutMs)
       )
     ]);
 

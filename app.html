@@ -4641,7 +4641,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=96"></script>
+<script src="js/config.js?v=97"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=96"></script>
 
@@ -4793,7 +4793,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     if (await amClearServiceWorkerIfRequested()) return;
 
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+    const swVersion = (window.AM_CONFIG && window.AM_CONFIG.assetVersion) || Date.now();
+    navigator.serviceWorker.register('./sw.js?v=' + encodeURIComponent(swVersion), { updateViaCache: 'none' })
       .then(reg => {
         reg.update();
         setInterval(() => reg.update(), 60000);
