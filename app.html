@@ -4074,12 +4074,21 @@ function fsUsarLote() {
     _fsSetVal('fs-lat', coords.lat.toFixed ? coords.lat.toFixed(5) : coords.lat);
     _fsSetVal('fs-lon', coords.lon.toFixed ? coords.lon.toFixed(5) : coords.lon);
   }
-  var fechaLote = d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || '';
+  var planes = d.planificacionSiembra || {};
+  var cultivoBase = d.cultivo || d.cultivoPlanificacion || ck['am_siembra_cultivo'] || '';
+  var cultivoKeyBase = _fsNormCultivo(cultivoBase);
+  var grupoPlan = ['trigo','cebada','colza'].indexOf(cultivoKeyBase) >= 0 ? 'invierno'
+    : (['soja','maiz','girasol','sorgo'].indexOf(cultivoKeyBase) >= 0 ? 'verano' : '');
+  var planGrupo = grupoPlan ? (planes[grupoPlan] || {}) : {};
+  var fechaLote = planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan
+    || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
+    || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
+    || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
   var fecMaster = document.getElementById('s-fecha');
   if (!fechaLote && fecMaster && fecMaster.value) fechaLote = fecMaster.value;
   _fsSetVal('fs-fecha', fechaLote);
 
-  var cultivoLote = d.cultivo || d.cultivoPlanificacion || ck['am_siembra_cultivo'] || '';
+  var cultivoLote = cultivoBase || planGrupo.cultivo || (planes.invierno && planes.invierno.cultivo) || (planes.verano && planes.verano.cultivo) || '';
   var cultMaster = document.getElementById('s-cultivo');
   if (!cultivoLote && cultMaster && cultMaster.value) cultivoLote = cultMaster.value;
   _fsSetVal('fs-cultivo', _fsNormCultivo(cultivoLote));
@@ -4578,7 +4587,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/core.js?v=86"></script>
 <script src="js/config.js?v=93"></script>
 <script src="js/login.js?v=89"></script>
-<script src="js/cache.js?v=95"></script>
+<script src="js/cache.js?v=96"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
@@ -4606,7 +4615,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=85"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=85"></script>
-<script src="js/dashboard-lotes.js?v=116"></script>
+<script src="js/dashboard-lotes.js?v=117"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=92"></script>

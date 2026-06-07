@@ -604,7 +604,17 @@ function cacheCargar() {
     if (datos.coord   && document.getElementById('s-coord'))   document.getElementById('s-coord').value   = datos.coord;
     if (datos.cultivo && document.getElementById('s-cultivo')) document.getElementById('s-cultivo').value = datos.cultivo;
     // Priorizar fecha confirmada o planeada del widget de siembra antes que la del form clásico
-    var fechaEfectiva = datos.fechaSiembraConf || datos.fechaSiembraPlan || datos.fecha || '';
+    var planes = datos.planificacionSiembra || {};
+    var cultivoFecha = String(datos.cultivo || '').toLowerCase();
+    try { cultivoFecha = cultivoFecha.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+    if (/ma.z/.test(cultivoFecha)) cultivoFecha = 'maiz';
+    var grupoFecha = ['trigo','cebada','colza'].indexOf(cultivoFecha) >= 0 ? 'invierno'
+      : (['soja','maiz','girasol','sorgo'].indexOf(cultivoFecha) >= 0 ? 'verano' : '');
+    var planFecha = grupoFecha ? (planes[grupoFecha] || {}) : {};
+    var fechaEfectiva = planFecha.fechaSiembraConf || planFecha.fechaSiembraPlan
+      || datos.fechaSiembraConf || datos.fechaSiembraPlan || datos.fechaSiembra || datos.fecha || ''
+      || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
+      || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
     if (fechaEfectiva && document.getElementById('s-fecha')) document.getElementById('s-fecha').value = fechaEfectiva;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
 

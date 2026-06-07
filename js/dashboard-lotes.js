@@ -145,7 +145,7 @@
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
     var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var fecha   = d.fecha   || ck['am_siembra_fecha']   || '';
+    var fecha   = _fechaSiembraEfectiva(d, ck, cultivo);
     if (!cultivo && !fecha) return 'vacio';
     if (!fecha) return 'planificando';
     var hoy     = new Date();
@@ -163,6 +163,32 @@
   }
 
   // ── COORDENADAS DEL LOTE ─────────────────────────────
+  function _normCultivoPlan(cultivo) {
+    var s = String(cultivo || '').toLowerCase();
+    try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+    if (/ma.z/.test(s)) return 'maiz';
+    return s;
+  }
+
+  function _grupoPorCultivo(cultivo) {
+    var c = _normCultivoPlan(cultivo);
+    if (['trigo','cebada','colza'].indexOf(c) >= 0) return 'invierno';
+    if (['soja','maiz','girasol','sorgo'].indexOf(c) >= 0) return 'verano';
+    return '';
+  }
+
+  function _fechaSiembraEfectiva(d, ck, cultivo) {
+    d = d || {};
+    ck = ck || {};
+    var planes = d.planificacionSiembra || {};
+    var grupo = _grupoPorCultivo(cultivo || d.cultivo || ck['am_siembra_cultivo'] || '');
+    var planGrupo = grupo ? (planes[grupo] || {}) : {};
+    return planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan
+      || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
+      || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
+      || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
+  }
+
   function _coordsFromLote(lote) {
     var d = lote.data || {};
     if (Array.isArray(d.polygon) && d.polygon.length > 0) {
@@ -413,7 +439,7 @@
     var estado   = getEstado(lote);
     var eConf    = ESTADOS[estado];
     var cultivo  = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var fecha    = d.fecha   || ck['am_siembra_fecha']   || '';
+    var fecha    = _fechaSiembraEfectiva(d, ck, cultivo);
     var fenEtapa = ck['am_fen_etapa_hoy'] || '';
     var aguaMm   = parseFloat(ck['am_hidrico_agua_actual_mm']) || 0;
     var aguaCC   = parseFloat(ck['am_hidrico_cap_max_mm']) || 0;
@@ -746,7 +772,7 @@
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
     var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var fechaSiembra = d.fecha || ck['am_siembra_fecha'] || '';
+    var fechaSiembra = _fechaSiembraEfectiva(d, ck, cultivo);
     var key = normCultivoFen(cultivo);
     var etapas = key ? FEN_ETAPAS_MON[key] : null;
     var ciclo = parseFloat(ck['am_fen_duracion_ciclo']) || (key ? FEN_CICLO_DEFAULT_MON[key] : 0);
@@ -813,7 +839,7 @@
     var fenFechaFin  = ck['am_fen_fecha_etapa_fin']  || '';
     var fenDurCiclo  = parseFloat(ck['am_fen_duracion_ciclo']) || 0;
     var cultivo      = d.cultivo || ck['am_siembra_cultivo']   || '';
-    var fechaSiembra = d.fecha   || ck['am_siembra_fecha']     || '';
+    var fechaSiembra = _fechaSiembraEfectiva(d, ck, cultivo);
     var aguaMm       = parseFloat(ck['am_hidrico_agua_actual_mm'])  || 0;
     var aguaCC       = parseFloat(ck['am_hidrico_cap_max_mm'])      || 0;
     var deficitAcum  = parseFloat(ck['am_hidrico_deficit_acum_mm']) || 0;
