@@ -145,6 +145,10 @@
   }
 
   function _loteActivo() {
+    if (typeof window.amGetLoteActivo === 'function') {
+      var lote = window.amGetLoteActivo();
+      if (lote && _loteTienePoligono(lote)) return lote;
+    }
     var lotes = window.AM_LOTES || [];
     var activo = lotes.find(function (l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
     return activo || lotes.find(_loteTienePoligono) || null;

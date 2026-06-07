@@ -195,6 +195,7 @@ let SAT_CHART = null;
 let SAT_LAST_ANALISIS = null;
 
 function satLoteActivo() {
+  if (typeof window.amGetLoteActivo === 'function') return window.amGetLoteActivo();
   if (typeof AM_LOTES === 'undefined' || typeof AM_LOTE_ACTIVO === 'undefined') return null;
   return (AM_LOTES || []).find(l => l && l.id === AM_LOTE_ACTIVO) || null;
 }

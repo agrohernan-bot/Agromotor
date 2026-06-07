@@ -261,7 +261,10 @@
     return '';
   }
   function loteActivoAM() {
-    try { return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null; }
+    try {
+      if (typeof window.amGetLoteActivo === 'function') return window.amGetLoteActivo();
+      return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
+    }
     catch(e) { return null; }
   }
   function coordsLoteAM(lote) {

@@ -102,6 +102,7 @@ function grupoCultivoAM(cultivo) {
 
 function loteActivoAM() {
   try {
+    if (typeof window.amGetLoteActivo === 'function') return window.amGetLoteActivo();
     return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
   } catch(e) { return null; }
 }
@@ -956,10 +957,8 @@ window.plagasRenderEstacional = function() {
 
   // Nombre del lote
   var loteNombre = '';
-  if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
-    var lote = AM_LOTES.find(function(l){ return l.id === AM_LOTE_ACTIVO; });
-    if (lote) loteNombre = lote.nombre || '';
-  }
+  var lote = loteActivoAM();
+  if (lote) loteNombre = lote.nombre || '';
 
   var estacional = PLAGAS_ESTACIONAL[cultivo] || {};
   var plagasMes = Object.entries(estacional).filter(function(e){ return e[1].includes(mes); });

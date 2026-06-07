@@ -201,10 +201,15 @@ window.ncSwitchTab = function(tab) {
 };
 
 // ── CONTEXTO LOTE Y PANEL SUELO ───────────────────────────
+function ncLoteActivo() {
+  if (typeof window.amGetLoteActivo === 'function') return window.amGetLoteActivo();
+  return (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined')
+    ? AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; }) : null;
+}
+
 window.ncActualizar = function() {
   var cultivo = ncCultStr();
-  var lote = (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined')
-    ? AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; }) : null;
+  var lote = ncLoteActivo();
   var sd = window._sueloDatos || {};
   var tieneLab = Object.values(sd).some(function(v) { return v && v.fuente === 'laboratorio'; });
   var tieneSG  = Object.values(sd).some(function(v) { return v && v.fuente === 'soilgrids'; });
@@ -397,8 +402,7 @@ window.ncPlanCalcular = function() {
 // ── RENDER PLAN ──────────────────────────────────────────
 function ncRenderPlan(res, ctx) {
   try {
-    var lotePlan = (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined')
-      ? AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; }) : null;
+    var lotePlan = ncLoteActivo();
     if (lotePlan) {
       lotePlan.data = lotePlan.data || {};
       lotePlan.data.nutricionPlan = {

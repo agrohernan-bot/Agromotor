@@ -341,18 +341,19 @@ function cvActualizar() {
   let lat = null, lon = null, loteNombre = '', sgDatos = null;
 
   // 1. Intentar desde el lote activo en cache (AM_LOTES)
-  if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
-    const lote = AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO);
-    if (lote) {
-      loteNombre = lote.nombre || '';
-      const datos = lote.data || {};
-      const coordCached = (datos.coord || '').trim();
-      if (coordCached && typeof parsCoord === 'function') {
-        const p = parsCoord(coordCached);
-        if (p[0] !== null) { lat = p[0]; lon = p[1]; }
-      }
-      sgDatos = datos.sgDatos || null;
+  const lote = (typeof window.amGetLoteActivo === 'function')
+    ? window.amGetLoteActivo()
+    : ((typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined')
+      ? AM_LOTES.find(l => l.id === AM_LOTE_ACTIVO) : null);
+  if (lote) {
+    loteNombre = lote.nombre || '';
+    const datos = lote.data || {};
+    const coordCached = (datos.coord || '').trim();
+    if (coordCached && typeof parsCoord === 'function') {
+      const p = parsCoord(coordCached);
+      if (p[0] !== null) { lat = p[0]; lon = p[1]; }
     }
+    sgDatos = datos.sgDatos || null;
   }
 
   // 2. Fallback directo: leer #s-coord del Dashboard (siempre tiene el valor actual,
