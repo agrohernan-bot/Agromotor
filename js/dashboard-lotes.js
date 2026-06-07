@@ -309,6 +309,26 @@
         _fetchSueloCards(lotes);
       }, 30);
     }
+    actualizarBotonVolverNuevaUX();
+  }
+
+  function actualizarBotonVolverNuevaUX() {
+    var btnVolver = document.getElementById('btn-volver-dash');
+    if (!btnVolver || document.body.classList.contains('dl-modo-clasico')) return;
+    if (_seccionAbierta && _loteAbierto) {
+      var lote = getLote(_loteAbierto);
+      var nombre = lote && lote.nombre ? lote.nombre : 'lote';
+      btnVolver.classList.remove('hidden');
+      btnVolver.textContent = '← Volver a ' + nombre;
+      btnVolver.title = 'Volver al hub del lote';
+      btnVolver.onclick = function () { window.dlAbrirLote(_loteAbierto); };
+    } else {
+      btnVolver.classList.add('hidden');
+      btnVolver.onclick = function () {
+        if (window.dlVolverAnterior) window.dlVolverAnterior();
+        else if (typeof switchMod === 'function') switchMod('lotes');
+      };
+    }
   }
 
   // ══════════════════════════════════════════════════════
@@ -567,12 +587,6 @@
     }
 
     var html = '<div class="dl-page dl-page-sec">';
-
-    // Breadcrumb
-    html += breadcrumb([
-      { label: 'Mis Lotes',      onclick: 'window.dlVolverCards()' },
-      { label: esc(lote.nombre), onclick: 'window.dlAbrirLote(\'' + esc(loteId) + '\')' }
-    ], titulo);
 
     // Header sección
     html += '<div class="dl-sec-header" style="border-left-color:' + sec.color + '">';
@@ -1498,6 +1512,7 @@
     var tituloVolver = _modContext && _modContext.secKey ? tituloSeccion(getLote(_modContext.loteId), _modContext.secKey) : '';
     btnVolver.textContent = tituloVolver ? '← Volver a ' + tituloVolver : '← Mis Lotes';
     btnVolver.title = _modContext && _modContext.secKey ? 'Volver al hub anterior' : 'Volver a Mis Lotes';
+    btnVolver.onclick = function () { window.dlVolverAnterior(); };
   }
 
 })();

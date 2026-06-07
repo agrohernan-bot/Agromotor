@@ -1668,6 +1668,10 @@ body { font-family: 'Georgia','Times New Roman',serif; background: var(--paper);
   display: flex;
   align-items: center;
   gap: .35rem;
+  max-width: calc(100vw - 44px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .btn-volver-dash:hover {
   transform: translateY(-2px);
