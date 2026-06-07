@@ -184,4 +184,119 @@ function cvRenderDondeComprar(cultivarNombre, empresa, especie, lat, lon) {
   window.DC_DB        = DC_DB;          // usado por asistente.js → mapaFiltrar
   window.dcDistancia  = dcDistancia;    // usado por asistente.js → mapaFiltrar
 
+// Mapa / imagenes satelitales del lote activo
+let SAT_MAP = null;
+let SAT_BASE = {};
+let SAT_GROUP = null;
+let SAT_LAYER_ACTIVA = 'sat';
+
+function satLoteActivo() {
+  if (typeof AM_LOTES === 'undefined' || typeof AM_LOTE_ACTIVO === 'undefined') return null;
+  return (AM_LOTES || []).find(l => l && l.id === AM_LOTE_ACTIVO) || null;
+}
+
+function satParseCoord(txt) {
+  if (!txt) return null;
+  const p = String(txt).replace(/\s/g, '').split(',');
+  if (p.length < 2) return null;
+  const lat = parseFloat(p[0]);
+  const lng = parseFloat(p[1]);
+  return isNaN(lat) || isNaN(lng) ? null : { lat, lng };
+}
+
+function satPolygon(lote) {
+  if (!lote) return null;
+  if (Array.isArray(lote.polygon) && lote.polygon.length >= 3) {
+    return lote.polygon.map(p => [parseFloat(p.lat), parseFloat(p.lng || p.lon)]).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+  }
+  const gj = lote.geojson || (lote.data && (lote.data.geojson || lote.data.polygonGeoJSON));
+  const ring = gj && gj.geometry && gj.geometry.coordinates && gj.geometry.coordinates[0];
+  if (Array.isArray(ring) && ring.length >= 3) {
+    return ring.map(c => [parseFloat(c[1]), parseFloat(c[0])]).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+  }
+  return null;
+}
+
+function satCentro(lote, poly) {
+  if (poly && poly.length) {
+    const sum = poly.reduce((acc, p) => ({ lat: acc.lat + p[0], lng: acc.lng + p[1] }), { lat: 0, lng: 0 });
+    return { lat: sum.lat / poly.length, lng: sum.lng / poly.length };
+  }
+  const d = (lote && lote.data) || {};
+  return satParseCoord(d.coord || d.coordenadas || d.centroide || lote?.coord || lote?.coordenadas);
+}
+
+function satChip(txt) {
+  return '<span style="border:1px solid rgba(109,191,130,.28);background:rgba(109,191,130,.10);color:#dff4e5;border-radius:999px;padding:.28rem .55rem;font-size:.72rem;font-weight:700">' + txt + '</span>';
+}
+
+function mapaSatelitalInit() {
+  const el = document.getElementById('mapa-sat-map');
+  if (!el || typeof L === 'undefined') return;
+
+  const lote = satLoteActivo();
+  const poly = satPolygon(lote);
+  const centro = satCentro(lote, poly);
+  const empty = document.getElementById('mapa-sat-empty');
+  const ctx = document.getElementById('mapa-sat-contexto');
+
+  if (ctx) {
+    const d = (lote && lote.data) || {};
+    ctx.innerHTML = lote
+      ? satChip(lote.nombre || 'Lote') + (d.superficie ? satChip(d.superficie + ' ha') : '') + (d.sueloTipo || d['sg-textura'] ? satChip(d.sueloTipo || d['sg-textura']) : '') + (poly ? satChip('Poligono activo') : satChip('Centroide'))
+      : satChip('Sin lote activo');
+  }
+
+  if (!SAT_MAP) {
+    SAT_MAP = L.map(el, { zoomControl: true, attributionControl: true }).setView([-33.5, -61], 6);
+    SAT_BASE.sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Tiles &copy; Esri',
+      maxZoom: 19
+    });
+    SAT_BASE.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 19
+    });
+    SAT_BASE[SAT_LAYER_ACTIVA].addTo(SAT_MAP);
+    SAT_GROUP = L.featureGroup().addTo(SAT_MAP);
+  }
+
+  SAT_GROUP.clearLayers();
+
+  if (!centro) {
+    if (empty) empty.style.display = 'flex';
+    setTimeout(() => SAT_MAP.invalidateSize(), 100);
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+
+  if (poly && poly.length >= 3) {
+    L.polygon(poly, { color: '#6DBF82', weight: 3, fillColor: '#6DBF82', fillOpacity: .16 }).addTo(SAT_GROUP);
+  }
+
+  L.circleMarker([centro.lat, centro.lng], {
+    radius: 7,
+    color: '#fff',
+    weight: 2,
+    fillColor: '#C8A255',
+    fillOpacity: 1
+  }).addTo(SAT_GROUP).bindPopup('<strong>' + ((lote && lote.nombre) || 'Lote activo') + '</strong>');
+
+  setTimeout(() => {
+    SAT_MAP.invalidateSize();
+    if (poly && poly.length >= 3) SAT_MAP.fitBounds(L.polygon(poly).getBounds(), { padding: [28, 28] });
+    else SAT_MAP.setView([centro.lat, centro.lng], 14);
+  }, 120);
+}
+
+function mapaSatCambiarCapa(capa) {
+  if (!SAT_MAP || !SAT_BASE[capa]) return;
+  Object.keys(SAT_BASE).forEach(k => SAT_MAP.removeLayer(SAT_BASE[k]));
+  SAT_LAYER_ACTIVA = capa;
+  SAT_BASE[capa].addTo(SAT_MAP);
+}
+
+window.mapaSatelitalInit = mapaSatelitalInit;
+window.mapaSatCambiarCapa = mapaSatCambiarCapa;
+
 })();

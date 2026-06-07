@@ -17,7 +17,7 @@ var AM_TAB_ORDER = [
   'nutricion','rotacion',
   'economia','cosecha','maquinaria',
   'plagas','alerta-sanitaria','pulverizacion',
-  'siembra-variable','mapa','asistente',
+  'siembra-variable','mapa','donde-comprar','asistente',
   'fen-plan','fen-seg',
   'malezas','bitacora','huella-carbono','hist-campanas'
 ];
@@ -64,6 +64,7 @@ function switchMod(mod) {
     'hidrico':       ['hidrico.js'],
     'cultivares':    ['cultivares.js', 'cultivares-extra.js'],
     'mapa':          ['mapa.js'],
+    'donde-comprar': ['mapa.js'],
     'pulverizacion': ['pulverizacion.js'],
     'decision':      ['decision.js'],
     'nutricion':     ['nutricion.js'],
@@ -250,7 +251,8 @@ function _activarModulo(mod) {
     setTimeout(function() { if (typeof window.ncTimingRender === 'function') window.ncTimingRender(); }, 300);
   }
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
-  if (mod === 'mapa') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
+  if (mod === 'mapa') setTimeout(function() { if (typeof mapaSatelitalInit === 'function') mapaSatelitalInit(); }, 100);
+  if (mod === 'donde-comprar') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
     _syncCultivo('pulv-cultivo');
     setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);

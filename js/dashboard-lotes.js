@@ -26,6 +26,7 @@
     { mod: 'hidrico',          emoji: '💧', titulo: 'Balance hídrico',         desc: 'ETC FAO + ENSO/NOAA + proyección de lluvias' },
     { mod: 'nutricion',        emoji: '🌿', titulo: 'Nutrición N/P/K',         desc: 'Balance nutricional — tablas Echeverría & García INTA' },
     { mod: 'siembra-variable', emoji: '🗺', titulo: 'Siembra variable',        desc: 'Ambientes por zona · prescripción · shapefile export' },
+    { mod: 'donde-comprar',    emoji: '📍', titulo: 'Dónde comprar',           desc: 'Distribuidores e insumos cercanos al lote' },
     { mod: 'fen-plan',         emoji: '📅', titulo: 'Simular fenología',       desc: 'Predicción de estadios con corrección ENSO/NOAA' },
     { mod: 'economia',         emoji: '💰', titulo: 'Presupuesto de campaña',  desc: 'Costos de insumos, maquinaria y labores' },
     { mod: 'maquinaria',       emoji: '🚜', titulo: 'Maquinaria',              desc: 'Inventario y costos de maquinaria propia o contratada' },

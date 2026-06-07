@@ -28,7 +28,7 @@ const AM_PLANES = {
     iaCallsMes: 30,
     modulos: [
       'siembra','suelo','decision','economia','nutricion',
-      'maquinaria','hidrico','cultivares','asistente','mapa',
+      'maquinaria','hidrico','cultivares','asistente','mapa','donde-comprar',
       'seguimiento','plagas','pulverizacion',
       'cosecha','alerta-sanitaria','siembra-variable'
     ],
@@ -37,8 +37,8 @@ const AM_PLANES = {
     desc: 'Para asesores · 20 lotes base · lotes extra USD 1/mes c/u · Todo el motor agronómico'
   },
   // Alias legacy para usuarios con plan pro/empresa — redirigen a asesor en UI
-  pro:     { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' },
-  empresa: { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' }
+  pro:     { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','donde-comprar','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' },
+  empresa: { nombre: 'Profesional', precio: 'USD 35/mes', lotes: 20, iaCallsMes: 30, modulos: ['siembra','suelo','decision','economia','nutricion','maquinaria','hidrico','cultivares','asistente','mapa','donde-comprar','seguimiento','plagas','pulverizacion','cosecha','alerta-sanitaria','siembra-variable'], color: '#3A7A4A', icon: '🌾', desc: '' }
 };
 
 // ── FECHA FIN DE PROMOCIÓN ────────────────────────────
@@ -293,7 +293,7 @@ function amMostrarModalUpgrade(modulo) {
     economia:'Economía de Campaña', nutricion:'Nutrición de Cultivo',
     maquinaria:'Productividad Maquinaria', hidrico:'Balance Hídrico',
     cultivares:'Cultivares RECSO/INTA', asistente:'Asistente IA',
-    mapa:'Mapa de Distribuidores', plagas:'Alertas de Plagas',
+    mapa:'Mapa / Imagenes satelitales', 'donde-comprar':'Donde Comprar', plagas:'Alertas de Plagas',
     pulverizacion:'Ventanas de Pulverización', cosecha:'Cosecha Decide',
     seguimiento:'Seguimiento Fenológico'
   };
