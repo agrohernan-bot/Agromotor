@@ -3826,7 +3826,7 @@
   <div class="module-title">Fenología · <em>Planificación</em></div>
   <div class="module-subtitle">Proyectá estadios fenológicos, ETc y balance hídrico con datos climáticos históricos · Elegí la mejor fecha de siembra</div>
 
-  <div class="card" style="margin-bottom:1.5rem">
+  <div class="card" id="fp-form-card" style="margin-bottom:1.5rem">
     <div class="grid-3">
       <div class="fg">
         <label>Cultivo</label>
@@ -3876,7 +3876,7 @@
   <div class="module-title">Fenología · <em>Seguimiento</em></div>
   <div class="module-subtitle">Estado actual del cultivo implantado · ERA5 histórico real + pronóstico Open-Meteo 16 días · Estadio, Kc y días a eventos críticos</div>
 
-  <div class="card" style="margin-bottom:1.5rem">
+  <div class="card" id="fs-form-card" style="margin-bottom:1.5rem">
     <div class="grid-3">
       <div class="fg">
         <label>Cultivo</label>
@@ -3908,6 +3908,8 @@
       <button class="btn" onclick="fsUsarLote()" style="opacity:.7;font-size:.84rem">📍 Copiar datos del lote</button>
     </div>
   </div>
+
+  <div id="fs-contexto-lote"></div>
 
   <div id="fs-resultado">
     <div class="dash-ph-card">
@@ -4072,7 +4074,7 @@ function fsUsarLote() {
     _fsSetVal('fs-lat', coords.lat.toFixed ? coords.lat.toFixed(5) : coords.lat);
     _fsSetVal('fs-lon', coords.lon.toFixed ? coords.lon.toFixed(5) : coords.lon);
   }
-  var fechaLote = d.fechaSiembraConf || d.fechaSiembraPlan || d.fecha || ck['am_siembra_fecha'] || '';
+  var fechaLote = d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || '';
   var fecMaster = document.getElementById('s-fecha');
   if (!fechaLote && fecMaster && fecMaster.value) fechaLote = fecMaster.value;
   _fsSetVal('fs-fecha', fechaLote);
@@ -4100,6 +4102,30 @@ function fsUsarLote() {
 }
 
 var _fsChart = null;
+
+function fsPrepararDetalleLote() {
+  fsUsarLote();
+  var lote = _fsLoteActivo();
+  var d = (lote && lote.data) || {};
+  var form = document.getElementById('fs-form-card');
+  var ctx = document.getElementById('fs-contexto-lote');
+  if (form) form.style.display = 'none';
+  if (ctx) {
+    var cultivo = (document.getElementById('fs-cultivo') || {}).value || d.cultivo || '-';
+    var lat = (document.getElementById('fs-lat') || {}).value || '-';
+    var lon = (document.getElementById('fs-lon') || {}).value || '-';
+    var fecha = (document.getElementById('fs-fecha') || {}).value || '-';
+    ctx.innerHTML = '<div class="card" style="margin-bottom:1rem">'
+      + '<div style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--c2);margin-bottom:.7rem">Contexto heredado del lote</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:.45rem">'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + (lote ? lote.nombre : 'Lote activo') + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + cultivo + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">Siembra ' + fecha + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + lat + ', ' + lon + '</span>'
+      + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.4;margin-top:.7rem">La fenologia se genera automaticamente con datos del lote y de la planificacion. Para cambiar cultivo, coordenadas o fecha, editar la planificacion del lote.</div>'
+      + '</div>';
+  }
+}
 
 function _fsNormCultivo(c) {
   var s = String(c || '').toLowerCase();
@@ -4161,16 +4187,21 @@ async function fsCalcular() {
 
   var hoy = new Date();
   var siembra = new Date(fechaSiembra + 'T00:00:00');
-  if (siembra > hoy) { alert('La fecha de siembra no puede ser futura.\nUsá "Fen. Planificación" para proyecciones.'); return; }
-  var diasTranscurridos = Math.max(0, Math.floor((hoy - siembra) / 86400000));
+  var esFechaFutura = siembra > hoy;
+  var diasTranscurridos = esFechaFutura ? 0 : Math.max(0, Math.floor((hoy - siembra) / 86400000));
 
   var btn = document.getElementById('fs-btn');
   btn.disabled = true; btn.textContent = '⏳ Calculando…';
-  document.getElementById('fs-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">⏳ Descargando datos reales ERA5 + pronóstico 16 días…</p>';
+  document.getElementById('fs-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">Generando fenologia del lote desde datos heredados y clima disponible...</p>';
 
   try {
-    var duracion = Math.max(diasTranscurridos + 18, 60);
-    var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: 'seguimiento' });
+    var loteCalc = _fsLoteActivo();
+    var ckCalc = (loteCalc && loteCalc.data && loteCalc.data.calcKeys) || {};
+    var duracionPlan = parseInt(ckCalc['am_fen_duracion_ciclo']) || (cultivo === 'trigo' ? 190 : cultivo === 'girasol' ? 130 : 150);
+    var duracion = esFechaFutura ? duracionPlan : Math.max(diasTranscurridos + 18, 60);
+    var modoFen = esFechaFutura ? 'planificacion' : 'seguimiento';
+    var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: modoFen });
+    res._amEsPlanificado = esFechaFutura;
     _fsRender(res, diasTranscurridos);
   } catch(e) {
     document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #e74c3c;padding:1.2rem"><p style="color:#e74c3c;margin:0">❌ Error: ' + e.message + '</p></div>';
@@ -4559,7 +4590,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=88"></script>
+<script src="js/nav.js?v=89"></script>
 
 
 

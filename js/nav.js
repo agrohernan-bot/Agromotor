@@ -313,10 +313,11 @@ function _activarModulo(mod) {
     }
     _syncCultivoNorm(mod === 'fen-plan' ? 'fp-cultivo' : 'fs-cultivo');
     _syncFecha(mod === 'fen-plan' ? 'fp-fecha' : 'fs-fecha');
-    if (mod === 'fen-seg' && window.AM_FEN_AUTO_DETALLE) {
+    if (mod === 'fen-seg') {
       window.AM_FEN_AUTO_DETALLE = false;
       setTimeout(function() {
-        if (typeof fsUsarLote === 'function') fsUsarLote();
+        if (typeof fsPrepararDetalleLote === 'function') fsPrepararDetalleLote();
+        else if (typeof fsUsarLote === 'function') fsUsarLote();
         if (typeof fsCalcular === 'function') fsCalcular();
       }, 250);
     }
