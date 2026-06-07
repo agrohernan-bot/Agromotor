@@ -4263,7 +4263,11 @@ window.pulvTab = function(id, btn) {
   if (panel) panel.classList.add('active');
   if (btn) btn.classList.add('active');
 };
+window.pulvShowTab         = (id) => showTab(id);
 window.pulvCalcAgua        = () => calcularAgua();
+window.pulvCalcBuffer      = () => calcBuffer();
+window.pulvActualizarProductos = () => actualizarProductos();
+window.pulvCalcCaldo       = () => calcCaldo();
 window.pulvGuardarRegistro = () => guardarRegistro();
 window.pulvExportarPDF     = () => exportarPDF();
 window.pulvLimpiarHistorial= () => limpiarHistorial();
@@ -4275,16 +4279,7 @@ window.pulvRenderHistorial = () => renderHistorial();
 if(typeof renderHRAC === 'function') window.pulvRenderHRAC      = () => renderHRAC();
 window.pulvFiltrarHRAC = () => filtrarHRAC();
 window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);
-
-  // Otras funciones globales que pueden ser necesarias
-  window.showTab = showTab;
-  window.initGPS = initGPS;
-  window.calcBuffer = calcBuffer;
-  window.actualizarProductos = actualizarProductos;
-  window.calcCaldo = calcCaldo;
-  window.guardarRegistro = guardarRegistro;
-  window.limpiarHistorial = limpiarHistorial;
-  window.exportarPDF = exportarPDF;
-  window.enviarMensaje = enviarMensaje;
+window.pulvInitGPS = () => initGPS();
+window.pulvEnviarMensaje = () => enviarMensaje();
 
 })();

@@ -2642,22 +2642,22 @@
 
   <!-- MODULE TABS -->
   <div class="mod-nav">
-    <div class="mod-tab active" data-tab="datos" onclick="showTab('datos')">
+    <div class="mod-tab active" data-tab="datos" onclick="cosShowTab('datos')">
       <div class="tab-num">1</div> Lote y Cosecha
     </div>
-    <div class="mod-tab" data-tab="costos" onclick="showTab('costos')">
+    <div class="mod-tab" data-tab="costos" onclick="cosShowTab('costos')">
       <div class="tab-num">2</div> Costos y Fletes
     </div>
-    <div class="mod-tab" data-tab="almac" onclick="showTab('almac')">
+    <div class="mod-tab" data-tab="almac" onclick="cosShowTab('almac')">
       <div class="tab-num">3</div> Almacenamiento
     </div>
-    <div class="mod-tab" data-tab="decision" onclick="showTab('decision')">
+    <div class="mod-tab" data-tab="decision" onclick="cosShowTab('decision')">
       <div class="tab-num">4</div> ⚖️ Decisión
     </div>
-    <div class="mod-tab" data-tab="escenarios" onclick="showTab('escenarios')">
+    <div class="mod-tab" data-tab="escenarios" onclick="cosShowTab('escenarios')">
       <div class="tab-num">5</div> 📊 Escenarios
     </div>
-    <div class="mod-tab" data-tab="historial" onclick="showTab('historial')">
+    <div class="mod-tab" data-tab="historial" onclick="cosShowTab('historial')">
       <div class="tab-num">6</div> 🗂️ Historial
     </div>
   </div>
@@ -2764,7 +2764,7 @@
           </div>
         </div>
 
-        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('costos');window.scrollTo(0,0)">
+        <button class="btn btn-gold btn-full btn-lg" onclick="cosShowTab('costos');window.scrollTo(0,0)">
           Continuar → Costos y Fletes
         </button>
       </div>
@@ -2901,7 +2901,7 @@
           </div>
         </div>
 
-        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('almac');window.scrollTo(0,0)">
+        <button class="btn btn-gold btn-full btn-lg" onclick="cosShowTab('almac');window.scrollTo(0,0)">
           Continuar → Almacenamiento
         </button>
       </div>
@@ -3056,7 +3056,7 @@
           </div>
         </div>
 
-        <button class="btn btn-gold btn-full btn-lg" onclick="showTab('decision');calcDecision();window.scrollTo(0,0)">
+        <button class="btn btn-gold btn-full btn-lg" onclick="cosShowTab('decision');calcDecision();window.scrollTo(0,0)">
           ⚖️ Ver Decisión →
         </button>
       </div>
@@ -3131,9 +3131,9 @@
 
       <!-- Exportar -->
       <div class="export-row">
-        <button class="btn btn-s" onclick="exportPDF()">📄 Exportar PDF</button>
+        <button class="btn btn-s" onclick="cosExportPDF()">📄 Exportar PDF</button>
         <button class="btn btn-s" onclick="guardarLote()" title="Guardar este análisis en el historial">💾 Guardar lote</button>
-        <button class="btn btn-s" onclick="showTab('escenarios');buildEscenarios()">📊 Ver escenarios</button>
+        <button class="btn btn-s" onclick="cosShowTab('escenarios');buildEscenarios()">📊 Ver escenarios</button>
         <button class="btn btn-gold" onclick="calcDecision()">🔄 Recalcular</button>
       </div>
 
@@ -3261,7 +3261,7 @@
         </div>
         <div style="display:flex;gap:.6rem">
           <button class="btn btn-s" style="font-size:.78rem;padding:.45rem .9rem" onclick="exportHistorialCSV()">📥 CSV</button>
-          <button class="btn btn-s" style="font-size:.78rem;padding:.45rem .9rem;color:var(--warn)" onclick="limpiarHistorial()">🗑️ Limpiar</button>
+          <button class="btn btn-s" style="font-size:.78rem;padding:.45rem .9rem;color:var(--warn)" onclick="cosLimpiarHistorial()">🗑️ Limpiar</button>
         </div>
       </div>
       <div class="card-body" style="padding:0">
@@ -4641,7 +4641,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=97"></script>
+<script src="js/config.js?v=98"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=96"></script>
 
