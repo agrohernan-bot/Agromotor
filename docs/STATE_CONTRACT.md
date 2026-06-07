@@ -5,6 +5,7 @@ Este documento define las fuentes de verdad de estado local para evitar que los 
 ## Principios
 
 - La fuente principal de lote activo es `window.AM_LOTES` + `window.AM_LOTE_ACTIVO`, persistida por `js/cache.js`.
+- Para leer el lote activo, preferir `window.amGetLoteActivo()` cuando exista. El helper normaliza el estado antes de devolver el lote.
 - Los modulos pueden leer el lote activo, pero solo deben escribir cambios persistentes del lote a traves de `amGuardarLotesEstado()` cuando exista.
 - La planificacion de campaña vive dentro de `lote.data`; los modulos de monitoreo deben heredar desde ahi y no pedir de nuevo cultivo, fecha o coordenadas.
 - Las claves `am_*` globales son compatibilidad legacy o cache operativo. No deben ser la fuente primaria si existe dato en `lote.data`.
@@ -69,8 +70,14 @@ Campos recomendados en `lote.data`:
 Reglas:
 
 - `AM_LOTE_ACTIVO` debe ser siempre un `id` presente en `AM_LOTES`.
+- `js/cache.js` ejecuta `amNormalizarEstadoLotes()` al cargar y antes de persistir para corregir un activo inexistente o una lista vacia.
 - Si se elimina el lote activo, el nuevo activo debe ser el primer lote disponible o `default`.
 - Las coordenadas se guardan como string `lat,lon` para compatibilidad, pero los mapas deben preferir `polygon`/`geojson` cuando existan.
+
+Helpers publicos:
+
+- `amGetLoteActivo()` devuelve el objeto de lote activo ya validado.
+- `amNormalizarEstadoLotes()` corrige `AM_LOTES`/`AM_LOTE_ACTIVO` sin refrescar UI por si un modulo necesita sanear estado antes de operar.
 
 ## Campañas
 
@@ -234,6 +241,7 @@ No crear nuevas dependencias fuertes sobre estas claves si se puede leer desde `
 ## Checklist para nuevos módulos
 
 - Leer primero `AM_LOTES` + `AM_LOTE_ACTIVO`.
+- Si existe, usar `amGetLoteActivo()` en lugar de repetir busquedas manuales.
 - Escribir resumen persistente dentro de `lote.data`.
 - Usar prefijo propio si se necesita cache local (`modulo_nombre_*`).
 - Documentar la clave en este archivo.

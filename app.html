@@ -4204,6 +4204,7 @@ function _fsNormCultivo(c) {
 
 function _fsLoteActivo() {
   try {
+    if (typeof window.amGetLoteActivo === 'function') return window.amGetLoteActivo();
     return (window.AM_LOTES || []).find(function(l) { return String(l.id) === String(window.AM_LOTE_ACTIVO); }) || null;
   } catch(_) { return null; }
 }
@@ -4641,9 +4642,9 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=98"></script>
+<script src="js/config.js?v=99"></script>
 <script src="js/login.js?v=90"></script>
-<script src="js/cache.js?v=96"></script>
+<script src="js/cache.js?v=97"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>

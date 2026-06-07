@@ -31,6 +31,36 @@
   window.AM_LOTES = [];
   window.AM_LOTE_ACTIVO = 'default';
 
+function amNormalizarEstadoLotes() {
+  if (!Array.isArray(window.AM_LOTES)) window.AM_LOTES = [];
+  window.AM_LOTES = window.AM_LOTES.filter(function(l) {
+    return l && l.id != null;
+  });
+
+  if (!window.AM_LOTES.length) {
+    window.AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: {} }];
+    window.AM_LOTE_ACTIVO = 'default';
+    return window.AM_LOTES[0];
+  }
+
+  var activo = window.AM_LOTES.find(function(l) {
+    return String(l.id) === String(window.AM_LOTE_ACTIVO);
+  });
+  if (!activo) {
+    window.AM_LOTE_ACTIVO = window.AM_LOTES[0].id;
+    activo = window.AM_LOTES[0];
+  }
+  return activo;
+}
+
+function amGetLoteActivo() {
+  return amNormalizarEstadoLotes();
+}
+
+function amPersistirLotesLocal() {
+  localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+}
+
 function amCargarLotesGlobales() {
   var _uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : null;
   if (!_uid) _amLotesRemoteLoadUid = null;
@@ -53,11 +83,9 @@ function amCargarLotesGlobales() {
     console.warn("Error loading lotes:", e);
     AM_LOTES = [];
   }
-  
-  if(!Array.isArray(AM_LOTES) || AM_LOTES.length === 0) {
-    AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: {} }];
-    AM_LOTE_ACTIVO = 'default';
-  }
+
+  amNormalizarEstadoLotes();
+  try { amPersistirLotesLocal(); } catch (_) {}
   
   amRenderSelectLotes();
   if (_uid) amCargarLotesRemotos();
@@ -398,7 +426,8 @@ window.amCambiarLoteGlobal = function() {
 };
 
 function amGuardarLotesEstado() {
-  localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+  amNormalizarEstadoLotes();
+  amPersistirLotesLocal();
   amProgramarGuardarLotesRemotos();
 }
 
@@ -410,6 +439,7 @@ function amProgramarGuardarLotesRemotos() {
 
 async function amGuardarLotesRemotos(force) {
   if (!amLotesRemoteDisponible() || (_amLotesRemoteLoading && !force)) return;
+  amNormalizarEstadoLotes();
   const uid = AM_SESION.id;
   const lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
   if (!lotes.length) return;
@@ -477,8 +507,9 @@ async function amCargarLotesRemotos(force) {
       }));
       const activo = remotos.find(r => r.activo) || remotos[0];
       AM_LOTE_ACTIVO = activo.lote_id;
+      amNormalizarEstadoLotes();
 
-      localStorage.setItem(getLotesKey(), JSON.stringify({ lotes: AM_LOTES, activo: AM_LOTE_ACTIVO }));
+      amPersistirLotesLocal();
       amRenderSelectLotes();
       if (typeof cacheCargar === 'function') cacheCargar();
       if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
@@ -773,6 +804,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amCargarLotesGlobales = amCargarLotesGlobales;
   window.amRenderSelectLotes = amRenderSelectLotes;
   window.amGuardarLotesEstado = amGuardarLotesEstado;
+  window.amNormalizarEstadoLotes = amNormalizarEstadoLotes;
+  window.amGetLoteActivo = amGetLoteActivo;
   window.amGetLoteLimit = amGetLoteLimit;
 
 })();
