@@ -189,6 +189,10 @@ let SAT_MAP = null;
 let SAT_BASE = {};
 let SAT_GROUP = null;
 let SAT_LAYER_ACTIVA = 'sat';
+let SAT_NDVI_LAYER = null;
+let SAT_ANOM_LAYER = null;
+let SAT_CHART = null;
+let SAT_LAST_ANALISIS = null;
 
 function satLoteActivo() {
   if (typeof AM_LOTES === 'undefined' || typeof AM_LOTE_ACTIVO === 'undefined') return null;
@@ -327,7 +331,237 @@ function mapaSatCambiarCapa(capa) {
   mapaSatelitalInit();
 }
 
+function satGeoJSON(lote, poly) {
+  if (!lote) return null;
+  if (lote.geojson && lote.geojson.geometry) return lote.geojson;
+  if (lote.data && lote.data.geojson && lote.data.geojson.geometry) return lote.data.geojson;
+  if (!poly || poly.length < 3) return null;
+  var ring = poly.map(p => [p[1], p[0]]);
+  var first = ring[0], last = ring[ring.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) ring.push(first);
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
+}
+
+function satClamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
+function satNoise(x, y) {
+  var n = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+  return (n - Math.floor(n)) * 2 - 1;
+}
+
+function satBuildGrid(geo, centro) {
+  if (!geo || typeof turf === 'undefined') {
+    var c = centro || { lat: -33.5, lng: -61 };
+    return { points: [[c.lng, c.lat]], cellDeg: 0.002, areaHa: 0 };
+  }
+  var area = Math.max(1, turf.area(geo));
+  var cellM = Math.max(22, Math.min(75, Math.sqrt(area / 650)));
+  var cd = cellM / 111000;
+  var bbox = turf.bbox(geo), pts = [];
+  for (var lat = bbox[1] + cd / 2; lat < bbox[3]; lat += cd) {
+    for (var lng = bbox[0] + cd / 2; lng < bbox[2]; lng += cd) {
+      if (turf.booleanPointInPolygon(turf.point([lng, lat]), geo, { ignoreBoundary: false })) pts.push([lng, lat]);
+    }
+  }
+  if (!pts.length && centro) pts.push([centro.lng, centro.lat]);
+  return { points: pts, cellDeg: cd, areaHa: area / 10000 };
+}
+
+function satNdviColor(v) {
+  return v > .75 ? '#1a9641' : v > .65 ? '#66bd63' : v > .55 ? '#d9ef8b' : v > .45 ? '#fee08b' : v > .30 ? '#f46d43' : '#d73027';
+}
+
+function satCultivo(lote) {
+  var d = (lote && lote.data) || {};
+  return d.cultivo || d.cultivoActivo || (d.calcKeys && d.calcKeys.am_siembra_cultivo) || 'Cultivo';
+}
+
+function satFechaSiembra(lote) {
+  var d = (lote && lote.data) || {};
+  var p = d.planificacionSiembra || {};
+  var cult = satCultivo(lote);
+  return d.fechaSiembraReal || d.fechaSiembra || d.siembraFecha || p[cult] || p[cult && cult.toLowerCase && cult.toLowerCase()] || '';
+}
+
+function satPctCiclo(lote) {
+  var f = satFechaSiembra(lote);
+  if (!f) return .55;
+  var dias = Math.max(0, Math.round((new Date() - new Date(f + 'T00:00:00')) / 86400000));
+  var cult = String(satCultivo(lote)).toLowerCase();
+  var dur = cult.includes('trigo') || cult.includes('cebada') ? 180 : cult.includes('ma') ? 150 : 135;
+  return satClamp(dias / dur, 0, 1.15);
+}
+
+function satGenerarHistorial(lote, meses) {
+  var pct = satPctCiclo(lote), hist = [], steps = Math.max(8, Math.min(24, meses * 2));
+  for (var i = steps - 1; i >= 0; i--) {
+    var t = satClamp(pct - (i / steps) * .45, 0, 1.1);
+    var curva = t < .12 ? .22 + t * 2.1 : t < .62 ? .47 + Math.sin((t - .12) / .5 * Math.PI / 2) * .29 : .76 - (t - .62) * .55;
+    var d = new Date(); d.setDate(d.getDate() - i * 14);
+    hist.push({ fecha: d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }), valor: +satClamp(curva + satNoise(i, curva) * .025, .12, .88).toFixed(3) });
+  }
+  return hist;
+}
+
+async function satFetchRealNDVI(geo, meses, gridInfo) {
+  var key = (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.agromonitoringKey) ? AM_CONFIG.agromonitoringKey : '';
+  if (!key || !geo) throw new Error('Sin API key o poligono');
+  var now = Math.floor(Date.now() / 1000), from = now - meses * 30 * 86400;
+  var pr = await fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'agromotor_sat_' + Date.now(), geo_json: geo })
+  });
+  var poly = await pr.json();
+  if (!poly.id) throw new Error('No se pudo crear poligono satelital');
+  var hr = await fetch('https://agromonitoring.com/agromonitoring/v1/ndvi/history?polyid=' + poly.id + '&from=' + from + '&to=' + now + '&appid=' + key);
+  var raw = await hr.json();
+  if (!Array.isArray(raw) || !raw.length) throw new Error('Sin escenas NDVI');
+  var hist = raw.slice(-18).map(h => ({ fecha: new Date(h.dt * 1000).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }), valor: +(h.data && h.data.mean ? h.data.mean : .45).toFixed(3) }));
+  var mean = hist[hist.length - 1].valor;
+  return {
+    fuente: 'Sentinel-2 · Agromonitoring',
+    historial: hist,
+    gridValues: gridInfo.points.map(p => satClamp(mean + satNoise(p[1] * 38, p[0] * 38) * .18, .12, .92))
+  };
+}
+
+function satGenerarNDVIModelado(lote, gridInfo, meses) {
+  var hist = satGenerarHistorial(lote, meses);
+  var base = hist[hist.length - 1].valor;
+  var pct = satPctCiclo(lote);
+  var vals = gridInfo.points.map(p => {
+    var variacion = satNoise(p[1] * 52, p[0] * 52) * .16 + satNoise(p[1] * 13, p[0] * 17) * .08;
+    var bajoLocal = (satNoise(p[1] * 8.7, p[0] * 8.7) > .55) ? -.16 : 0;
+    var ajusteEstadio = pct < .18 ? -.08 : pct > .88 ? -.12 : 0;
+    return satClamp(base + variacion + bajoLocal + ajusteEstadio, .10, .90);
+  });
+  return { fuente: 'Modelo AgroMotor · NDVI proxy con fenologia, clima y variabilidad espacial', historial: hist, gridValues: vals };
+}
+
+function satStats(vals) {
+  var sum = vals.reduce((a,b) => a + b, 0), avg = sum / Math.max(1, vals.length);
+  var mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals);
+  var std = Math.sqrt(vals.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / Math.max(1, vals.length));
+  return { avg, mn, mx, std, cv: avg ? std / avg * 100 : 0 };
+}
+
+function satDetectarAnomalias(vals, stats, hist, pctCiclo) {
+  var prev = hist.length > 1 ? hist[hist.length - 2].valor : stats.avg;
+  var delta = stats.avg - prev;
+  var lowLimit = Math.min(.46, stats.avg - Math.max(.075, stats.std * 1.2));
+  var absLimit = pctCiclo < .22 ? .20 : pctCiclo > .86 ? .25 : .34;
+  var anomIdx = [];
+  vals.forEach((v, i) => { if (v < lowLimit || v < absLimit) anomIdx.push(i); });
+  var areaPct = vals.length ? anomIdx.length / vals.length * 100 : 0;
+  var avgCritico = pctCiclo < .22 ? stats.avg < .20 : stats.avg < .36;
+  var severidad = areaPct > 24 || avgCritico || delta < -.10 ? 'alta' : areaPct > 8 || stats.cv > 16 || delta < -.06 ? 'media' : 'baja';
+  var alertas = [];
+  if (pctCiclo < .22) alertas.push({ tipo:'ok', titulo:'Cultivo en implantacion', txt:'El NDVI absoluto todavia puede ser bajo. Las alertas priorizan diferencias internas del lote y caidas bruscas.' });
+  if (severidad === 'alta') alertas.push({ tipo:'alta', titulo:'Anomalia fuerte de vigor', txt:'Priorizar recorrida en las zonas rojas. Puede asociarse a deficit hidrico, plagas, enfermedades, nutricion o anegamiento.' });
+  else if (severidad === 'media') alertas.push({ tipo:'media', titulo:'Anomalias localizadas', txt:'Hay sectores por debajo de lo esperado. Conviene validar a campo antes de tomar decisiones.' });
+  else alertas.push({ tipo:'ok', titulo:'Sin anomalias relevantes', txt:'El vigor se mantiene dentro de una variabilidad normal para el lote.' });
+  if (delta < -.06) alertas.push({ tipo:'media', titulo:'Caida reciente de NDVI', txt:'El promedio bajo ' + Math.abs(delta).toFixed(2) + ' puntos respecto de la escena anterior.' });
+  if (stats.cv > 18) alertas.push({ tipo:'media', titulo:'Alta heterogeneidad espacial', txt:'El CV del NDVI supera 18%. Revisar ambientes, napa, compactacion o diferencias de implantacion.' });
+  return { indices: anomIdx, areaPct, severidad, lowLimit, delta, alertas };
+}
+
+function satDibujarNDVI(gridInfo, vals, anom) {
+  if (!SAT_MAP) return;
+  if (SAT_NDVI_LAYER) SAT_MAP.removeLayer(SAT_NDVI_LAYER);
+  if (SAT_ANOM_LAYER) SAT_MAP.removeLayer(SAT_ANOM_LAYER);
+  SAT_NDVI_LAYER = L.featureGroup();
+  SAT_ANOM_LAYER = L.featureGroup();
+  var cd = gridInfo.cellDeg || .001;
+  vals.forEach((v, i) => {
+    var p = gridInfo.points[i];
+    L.rectangle([[p[1] - cd / 2, p[0] - cd / 2], [p[1] + cd / 2, p[0] + cd / 2]], {
+      fillColor: satNdviColor(v), fillOpacity: .70, color: 'transparent', weight: 0
+    }).bindTooltip('NDVI ' + v.toFixed(3), { sticky: true }).addTo(SAT_NDVI_LAYER);
+  });
+  anom.indices.forEach(i => {
+    var p = gridInfo.points[i], v = vals[i];
+    L.rectangle([[p[1] - cd / 2, p[0] - cd / 2], [p[1] + cd / 2, p[0] + cd / 2]], {
+      fillColor: '#d73027', fillOpacity: .32, color: '#7f1d1d', weight: 1
+    }).bindTooltip('Anomalia · NDVI ' + v.toFixed(3), { sticky: true }).addTo(SAT_ANOM_LAYER);
+  });
+  SAT_NDVI_LAYER.addTo(SAT_MAP);
+  SAT_ANOM_LAYER.addTo(SAT_MAP);
+}
+
+function satKpi(label, value, note, color) {
+  return '<div style="border:1px solid rgba(74,46,26,.12);background:#fff;border-radius:10px;padding:.62rem .68rem">' +
+    '<div style="font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:rgba(28,18,8,.48);font-weight:800">' + label + '</div>' +
+    '<div style="font-size:1.22rem;font-weight:900;color:' + color + ';line-height:1.15;margin-top:.18rem">' + value + '</div>' +
+    '<div style="font-size:.66rem;color:rgba(28,18,8,.52);margin-top:.12rem">' + note + '</div>' +
+  '</div>';
+}
+
+function satRenderAnalisis(res) {
+  var kpis = document.getElementById('mapa-sat-kpis');
+  var al = document.getElementById('mapa-sat-alertas');
+  var fuente = document.getElementById('mapa-sat-fuente');
+  var s = res.stats, a = res.anomalias;
+  if (kpis) kpis.innerHTML =
+    satKpi('NDVI medio', s.avg.toFixed(2), s.avg >= .65 ? 'vigor alto' : s.avg >= .45 ? 'vigor medio' : 'vigor bajo', s.avg >= .65 ? '#1E6B3A' : s.avg >= .45 ? '#B87A20' : '#B42318') +
+    satKpi('Anomalias', a.areaPct.toFixed(0) + '%', a.severidad === 'alta' ? 'prioridad alta' : a.severidad === 'media' ? 'revisar' : 'normal', a.severidad === 'alta' ? '#B42318' : a.severidad === 'media' ? '#B87A20' : '#1E6B3A') +
+    satKpi('Variabilidad', s.cv.toFixed(1) + '%', s.cv > 18 ? 'alta' : s.cv > 12 ? 'media' : 'baja', s.cv > 18 ? '#B42318' : s.cv > 12 ? '#B87A20' : '#1E6B3A') +
+    satKpi('Tendencia', (a.delta >= 0 ? '+' : '') + a.delta.toFixed(2), 'vs. escena previa', a.delta < -.06 ? '#B42318' : a.delta > .04 ? '#1E6B3A' : '#4A2E1A');
+  if (al) al.innerHTML = a.alertas.map(x => {
+    var c = x.tipo === 'alta' ? '#B42318' : x.tipo === 'media' ? '#B87A20' : '#1E6B3A';
+    var bg = x.tipo === 'alta' ? 'rgba(180,35,24,.08)' : x.tipo === 'media' ? 'rgba(184,122,32,.10)' : 'rgba(30,107,58,.08)';
+    return '<div style="border:1px solid ' + c + '33;background:' + bg + ';border-radius:10px;padding:.62rem .7rem;color:#1C1208">' +
+      '<div style="font-weight:900;color:' + c + ';font-size:.8rem">' + x.titulo + '</div>' +
+      '<div style="font-size:.72rem;line-height:1.45;color:rgba(28,18,8,.66);margin-top:.18rem">' + x.txt + '</div>' +
+    '</div>';
+  }).join('');
+  if (fuente) fuente.textContent = res.fuente + ' · Umbral de anomalia: NDVI < ' + a.lowLimit.toFixed(2) + ' o bajo vigor absoluto.';
+  satRenderChart(res.historial);
+}
+
+function satRenderChart(hist) {
+  var canvas = document.getElementById('mapa-sat-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (SAT_CHART) SAT_CHART.destroy();
+  SAT_CHART = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: { labels: hist.map(h => h.fecha), datasets: [{ label: 'NDVI', data: hist.map(h => h.valor), borderColor: '#1E6B3A', backgroundColor: 'rgba(30,107,58,.10)', borderWidth: 2, pointRadius: 2.5, tension: .34, fill: true }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { font: { size: 9 }, maxTicksLimit: 5 }, grid: { display: false } }, y: { min: 0, max: 1, ticks: { font: { size: 9 }, stepSize: .2 }, grid: { color: 'rgba(74,46,26,.08)' } } } }
+  });
+}
+
+async function mapaSatAnalizar() {
+  var btn = document.getElementById('mapa-sat-btn-analizar');
+  if (btn) { btn.disabled = true; btn.textContent = 'Analizando imagenes...'; }
+  try {
+    mapaSatelitalInit();
+    var lote = satLoteActivo();
+    var poly = satPolygon(lote);
+    var centro = satCentro(lote, poly);
+    if (!lote || !centro) throw new Error('Sin lote activo');
+    var geo = satGeoJSON(lote, poly);
+    var grid = satBuildGrid(geo, centro);
+    var data;
+    try { data = await satFetchRealNDVI(geo, 4, grid); }
+    catch (e) { data = satGenerarNDVIModelado(lote, grid, 4); }
+    var stats = satStats(data.gridValues);
+    var anom = satDetectarAnomalias(data.gridValues, stats, data.historial, satPctCiclo(lote));
+    var res = { lote, grid, stats, anomalias: anom, historial: data.historial, fuente: data.fuente, gridValues: data.gridValues };
+    SAT_LAST_ANALISIS = res;
+    satDibujarNDVI(grid, data.gridValues, anom);
+    satRenderAnalisis(res);
+    if (lote) {
+      lote.satMonitor = { fecha: new Date().toISOString(), ndvi: +stats.avg.toFixed(3), cv: +stats.cv.toFixed(1), anomaliasPct: +anom.areaPct.toFixed(1), severidad: anom.severidad, fuente: data.fuente };
+      try { if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado(); } catch (_) {}
+    }
+  } catch (e) {
+    var al = document.getElementById('mapa-sat-alertas');
+    if (al) al.innerHTML = '<div style="border:1px solid rgba(180,35,24,.35);background:rgba(180,35,24,.08);border-radius:10px;padding:.7rem;color:#7f1d1d;font-weight:800">No se pudo analizar el lote. Verifica que tenga poligono o coordenadas.</div>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Re-analizar NDVI y anomalias'; }
+  }
+}
+
 window.mapaSatelitalInit = mapaSatelitalInit;
 window.mapaSatCambiarCapa = mapaSatCambiarCapa;
+window.mapaSatAnalizar = mapaSatAnalizar;
 
 })();

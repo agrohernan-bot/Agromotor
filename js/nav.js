@@ -251,7 +251,10 @@ function _activarModulo(mod) {
     setTimeout(function() { if (typeof window.ncTimingRender === 'function') window.ncTimingRender(); }, 300);
   }
   if (mod === 'asistente' && typeof iaActualizarContextoBanner === 'function') iaActualizarContextoBanner();
-  if (mod === 'mapa') setTimeout(function() { if (typeof mapaSatelitalInit === 'function') mapaSatelitalInit(); }, 100);
+  if (mod === 'mapa') setTimeout(function() {
+    if (typeof mapaSatelitalInit === 'function') mapaSatelitalInit();
+    if (typeof mapaSatAnalizar === 'function') mapaSatAnalizar();
+  }, 100);
   if (mod === 'donde-comprar') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
     _syncCultivo('pulv-cultivo');
