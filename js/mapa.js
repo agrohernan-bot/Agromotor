@@ -227,7 +227,19 @@ function satCentro(lote, poly) {
 }
 
 function satChip(txt) {
-  return '<span style="border:1px solid rgba(109,191,130,.28);background:rgba(109,191,130,.10);color:#dff4e5;border-radius:999px;padding:.28rem .55rem;font-size:.72rem;font-weight:700">' + txt + '</span>';
+  return '<span style="border:1px solid rgba(74,140,92,.32);background:rgba(74,140,92,.10);color:#1E4D2B;border-radius:999px;padding:.28rem .55rem;font-size:.72rem;font-weight:800">' + txt + '</span>';
+}
+
+function satCoordLabel(centro) {
+  if (!centro) return '';
+  return centro.lat.toFixed(5) + ', ' + centro.lng.toFixed(5);
+}
+
+function satSuperficieLabel(d) {
+  var sup = d && (d.superficie || d.sup || d.has || d.areaHa);
+  if (sup === null || sup === undefined || sup === '') return '';
+  var n = parseFloat(String(sup).replace(',', '.'));
+  return isNaN(n) ? String(sup) : n.toFixed(n >= 100 ? 1 : 2) + ' ha';
 }
 
 function mapaSatelitalInit() {
@@ -239,11 +251,12 @@ function mapaSatelitalInit() {
   const centro = satCentro(lote, poly);
   const empty = document.getElementById('mapa-sat-empty');
   const ctx = document.getElementById('mapa-sat-contexto');
+  const info = document.getElementById('mapa-sat-info');
 
   if (ctx) {
     const d = (lote && lote.data) || {};
     ctx.innerHTML = lote
-      ? satChip(lote.nombre || 'Lote') + (d.superficie ? satChip(d.superficie + ' ha') : '') + (d.sueloTipo || d['sg-textura'] ? satChip(d.sueloTipo || d['sg-textura']) : '') + (poly ? satChip('Poligono activo') : satChip('Centroide'))
+      ? satChip(lote.nombre || 'Lote') + (satSuperficieLabel(d) ? satChip(satSuperficieLabel(d)) : '') + (d.sueloTipo || d['sg-textura'] ? satChip(d.sueloTipo || d['sg-textura']) : '') + (poly ? satChip('Poligono activo') : satChip('Centroide'))
       : satChip('Sin lote activo');
   }
 
@@ -265,10 +278,27 @@ function mapaSatelitalInit() {
 
   if (!centro) {
     if (empty) empty.style.display = 'flex';
+    if (info) info.style.display = 'none';
     setTimeout(() => SAT_MAP.invalidateSize(), 100);
     return;
   }
   if (empty) empty.style.display = 'none';
+  if (info) {
+    const d = (lote && lote.data) || {};
+    const sup = satSuperficieLabel(d);
+    const suelo = d.sueloTipo || d['sg-textura'] || '';
+    info.style.display = 'block';
+    info.innerHTML =
+      '<div style="display:flex;justify-content:space-between;gap:.8rem;align-items:flex-start;flex-wrap:wrap">' +
+        '<div><div style="font-weight:800;font-size:.86rem">' + ((lote && lote.nombre) || 'Lote activo') + '</div>' +
+        '<div style="opacity:.78;margin-top:.15rem">' + (poly ? 'Poligono del lote' : 'Centroide del lote') + ' · ' + satCoordLabel(centro) + '</div></div>' +
+        '<div style="display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end">' +
+          (sup ? '<span style="background:rgba(109,191,130,.16);border:1px solid rgba(109,191,130,.35);border-radius:999px;padding:.18rem .45rem;font-weight:800">' + sup + '</span>' : '') +
+          (suelo ? '<span style="background:rgba(200,162,85,.16);border:1px solid rgba(200,162,85,.35);border-radius:999px;padding:.18rem .45rem;font-weight:800">' + suelo + '</span>' : '') +
+          '<span style="background:rgba(122,174,245,.16);border:1px solid rgba(122,174,245,.35);border-radius:999px;padding:.18rem .45rem;font-weight:800">' + (SAT_LAYER_ACTIVA === 'sat' ? 'Satelite' : 'Callejero') + '</span>' +
+        '</div>' +
+      '</div>';
+  }
 
   if (poly && poly.length >= 3) {
     L.polygon(poly, { color: '#6DBF82', weight: 3, fillColor: '#6DBF82', fillOpacity: .16 }).addTo(SAT_GROUP);
@@ -294,6 +324,7 @@ function mapaSatCambiarCapa(capa) {
   Object.keys(SAT_BASE).forEach(k => SAT_MAP.removeLayer(SAT_BASE[k]));
   SAT_LAYER_ACTIVA = capa;
   SAT_BASE[capa].addTo(SAT_MAP);
+  mapaSatelitalInit();
 }
 
 window.mapaSatelitalInit = mapaSatelitalInit;

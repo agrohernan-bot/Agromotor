@@ -1850,7 +1850,7 @@
       <div class="card" style="padding:.95rem">
         <div class="card-title">📍 Lote activo</div>
         <div id="mapa-sat-contexto" style="display:flex;flex-wrap:wrap;gap:.45rem;margin:.6rem 0"></div>
-        <div style="font-size:.78rem;color:rgba(237,224,196,.58);line-height:1.55">
+        <div style="font-size:.78rem;color:rgba(28,18,8,.68);line-height:1.55">
           Usa el poligono cargado en Mis Lotes. Si el lote no tiene poligono, se muestra el centroide o las coordenadas disponibles.
         </div>
       </div>
@@ -1858,8 +1858,8 @@
       <div class="card gap-top" style="padding:.95rem">
         <div class="card-title">🧭 Capas disponibles</div>
         <div style="display:grid;gap:.55rem">
-          <button type="button" onclick="mapaSatCambiarCapa('sat')" style="background:rgba(74,140,92,.16);border:1px solid rgba(109,191,130,.35);color:#dff4e5;border-radius:10px;padding:.65rem .85rem;font-weight:700;text-align:left">Satelite ESRI</button>
-          <button type="button" onclick="mapaSatCambiarCapa('osm')" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#ede0c4;border-radius:10px;padding:.65rem .85rem;font-weight:700;text-align:left">Mapa callejero</button>
+          <button type="button" onclick="mapaSatCambiarCapa('sat')" style="background:rgba(74,140,92,.14);border:1px solid rgba(74,140,92,.35);color:#1E4D2B;border-radius:10px;padding:.65rem .85rem;font-weight:800;text-align:left">Satelite ESRI</button>
+          <button type="button" onclick="mapaSatCambiarCapa('osm')" style="background:#fff;border:1px solid rgba(74,46,26,.14);color:#4A2E1A;border-radius:10px;padding:.65rem .85rem;font-weight:800;text-align:left">Mapa callejero</button>
         </div>
       </div>
     </div>
@@ -1867,6 +1867,7 @@
     <div>
       <div style="position:relative;border-radius:14px;overflow:hidden;border:1px solid rgba(237,224,196,.16);box-shadow:0 2px 14px rgba(0,0,0,.22);background:#132318">
         <div id="mapa-sat-map" style="height:560px;min-height:58vh;width:100%"></div>
+        <div id="mapa-sat-info" style="position:absolute;left:12px;right:12px;bottom:12px;z-index:500;background:rgba(6,22,13,.86);border:1px solid rgba(109,191,130,.45);border-radius:12px;padding:.65rem .8rem;color:#F4EBD7;box-shadow:0 8px 20px rgba(0,0,0,.28);font-size:.76rem;line-height:1.35"></div>
         <div id="mapa-sat-empty" style="display:none;position:absolute;inset:0;align-items:center;justify-content:center;padding:2rem;text-align:center;background:rgba(6,22,13,.86);color:rgba(237,224,196,.76);font-size:.9rem;line-height:1.5">
           Selecciona un lote con coordenadas o poligono para visualizarlo en el mapa.
         </div>
@@ -4625,7 +4626,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=94"></script>
+<script src="js/config.js?v=95"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=96"></script>
 
