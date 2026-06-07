@@ -293,11 +293,16 @@
     _destroyMiniMaps();
     if (_seccionAbierta && _loteAbierto) {
       panel.innerHTML = renderSeccion(_loteAbierto, _seccionAbierta);
+      if (_seccionAbierta === 'monitoreo') {
+        var _loteMon = _loteAbierto;
+        setTimeout(function() {
+          _fetchHubData(_loteMon);
+        }, 50);
+      }
     } else if (_loteAbierto) {
       panel.innerHTML = renderHub(_loteAbierto);
       var _loteHub = _loteAbierto;
       setTimeout(function() {
-        _fetchHubData(_loteHub);
         _fetchLugar(_loteHub);
       }, 50);
     } else {
@@ -547,13 +552,6 @@
     });
     html += '</div>';
 
-    // Panel de datos (Open-Meteo / NASA / SoilGrids) — se rellena async
-    html += '<div class="dl-hub-datos" id="dl-hub-datos-' + esc(loteId) + '">';
-    html +=   '<div class="dl-hub-datos-loading">';
-    html +=     '<span class="dl-hub-datos-spinner">⟳</span> Cargando datos del lote...';
-    html +=   '</div>';
-    html += '</div>';
-
     html += '</div>'; // .dl-page
     return html;
   }
@@ -595,7 +593,11 @@
     html += '</div>';
 
     // Widgets contextuales según sección
-    if (secKey === 'monitoreo') html += renderWidgetMonitoreo(lote);
+    if (secKey === 'monitoreo') {
+      html += renderWidgetPlanFina(lote);
+      html += renderWidgetMonitoreo(lote);
+      html += renderDatosLotePanel(loteId);
+    }
     if (secKey === 'planfina' || secKey === 'plangruesa') {
       html += renderWidgetPlanFina(lote);
       // Score de cultivos filtrado por grupo (invierno / verano)
@@ -623,6 +625,15 @@
     html += '</div>'; // .dl-modulos-grid
 
     html += '</div>'; // .dl-page
+    return html;
+  }
+
+  function renderDatosLotePanel(loteId) {
+    var html = '<div class="dl-hub-datos" id="dl-hub-datos-' + esc(loteId) + '">';
+    html +=   '<div class="dl-hub-datos-loading">';
+    html +=     '<span class="dl-hub-datos-spinner">⟳</span> Cargando datos del lote...';
+    html +=   '</div>';
+    html += '</div>';
     return html;
   }
 
