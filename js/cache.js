@@ -260,8 +260,10 @@ function amLimpiarDOM() {
   const apiInfo = document.getElementById('api-info');
   const apiPh = document.getElementById('api-info-placeholder');
   const nasaInfo = document.getElementById('nasa-info');
+  const dashEnsoInfo = document.getElementById('dash-enso-info');
   if(apiInfo) apiInfo.classList.add('hidden');
   if(nasaInfo) nasaInfo.classList.add('hidden');
+  if(dashEnsoInfo) dashEnsoInfo.classList.add('hidden');
   if(apiPh) apiPh.classList.remove('hidden');
 }
 
@@ -382,6 +384,12 @@ window.amCambiarLoteGlobal = function() {
   }
   if (typeof window.dashRefreshCards === 'function') {
     window.dashRefreshCards();
+  }
+  if (typeof window.amEnsoUpdateMacroCard === 'function') {
+    window.amEnsoUpdateMacroCard();
+  }
+  if (typeof window.amEnsoRenderDetailedPanel === 'function') {
+    window.amEnsoRenderDetailedPanel();
   }
 
   // Integración de Arquitectura v2.0 al cambiar de lote

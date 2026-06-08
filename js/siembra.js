@@ -42,6 +42,43 @@
         const loc=a.city||a.town||a.village||a.county||'';
         const prov=a.state||'';
         ubi=[loc,prov].filter(Boolean).join(', ')||ubi;
+
+        // --- AgroENSO Mapping ---
+        const cleanState = prov.replace(/Provincia de/i, '').replace(/Provincia/i, '').trim();
+        const cleanCounty = (a.county || a.city || a.town || a.village || '')
+          .replace(/Departamento/i, '')
+          .replace(/Partido de/i, '')
+          .replace(/Partido/i, '')
+          .replace(/Comuna de/i, '')
+          .replace(/Comuna/i, '')
+          .trim();
+
+        if (cleanState && cleanCounty && typeof window.AM_SB !== 'undefined') {
+          window.AM_SB.from('enso_rendimiento')
+            .select('provincia_id, depto_id, provincia_nombre, depto_nombre')
+            .ilike('provincia_nombre', cleanState)
+            .ilike('depto_nombre', cleanCounty)
+            .limit(1)
+            .then(({ data, error }) => {
+              if (!error && data && data.length > 0) {
+                const match = data[0];
+                const activeLote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+                if (activeLote) {
+                  activeLote.data = activeLote.data || {};
+                  activeLote.data.provincia_id = match.provincia_id;
+                  activeLote.data.depto_id = match.depto_id;
+                  activeLote.data.provincia_nombre = match.provincia_nombre;
+                  activeLote.data.depto_nombre = match.depto_nombre;
+                  if (typeof window.amGuardarLotesEstado === 'function') {
+                    window.amGuardarLotesEstado();
+                    console.log(`[ENSO Geocoding] Guardado: ${match.depto_nombre}, ${match.provincia_nombre} (Depto ID: ${match.depto_id}, Prov ID: ${match.provincia_id})`);
+                  }
+                }
+              } else {
+                console.warn('[ENSO Geocoding] No se encontró correspondencia para:', cleanCounty, cleanState, error);
+              }
+            });
+        }
       }catch(e){}
       $('i-ubi').textContent=ubi;
 
@@ -207,6 +244,12 @@
         $('compact-calc-info').textContent =
           `Índice S: ${calcCompSG.indiceS.toFixed(3)} · DA: ${datosInternos.da?.toFixed(2)||'—'} g/cm³ · Arcilla: ${datosInternos.clay?.toFixed(0)||'—'}% · MO: ${calcCompSG.mo?.toFixed(1)||'—'}%`;
         renderCompactacion(calcCompSG, datosInternos);
+      }
+      if (typeof window.amEnsoUpdateMacroCard === 'function') {
+        window.amEnsoUpdateMacroCard();
+      }
+      if (typeof window.amEnsoRenderDetailedPanel === 'function') {
+        window.amEnsoRenderDetailedPanel();
       }
       if (typeof cacheGuardar === 'function') setTimeout(cacheGuardar, 1000);
     }catch(e){

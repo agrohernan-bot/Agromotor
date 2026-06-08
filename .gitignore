@@ -47,3 +47,4 @@ deploy_log.txt
 # Material auxiliar no desplegable
 guion_presentacion_agromotor_45min.md
 speech_ia_agronomo_agromotor_30min.md
+.env*.local

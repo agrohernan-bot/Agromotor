@@ -65,50 +65,88 @@
   async function consultarENSO() {
     const panel = $('enso-panel');
     const ts    = $('enso-ts');
-    if (panel) panel.innerHTML = '<div style="text-align:center;padding:1rem;font-size:.82rem;color:rgba(74,46,26,.5)">⟳ Consultando NOAA/CPC...</div>';
+    if (panel) panel.innerHTML = '<div style="text-align:center;padding:1rem;font-size:.82rem;color:rgba(74,46,26,.5)">⟳ Consultando base de datos ENSO...</div>';
     if (ts) ts.textContent = 'actualizando...';
 
-    try {
-      // NOAA CPC ENSO en español — parseable
-      const res = await Promise.race([
-        fetch('https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc_Sp.shtml'),
-        new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))
-      ]);
-      const html = await res.text();
+    let fase = 'neutro';
+    let oniValor = 0.0;
+    let trimestreStr = 'MAM 2026';
+    let sinopsis = 'Sinopsis desde base de datos de AgroENSO.';
+    let probNino = 20, probNeutro = 55, probNina = 25;
+    let cargadoDeDb = false;
 
-      // Extraer sinopsis (párrafo con "Sinopsis:")
-      const sinMatch = html.match(/Sinopsis[:\s]*<\/b>?\s*([^<]{40,600})/i);
-      const sinopsis = sinMatch ? sinMatch[1].trim().replace(/\s+/g,' ') : '';
+    // 1. Intentar consultar oni_cache desde Supabase en tiempo real
+    if (typeof window.AM_SB !== 'undefined') {
+      try {
+        const { data, error } = await window.AM_SB.from('oni_cache').select('*').eq('id', 1).single();
+        if (!error && data) {
+          fase = data.fase_actual === 'ElNino' ? 'nino' : data.fase_actual === 'LaNina' ? 'nina' : 'neutro';
+          oniValor = parseFloat(data.oni_valor);
+          trimestreStr = data.trimestre || '???';
+          
+          if (fase === 'nino') {
+            probNino = 90; probNeutro = 10; probNina = 0;
+            sinopsis = `Fase actual de El Niño activa con anomalía ONI de ${oniValor.toFixed(2)} °C en el trimestre ${trimestreStr}.`;
+          } else if (fase === 'nina') {
+            probNino = 0; probNeutro = 10; probNina = 90;
+            sinopsis = `Fase actual de La Niña activa con anomalía ONI de ${oniValor.toFixed(2)} °C en el trimestre ${trimestreStr}.`;
+          } else {
+            probNino = 15; probNeutro = 70; probNina = 15;
+            sinopsis = `Fase actual Neutral con anomalía ONI de ${oniValor.toFixed(2)} °C en el trimestre ${trimestreStr}.`;
+          }
+          cargadoDeDb = true;
+        }
+      } catch (dbErr) {
+        console.warn('[ENSO] Error cargando desde oni_cache DB:', dbErr);
+      }
+    }
 
-      // Detectar fase ENSO
-      let fase = 'neutro';
-      const htmlL = html.toLowerCase();
-      if (htmlL.includes('niña persiste') || htmlL.includes('la niña')) fase = 'nina';
-      else if (htmlL.includes('el niño') && !htmlL.includes('la niña')) fase = 'nino';
-      else fase = 'neutro';
+    // 2. Si no se cargó de DB, intentar el fallback tradicional NOAA
+    if (!cargadoDeDb) {
+      try {
+        // NOAA CPC ENSO en español — parseable
+        const res = await Promise.race([
+          fetch('https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso_advisory/ensodisc_Sp.shtml'),
+          new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))
+        ]);
+        const html = await res.text();
 
-      // Extraer probabilidades (buscamos patrones como "75% de probabilidad")
-      const probNeutro = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?neutro/i)?.[1]) ||
-                         (html.match(/neutro.*?(\d+)%/i)?.[1]) || '55';
-      const probNina   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niña/i)?.[1])  || '25';
-      const probNino   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niño/i)?.[1])  || '20';
+        const sinMatch = html.match(/Sinopsis[:\s]*<\/b>?\s*([^<]{40,600})/i);
+        sinopsis = sinMatch ? sinMatch[1].trim().replace(/\s+/g,' ') : 'Ver NOAA/CPC para detalles.';
 
+        const htmlL = html.toLowerCase();
+        if (htmlL.includes('niña persiste') || htmlL.includes('la niña')) fase = 'nina';
+        else if (htmlL.includes('el niño') && !htmlL.includes('la niña')) fase = 'nino';
+        else fase = 'neutro';
+
+        const probNeutroStr = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?neutro/i)?.[1]) ||
+                              (html.match(/neutro.*?(\d+)%/i)?.[1]) || '55';
+        const probNinaStr   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niña/i)?.[1])  || '25';
+        const probNinoStr   = (html.match(/(\d+)%\s*(?:de\s*)?probabilidad.*?niño/i)?.[1])  || '20';
+        
+        probNeutro = parseInt(probNeutroStr);
+        probNina = parseInt(probNinaStr);
+        probNino = parseInt(probNinoStr);
+      } catch(e) {
+        window.ENSO_DATA = {
+          fase:'neutro', label:'Neutro',
+          sinopsis:'Transición de La Niña a ENSO-neutral esperada. El Niño probable para la campaña 2026/27 con 62% de probabilidad (NOAA, marzo 2026).',
+          prob_neutro:55, prob_nina:20, prob_nino:25,
+          ts: null
+        };
+        console.warn('ENSO fetch falló — usando datos de referencia:', e.message);
+      }
+    }
+
+    if (cargadoDeDb || !window.ENSO_DATA || window.ENSO_DATA.ts) {
       window.ENSO_DATA = {
-        fase, sinopsis: sinopsis || 'Ver NOAA/CPC para detalles.',
-        prob_neutro: parseInt(probNeutro), prob_nina: parseInt(probNina), prob_nino: parseInt(probNino),
+        fase, sinopsis,
+        prob_neutro: probNeutro, prob_nina: probNina, prob_nino: probNino,
         label: fase==='nino'?'El Niño':fase==='nina'?'La Niña':'Neutro',
-        ts: new Date()
+        ts: new Date(),
+        oni_valor: oniValor,
+        trimestre: trimestreStr
       };
-
-    } catch(e) {
-      // Fallback con datos conocidos actuales
-      window.ENSO_DATA = {
-        fase:'neutro', label:'Neutro',
-        sinopsis:'Transición de La Niña a ENSO-neutral esperada. El Niño probable para la campaña 2026/27 con 62% de probabilidad (NOAA, marzo 2026).',
-        prob_neutro:55, prob_nina:20, prob_nino:25,
-        ts: null
-      };
-      console.warn('ENSO fetch falló — usando datos de referencia:', e.message);
     }
 
     // Publicar fase y factor para alertas.js e informe-cierre.js
@@ -117,7 +155,6 @@
       localStorage.setItem('am_enso_fase',   window.ENSO_DATA.fase);
       localStorage.setItem('am_enso_factor', String(_factorMap[window.ENSO_DATA.fase] ?? 0));
 
-      // Sincronizar ENSO con lote activo (el score lo lee de calcKeys y hub-enso-fase)
       if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
         var loteEnsoHid = AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; });
         if (loteEnsoHid) {
@@ -131,45 +168,51 @@
     } catch (_) {}
 
     renderENSO();
-    // Actualizar selector de fase en el módulo
     const sel = $('bh-enso');
     if (sel) sel.value = window.ENSO_DATA.fase;
     bhActualizar();
   }
 
   function renderENSO() {
-    const d = window.ENSO_DATA;
-    const colors = { nino:'#2A7A4A', neutro:'#2A5A8C', nina:'#C94A2A' };
-    const icons  = { nino:'🌧️', neutro:'⚖️', nina:'☀️' };
-    const col    = colors[d.fase] || colors.neutro;
-    const ts     = d.ts ? d.ts.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'Referencia NOAA mar-2026';
-    if ($('enso-ts')) $('enso-ts').textContent = ts;
+    if (typeof window.amEnsoRenderDetailedPanel === 'function') {
+      window.amEnsoRenderDetailedPanel();
+    } else {
+      const d = window.ENSO_DATA;
+      const colors = { nino:'#2A7A4A', neutro:'#2A5A8C', nina:'#C94A2A' };
+      const icons  = { nino:'🌧️', neutro:'⚖️', nina:'☀️' };
+      const col    = colors[d.fase] || colors.neutro;
+      const ts     = d.ts ? d.ts.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : 'Referencia NOAA mar-2026';
+      if ($('enso-ts')) $('enso-ts').textContent = ts;
 
-    // Barras de probabilidad
-    const barra = (label, pct, color) => `
-      <div style="margin-bottom:.5rem">
-        <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.2rem">
-          <span>${label}</span><span style="font-weight:700">${pct}%</span>
-        </div>
-        <div style="height:8px;background:rgba(74,46,26,.08);border-radius:4px">
-          <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .5s"></div>
-        </div>
-      </div>`;
+      const barra = (label, pct, color) => `
+        <div style="margin-bottom:.5rem">
+          <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-bottom:.2rem">
+            <span>${label}</span><span style="font-weight:700">${pct}%</span>
+          </div>
+          <div style="height:8px;background:rgba(74,46,26,.08);border-radius:4px">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .5s"></div>
+          </div>
+        </div>`;
 
-    if ($('enso-panel')) $('enso-panel').innerHTML = `
-      <div style="display:flex;align-items:center;gap:.8rem;padding:.8rem;background:${col}18;border-radius:10px;border:1px solid ${col}44;margin-bottom:.8rem">
-        <div style="font-size:2rem">${icons[d.fase]}</div>
-        <div>
-          <div style="font-size:1rem;font-weight:700;color:${col}">${icons[d.fase]} ${d.label}</div>
-          <div style="font-size:.73rem;color:rgba(74,46,26,.55);margin-top:.2rem">Estado actual del ENSO · Fuente: NOAA/CPC</div>
+      if ($('enso-panel')) $('enso-panel').innerHTML = `
+        <div style="display:flex;align-items:center;gap:.8rem;padding:.8rem;background:${col}18;border-radius:10px;border:1px solid ${col}44;margin-bottom:.8rem">
+          <div style="font-size:2rem">${icons[d.fase]}</div>
+          <div>
+            <div style="font-size:1rem;font-weight:700;color:${col}">${icons[d.fase]} ${d.label}</div>
+            <div style="font-size:.73rem;color:rgba(74,46,26,.55);margin-top:.2rem">Estado actual del ENSO · Fuente: NOAA/CPC</div>
+          </div>
         </div>
-      </div>
-      ${barra('🌧️ El Niño', d.prob_nino, '#2A7A4A')}
-      ${barra('⚖️ Neutro', d.prob_neutro, '#2A5A8C')}
-      ${barra('☀️ La Niña', d.prob_nina, '#C94A2A')}
-      <div style="margin-top:.7rem;font-size:.75rem;color:rgba(74,46,26,.6);font-style:italic;line-height:1.5">
-        ${d.sinopsis.slice(0,250)}${d.sinopsis.length>250?'...':''}
-      </div>`;
+        ${barra('🌧️ El Niño', d.prob_nino, '#2A7A4A')}
+        ${barra('⚖️ Neutro', d.prob_neutro, '#2A5A8C')}
+        ${barra('☀️ La Niña', d.prob_nina, '#C94A2A')}
+        <div style="margin-top:.7rem;font-size:.75rem;color:rgba(74,46,26,.6);font-style:italic;line-height:1.5">
+          ${d.sinopsis.slice(0,250)}${d.sinopsis.length>250?'...':''}
+        </div>`;
+    }
+
+    if (typeof window.amEnsoUpdateMacroCard === 'function') {
+      window.amEnsoUpdateMacroCard();
+    }
   }
 
   function bhToggleRiego() {

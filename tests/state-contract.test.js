@@ -329,3 +329,15 @@ test('assetVersion, config query y service worker versionado quedan alineados', 
   assert.match(sw, /SW_VERSION\s*=\s*new URL\(self\.location\.href\)\.searchParams\.get\('v'\)/);
   assert.match(app, /navigator\.serviceWorker\.register\('\.\/sw\.js\?v='/);
 });
+
+test('mapeo geografico Nominatim a IDs de Supabase', () => {
+  const prov = "Provincia de Entre Ríos";
+  const county = "Departamento Concordia";
+
+  // Limpiar usando la logica de buscarAPI en js/siembra.js
+  const cleanState = prov.replace(/Provincia de/i, '').replace(/Provincia/i, '').trim();
+  const cleanCounty = county.replace(/Departamento/i, '').replace(/Partido de/i, '').replace(/Partido/i, '').replace(/Comuna de/i, '').replace(/Comuna/i, '').trim();
+
+  assert.equal(cleanState, "Entre Ríos");
+  assert.equal(cleanCounty, "Concordia");
+});

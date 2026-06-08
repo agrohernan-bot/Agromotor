@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroMotor · Densidad ReTAA — Base completa ◉</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--n:#E8682C;--no:#C2521C;--g:#58595B;--v:#2D5016;--vc:#4A7C2F;--cr:#F5F2EC;--co:#EAE4D8;--bl:#FFFFFF;--gr:#6B7280;--ng:#1A1A1A;--az:#2980B9;--am:#D4A847;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--cr);color:var(--ng);font-family:'Inter',sans-serif;}
+header{background:var(--g);padding:0;}
+.hi{max-width:1200px;margin:0 auto;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.logo h1{font-family:'Bebas Neue';font-size:36px;color:#fff;letter-spacing:1px;}
+.logo h1 em{color:var(--n);font-style:normal;}
+.logo p{font-family:'Space Mono';font-size:9px;letter-spacing:2px;opacity:.6;color:#fff;margin-top:4px;text-transform:uppercase;}
+.tags{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.tag{font-family:'Space Mono';font-size:9px;letter-spacing:1px;padding:3px 8px;border-radius:2px;}
+.tr{background:rgba(232,104,44,.2);color:#ffb07a;border:1px solid var(--n);}
+.te{background:rgba(41,128,185,.15);color:#7fc4f5;border:1px solid var(--az);}
+.av{background:#FFF8E1;border-bottom:2px solid var(--am);padding:8px 28px;font-size:11px;font-family:'Space Mono';color:#7a5900;}
+.cbar{background:var(--ng);padding:0 28px;}
+.ci{max-width:1200px;margin:0 auto;display:flex;gap:0;overflow-x:auto;}
+.cb{padding:13px 18px;background:transparent;border:none;color:rgba(255,255,255,.5);font-family:'Space Mono';font-size:10px;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all .15s;}
+.cb:hover{color:#fff;}
+.cb.on{color:var(--n);border-bottom-color:var(--n);}
+.main{max-width:1200px;margin:0 auto;padding:24px 28px;display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start;}
+@media(max-width:800px){.main{grid-template-columns:1fr;padding:16px;}}
+.card{background:var(--bl);border:1px solid rgba(0,0,0,.08);border-radius:4px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.card+.card{margin-top:14px;}
+.ct{font-family:'Bebas Neue';font-size:16px;letter-spacing:1px;color:var(--g);margin-bottom:12px;}
+.ig{display:flex;flex-direction:column;gap:5px;margin-bottom:10px;}
+.ig label{font-family:'Space Mono';font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--g);font-weight:700;}
+.ig input,.ig select{padding:8px 10px;border:2px solid var(--co);border-radius:3px;font-family:'Space Mono';font-size:12px;background:var(--cr);color:var(--ng);width:100%;}
+.ig input:focus,.ig select:focus{outline:none;border-color:var(--n);}
+.crow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.bgps{width:100%;padding:9px;background:transparent;border:2px dashed var(--n);border-radius:3px;font-family:'Space Mono';font-size:10px;color:var(--no);cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.bgps:hover{background:#fff3e0;}
+.frow{display:flex;gap:6px;margin-bottom:10px;}
+.fb{flex:1;padding:8px;border:2px solid var(--co);background:#fff;border-radius:3px;font-family:'Space Mono';font-size:10px;cursor:pointer;color:var(--gr);}
+.fb.on{background:var(--n);border-color:var(--n);color:#fff;}
+.bcalc{width:100%;padding:13px;background:var(--g);color:var(--n);border:none;border-radius:3px;font-family:'Bebas Neue';font-size:19px;letter-spacing:2px;cursor:pointer;margin-top:4px;}
+.bcalc:hover{background:var(--ng);}
+.srd{background:var(--cr);border-radius:3px;padding:10px;margin-top:10px;display:none;align-items:center;gap:9px;border-left:3px solid var(--n);}
+.srdot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.srnm{font-weight:600;font-size:12px;color:var(--g);}
+.srsb{font-size:10px;color:var(--gr);font-family:'Space Mono';}
+.ini{background:#fff;border:2px dashed rgba(0,0,0,.1);border-radius:4px;padding:44px 26px;text-align:center;color:var(--gr);}
+.ini-ico{font-size:48px;opacity:.35;margin-bottom:14px;}
+.ini h3{font-family:'Bebas Neue';font-size:19px;color:var(--g);margin-bottom:6px;}
+.ini p{font-size:12px;line-height:1.6;}
+.res{display:none;flex-direction:column;gap:16px;}
+.res.vis{display:flex;}
+.zh{background:var(--g);border-radius:4px;padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;}
+.zh h2{font-family:'Bebas Neue';font-size:22px;letter-spacing:1px;color:var(--n);}
+.zh .cp{font-family:'Space Mono';font-size:10px;opacity:.65;color:#fff;margin-top:2px;}
+.zh .cc{font-family:'Space Mono';font-size:10px;color:rgba(255,255,255,.7);text-align:right;}
+.dbg{display:inline-flex;align-items:center;gap:5px;font-family:'Space Mono';font-size:9px;padding:3px 8px;border-radius:2px;}
+.dr{background:rgba(45,80,22,.1);color:var(--v);border:1px solid var(--vc);}
+.de{background:rgba(41,128,185,.1);color:var(--az);border:1px solid var(--az);}
+.mets{display:grid;grid-template-columns:repeat(3,1fr);background:#fff;border-radius:4px;overflow:hidden;border:1px solid rgba(0,0,0,.08);}
+@media(max-width:560px){.mets{grid-template-columns:1fr;}}
+.met{padding:16px;border-right:1px solid var(--co);text-align:center;}
+.met:last-child{border-right:none;}
+.ml{font-family:'Space Mono';font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gr);margin-bottom:5px;}
+.mv{font-family:'Bebas Neue';font-size:36px;line-height:1;color:var(--n);}
+.mu{font-family:'Space Mono';font-size:9px;color:var(--gr);margin-top:3px;}
+.ms{font-size:10px;margin-top:4px;font-family:'Space Mono';}
+.ms.r{color:var(--vc);}
+.ms.e{color:var(--az);}
+.td{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:4px;overflow:hidden;}
+.tdt{font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;color:var(--g);padding:12px 16px;border-bottom:2px solid var(--n);display:flex;justify-content:space-between;align-items:center;}
+.tdg{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+@media(max-width:500px){.tdg{grid-template-columns:1fr;}}
+.tdc{padding:10px 16px;border-right:1px solid var(--co);border-bottom:1px solid var(--co);}
+.tdc:nth-child(2n){border-right:none;}
+.tdl{font-family:'Space Mono';font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gr);margin-bottom:3px;}
+.tdv{font-size:12px;font-weight:600;color:var(--ng);}
+.tdv small{font-weight:400;color:var(--gr);font-size:10px;}
+.tdn{padding:10px 16px;font-size:11px;color:var(--gr);border-top:1px solid var(--co);line-height:1.6;font-style:italic;}
+.comp{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:4px;padding:16px;}
+.compt{font-family:'Bebas Neue';font-size:14px;letter-spacing:1px;color:var(--g);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--co);}
+.bars{display:flex;flex-direction:column;gap:7px;}
+.br{display:flex;align-items:center;gap:8px;}
+.bl2{width:140px;font-size:9px;font-family:'Space Mono';flex-shrink:0;text-align:right;color:var(--g);line-height:1.3;}
+.bt{flex:1;background:var(--co);border-radius:2px;height:22px;overflow:hidden;}
+.bf{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:6px;color:#fff;font-family:'Space Mono';font-size:9px;font-weight:700;border-radius:2px;transition:width .5s ease;}
+.bf.me{background:var(--vc);}
+.bf.re{background:var(--n);}
+.bf.es{background:var(--az);opacity:.75;}
+.ley{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;}
+.li{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--gr);font-family:'Space Mono';}
+.ld{width:9px;height:9px;border-radius:1px;}
+.nota{background:#FFF8E1;border:1px solid rgba(212,168,71,.4);border-radius:3px;padding:11px 14px;font-size:11px;color:#7a5900;display:flex;gap:9px;line-height:1.6;}
+footer{background:var(--ng);color:rgba(255,255,255,.4);padding:14px 28px;font-family:'Space Mono';font-size:9px;line-height:1.8;}
+footer strong{color:rgba(255,255,255,.75);}
+</style>
+</head>
+<body>
+<header>
+<div class="hi">
+<div class="logo"><h1>AGROMOFOR · <em>ReTAA</em></h1><p>Base completa ◉ datos reales · Bolsa de Cereales de Buenos Aires</p></div>
+<div class="tags"><span class="tag tr">◉ DATO REAL — leído del informe PDF</span><span class="tag te">◎ ESTIMADO — interpolado por zona</span></div>
+</div>
+</header>
+<div class="av">
+<strong>BASE ReTAA CARGADA:</strong>
+🌽 Maíz Nro.61 (2021/22) ◉ 14 regiones |
+🫛 Soja Nro.62 (2021/22) ◉ 14 regiones × 1° y 2° |
+🌻 Girasol Nro.70 (2022/23) + Nro.77 (2023/24) ◉ 10 regiones |
+🌾 Trigo Nro.75 (2023/24) ◉ 15 regiones |
+🍺 Cebada Nro.69 (2022/23) ◉ 5 regiones principales
+</div>
+<div class="cbar"><div class="ci" id="ctabs"></div></div>
+<div class="main">
+<div>
+<div class="card">
+<div class="ct">📍 Ubicación del lote</div>
+<button class="bgps" onclick="getGPS()">🛰️ USAR MI GPS</button>
+<div class="crow">
+<div class="ig"><label>Latitud</label><input type="number" id="lat" placeholder="-33.89" step="0.01" min="-55" max="-22"></div>
+<div class="ig"><label>Longitud</label><input type="number" id="lon" placeholder="-60.57" step="0.01" min="-73" max="-53"></div>
+</div>
+<div class="srd" id="srd"><div class="srdot" id="srdot"></div><div><div class="srnm" id="srnm">—</div><div class="srsb" id="srsb">—</div></div></div>
+</div>
+<div class="card" id="pfecha" style="display:none">
+<div class="ct">📅 Fecha de siembra</div>
+<div class="frow" id="frow"></div>
+</div>
+<div class="card">
+<div class="ct">⚙️ Ajuste de lote</div>
+<div class="ig"><label>Ambiente</label>
+<select id="amb"><option value="m">Medio (promedio subregión)</option><option value="a">Alto potencial (+8%)</option><option value="b">Bajo / marginal (−12%)</option></select></div>
+<div class="ig"><label>Año hídrico</label>
+<select id="hid"><option value="n">Normal / histórico</option><option value="s">Año seco / déficit</option><option value="h">Húmedo / con riego</option></select></div>
+</div>
+<button class="bcalc" onclick="calc()">▶ CALCULAR DENSIDAD</button>
+</div>
+<div>
+<div class="ini" id="ini"><div class="ini-ico" id="inico">🌱</div><h3 id="init">Seleccioná un cultivo e ingresá coordenadas</h3><p>Detectaremos tu subregión ReTAA exacta y mostraremos la densidad real observada a campo, más N, P y nivel tecnológico de referencia.</p></div>
+<div class="res" id="res">
+<div class="zh"><div><h2 id="rsr">—</h2><div class="cp" id="rcp">—</div></div><div class="cc" id="rcc"></div></div>
+<div><span class="dbg" id="rbdg">—</span></div>
+<div class="mets">
+<div class="met"><div class="ml">Densidad observada</div><div class="mv" id="rdens">—</div><div class="mu" id="runit">—</div><div class="ms" id="rsrc">—</div></div>
+<div class="met"><div class="ml" id="rf1l">Nitrógeno</div><div class="mv" id="rf1">—</div><div class="mu" id="rf1u">kg N/ha</div><div class="ms" id="rf1s">—</div></div>
+<div class="met"><div class="ml">Fósforo</div><div class="mv" id="rf2">—</div><div class="mu">kg P/ha</div><div class="ms" id="rf2s">—</div></div>
+</div>
+<div class="td">
+<div class="tdt"><span>DETALLE DEL LOTE</span><span id="rntb" style="font-size:11px;color:var(--n)"></span></div>
+<div class="tdg" id="rgrid"></div>
+<div class="tdn" id="rnote">—</div>
+</div>
+<div class="comp">
+<div class="compt" id="compt">RANKING SUBREGIONAL</div>
+<div class="bars" id="bars"></div>
+<div class="ley">
+<div class="li"><div class="ld" style="background:var(--vc)"></div>Tu subregión</div>
+<div class="li"><div class="ld" style="background:var(--n)"></div>Dato real ◉ ReTAA</div>
+<div class="li"><div class="ld" style="background:var(--az);opacity:.75"></div>Estimado ◎</div>
+</div>
+</div>
+<div class="nota">💡 <span id="rnota">—</span></div>
+</div>
+</div>
+</div>
+<footer>
+<strong>FUENTES ReTAA — BOLSA DE CEREALES DE BUENOS AIRES (ISSN 2591-4871):</strong>
+Maíz 2021/22 Nro.61 (26/10/22) · Soja 2021/22 Nro.62 (30/11/22) · Girasol 2022/23 Nro.70 (26/07/23) · Girasol 2023/24 Nro.77 (31/07/24) · Trigo 2023/24 Nro.75 (12/07/24) · Cebada 2022/23 Nro.69 (28/06/23) ·
+Analistas: Sofía Gayo, Daniela Regeiro, Martín Groppo — Dpto. Investigación y Prospectiva ·
+◉ = valor numérico leído del mapa/texto del PDF | ◎ = estimado por comportamiento zonal
+</footer>
+<script>
+// ============================================================
+// SUBREGIONES ReTAA — Bolsa de Cereales
+// ============================================================
+const SR = [
+  {id:'noa',       nm:'NOA',                    color:'#F5A623',lat:[-28,-22],lon:[-67,-62],prov:'Salta, Tucumán, Sgo. del Estero oeste, NOA'},
+  {id:'nea_o',     nm:'NEA OESTE',              color:'#E8682C',lat:[-28,-23],lon:[-64,-60],prov:'Chaco oeste, Santiago del Estero este, Formosa'},
+  {id:'nea_e',     nm:'NEA ESTE',               color:'#D9701F',lat:[-28,-23],lon:[-60,-55],prov:'Chaco este, Corrientes, Misiones, Formosa este'},
+  {id:'cn_cba',    nm:'CENTRO-NORTE CBA',       color:'#C2521C',lat:[-32,-29],lon:[-65,-62],prov:'Córdoba norte, Cruz del Eje, Río Primero'},
+  {id:'n_sf',      nm:'NORTE SANTA FE',         color:'#D9701F',lat:[-30,-27],lon:[-63,-59],prov:'Norte Santa Fe, Reconquista, Avellaneda'},
+  {id:'s_cba',     nm:'SUR CÓRDOBA',            color:'#B84A1A',lat:[-34,-32],lon:[-65,-62],prov:'Sur Córdoba, General Roca, Río Cuarto'},
+  {id:'nuc_n',     nm:'NÚCLEO NORTE',           color:'#C2521C',lat:[-33.5,-31.5],lon:[-62.5,-60],prov:'Sur Santa Fe, Córdoba SE (Marcos Juárez)'},
+  {id:'nuc_s',     nm:'NÚCLEO SUR',             color:'#8B1A00',lat:[-34.8,-33],lon:[-62,-59.5],prov:'Norte Bs.As., Pergamino, San Nicolás, San Pedro'},
+  {id:'nlp_oba',   nm:'N.LA PAMPA – O.BS.AS.',  color:'#E8682C',lat:[-37,-34.5],lon:[-64,-62],prov:'Norte La Pampa, Oeste Bs.As., Trenque Lauquen'},
+  {id:'o_ba',      nm:'OESTE BS.AS.',           color:'#F5A623',lat:[-38,-35],lon:[-63,-61],prov:'Oeste Bs.As., 9 de Julio, Bragado, Chivilcoy'},
+  {id:'c_ba',      nm:'CENTRO BS.AS.',          color:'#D9701F',lat:[-37,-35],lon:[-61,-58.5],prov:'Centro Bs.As., Bolívar, Azul, Olavarría'},
+  {id:'se_ba',     nm:'SUDESTE BS.AS.',         color:'#C2521C',lat:[-38.5,-36.5],lon:[-60,-57],prov:'Balcarce, Tandil, Necochea, Mar del Plata'},
+  {id:'so_ba',     nm:'SUDOESTE BS.AS.–S.LP',   color:'#D9701F',lat:[-40,-38],lon:[-63.5,-61],prov:'Bahía Blanca, Tres Arroyos, Cnel. Suárez, Sur La Pampa'},
+  {id:'sal',       nm:'CUENCA DEL SALADO',      color:'#F5A623',lat:[-37,-35],lon:[-59,-57],prov:'SE Bs.As., Dolores, Maipú, Chascomús, Rauch'},
+  {id:'er',        nm:'CENTRO-ESTE ENTRE RÍOS', color:'#8BC34A',lat:[-33,-30],lon:[-60,-57.5],prov:'Entre Ríos centro-este, Paraná, Victoria, Gualeguaychú'},
+];
+
+// ============================================================
+// BASE DE DATOS ReTAA — TODOS REALES ◉ (excepto marcados ◎)
+// ============================================================
+const DB = {
+
+  maiz: {
+    emoji:'🌽', label:'Maíz', camp:'2021/22', inf:'Nro.61',
+    fechas:['t','d'], flab:['🌱 Temprano (sep-oct)','🍂 Tardío (nov-dic)'],
+    unit:'mil pl/ha', f1l:'Nitrógeno',
+    nac:{t:65.4,d:61.0}, nt:{a:46,m:52,b:2},
+    nota:'Campaña 2021/22 — 7.7 M ha sembradas (récord 21 campañas). Rinde 69.9 qq/ha (↓9.4 por sequía de enero). SD 92%. NT alto: maíz temprano 54%, tardío 39%.',
+    sr:{
+      noa:   {t:54.3,d:51.2,n:22, p:4,  nt:'Medio',  f:'◉'},
+      nea_o: {t:55.7,d:51.2,n:22, p:4,  nt:'Medio',  f:'◎'},
+      nea_e: {t:55.7,d:64.3,n:19, p:2,  nt:'Medio',  f:'◉'},
+      cn_cba:{t:58.5,d:62.5,n:59, p:7,  nt:'Medio',  f:'◉'},
+      n_sf:  {t:59.8,d:70.2,n:35, p:17, nt:'Medio',  f:'◉'},
+      s_cba: {t:65.6,d:64.0,n:64, p:19, nt:'Alto',   f:'◉'},
+      nuc_n: {t:65.6,d:64.0,n:64, p:19, nt:'Alto',   f:'◉'},
+      nuc_s: {t:75.4,d:70.2,n:116,p:25, nt:'Alto',   f:'◉'},
+      nlp_oba:{t:66.1,d:61.4,n:84, p:21, nt:'Alto',  f:'◉'},
+      o_ba:  {t:69.0,d:62.5,n:62, p:16, nt:'Alto',   f:'◎'},
+      c_ba:  {t:69.7,d:69.6,n:122,p:25, nt:'Alto',   f:'◉'},
+      se_ba: {t:77.3,d:63.9,n:92, p:20, nt:'Alto',   f:'◉'},
+      so_ba: {t:71.9,d:60.0,n:82, p:15, nt:'Medio-A',f:'◉'},
+      sal:   {t:68.0,d:62.0,n:74, p:20, nt:'Medio-A',f:'◎'},
+      er:    {t:66.1,d:61.4,n:60, p:15, nt:'Medio',  f:'◎'},
+    },
+    rv:(sr,fa)=>fa==='t'?sr.t:sr.d,
+    adj:(v,a,h)=>v*(a==='a'?1.08:a==='b'?.88:1)*(h==='s'?.92:h==='h'?1.06:1),
+    rows:(d,sr,fa,adj)=>[
+      {l:'Densidad lograda subregión',v:`${fa==='t'?sr.t:sr.d} mil pl/ha`,f:sr.f},
+      {l:'Ajustada a tu lote',v:`${adj.toFixed(1)} mil pl/ha`},
+      {l:'Semillas a sembrar (92% logro)',v:`${(adj/0.92).toFixed(1)} mil sem/ha`},
+      {l:'Ref. nacional',v:`${d.nac[fa]} mil pl/ha ◉`},
+      {l:'N promedio subregión',v:`${sr.n} kg N/ha`},
+      {l:'P promedio subregión',v:`${sr.p} kg P/ha`},
+      {l:'Nivel tecnológico',v:sr.nt},
+      {l:'SD campaña',v:'92% del área ◉'},
+    ],
+    f1:(sr)=>sr.n, f2:(sr)=>sr.p,
+  },
+
+  soja: {
+    emoji:'🫛', label:'Soja', camp:'2021/22', inf:'Nro.62',
+    fechas:['p','s'], flab:['🌱 1° (temprana)','🍂 2° (sobre trigo)'],
+    unit:'kg sem/ha', f1l:'Fósforo (P)',
+    nac:{p:63,s:68}, nt:{a:31,m:67,b:3},
+    nota:'Campaña 2021/22 — 16.3 M ha. SD 93%. Densidad 1° menor que 2° porque soja de 2° compensa menor desarrollo vegetativo con más semilla. Estancamiento en fósforo aplicado: 6 kg P/ha nacional ◉. Tendencia a reducir densidad con mejores semillas.',
+    sr:{
+      noa:   {p:59,s:62,fP:6, nt:'Medio',  f:'◉'},
+      nea_o: {p:59,s:62,fP:6, nt:'Medio',  f:'◎'},
+      nea_e: {p:53,s:54,fP:1, nt:'Medio',  f:'◉'},
+      cn_cba:{p:47,s:47,fP:2, nt:'Medio',  f:'◉'},
+      n_sf:  {p:58,s:65,fP:3, nt:'Medio',  f:'◉'},
+      s_cba: {p:60,s:62,fP:3, nt:'Medio-A',f:'◉'},
+      nuc_n: {p:63,s:68,fP:8, nt:'Alto',   f:'◉'},
+      nuc_s: {p:67,s:73,fP:13,nt:'Alto',   f:'◉'},
+      nlp_oba:{p:62,s:65,fP:6, nt:'Medio-A',f:'◉'},
+      o_ba:  {p:62,s:58,fP:4, nt:'Medio',  f:'◉'},
+      c_ba:  {p:70,s:75,fP:8, nt:'Alto',   f:'◉'},
+      se_ba: {p:74,s:82,fP:7, nt:'Alto',   f:'◉'},
+      so_ba: {p:54,s:62,fP:7, nt:'Medio',  f:'◉'},
+      sal:   {p:61,s:75,fP:5, nt:'Medio',  f:'◉'},
+      er:    {p:78,s:84,fP:6, nt:'Medio-A',f:'◉'},
+    },
+    rv:(sr,fa)=>fa==='p'?sr.p:sr.s,
+    adj:(v,a,h)=>Math.round(v*(a==='a'?.93:a==='b'?1.10:1)*(h==='s'?1.08:h==='h'?.95:1)),
+    rows:(d,sr,fa,adj)=>[
+      {l:'Densidad observada subregión',v:`${fa==='p'?sr.p:sr.s} kg sem/ha`,f:sr.f},
+      {l:'Ajustada a tu lote',v:`${adj} kg sem/ha`},
+      {l:'Ref. nacional',v:`${d.nac[fa]} kg sem/ha ◉`},
+      {l:'P promedio subregión',v:`${sr.fP} kg P/ha`},
+      {l:'Nivel tecnológico',v:sr.nt},
+      {l:'SD campaña',v:'93% del área ◉'},
+      {l:'Tendencia densidad',v:'Bajando (mejores semillas)'},
+      {l:'Logro esperable',v:'87% approx.'},
+    ],
+    f1:(sr)=>sr.fP, f2:(sr)=>sr.fP,
+  },
+
+  trigo: {
+    emoji:'🌾', label:'Trigo', camp:'2023/24', inf:'Nro.75',
+    fechas:['o','t'], flab:['📅 Fecha óptima','📅 Fecha tardía (+densidad)'],
+    unit:'kg sem/ha', f1l:'Nitrógeno (N)',
+    nac:{o:112,t:122}, nt:{a:32,m:54,b:14},
+    nota:'Campaña 2023/24 — 5.9 M ha (mínimo desde 2017/18). Densidad nacional 116 kg/ha ◉ (↑ vs 2021/22 por retraso de fecha). N 78 kg/ha · P 14 kg/ha nacionales. Regiones NOA y NEA: densidades menores (trigo usado como cobertura). Norte La Pampa y Oeste BA lideran análisis de suelo.',
+    sr:{
+      noa:   {o:70, t:80, n:16, p:7,  nt:'Bajo',   f:'◉'},
+      nea_o: {o:70, t:80, n:16, p:7,  nt:'Bajo',   f:'◎'},
+      nea_e: {o:68, t:78, n:43, p:1,  nt:'Bajo-M', f:'◉'},
+      cn_cba:{o:78, t:90, n:36, p:2,  nt:'Medio',  f:'◉'},
+      n_sf:  {o:100,t:115,n:44, p:7,  nt:'Medio',  f:'◉'},
+      s_cba: {o:115,t:130,n:44, p:6,  nt:'Medio-A',f:'◉'},
+      nuc_n: {o:112,t:127,n:61, p:9,  nt:'Medio-A',f:'◉'},
+      nuc_s: {o:136,t:152,n:107,p:14, nt:'Alto',   f:'◉'},
+      nlp_oba:{o:124,t:140,n:73, p:7,  nt:'Medio-A',f:'◉'},
+      o_ba:  {o:120,t:136,n:60, p:13, nt:'Medio',  f:'◉'},
+      c_ba:  {o:129,t:145,n:108,p:21, nt:'Alto',   f:'◉'},
+      se_ba: {o:157,t:175,n:97, p:21, nt:'Alto',   f:'◉'},
+      so_ba: {o:84, t:96, n:92, p:17, nt:'Medio-A',f:'◉'},
+      sal:   {o:117,t:132,n:104,p:17, nt:'Medio',  f:'◉'},
+      er:    {o:118,t:133,n:54, p:13, nt:'Medio',  f:'◉'},
+    },
+    rv:(sr,fa)=>fa==='o'?sr.o:sr.t,
+    adj:(v,a,h)=>Math.round(v*(a==='a'?.96:a==='b'?1.07:1)*(h==='s'?1.04:h==='h'?.97:1)),
+    rows:(d,sr,fa,adj)=>[
+      {l:'Densidad referencia subregión',v:`${fa==='o'?sr.o:sr.t} kg sem/ha`,f:sr.f},
+      {l:'Ajustada a tu lote',v:`${adj} kg sem/ha`},
+      {l:'Ref. nacional 2023/24',v:'116 kg/ha ◉'},
+      {l:'N promedio subregión',v:`${sr.n} kg N/ha`},
+      {l:'P promedio subregión',v:`${sr.p} kg P/ha`},
+      {l:'Nivel tecnológico',v:sr.nt},
+      {l:'SD campaña',v:'88% del área ◉'},
+      {l:'Clave de manejo',v:'Fecha siembra > densidad'},
+    ],
+    f1:(sr)=>sr.n, f2:(sr)=>sr.p,
+  },
+
+  girasol: {
+    emoji:'🌻', label:'Girasol', camp:'2022/23 + 2023/24', inf:'Nro.70 + Nro.77',
+    fechas:['a','b'], flab:['☀️ Campaña 2022/23','📅 Campaña 2023/24'],
+    unit:'mil pl/ha', f1l:'Nitrógeno (N)',
+    nac:{a:47.2,b:46.1}, nt:{a:33,m:63,b:4},
+    nota:'2022/23 (Nro.70): 2.2 M ha (+29%), densidad ↓7%, fecha retrasada por sequía. 2023/24 (Nro.77): 1.85 M ha (↓16%), densidad ↓2.4%, N 19 kg/ha · P 11 kg/ha. TH 82% (máximo histórico). Alto oleico 19%. Girasol con alta plasticidad a densidad.',
+    sr:{
+      noa:   {a:null,   b:null,   n22:null, p22:null, n23:null,  p23:null,  nt:'Bajo',   f:'◎'},
+      nea_o: {a:null,   b:null,   n22:null, p22:null, n23:null,  p23:null,  nt:'Bajo',   f:'◎'},
+      nea_e: {a:48.385, b:48.0,   n22:34,   p22:3,    n23:27,    p23:15,    nt:'Medio',  f:'◉'},
+      cn_cba:{a:54.800, b:47.0,   n22:25,   p22:6,    n23:23,    p23:4,     nt:'Medio',  f:'◉'},
+      n_sf:  {a:50.375, b:50.2,   n22:35,   p22:9,    n23:38,    p23:7,     nt:'Medio',  f:'◉'},
+      s_cba: {a:52.729, b:52.3,   n22:43,   p22:9,    n23:38,    p23:6,     nt:'Medio-A',f:'◉'},
+      nuc_n: {a:50.270, b:47.0,   n22:26,   p22:15,   n23:23,    p23:4,     nt:'Medio',  f:'◉'},
+      nuc_s: {a:50.000, b:48.2,   n22:25,   p22:10,   n23:13,    p23:11,    nt:'Medio',  f:'◉'},
+      nlp_oba:{a:50.270,b:50.5,   n22:13,   p22:10,   n23:13,    p23:11,    nt:'Medio',  f:'◉'},
+      o_ba:  {a:49.025, b:48.6,   n22:13,   p22:10,   n23:13,    p23:11,    nt:'Medio',  f:'◉'},
+      c_ba:  {a:49.025, b:48.6,   n22:20,   p22:10,   n23:22,    p23:11,    nt:'Medio',  f:'◉'},
+      se_ba: {a:55.664, b:50.5,   n22:20,   p22:12,   n23:20,    p23:13,    nt:'Alto',   f:'◉'},
+      so_ba: {a:38.180, b:46.2,   n22:13,   p22:11,   n23:18,    p23:12,    nt:'Medio',  f:'◉'},
+      sal:   {a:47.720, b:40.9,   n22:20,   p22:11,   n23:16,    p23:12,    nt:'Medio',  f:'◉'},
+      er:    {a:null,   b:null,   n22:null, p22:null, n23:null,  p23:null,  nt:'Bajo-M', f:'◎'},
+    },
+    rv:(sr,fa)=>{const v=fa==='a'?sr.a:sr.b; return v||47.0;},
+    adj:(v,a,h)=>+(v*(a==='a'?1.05:a==='b'?.88:1)*(h==='s'?.90:h==='h'?1.06:1)).toFixed(1),
+    rows:(d,sr,fa,adj)=>{const n=fa==='a'?sr.n22:sr.n23;const p=fa==='a'?sr.p22:sr.p23;const v=fa==='a'?sr.a:sr.b;return[
+      {l:'Densidad observada subregión',v:v?`${v} mil pl/ha`:'Sin datos (zona marginal)',f:sr.f},
+      {l:'Ajustada a tu lote',v:`${adj} mil pl/ha`},
+      {l:'Ref. nacional',v:`${fa==='a'?'47.2':'46.1'} mil pl/ha ◉`},
+      {l:'N promedio subregión',v:n?`${n} kg N/ha`:'Sin datos'},
+      {l:'P promedio subregión',v:p?`${p} kg P/ha`:'Sin datos'},
+      {l:'Nivel tecnológico',v:sr.nt},
+      {l:'TH 2023/24',v:'82% del área (máximo histórico) ◉'},
+      {l:'Semillas (logro 88%)',v:`${(adj/0.88).toFixed(1)} mil sem/ha`},
+    ];},
+    f1:(sr,fa)=>fa==='a'?sr.n22:sr.n23,
+    f2:(sr,fa)=>fa==='a'?sr.p22:sr.p23,
+  },
+
+  cebada: {
+    emoji:'🍺', label:'Cebada', camp:'2022/23', inf:'Nro.69',
+    fechas:['o','t'], flab:['📅 Fecha óptima (menor densidad)','📅 Fecha tardía (mayor densidad)'],
+    unit:'kg sem/ha', f1l:'Nitrógeno (N)',
+    nac:{o:112,t:124}, nt:{a:42,m:56,b:2},
+    nota:'Campaña 2022/23 — 1.3 M ha (+8%). Densidad 116 kg/ha ◉ (↓3 vs anterior, pero histórica estable). SD 84%. Rinde cayó 34% por sequía. Núcleo Sur lidera en N y P aplicados. Regiones principales: SO BA-S.LP, Centro BA, SE BA y Núcleo Sur. Calidad maltera: proteína 9-11.5%.',
+    sr:{
+      noa:   {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      nea_o: {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      nea_e: {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      cn_cba:{o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      n_sf:  {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      s_cba: {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      nuc_n: {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+      nuc_s: {o:123,  t:135,  n:99,   p:24,   nt:'Alto',   f:'◉'},
+      nlp_oba:{o:117, t:128,  n:82,   p:17,   nt:'Medio-A',f:'◉'},
+      o_ba:  {o:115,  t:126,  n:80,   p:15,   nt:'Medio',  f:'◎'},
+      c_ba:  {o:127,  t:139,  n:87,   p:16,   nt:'Alto',   f:'◉'},
+      se_ba: {o:118,  t:130,  n:98,   p:19,   nt:'Alto',   f:'◉'},
+      so_ba: {o:99,   t:110,  n:70,   p:12,   nt:'Medio',  f:'◉'},
+      sal:   {o:113,  t:124,  n:80,   p:15,   nt:'Medio',  f:'◎'},
+      er:    {o:null, t:null, n:null, p:null, nt:'—',      f:'◎'},
+    },
+    rv:(sr,fa)=>{const v=fa==='o'?sr.o:sr.t; return v||116;},
+    adj:(v,a,h)=>Math.round(v*(a==='a'?.96:a==='b'?1.07:1)*(h==='s'?1.05:h==='h'?.97:1)),
+    rows:(d,sr,fa,adj)=>{const v=fa==='o'?sr.o:sr.t;return[
+      {l:'Densidad referencia subregión',v:v?`${v} kg sem/ha`:'Sin datos (zona marginal)',f:sr.f},
+      {l:'Ajustada a tu lote',v:`${adj} kg sem/ha`},
+      {l:'Ref. nacional 2022/23',v:'116 kg/ha ◉'},
+      {l:'N promedio subregión',v:sr.n?`${sr.n} kg N/ha`:'Sin datos'},
+      {l:'P promedio subregión',v:sr.p?`${sr.p} kg P/ha`:'Sin datos'},
+      {l:'Nivel tecnológico',v:sr.nt||'Sin datos'},
+      {l:'Calidad maltera',v:'Proteína 9-11.5%, calibre >2.5mm'},
+      {l:'Zonas sin datos',v:'Norte, NEA, Córdoba (sin área relevante)'},
+    ];},
+    f1:(sr)=>sr.n, f2:(sr)=>sr.p,
+  },
+};
+
+// ============================================================
+// ESTADO
+// ============================================================
+let CA='maiz', FA='t';
+
+// Tabs
+const ct=document.getElementById('ctabs');
+Object.entries(DB).forEach(([id,d])=>{
+  const b=document.createElement('button');
+  b.className='cb'+(id==='maiz'?' on':'');
+  b.textContent=d.emoji+' '+d.label;
+  b.onclick=()=>{CA=id;document.querySelectorAll('.cb').forEach(x=>x.classList.remove('on'));b.classList.add('on');initCult();};
+  ct.appendChild(b);
+});
+
+function initCult(){
+  const d=DB[CA];
+  const pf=document.getElementById('pfecha');
+  const fr=document.getElementById('frow');
+  if(d.fechas){
+    pf.style.display='';fr.innerHTML='';
+    d.fechas.forEach((f,i)=>{
+      const b=document.createElement('button');
+      b.className='fb'+(i===0?' on':'');
+      b.textContent=d.flab[i];
+      b.onclick=()=>{FA=f;document.querySelectorAll('#frow .fb').forEach(x=>x.classList.remove('on'));b.classList.add('on');};
+      fr.appendChild(b);
+    });
+    FA=d.fechas[0];
+  } else {pf.style.display='none'; FA=null;}
+  document.getElementById('inico').textContent=d.emoji;
+  document.getElementById('init').textContent=`${d.label}: ingresá coordenadas del lote`;
+  document.getElementById('res').classList.remove('vis');
+  document.getElementById('ini').style.display='';
+  detVis();
+}
+
+function getSR(lat,lon){
+  const cands=SR.filter(s=>lat>=s.lat[0]&&lat<=s.lat[1]&&lon>=s.lon[0]&&lon<=s.lon[1]);
+  const pool=cands.length?cands:SR;
+  let best=null,bd=Infinity;
+  pool.forEach(s=>{const cy=(s.lat[0]+s.lat[1])/2,cx=(s.lon[0]+s.lon[1])/2,dist=Math.hypot(lat-cy,lon-cx);if(dist<bd){bd=dist;best=s;}});
+  return best;
+}
+
+function detVis(){
+  const lat=parseFloat(document.getElementById('lat').value);
+  const lon=parseFloat(document.getElementById('lon').value);
+  if(isNaN(lat)||isNaN(lon)){document.getElementById('srd').style.display='none';return;}
+  const sr=getSR(lat,lon);
+  document.getElementById('srdot').style.background=sr.color;
+  document.getElementById('srnm').textContent=sr.nm;
+  document.getElementById('srsb').textContent=sr.prov;
+  document.getElementById('srd').style.display='flex';
+}
+
+['lat','lon'].forEach(id=>document.getElementById(id).addEventListener('change',detVis));
+
+function getGPS(){
+  const b=document.querySelector('.bgps');b.innerHTML='🛰️ Obteniendo...';
+  if(!navigator.geolocation){b.innerHTML='❌ No disponible';return;}
+  navigator.geolocation.getCurrentPosition(p=>{
+    document.getElementById('lat').value=p.coords.latitude.toFixed(3);
+    document.getElementById('lon').value=p.coords.longitude.toFixed(3);
+    b.innerHTML='✅ Obtenida';detVis();
+  },()=>{b.innerHTML='⚠️ Error GPS';});
+}
+
+function calc(){
+  const lat=parseFloat(document.getElementById('lat').value);
+  const lon=parseFloat(document.getElementById('lon').value);
+  if(isNaN(lat)||isNaN(lon)){alert('Ingresá las coordenadas del lote.');return;}
+  if(lat<-55||lat>-21||lon<-74||lon>-52){alert('Coordenadas fuera de Argentina.');return;}
+
+  const d=DB[CA];
+  const sr=getSR(lat,lon);
+  const srD=d.sr[sr.id]||d.sr['nuc_n'];
+  const amb=document.getElementById('amb').value;
+  const hid=document.getElementById('hid').value;
+
+  const densRef=d.rv(srD,FA);
+  const densAdj=d.adj(densRef,amb,hid);
+  const f1=typeof d.f1==='function'?d.f1(srD,FA):null;
+  const f2=typeof d.f2==='function'?d.f2(srD,FA):null;
+
+  document.getElementById('ini').style.display='none';
+  document.getElementById('res').classList.add('vis');
+  document.getElementById('rsr').textContent=sr.nm;
+  document.getElementById('rcp').textContent=`${d.camp} · ${d.inf} · ReTAA Bolsa de Cereales`;
+  document.getElementById('rcc').innerHTML=`${lat.toFixed(3)}, ${lon.toFixed(3)}`;
+
+  const esReal=srD.f==='◉';
+  const bdg=document.getElementById('rbdg');
+  bdg.className='dbg '+(esReal?'dr':'de');
+  bdg.textContent=esReal?'◉ DATO REAL — leído del informe ReTAA':'◎ DATO ESTIMADO — interpolado por zona';
+
+  // métricas
+  const dv=typeof densRef==='number'&&densRef<200?densRef.toFixed(1):Math.round(densRef);
+  document.getElementById('rdens').textContent=dv;
+  document.getElementById('runit').textContent=d.unit;
+  document.getElementById('rsrc').textContent=srD.f+' ReTAA '+d.camp;
+  document.getElementById('rsrc').className='ms '+(esReal?'r':'e');
+  document.getElementById('rf1l').textContent=d.f1l;
+  document.getElementById('rf1').textContent=f1||'—';
+  document.getElementById('rf1s').textContent=esReal?'◉ ReTAA real':'◎ Ref. zona';
+  document.getElementById('rf1s').className='ms '+(esReal?'r':'e');
+  document.getElementById('rf2').textContent=f2||'—';
+  document.getElementById('rf2s').textContent=esReal?'◉ ReTAA real':'◎ Ref. zona';
+  document.getElementById('rf2s').className='ms '+(esReal?'r':'e');
+  document.getElementById('rntb').textContent='NT '+srD.nt;
+
+  // grilla
+  const rows=d.rows(d,srD,FA,densAdj);
+  document.getElementById('rgrid').innerHTML=rows.map(r=>`<div class="tdc"><div class="tdl">${r.l}</div><div class="tdv">${r.v}${r.f?` <small style="color:${r.f==='◉'?'var(--vc)':'var(--az)'}">${r.f}</small>`:''}</div></div>`).join('');
+  document.getElementById('rnote').textContent=d.nota;
+  document.getElementById('compt').textContent=`RANKING SUBREGIONAL — ${d.label} ${FA?'('+d.flab[d.fechas.indexOf(FA)].replace(/[🌱🍂☀️📅]/g,'').trim()+')':''} · ${d.camp}`;
+
+  // ranking
+  const ranking=SR.map(s=>{
+    const sd=d.sr[s.id]||d.sr['nuc_n'];
+    const v=d.rv(sd,FA);
+    return {nm:s.nm,val:typeof v==='number'?v:0,me:s.id===sr.id,re:sd.f==='◉'};
+  }).sort((a,b)=>b.val-a.val);
+  const mx=Math.max(...ranking.map(r=>r.val));
+  document.getElementById('bars').innerHTML=ranking.map(r=>`<div class="br"><div class="bl2">${r.nm}</div><div class="bt"><div class="bf ${r.me?'me':r.re?'re':'es'}" style="width:${r.val>0?(r.val/mx*100).toFixed(0):0}%">${r.val>0?(typeof r.val==='number'&&r.val<200?r.val.toFixed(1):Math.round(r.val)):'-'}</div></div></div>`).join('');
+
+  document.getElementById('rnota').innerHTML=`<strong>Cómo leer:</strong> verde = tu subregión · naranja = dato ◉ real del PDF ReTAA · azul = estimado ◎. Los datos ◉ son valores observados a campo por la Bolsa de Cereales — no recomendaciones teóricas. Ajustá con tu agrónomo de zona.`;
+}
+</script>
+</body>
+</html>
