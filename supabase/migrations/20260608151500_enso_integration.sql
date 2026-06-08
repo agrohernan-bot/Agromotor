@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS public.enso_rendimiento (
   id SERIAL PRIMARY KEY,
   provincia_id SMALLINT NOT NULL,
-  depto_id SMALLINT NOT NULL,
+  depto_id INTEGER NOT NULL,
   provincia_nombre TEXT,
   depto_nombre TEXT,
   cultivo TEXT NOT NULL,
