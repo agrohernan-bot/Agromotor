@@ -210,23 +210,94 @@ test('Alerta sanitaria hereda cultivo, fecha y coordenadas desde lote activo', (
   assert.match(sandbox.document.getElementById('as-contexto-lote').innerHTML, /Papa Ea Grande/);
 });
 
-test('Fenologia seguimiento usa datos heredados y dispara calculo automatico', () => {
-  const app = read('app.html');
-  const nav = read('js/nav.js');
+test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () => {
+  const calls = [];
+  const document = createDocument();
+  const sandbox = createBrowserSandbox({
+    document,
+    fsPrepararDetalleLote() { calls.push('fsPrepararDetalleLote'); },
+    fsCalcular() { calls.push('fsCalcular'); },
+    fpCalcular() {},  // marca fenologia.js como ya cargado
+    scrollTo() {},
+  });
 
-  assert.match(app, /function fsPrepararDetalleLote\(\)\s*{\s*fsUsarLote\(\);/);
-  assert.match(nav, /if \(typeof fsPrepararDetalleLote === 'function'\) fsPrepararDetalleLote\(\);[\s\S]*if \(typeof fsCalcular === 'function'\) fsCalcular\(\);/);
-  assert.match(app, /La fenologia se genera automaticamente con datos del lote y de la planificacion/);
+  vm.runInNewContext(read('js/nav.js'), sandbox, { filename: 'js/nav.js' });
+  sandbox._activarModulo('fen-seg');
+
+  assert.ok(calls.includes('fsPrepararDetalleLote'), 'debe llamar fsPrepararDetalleLote al activar fen-seg');
+  assert.ok(calls.includes('fsCalcular'), 'debe llamar fsCalcular al activar fen-seg');
 });
 
-test('Sanidad y plagas mantienen compuerta fenologica antes de alarmar', () => {
-  const plagas = read('js/plagas.js');
-  const sanitaria = read('js/alerta-sanitaria.js');
+// Diciembre: todas las plagas de soja y roya están en época
+const MockDate = class extends Date {
+  constructor(...args) {
+    if (args.length === 0) super('2026-12-15T12:00:00.000Z');
+    else super(...args);
+  }
+};
 
-  assert.match(plagas, /stageInVuln\(stageCode,pest\.vuln\)/);
-  assert.match(plagas, /fuera de la ventana vulnerable[\s\S]*sin alarma/);
-  assert.match(sanitaria, /stageInVuln\(stageCode,dis\.vuln\)/);
-  assert.match(sanitaria, /fuera de la ventana vulnerable[\s\S]*sin alarma/);
+test('compuerta fenologica de plagas: score=0 fuera de ventana, score>0 dentro', () => {
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return { id: 'test', nombre: 'Test', data: {} }; },
+    Date: MockDate,
+  });
+  sandbox.document.ensureElement('s-cultivo', { value: 'soja' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-10-01' });
+
+  vm.runInNewContext(read('js/plagas.js'), sandbox, { filename: 'js/plagas.js' });
+
+  const favorable = Array.from({ length: 7 }, () => ({
+    tmean: 24, tmin: 18, tmax: 30, hrMean: 70, precip: 0,
+  }));
+
+  // R8 = post-madurez soja, no está en ninguna ventana vuln
+  const outOfWindow = sandbox.amPlagasUtils.calcPestRisks(favorable, 'R8', 'soja');
+  assert.ok(outOfWindow.length > 0, 'debe devolver resultados para soja');
+  const inSeason = outOfWindow.filter(p => p.inSeason);
+  assert.ok(inSeason.length > 0, 'al menos una plaga debe estar en época en diciembre');
+  inSeason.forEach(p => {
+    assert.equal(p.score, 0, `${p.id}: score debe ser 0 en R8 (fuera de ventana vulnerable)`);
+    assert.equal(p.inVuln, false, `${p.id}: R8 no está en la ventana vuln`);
+  });
+
+  // R3 = floración: chinche y anticarsia SÍ están en su ventana
+  const inWindow = sandbox.amPlagasUtils.calcPestRisks(favorable, 'R3', 'soja');
+  const chinche = inWindow.find(p => p.id === 'chinche_cuernos');
+  assert.ok(chinche && chinche.inVuln, 'chinche debe estar en ventana en R3');
+  assert.ok(chinche.score > 0, 'chinche debe tener score>0 con clima favorable en R3');
+});
+
+test('compuerta fenologica de enfermedades: score=0 fuera de ventana, score>0 dentro', () => {
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return { id: 'test', nombre: 'Test', data: {} }; },
+    Date: MockDate,
+  });
+  sandbox.document.ensureElement('s-cultivo', { value: 'soja' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-10-01' });
+
+  vm.runInNewContext(read('js/alerta-sanitaria.js'), sandbox, { filename: 'js/alerta-sanitaria.js' });
+
+  const favorable = Array.from({ length: 10 }, (_, i) => ({
+    date: `2026-12-${String(5 + i).padStart(2, '0')}`,
+    tmean: 20, tmin: 14, tmax: 26, precip: 0,
+    hoursHR75: 8, hoursHR80: 6, hoursHR90: 3,
+  }));
+
+  // R8 = post-madurez, no está en ventana de roya ni de ninguna enfermedad de soja
+  const outOfWindow = sandbox.asUtils.calcDiseaseRisks(favorable, 'R8', 'soja');
+  assert.ok(outOfWindow.length > 0, 'debe devolver resultados para soja');
+  const inSeason = outOfWindow.filter(d => d.inSeason);
+  assert.ok(inSeason.length > 0, 'al menos una enfermedad debe estar en época en diciembre');
+  inSeason.forEach(d => {
+    assert.equal(d.score, 0, `${d.id}: score debe ser 0 en R8 (fuera de ventana vulnerable)`);
+    assert.equal(d.inVuln, false, `${d.id}: R8 no está en la ventana vuln`);
+  });
+
+  // R1 = inicio floración: roya SÍ está en ventana ([R1,...,R6])
+  const inWindow = sandbox.asUtils.calcDiseaseRisks(favorable, 'R1', 'soja');
+  const roya = inWindow.find(d => d.id === 'roya');
+  assert.ok(roya && roya.inVuln, 'roya debe estar en ventana en R1');
+  assert.ok(roya.score > 0, 'roya debe tener score>0 con clima favorable en R1');
 });
 
 test('Cosecha y Pulverizacion no reintroducen globals genericos conflictivos', () => {

@@ -1011,5 +1011,10 @@ window.plagasRenderEstacional = function() {
   // Exposición a global
   window.selectSev = selectSev;
   window.enviarReporte = enviarReporte;
+  window.amPlagasUtils = {
+    calcPestRisks: calcPestRisks,
+    stageInVuln: stageInVuln,
+    PESTS: PESTS,
+  };
 
 })();
