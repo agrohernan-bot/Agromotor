@@ -679,5 +679,10 @@
   };
 
   window.asAnalizar = analizar;
+  window.asUtils = {
+    calcDiseaseRisks: calcDiseaseRisks,
+    stageInVuln: stageInVuln,
+    DISEASES: DISEASES,
+  };
 
 })();

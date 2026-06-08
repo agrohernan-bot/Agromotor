@@ -54,7 +54,10 @@ function amNormalizarEstadoLotes() {
 }
 
 function amGetLoteActivo() {
-  return amNormalizarEstadoLotes();
+  if (!Array.isArray(window.AM_LOTES) || !window.AM_LOTES.length) return null;
+  return window.AM_LOTES.find(function(l) {
+    return String(l.id) === String(window.AM_LOTE_ACTIVO);
+  }) || null;
 }
 
 function amPersistirLotesLocal() {

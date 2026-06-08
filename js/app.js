@@ -1,3 +1,7 @@
+// NOTA ARQUITECTURA: Este archivo no está cargado en app.html (versión actual).
+// El arranque real vive en app.html + js/cache.js + js/nav.js.
+// Ver docs/STATE_CONTRACT.md antes de modificar o reactivar.
+
 /**
  * app.js — AGROMOTOR v2.0
  *
