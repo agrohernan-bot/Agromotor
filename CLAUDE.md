@@ -16,7 +16,7 @@ js/cache.js       ← inicializa AM_LOTES, AM_LOTE_ACTIVO; expone helpers de est
 js/nav.js         ← lazy-loader de módulos; expone switchMod(), _activarModulo()
 ```
 
-**`js/app.js` NO está cargado en `app.html`.** Existe en el repo pero es código legacy/inactivo. No leerlo como fuente de verdad. No modificarlo salvo que se decida migrarlo o retirarlo formalmente (ver `docs/STATE_CONTRACT.md`).
+**`js/app.js` fue eliminado** — era código legacy que nunca se cargó en `app.html`. El arranque real sigue siendo `app.html` + `js/cache.js` + `js/nav.js`.
 
 El flujo de carga es:
 1. `app.html` parsea → carga `cache.js` (IIFE, expone globals en `window.*`)

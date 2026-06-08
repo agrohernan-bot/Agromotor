@@ -8,7 +8,6 @@ Guía rápida de las reglas que más frecuentemente se rompen. Para la arquitect
 
 ```
 app.html + js/cache.js + js/nav.js   ← arranque real
-js/app.js                            ← NO cargado, no usar como referencia
 ```
 
 ## Estado de lote
