@@ -11,6 +11,8 @@ Este documento define las fuentes de verdad de estado local para evitar que los 
 - Las claves `am_*` globales son compatibilidad legacy o cache operativo. No deben ser la fuente primaria si existe dato en `lote.data`.
 - Las caches externas deben tener prefijo claro y vencimiento cuando corresponda.
 
+Nota de arquitectura: `js/app.js` no esta cargado por `app.html` en la version actual. El arranque real vive en `app.html`, `js/cache.js` y `js/nav.js`; no usar `js/app.js` como fuente de verdad hasta migrarlo o retirarlo formalmente.
+
 ## Lotes
 
 ### `am_lotes_v2_{userId}`
