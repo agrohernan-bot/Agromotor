@@ -78,8 +78,8 @@ Reglas:
 
 Helpers publicos:
 
-- `amGetLoteActivo()` devuelve el objeto de lote activo ya validado.
-- `amNormalizarEstadoLotes()` corrige `AM_LOTES`/`AM_LOTE_ACTIVO` sin refrescar UI por si un modulo necesita sanear estado antes de operar.
+- `amGetLoteActivo()` devuelve el objeto de lote activo, o `null` si `AM_LOTES` aún no fue cargado. Siempre llamar luego de que `amCargarLotesGlobales()` haya corrido (i.e., post-DOMContentLoaded). Los módulos deben null-chequear el resultado.
+- `amNormalizarEstadoLotes()` corrige `AM_LOTES`/`AM_LOTE_ACTIVO` y garantiza al menos el lote `default`; retorna el lote activo. Usarla cuando se necesita sanear estado (no como getter cotidiano).
 
 ## Campañas
 

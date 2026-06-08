@@ -228,14 +228,15 @@ test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () 
   assert.ok(calls.includes('fsCalcular'), 'debe llamar fsCalcular al activar fen-seg');
 });
 
+// Diciembre: todas las plagas de soja y roya están en época
+const MockDate = class extends Date {
+  constructor(...args) {
+    if (args.length === 0) super('2026-12-15T12:00:00.000Z');
+    else super(...args);
+  }
+};
+
 test('compuerta fenologica de plagas: score=0 fuera de ventana, score>0 dentro', () => {
-  // Diciembre: todas las plagas de soja están en época
-  const MockDate = class extends Date {
-    constructor(...args) {
-      if (args.length === 0) super('2026-12-15T12:00:00.000Z');
-      else super(...args);
-    }
-  };
   const sandbox = createBrowserSandbox({
     amGetLoteActivo() { return { id: 'test', nombre: 'Test', data: {} }; },
     Date: MockDate,
@@ -267,13 +268,6 @@ test('compuerta fenologica de plagas: score=0 fuera de ventana, score>0 dentro',
 });
 
 test('compuerta fenologica de enfermedades: score=0 fuera de ventana, score>0 dentro', () => {
-  // Diciembre: roya en época ([12,1,2,3])
-  const MockDate = class extends Date {
-    constructor(...args) {
-      if (args.length === 0) super('2026-12-15T12:00:00.000Z');
-      else super(...args);
-    }
-  };
   const sandbox = createBrowserSandbox({
     amGetLoteActivo() { return { id: 'test', nombre: 'Test', data: {} }; },
     Date: MockDate,
