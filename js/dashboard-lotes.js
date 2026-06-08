@@ -413,6 +413,14 @@
       });
     }
 
+    // ── Aviso de login si no hay sesión ──────────────────
+    if (!window.AM_SESION) {
+      html += '<div class="dl-login-aviso">';
+      html += '<span>🔑 ¿Ya tenés cuenta? Tus lotes están guardados.</span>';
+      html += '<button class="dl-btn-login" onclick="window.amMostrarModal && window.amMostrarModal(\'login\')">Iniciá sesión para verlos →</button>';
+      html += '</div>';
+    }
+
     // ── Grid de cards ─────────────────────────────────────
     html += '<div class="dl-grid">';
 

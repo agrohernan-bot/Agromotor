@@ -211,6 +211,9 @@ function amActualizarUI() {
   document.querySelectorAll('.nav-tab[data-mod]').forEach(tab => {
     tab.classList.toggle('am-locked', !amTieneAcceso(tab.dataset.mod));
   });
+
+  // Refrescar dashboard de lotes para mostrar/ocultar el aviso de login
+  if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
 }
 
 // ── MODAL PRINCIPAL ───────────────────────────────────
