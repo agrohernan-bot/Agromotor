@@ -77,6 +77,14 @@ http://localhost:8000/app.html → app
 # desde el browser. No hace falta backend local.
 ```
 
+### Tests de regresion
+
+```bash
+node --test tests/state-contract.test.js
+```
+
+Estos tests cubren el contrato minimo de estado local: normalizacion del lote activo, uso de `amGetLoteActivo()` en modulos criticos, ausencia de globals genericos conflictivos entre Cosecha/Pulverizacion y alineacion de `assetVersion` con Service Worker.
+
 ### Para correr migraciones SQL
 
 Vía Supabase CLI o el dashboard:
