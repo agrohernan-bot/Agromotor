@@ -29,18 +29,35 @@ function createLocalStorage(initial = {}) {
 }
 
 function createDocument() {
+  const elements = new Map();
+  function makeElement(id) {
+    return {
+      id,
+      value: '',
+      innerHTML: '',
+      textContent: '',
+      style: {},
+      dataset: {},
+      disabled: false,
+      className: '',
+      appendChild() {},
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {},
+      addEventListener() {},
+    };
+  }
   return {
+    _elements: elements,
+    ensureElement(id, initial = {}) {
+      if (!elements.has(id)) elements.set(id, Object.assign(makeElement(id), initial));
+      return elements.get(id);
+    },
     addEventListener() {},
     createElement() {
-      return {
-        appendChild() {},
-        classList: { add() {}, remove() {}, toggle() {} },
-        setAttribute() {},
-        style: {},
-      };
+      return makeElement('');
     },
-    getElementById() {
-      return null;
+    getElementById(id) {
+      return elements.get(id) || null;
     },
     querySelector() {
       return null;
@@ -65,6 +82,26 @@ function loadCacheWithStorage(initialStorage) {
   sandbox.globalThis = sandbox;
   vm.runInNewContext(read('js/cache.js'), sandbox, { filename: 'js/cache.js' });
   return { window: sandbox, localStorage };
+}
+
+function createBrowserSandbox(extra = {}) {
+  const document = createDocument();
+  const sandbox = {
+    document,
+    localStorage: createLocalStorage(),
+    console: { warn() {}, log() {}, error() {} },
+    setTimeout(fn) { if (typeof fn === 'function') fn(); },
+    clearTimeout() {},
+    alert() {},
+    confirm() { return true; },
+    Date,
+    Math,
+    Promise,
+    ...extra,
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  return sandbox;
 }
 
 test('cache normaliza y persiste lote activo inexistente', () => {
@@ -110,6 +147,86 @@ test('modulos criticos leen el lote activo via helper central', () => {
   for (const relPath of modules) {
     assert.match(read(relPath), /amGetLoteActivo/, `${relPath} debe usar amGetLoteActivo`);
   }
+});
+
+test('Plagas hereda cultivo, fecha y contexto desde lote activo', () => {
+  const lote = {
+    id: 'lote-trigo',
+    nombre: 'La Monona',
+    data: {
+      cultivo: 'Trigo',
+      coord: '-34.07351,-62.99436',
+      planificacionSiembra: {
+        invierno: { cultivo: 'Trigo', fechaSiembraConf: '2026-06-07' },
+      },
+    },
+  };
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return lote; },
+  });
+  sandbox.document.ensureElement('plagas-input-card');
+  sandbox.document.ensureElement('plagas-contexto-lote');
+  sandbox.document.ensureElement('plagas-siembra');
+  sandbox.document.ensureElement('s-cultivo', { value: 'Soja' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-01-01' });
+
+  vm.runInNewContext(read('js/plagas.js'), sandbox, { filename: 'js/plagas.js' });
+  sandbox.plagasPrepararAutoLote();
+
+  assert.equal(sandbox.document.getElementById('plagas-siembra').value, '2026-06-07');
+  assert.equal(sandbox.document.getElementById('plagas-input-card').style.display, 'none');
+  assert.match(sandbox.document.getElementById('plagas-contexto-lote').innerHTML, /La Monona/);
+  assert.match(sandbox.document.getElementById('plagas-contexto-lote').innerHTML, /trigo/);
+  assert.match(sandbox.document.getElementById('plagas-contexto-lote').innerHTML, /2026-06-07/);
+});
+
+test('Alerta sanitaria hereda cultivo, fecha y coordenadas desde lote activo', () => {
+  const lote = {
+    id: 'lote-soja',
+    nombre: 'Papa Ea Grande',
+    data: {
+      cultivo: 'Soja',
+      coord: '-31.4699,-58.1770',
+      fechaSiembra: '2026-05-14',
+    },
+  };
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return lote; },
+  });
+  for (const id of ['as-input-card', 'as-contexto-lote', 'as-lat', 'as-lon', 'as-cultivo', 'as-siembra']) {
+    sandbox.document.ensureElement(id);
+  }
+  sandbox.document.ensureElement('s-cultivo', { value: 'Trigo' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-01-01' });
+
+  vm.runInNewContext(read('js/alerta-sanitaria.js'), sandbox, { filename: 'js/alerta-sanitaria.js' });
+  sandbox.asPrepararAutoLote();
+
+  assert.equal(sandbox.document.getElementById('as-cultivo').value, 'soja');
+  assert.equal(sandbox.document.getElementById('as-siembra').value, '2026-05-14');
+  assert.equal(sandbox.document.getElementById('as-lat').value, '-31.46990');
+  assert.equal(sandbox.document.getElementById('as-lon').value, '-58.17700');
+  assert.equal(sandbox.document.getElementById('as-input-card').style.display, 'none');
+  assert.match(sandbox.document.getElementById('as-contexto-lote').innerHTML, /Papa Ea Grande/);
+});
+
+test('Fenologia seguimiento usa datos heredados y dispara calculo automatico', () => {
+  const app = read('app.html');
+  const nav = read('js/nav.js');
+
+  assert.match(app, /function fsPrepararDetalleLote\(\)\s*{\s*fsUsarLote\(\);/);
+  assert.match(nav, /if \(typeof fsPrepararDetalleLote === 'function'\) fsPrepararDetalleLote\(\);[\s\S]*if \(typeof fsCalcular === 'function'\) fsCalcular\(\);/);
+  assert.match(app, /La fenologia se genera automaticamente con datos del lote y de la planificacion/);
+});
+
+test('Sanidad y plagas mantienen compuerta fenologica antes de alarmar', () => {
+  const plagas = read('js/plagas.js');
+  const sanitaria = read('js/alerta-sanitaria.js');
+
+  assert.match(plagas, /stageInVuln\(stageCode,pest\.vuln\)/);
+  assert.match(plagas, /fuera de la ventana vulnerable[\s\S]*sin alarma/);
+  assert.match(sanitaria, /stageInVuln\(stageCode,dis\.vuln\)/);
+  assert.match(sanitaria, /fuera de la ventana vulnerable[\s\S]*sin alarma/);
 });
 
 test('Cosecha y Pulverizacion no reintroducen globals genericos conflictivos', () => {
