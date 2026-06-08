@@ -427,10 +427,67 @@ async function amEnsoRenderDetailedPanel() {
     return;
   }
 
-  const provId = parseInt(activeLote.data.provincia_id, 10);
-  const deptoId = parseInt(activeLote.data.depto_id, 10);
+  let provId = parseInt(activeLote.data.provincia_id, 10);
+  let deptoId = parseInt(activeLote.data.depto_id, 10);
   const cultivo = activeLote.data.cultivo || 'Soja';
   const fechaSiembra = activeLote.data.fechaSiembra || '';
+
+  // ── Auto-geolocalización en background usando coordenadas si no tiene provincia/departamento IDs ──
+  if ((isNaN(provId) || isNaN(deptoId)) && activeLote.data.coord) {
+    container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:rgba(74,46,26,.35);font-size:.85rem">⟳ Detectando departamento en background...</div>';
+    let coordsParsed = null;
+    if (typeof window.parsCoord === 'function') {
+      coordsParsed = window.parsCoord(activeLote.data.coord);
+    }
+    if (coordsParsed && coordsParsed[0] != null && coordsParsed[1] != null) {
+      const [lat, lon] = coordsParsed;
+      try {
+        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+          headers: { 'User-Agent': 'AgroMotor/2.0' }
+        });
+        const d = await r.json();
+        const a = d.address || {};
+        const prov = a.state || '';
+        const cleanState = prov.replace(/Provincia de/i, '').replace(/Provincia/i, '').trim();
+        const cleanCounty = (a.county || a.city || a.town || a.village || '')
+          .replace(/Departamento/i, '')
+          .replace(/Partido de/i, '')
+          .replace(/Partido/i, '')
+          .replace(/Comuna de/i, '')
+          .replace(/Comuna/i, '')
+          .trim();
+
+        if (cleanState && cleanCounty && typeof window.AM_SB !== 'undefined') {
+          const { data, error } = await window.AM_SB.from('enso_rendimiento')
+            .select('provincia_id, depto_id, provincia_nombre, depto_nombre')
+            .ilike('provincia_nombre', cleanState)
+            .ilike('depto_nombre', cleanCounty)
+            .limit(1);
+
+          if (!error && data && data.length > 0) {
+            const match = data[0];
+            activeLote.data.provincia_id = match.provincia_id;
+            activeLote.data.depto_id = match.depto_id;
+            activeLote.data.provincia_nombre = match.provincia_nombre;
+            activeLote.data.depto_nombre = match.depto_nombre;
+            
+            provId = match.provincia_id;
+            deptoId = match.depto_id;
+
+            if (typeof window.amGuardarLotesEstado === 'function') {
+              window.amGuardarLotesEstado();
+              console.log(`[ENSO Auto-Geocoding] Mapeado: ${match.depto_nombre}, ${match.provincia_nombre} (${match.depto_id})`);
+            }
+            if (typeof amEnsoUpdateMacroCard === 'function') {
+              amEnsoUpdateMacroCard();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[ENSO Auto-Geocoding] Error:', err);
+      }
+    }
+  }
 
   if (isNaN(provId) || isNaN(deptoId)) {
     renderStandardProbabilities(container, "Resolvé la ubicación en el mapa del Dashboard para cargar datos geolocalizados de rendimiento histórico.");
