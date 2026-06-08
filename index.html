@@ -243,6 +243,27 @@
     }
     .hero-trust span { display: inline-flex; align-items: center; gap: .35rem; }
 
+    /* ── LOGIN FORM INLINE ── */
+    .hero-login-form { display: flex; flex-direction: column; gap: .6rem; max-width: 360px; margin-top: 1.4rem; }
+    .hlf-input {
+      background: rgba(255,255,255,.06);
+      border: 1.5px solid rgba(200,162,85,.25);
+      border-radius: .55rem;
+      padding: .7rem 1rem;
+      color: var(--straw);
+      font-size: .95rem;
+      font-family: 'DM Sans', sans-serif;
+      outline: none;
+      width: 100%;
+      transition: border-color .15s;
+    }
+    .hlf-input:focus { border-color: var(--grain); background: rgba(255,255,255,.09); }
+    .hlf-input::placeholder { color: rgba(237,224,196,.35); }
+    .hlf-btn { width: 100%; justify-content: center; margin-top: .2rem; }
+    .hlf-error { color: #E07050; font-size: .85rem; display: none; }
+    .hlf-footer { font-size: .8rem; color: rgba(237,224,196,.45); text-align: center; margin-top: .15rem; }
+    .hlf-footer a { color: var(--grain); text-decoration: underline; text-underline-offset: 2px; }
+
     .hero-visual {
       background: linear-gradient(145deg, #0E2016, #173325);
       border: 1px solid rgba(200,162,85,.18);
@@ -630,6 +651,7 @@
       .footer-grid { grid-template-columns: 1fr 1fr; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -645,7 +667,7 @@
       <a href="#modulos">Módulos</a>
       <!-- TODO: Restaurar el 1° de agosto de 2026 — reactivar planes de precios -->
       <a href="#planes" style="display:none">Planes</a>
-      <a href="app.html?login=1" class="nav-cta">Iniciar sesión →</a>
+      <a href="#hero-login" class="nav-cta" onclick="document.getElementById('hlf-email').focus()">Iniciar sesión →</a>
     </nav>
   </div>
 </header>
@@ -662,10 +684,13 @@
       Selección de ambientes y cultivares, planificación nutricional, evaluación climática
       y análisis económico — todo el ciclo profesional resuelto desde una sola plataforma.
     </p>
-    <div class="hero-ctas">
-      <a href="app.html?signup=1" class="btn-primary">Crear cuenta nueva →</a>
-      <a href="app.html?login=1" class="btn-secondary">Iniciar sesión</a>
-    </div>
+    <form id="hero-login" class="hero-login-form" novalidate>
+      <input class="hlf-input" type="email" id="hlf-email" placeholder="tu@email.com" autocomplete="email" required>
+      <input class="hlf-input" type="password" id="hlf-password" placeholder="Contraseña" autocomplete="current-password" required>
+      <button class="btn-primary hlf-btn" type="submit">Iniciar sesión →</button>
+      <p id="hlf-error" class="hlf-error"></p>
+      <p class="hlf-footer">¿Sin cuenta? <a href="app.html?signup=1">Crear cuenta nueva →</a></p>
+    </form>
     <div class="hero-trust">
       <span>🛰️ Datos satelitales en tiempo real</span>
       <span>🧠 Algoritmos agronómicos validados</span>
@@ -978,5 +1003,53 @@
 </footer>
 
 </main>
+
+<script>
+(function() {
+  var SUPA_URL = 'https://xsbaqlqztppdpdcjgazz.supabase.co';
+  var SUPA_KEY = 'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK';
+  var _sb = null;
+  function getSb() {
+    if (!_sb) _sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+    return _sb;
+  }
+
+  var form = document.getElementById('hero-login');
+  if (!form) return;
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var email = document.getElementById('hlf-email').value.trim();
+    var password = document.getElementById('hlf-password').value;
+    var btn = form.querySelector('button[type="submit"]');
+    var err = document.getElementById('hlf-error');
+
+    btn.disabled = true;
+    btn.textContent = 'Iniciando…';
+    err.style.display = 'none';
+
+    try {
+      var result = await getSb().auth.signInWithPassword({ email: email, password: password });
+      if (result.error) {
+        var msg = result.error.message;
+        if (/invalid.*(login|credentials)|wrong.*password/i.test(msg)) msg = 'Email o contraseña incorrectos.';
+        err.textContent = msg;
+        err.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Iniciar sesión →';
+      } else {
+        btn.textContent = '✓ Ingresando…';
+        window.location.href = 'app.html';
+      }
+    } catch(ex) {
+      err.textContent = 'Error de conexión. Intentá de nuevo.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Iniciar sesión →';
+    }
+  });
+})();
+</script>
+
 </body>
 </html>
