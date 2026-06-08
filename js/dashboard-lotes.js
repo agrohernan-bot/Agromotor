@@ -385,7 +385,6 @@
     html +=   '<div class="dl-header-actions">';
     html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
     html +=     '<button class="dl-btn-clasica" onclick="window.amMostrarModalClientes && window.amMostrarModalClientes()" title="Gestionar clientes">Clientes</button>';
-    html +=     '<button class="dl-btn-clasica" onclick="window.dlIrClasica()" title="Acceder a todos los módulos individualmente">⚙ Vista clásica</button>';
     html +=   '</div>';
     html += '</div>';
 
@@ -1626,8 +1625,6 @@
   window.dlAbrirModulo = function (mod, loteId) {
     activarLote(loteId);
     _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod };
-    // Ir a vista clásica y abrir el módulo
-    window.dlIrClasica();
     if (typeof switchMod === 'function') switchMod(mod);
   };
 
@@ -1717,32 +1714,7 @@
     if (typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
   }
 
-  // Vista clásica: activar sidebar + mostrar dashboard clásico
-  // Activamos el panel directamente para no pasar por amTieneAcceso
-  window.dlIrClasica = function () {
-    document.body.classList.add('dl-modo-clasico');
-    document.body.classList.remove('dl-modo-nuevo');
-    // Activar mod-dashboard directamente (bypass amTieneAcceso)
-    document.querySelectorAll('.module-panel').forEach(function (p) {
-      p.classList.remove('active');
-    });
-    var dash = document.getElementById('mod-dashboard');
-    if (dash) dash.classList.add('active');
-    var btnVolver = document.getElementById('btn-volver-dash');
-    if (btnVolver) {
-      btnVolver.classList.add('hidden');
-      btnVolver.textContent = '← Volver';
-      btnVolver.title = 'Volver';
-    }
-    var btnPDF = document.getElementById('btn-pdf-modulo');
-    if (btnPDF) btnPDF.classList.add('hidden');
-    // Sincronizar nav tab
-    document.querySelectorAll('.nav-tab').forEach(function (t) {
-      t.classList.toggle('active', t.dataset.mod === 'dashboard');
-    });
-  };
-
-  // Volver a la nueva UX desde la vista clásica
+  // Volver a la nueva UX desde cualquier módulo
   window.dlVolverNueva = function () {
     document.body.classList.remove('dl-modo-clasico');
     document.body.classList.add('dl-modo-nuevo');
