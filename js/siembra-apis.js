@@ -999,6 +999,128 @@ function sueloRestaurarLabInputs() {
   }
 }
 
+// Escaneo de análisis de laboratorio desde foto o PDF usando visión de IA
+window.sueloEscanearLab = async function(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+
+  var statusEl = document.getElementById('lab-scan-status');
+  function setStatus(txt) { if (statusEl) statusEl.textContent = txt; }
+
+  // Resetear input para permitir subir el mismo archivo de nuevo
+  input.value = '';
+
+  // Verificar sesión
+  var session = window.AM_SESION;
+  if (!session || !session.token) {
+    setStatus('❌ Iniciá sesión para usar esta función.');
+    return;
+  }
+
+  // Límite de tamaño: 5 MB
+  if (file.size > 5 * 1024 * 1024) {
+    setStatus('❌ El archivo es muy grande (máx. 5 MB). Comprimí la imagen antes.');
+    return;
+  }
+
+  var isImage = file.type.startsWith('image/');
+  var isPDF   = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  if (!isImage && !isPDF) {
+    setStatus('❌ Formato no soportado. Subí una imagen (JPG, PNG) o un PDF.');
+    return;
+  }
+
+  setStatus('⏳ Analizando documento…');
+
+  try {
+    // Leer archivo como base64
+    var base64 = await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload  = function(e) { resolve(e.target.result.split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    // Construir contenido del mensaje para Claude
+    var contentBlock = isImage
+      ? { type: 'image',    source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } }
+      : { type: 'document', source: { type: 'base64', media_type: 'application/pdf',          data: base64 } };
+
+    var systemPrompt = 'Sos un extractor de datos de análisis de suelo de laboratorio. ' +
+      'Leé el documento adjunto y extraé los valores de los siguientes parámetros. ' +
+      'Respondé ÚNICAMENTE con un objeto JSON válido (sin texto adicional antes ni después). ' +
+      'Incluí solo los campos que estén presentes en el documento:\n' +
+      '- "ph": pH en H₂O (decimal, rango 3-10)\n' +
+      '- "mo": Materia Orgánica % (decimal)\n' +
+      '- "n": Nitrógeno total g/kg (decimal)\n' +
+      '- "p": Fósforo disponible Bray I en ppm (número)\n' +
+      '- "k": Potasio intercambiable en ppm (número)\n' +
+      '- "cec": CEC o Capacidad de Intercambio Catiónico en cmol/kg (decimal)\n' +
+      '- "da": Densidad Aparente en g/cm³ (decimal)\n\n' +
+      'Ejemplo de respuesta: {"ph":6.2,"mo":3.1,"p":18,"k":165}';
+
+    var response = await fetch(window.AM_CONFIG.claudeProxy, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': 'Bearer ' + session.token
+      },
+      body: JSON.stringify({
+        model:      'claude-sonnet-4-6',
+        max_tokens: 400,
+        system:     systemPrompt,
+        messages:   [{ role: 'user', content: [
+          contentBlock,
+          { type: 'text', text: 'Extraé los datos del análisis de suelo y devolvé solo el JSON.' }
+        ]}]
+      })
+    });
+
+    if (!response.ok) {
+      var err = await response.json().catch(function() { return {}; });
+      setStatus('❌ ' + (err.error || 'Error al procesar (' + response.status + '). Intentá de nuevo.'));
+      return;
+    }
+
+    var data = await response.json();
+    var text = (data.content && data.content[0] && data.content[0].text) || '';
+
+    // Extraer el JSON de la respuesta
+    var parsed;
+    try {
+      var match = text.match(/\{[\s\S]*\}/);
+      parsed = JSON.parse(match ? match[0] : text);
+    } catch(e) {
+      setStatus('❌ No se pudieron extraer datos. Verificá que sea un análisis de suelo claro.');
+      return;
+    }
+
+    // Llenar los campos del formulario
+    var fieldMap = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+    var filled = 0;
+    Object.keys(fieldMap).forEach(function(key) {
+      if (parsed[key] != null && !isNaN(parseFloat(parsed[key]))) {
+        var el = document.getElementById(fieldMap[key]);
+        if (el) { el.value = parseFloat(parsed[key]); filled++; }
+      }
+    });
+
+    if (filled === 0) {
+      setStatus('❌ No se encontraron valores de suelo en el documento.');
+      return;
+    }
+
+    setStatus('✅ ' + filled + ' valores cargados — revisá y hacé clic en "Aplicar análisis".');
+
+    // Aplicar silenciosamente para actualizar resumen
+    if (typeof sueloAplicarLab === 'function') sueloAplicarLab(true);
+
+  } catch(e) {
+    setStatus('❌ Error al leer el archivo. Intentá de nuevo.');
+    console.error('sueloEscanearLab:', e);
+  }
+};
+
 // Toggle del panel colapsable
 window.sueloToggleLab = function() {
   const panel = document.getElementById('lab-panel');

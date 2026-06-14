@@ -588,6 +588,21 @@
 
     <!-- Panel de entrada -->
     <div id="lab-panel" style="display:none;margin-top:.7rem;background:#fff;border:1.5px solid rgba(200,162,85,.3);border-radius:12px;padding:1.1rem">
+
+      <!-- ── Escanear desde foto/PDF ── -->
+      <div style="margin-bottom:1rem;padding:.75rem;background:rgba(42,90,140,.06);border:1px dashed rgba(42,90,140,.28);border-radius:9px">
+        <div style="font-size:.77rem;font-weight:700;color:#2A5A8C;margin-bottom:.3rem">📷 Cargar desde foto o PDF del laboratorio</div>
+        <div style="font-size:.7rem;color:rgba(74,46,26,.5);margin-bottom:.55rem">Sacá una foto del informe o subí el PDF — la IA extrae los valores automáticamente.</div>
+        <input type="file" id="lab-scan-file" accept="image/*,.pdf" style="display:none" onchange="sueloEscanearLab(this)">
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+          <button onclick="document.getElementById('lab-scan-file').click()" style="background:linear-gradient(135deg,#2A5A8C,#3A7ABE);color:#fff;border:none;border-radius:7px;padding:.42rem 1rem;font-size:.78rem;font-weight:700;cursor:pointer;font-family:inherit">
+            📷 Subir foto o PDF
+          </button>
+          <span id="lab-scan-status" style="font-size:.74rem;color:rgba(74,46,26,.6)"></span>
+        </div>
+      </div>
+      <div style="font-size:.7rem;color:rgba(74,46,26,.3);text-align:center;margin-bottom:.8rem;letter-spacing:.03em">— o cargá los valores manualmente —</div>
+
       <div style="font-size:.72rem;color:rgba(74,46,26,.5);margin-bottom:.9rem;line-height:1.5">
         Completá solo los campos que tengas del análisis. Dejá vacíos los que no tenés.<br>
         <strong>P disponible</strong> (Bray I) y <strong>K intercambiable</strong> no están en SoilGrids — son exclusivos del laboratorio y esenciales para el plan de fertilización.
@@ -4651,7 +4666,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=103"></script>
+<script src="js/config.js?v=104"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=97"></script>
 
