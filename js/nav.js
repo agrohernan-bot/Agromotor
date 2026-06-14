@@ -1,14 +1,14 @@
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// AGROMOTOR â€” nav.js
-// switchMod con lazy loading Â· DOMContentLoaded init
-// renderSueloModulo Â· Control de navegaciÃ³n principal
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ════════════════════════════════════════════════════════
+// AGROMOTOR — nav.js
+// switchMod con lazy loading · DOMContentLoaded init
+// renderSueloModulo · Control de navegación principal
+// ════════════════════════════════════════════════════════
 
 (function() {
   window.AM = window.AM || {};
   window.AM.nav = {};
 
-// â”€â”€ ORDEN DE PESTAÃ‘AS (Ãºnica fuente de verdad) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ORDEN DE PESTAÑAS (única fuente de verdad) ───────────
 // Coincide con el orden visual del nav en index.html.
 var AM_TAB_ORDER = [
   'lotes',
@@ -23,7 +23,7 @@ var AM_TAB_ORDER = [
 ];
 var AM_IDX_MAP = AM_TAB_ORDER.reduce(function(acc, m, i) { acc[m] = i; return acc; }, {});
 
-// â”€â”€ LAZY LOADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── LAZY LOADER ──────────────────────────────────────────
 var AM_MODULOS_CARGADOS = {};
 
 function amCargarModulo(archivo, callback) {
@@ -52,7 +52,7 @@ function amCargarModulo(archivo, callback) {
   document.head.appendChild(script);
 }
 
-// â”€â”€ SWITCH DE MÃ“DULOS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SWITCH DE MÓDULOS ─────────────────────────────────────
 function switchMod(mod) {
 
   if (typeof amTieneAcceso === 'function' && !amTieneAcceso(mod)) {
@@ -114,14 +114,14 @@ function _activarModulo(mod) {
   var panel = document.getElementById('mod-' + mod);
   if (panel) panel.classList.add('active');
 
-  // Mostrar/ocultar botÃ³n "Volver al Dashboard"
+  // Mostrar/ocultar botón "Volver al Dashboard"
   var btnVolver = document.getElementById('btn-volver-dash');
   if (btnVolver) {
     if (mod === 'dashboard' || mod === 'lotes') btnVolver.classList.add('hidden');
     else btnVolver.classList.remove('hidden');
   }
 
-  // Mostrar botÃ³n "Exportar PDF" solo en mÃ³dulos con generador disponible
+  // Mostrar botón "Exportar PDF" solo en módulos con generador disponible
   var btnPDFMod = document.getElementById('btn-pdf-modulo');
   if (btnPDFMod) {
     var pdfModulos = ['decision','nutricion','suelo','hidrico','cosecha','plagas','pulverizacion','cultivares','economia'];
@@ -132,7 +132,7 @@ function _activarModulo(mod) {
   if (mod === 'dashboard' && typeof dashRefreshCards === 'function') {
     setTimeout(dashRefreshCards, 100);
   }
-  // Scroll al inicio al cambiar de mÃ³dulo
+  // Scroll al inicio al cambiar de módulo
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0,0); }
 
   if (mod === 'suelo') {
@@ -142,17 +142,17 @@ function _activarModulo(mod) {
     var lblCoord = document.getElementById('suelo-lbl-coord');
     if (lblCoord && coordVal) lblCoord.textContent = coordVal;
     if (window._sgDatos && Object.keys(window._sgDatos).length > 0) {
-      // Datos ya cargados â€” renderizar directamente
+      // Datos ya cargados — renderizar directamente
       if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
     } else if (coordVal && typeof consultarSuelo === 'function') {
-      // Sin datos aÃºn pero hay coordenadas â€” disparar consulta automÃ¡tica
+      // Sin datos aún pero hay coordenadas — disparar consulta automática
       setTimeout(consultarSuelo, 250);
     }
   }
-  // â”€â”€ Sincronizar cultivo/fecha a mÃ³dulos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Sincronizar cultivo/fecha a módulos ──────────────────
   // Lee siempre desde el DOM master (s-cultivo / s-fecha), que es la fuente
-  // mÃ¡s actualizada. El Store puede estar desincronizado si cacheCargar()
-  // asignÃ³ .value sin disparar el evento change.
+  // más actualizada. El Store puede estar desincronizado si cacheCargar()
+  // asignó .value sin disparar el evento change.
   var _getMasterCultivo = function() {
     var sc = document.getElementById('s-cultivo');
     if (sc && sc.value) return sc.value;
@@ -174,7 +174,7 @@ function _activarModulo(mod) {
     var d = document.getElementById(destId);
     if (d) d.value = _getMasterFecha();
   };
-  // Cosecha usa id="cultivo" con valores en minÃºscula sin acentos
+  // Cosecha usa id="cultivo" con valores en minúscula sin acentos
   var _syncCultivoNorm = function(destId) {
     var d = document.getElementById(destId);
     if (!d) return;
@@ -217,14 +217,14 @@ function _activarModulo(mod) {
     var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
     if (h1 > 0 && document.getElementById('bh-agua-perfil'))
       document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));
-    // Si no hay datos de suelo, usar agua calculada por fenologÃ­a si estÃ¡ disponible
+    // Si no hay datos de suelo, usar agua calculada por fenología si está disponible
     if (h1 <= 0) {
       var fenAgua = localStorage.getItem('am_fen_agua_perfil');
       if (fenAgua && document.getElementById('bh-agua-perfil'))
         document.getElementById('bh-agua-perfil').value = fenAgua;
     }
-    // Precargar precipitaciÃ³n histÃ³rica base desde fenologÃ­a (NASA, sin ajuste ENSO)
-    // hidrico.js aplica su propio factor ENSO sobre bh-precip-hist â†’ bh-precip
+    // Precargar precipitación histórica base desde fenología (NASA, sin ajuste ENSO)
+    // hidrico.js aplica su propio factor ENSO sobre bh-precip-hist → bh-precip
     var fenPrecipNasa = localStorage.getItem('am_fen_precip_nasa');
     if (fenPrecipNasa && document.getElementById('bh-precip-hist'))
       document.getElementById('bh-precip-hist').value = fenPrecipNasa;
@@ -300,7 +300,7 @@ function _activarModulo(mod) {
     if (typeof window.histCampanasRender === 'function') window.histCampanasRender();
   }
   if (mod === 'fen-plan' || mod === 'fen-seg') {
-    // Asegurar carga si aÃºn no se completÃ³ el lazy-load de 8s
+    // Asegurar carga si aún no se completó el lazy-load de 8s
     if (typeof fpCalcular !== 'function') {
       amCargarModulo('fenologia.js');
     }
@@ -337,7 +337,7 @@ function _activarModulo(mod) {
   }
 }
 
-// â”€â”€ INIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── INIT ──────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   var hoy = new Date().toISOString().split('T')[0];
   ['s-fecha','bh-fecha','cv-fecha'].forEach(function(id) {
@@ -350,9 +350,9 @@ document.addEventListener('DOMContentLoaded', function() {
   var sf = document.getElementById('s-fecha');
   var scoord = document.getElementById('s-coord');
   
-  // â”€â”€ PropagaciÃ³n de cultivo a mÃ³dulos con select propio â”€â”€
+  // ── Propagación de cultivo a módulos con select propio ──
   // Cuando el usuario cambia s-cultivo directamente, sincronizar
-  // los selects de mÃ³dulos que tienen su propio control de cultivo.
+  // los selects de módulos que tienen su propio control de cultivo.
   function _propagarCultivo(val) {
     // Cultivares
     var cv = document.getElementById('cv-cultivo');
@@ -360,17 +360,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Cosecha (lowercase, sin acentos)
     var cos = document.getElementById('cultivo');
     if (cos) cos.value = val.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    // NutriciÃ³n: sync select balance + re-render contexto lote
+    // Nutrición: sync select balance + re-render contexto lote
     if (typeof ncActualizar === 'function') {
       var nb = document.getElementById('nc-bn-cultivo');
       if (nb) {
-        var map = {'MaÃ­z':'Maiz','Maiz':'Maiz','Soja':'Soja','Trigo':'Trigo',
+        var map = {'Maíz':'Maiz','Maiz':'Maiz','Soja':'Soja','Trigo':'Trigo',
                    'Girasol':'Girasol','Sorgo':'Sorgo','Cebada':'Cebada','Colza':'Colza'};
         nb.value = map[val] || val;
       }
       ncActualizar();
     }
-    // Actualizar ec-lbl-cult (EconomÃ­a)
+    // Actualizar ec-lbl-cult (Economía)
     if (typeof ecActualizarCultivo === 'function') ecActualizarCultivo();
   }
 
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (calc) {
           if (typeof setR === 'function') setR('s-compact', calc.mpaEstimado, 1);
           var cs = document.getElementById('compact-source');
-          if (cs) cs.textContent = 'â† recalculado (trÃ¡fico actualizado)';
+          if (cs) cs.textContent = '← recalculado (tráfico actualizado)';
           if (typeof renderCompactacion === 'function') renderCompactacion(calc, sg);
         }
       }
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
-// â”€â”€ RENDER SUELO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── RENDER SUELO ──────────────────────────────────────────
 function renderSueloModulo(d) {
   if (!d || Object.keys(d).length === 0) return;
   var mo = d.soc != null ? d.soc * 1.724 / 10 : null;
@@ -453,25 +453,25 @@ function renderSueloModulo(d) {
   if (ph) ph.classList.add('hidden');
   var alertas = [];
   if (d.ph != null && d.ph < 5.5)
-    alertas.push('<div class="alert danger"><span class="ai">âš—ï¸</span><div class="ac"><strong>pH muy Ã¡cido (' + d.ph.toFixed(1) + ')</strong> â€” Aplicar cal agrÃ­cola para elevar a pH 6.2.</div></div>');
+    alertas.push('<div class="alert danger"><span class="ai">⚗️</span><div class="ac"><strong>pH muy ácido (' + d.ph.toFixed(1) + ')</strong> — Aplicar cal agrícola para elevar a pH 6.2.</div></div>');
   else if (d.ph != null && d.ph <= 7.5)
-    alertas.push('<div class="alert ok"><span class="ai">âš—ï¸</span><div class="ac"><strong>pH Ã³ptimo (' + d.ph.toFixed(1) + ')</strong> â€” Rango ideal para cultivos pampeanos.</div></div>');
+    alertas.push('<div class="alert ok"><span class="ai">⚗️</span><div class="ac"><strong>pH óptimo (' + d.ph.toFixed(1) + ')</strong> — Rango ideal para cultivos pampeanos.</div></div>');
   else if (d.ph != null)
-    alertas.push('<div class="alert warn"><span class="ai">âš—ï¸</span><div class="ac"><strong>pH alcalino (' + d.ph.toFixed(1) + ')</strong> â€” Monitorear P, Fe y Zn.</div></div>');
+    alertas.push('<div class="alert warn"><span class="ai">⚗️</span><div class="ac"><strong>pH alcalino (' + d.ph.toFixed(1) + ')</strong> — Monitorear P, Fe y Zn.</div></div>');
   if (mo != null && mo < 2.0)
-    alertas.push('<div class="alert danger"><span class="ai">ðŸŒ±</span><div class="ac"><strong>MO baja (' + mo.toFixed(1) + '%)</strong> â€” Priorizar cobertura y SD.</div></div>');
+    alertas.push('<div class="alert danger"><span class="ai">🌱</span><div class="ac"><strong>MO baja (' + mo.toFixed(1) + '%)</strong> — Priorizar cobertura y SD.</div></div>');
   else if (mo != null && mo < 3.5)
-    alertas.push('<div class="alert warn"><span class="ai">ðŸŒ±</span><div class="ac"><strong>MO media (' + mo.toFixed(1) + '%)</strong> â€” Mantener manejo de rastrojos.</div></div>');
+    alertas.push('<div class="alert warn"><span class="ai">🌱</span><div class="ac"><strong>MO media (' + mo.toFixed(1) + '%)</strong> — Mantener manejo de rastrojos.</div></div>');
   else if (mo != null)
-    alertas.push('<div class="alert ok"><span class="ai">ðŸŒ±</span><div class="ac"><strong>MO alta (' + mo.toFixed(1) + '%)</strong> â€” Buena estructura y reservas.</div></div>');
+    alertas.push('<div class="alert ok"><span class="ai">🌱</span><div class="ac"><strong>MO alta (' + mo.toFixed(1) + '%)</strong> — Buena estructura y reservas.</div></div>');
   if (d.da != null && d.da > 1.45)
-    alertas.push('<div class="alert warn"><span class="ai">âš–ï¸</span><div class="ac"><strong>DA alta (' + d.da.toFixed(2) + ' g/cmÂ³)</strong> â€” Verificar compactaciÃ³n con penetrÃ³metro.</div></div>');
+    alertas.push('<div class="alert warn"><span class="ai">⚖️</span><div class="ac"><strong>DA alta (' + d.da.toFixed(2) + ' g/cm³)</strong> — Verificar compactación con penetrómetro.</div></div>');
   if (d.cec != null && d.cec < 10)
-    alertas.push('<div class="alert info"><span class="ai">ðŸ§²</span><div class="ac"><strong>CEC baja (' + d.cec.toFixed(1) + ' cmol/kg)</strong> â€” Fraccionar aplicaciones de K y Ca.</div></div>');
+    alertas.push('<div class="alert info"><span class="ai">🧲</span><div class="ac"><strong>CEC baja (' + d.cec.toFixed(1) + ' cmol/kg)</strong> — Fraccionar aplicaciones de K y Ca.</div></div>');
   var alertasEl = document.getElementById('suelo-alertas');
   if (alertasEl) alertasEl.innerHTML = alertas.join('');
 
-  // â”€â”€ COMPOSICIÃ“N GRANULOMÃ‰TRICA Y TEXTURA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── COMPOSICIÓN GRANULOMÉTRICA Y TEXTURA ─────────────────
   var texEl = document.getElementById('suelo-textura-contenido');
   if (texEl && (d.clay != null || d.sand != null || d.silt != null)) {
     var clay = d.clay != null ? d.clay : (100 - (d.sand||0) - (d.silt||0));
@@ -481,44 +481,44 @@ function renderSueloModulo(d) {
       var pct = Math.max(0, Math.min(100, val));
       return '<div style="margin-bottom:.55rem"><div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.2rem"><span style="font-weight:600;color:#3D2210">' + label + '</span><span style="font-family:\'DM Mono\',monospace;font-weight:700;color:' + color + '">' + pct.toFixed(0) + '%</span></div><div style="background:#f1ebe0;height:10px;border-radius:5px;overflow:hidden"><div style="width:' + pct + '%;height:100%;background:' + color + ';transition:width .4s ease"></div></div></div>';
     };
-    var html = '<div style="font-size:.74rem;color:#5a4a32;margin-bottom:.7rem">AnÃ¡lisis textural en los primeros 0â€“5 cm</div>';
-    html += bar('ðŸ–ï¸ Arena', sand, '#C8A255');
-    html += bar('ðŸª¨ Limo',  silt, '#8b6f47');
-    html += bar('ðŸº Arcilla', clay, '#a3543b');
-    html += '<div style="margin-top:.9rem;padding:.6rem .85rem;background:#fbf6e9;border:1px solid rgba(200,162,85,.3);border-radius:8px;font-size:.78rem;color:#3D2210"><strong>Textura USDA:</strong> ' + (d.textura || 'â€”') + (d.fuente ? '<div style="font-size:.7rem;color:#6b5b45;margin-top:.25rem">' + d.fuente + '</div>' : '') + '</div>';
+    var html = '<div style="font-size:.74rem;color:#5a4a32;margin-bottom:.7rem">Análisis textural en los primeros 0–5 cm</div>';
+    html += bar('🏖️ Arena', sand, '#C8A255');
+    html += bar('🪨 Limo',  silt, '#8b6f47');
+    html += bar('🏺 Arcilla', clay, '#a3543b');
+    html += '<div style="margin-top:.9rem;padding:.6rem .85rem;background:#fbf6e9;border:1px solid rgba(200,162,85,.3);border-radius:8px;font-size:.78rem;color:#3D2210"><strong>Textura USDA:</strong> ' + (d.textura || '—') + (d.fuente ? '<div style="font-size:.7rem;color:#6b5b45;margin-top:.25rem">' + d.fuente + '</div>' : '') + '</div>';
     texEl.innerHTML = html;
   }
 
-  // â”€â”€ PROPIEDADES DEL SUELO â€” TABLA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PROPIEDADES DEL SUELO — TABLA ─────────────────────────
   var tblEl = document.getElementById('suelo-tabla');
   if (tblEl) {
     var rows = [
-      ['âš—ï¸ pH (Hâ‚‚O)',          d.ph != null ? d.ph.toFixed(1) : 'â€”',           'Acidez/alcalinidad del suelo Â· Ã³ptimo 6.0â€“7.5'],
-      ['ðŸŒ± C orgÃ¡nico',         d.soc != null ? d.soc.toFixed(1) + ' g/kg' : 'â€”', 'Carbono orgÃ¡nico â€” base de la fertilidad biolÃ³gica'],
-      ['ðŸŒ¿ Materia orgÃ¡nica',   mo != null ? mo.toFixed(1) + ' %' : 'â€”',           'MO = SOC Ã— 1.724 â€” reservas y agregaciÃ³n'],
-      ['ðŸ”¬ NitrÃ³geno total',    d.n != null ? d.n.toFixed(2) + ' g/kg' : 'â€”',     'N total del suelo â€” mineralizaciÃ³n potencial'],
-      ['âš–ï¸ Densidad aparente',  d.da != null ? d.da.toFixed(2) + ' g/cmÂ³' : 'â€”',  'CompactaciÃ³n Â· normal 1.0â€“1.4 g/cmÂ³'],
-      ['ðŸ§² CEC',                d.cec != null ? d.cec.toFixed(1) + ' cmol/kg' : 'â€”', 'Capacidad de intercambio catiÃ³nico'],
-      ['ðŸº Arcilla',            d.clay != null ? d.clay + ' %' : 'â€”',             'FracciÃ³n fina Â· retenciÃ³n de agua y cationes'],
-      ['ðŸ–ï¸ Arena',              d.sand != null ? d.sand + ' %' : 'â€”',             'FracciÃ³n gruesa Â· drenaje'],
-      ['ðŸª¨ Limo',               d.silt != null ? d.silt + ' %' : 'â€”',             'FracciÃ³n media Â· agua disponible'],
-      ['ðŸ—ºï¸ Tipo de suelo',      d.textura || 'â€”',                                 'ClasificaciÃ³n textural'],
+      ['⚗️ pH (H₂O)',          d.ph != null ? d.ph.toFixed(1) : '—',           'Acidez/alcalinidad del suelo · óptimo 6.0–7.5'],
+      ['🌱 C orgánico',         d.soc != null ? d.soc.toFixed(1) + ' g/kg' : '—', 'Carbono orgánico — base de la fertilidad biológica'],
+      ['🌿 Materia orgánica',   mo != null ? mo.toFixed(1) + ' %' : '—',           'MO = SOC × 1.724 — reservas y agregación'],
+      ['🔬 Nitrógeno total',    d.n != null ? d.n.toFixed(2) + ' g/kg' : '—',     'N total del suelo — mineralización potencial'],
+      ['⚖️ Densidad aparente',  d.da != null ? d.da.toFixed(2) + ' g/cm³' : '—',  'Compactación · normal 1.0–1.4 g/cm³'],
+      ['🧲 CEC',                d.cec != null ? d.cec.toFixed(1) + ' cmol/kg' : '—', 'Capacidad de intercambio catiónico'],
+      ['🏺 Arcilla',            d.clay != null ? parseFloat(d.clay).toFixed(1) + ' %' : '—', 'Fracción fina · retención de agua y cationes'],
+      ['🏖️ Arena',              d.sand != null ? parseFloat(d.sand).toFixed(1) + ' %' : '—', 'Fracción gruesa · drenaje'],
+      ['🪨 Limo',               d.silt != null ? parseFloat(d.silt).toFixed(1) + ' %' : '—', 'Fracción media · agua disponible'],
+      ['🗺️ Tipo de suelo',      d.textura || '—',                                 'Clasificación textural'],
     ];
     var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
-    html += '<thead><tr style="background:#f3ede0"><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Propiedad</th><th style="text-align:right;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Valor</th><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">InterpretaciÃ³n</th></tr></thead><tbody>';
+    html += '<thead><tr style="background:#f3ede0"><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Propiedad</th><th style="text-align:right;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Valor</th><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Interpretación</th></tr></thead><tbody>';
     rows.forEach(function(r, i) {
       var bg = i % 2 === 0 ? '#fbf8f1' : '#ffffff';
       html += '<tr style="background:' + bg + ';border-bottom:1px solid rgba(74,46,26,.06)"><td style="padding:.55rem .8rem;font-weight:600;color:#3D2210">' + r[0] + '</td><td style="padding:.55rem .8rem;text-align:right;font-family:\'DM Mono\',monospace;font-weight:700;color:#1b3d28">' + r[1] + '</td><td style="padding:.55rem .8rem;font-size:.73rem;color:#5a4a32">' + r[2] + '</td></tr>';
     });
     html += '</tbody></table></div>';
     if (d.fuente) {
-      html += '<div style="margin-top:.7rem;font-size:.7rem;color:#6b5b45;padding:.5rem .8rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:6px">' + (d.esFallback ? 'âš ï¸ ' : 'âœ… ') + d.fuente + '</div>';
+      html += '<div style="margin-top:.7rem;font-size:.7rem;color:#6b5b45;padding:.5rem .8rem;background:#fbf8f1;border:1px solid rgba(74,46,26,.12);border-radius:6px">' + (d.esFallback ? '⚠️ ' : '✅ ') + d.fuente + '</div>';
     }
     tblEl.innerHTML = html;
   }
 }
 
-  // ExposiciÃ³n a global
+  // Exposición a global
   window.AM_TAB_ORDER = AM_TAB_ORDER;
   window.AM_IDX_MAP = AM_IDX_MAP;
   window.AM_MODULOS_CARGADOS = AM_MODULOS_CARGADOS;
