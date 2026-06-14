@@ -694,13 +694,19 @@
         <div class="card">
           <div class="sl">Parámetros de campaña</div>
           <div class="grid-2">
-            <div class="fg"><label>Rendimiento objetivo (t/ha)</label>
-              <input type="number" id="nc-rend-obj" value="4.5" min="0.5" max="20" step="0.1" placeholder="ej: 4.5"></div>
+            <div class="fg">
+              <label>Rendimiento objetivo (t/ha)</label>
+              <div id="nc-rend-sugerencias"></div>
+              <input type="number" id="nc-rend-obj" value="4.5" min="0.5" max="20" step="0.1" placeholder="ej: 4.5" oninput="this._touched=true;ncValidarRendimiento(this)">
+              <div id="nc-rend-alerta" style="display:none"></div>
+            </div>
             <div class="fg"><label>Precio del grano (USD/t)</label>
               <input type="number" id="nc-precio-grano" value="300" min="50" max="1000" step="5" placeholder="USD/t"></div>
           </div>
-          <div class="fg"><label>Superficie (ha)</label>
-            <input type="number" id="nc-sup" value="100" min="1" max="10000"></div>
+          <div class="fg">
+            <label>Superficie (ha) <span id="nc-sup-badge" style="display:none;font-size:.62rem;font-weight:700;color:#2A5A8C;margin-left:.3rem"></span></label>
+            <input type="number" id="nc-sup" value="100" min="1" max="10000" oninput="this._touched=true">
+          </div>
           <div class="divider"></div>
           <div class="sl">Precios fertilizantes (USD/t producto)</div>
           <div class="grid-2">
@@ -713,6 +719,7 @@
             <div class="fg"><label>KCl (60% K₂O) <span style="font-size:.63rem;color:rgba(74,46,26,.4)">si hay dato lab</span></label>
               <input type="number" id="nc-precio-k" value="480" step="5"></div>
           </div>
+          <div style="font-size:.67rem;color:rgba(74,46,26,.42);margin-top:.5rem;padding:.3rem .55rem;background:rgba(74,46,26,.04);border-radius:5px">💡 Precios de referencia — verificar con valores actuales de mercado antes de calcular.</div>
           <div class="divider"></div>
           <button onclick="ncPlanCalcular()" class="btn btn-p btn-full btn-lg">🧮 Calcular plan integrado</button>
         </div>
@@ -4666,7 +4673,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=104"></script>
+<script src="js/config.js?v=105"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=97"></script>
 
