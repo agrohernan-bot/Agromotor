@@ -191,6 +191,7 @@ function ncCultStr() {
   return document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : 'Soja';
 }
 function ncCultivoKey(c) {
+  var raw = (c == null ? '' : String(c)).trim();
   var map = { 'Maíz':'Maiz', 'Maiz':'Maiz', 'maíz':'Maiz', 'maiz':'Maiz',
               'Soja':'Soja', 'soja':'Soja',
               'Trigo':'Trigo', 'trigo':'Trigo',
@@ -198,7 +199,19 @@ function ncCultivoKey(c) {
               'Sorgo':'Sorgo', 'sorgo':'Sorgo',
               'Cebada':'Cebada', 'cebada':'Cebada',
               'Colza':'Colza', 'colza':'Colza' };
-  return map[c] || c;
+  if (map[raw]) return map[raw];
+  var norm = raw.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/[_-]/g, ' ');
+  if (norm.indexOf('maiz') >= 0) return 'Maiz';
+  if (norm.indexOf('soja') >= 0) return 'Soja';
+  if (norm.indexOf('trigo') >= 0) return 'Trigo';
+  if (norm.indexOf('girasol') >= 0) return 'Girasol';
+  if (norm.indexOf('sorgo') >= 0) return 'Sorgo';
+  if (norm.indexOf('cebada') >= 0) return 'Cebada';
+  if (norm.indexOf('colza') >= 0) return 'Colza';
+  return raw;
 }
 
 function ncTieneDatos(obj) {
@@ -825,7 +838,8 @@ function ncRenderPlan(res, ctx) {
 
   // Tarjetas por nutriente
   html += '<div style="display:flex;flex-direction:column;gap:.65rem">';
-  Object.keys(res).forEach(function(nut) {
+  ['N', 'P', 'S', 'K'].forEach(function(nut) {
+    if (!res[nut]) return;
     var r       = res[nut];
     var color   = nutColor[nut] || '#C8A255';
     var emoji   = nutEmoji[nut] || '🔹';
