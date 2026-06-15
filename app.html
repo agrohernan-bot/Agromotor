@@ -524,17 +524,6 @@
   </div>
   <div class="module-subtitle">pH · Materia Orgánica · C. Orgánico · N total · Densidad Aparente · CEC · Textura — SoilGrids ISRIC 250 m</div>
 
-  <!-- Barra compacta de lote activo — se oculta automáticamente cuando los datos están cargados -->
-  <div id="suelo-lote-bar" style="background:rgba(200,162,85,.08);border:1px solid rgba(200,162,85,.25);border-radius:10px;padding:.55rem 1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap">
-    <span style="font-size:.8rem;color:rgba(74,46,26,.75)">📍
-      <span id="suelo-lbl-coord" style="font-family:'DM Mono',monospace;color:#8A5A20;font-size:.78rem">Sin coordenadas — cargá un lote en el Dashboard</span>
-    </span>
-    <button id="btn-suelo" onclick="consultarSuelo()"
-      style="margin-left:auto;background:rgba(200,162,85,.15);border:1px solid rgba(200,162,85,.4);color:#7A4A10;border-radius:7px;padding:.28rem .8rem;font-size:.73rem;font-weight:600;cursor:pointer;font-family:inherit">
-      🔄 Actualizar
-    </button>
-    <span style="font-size:.67rem;color:rgba(74,46,26,.35)">SoilGrids ISRIC · 250 m · CC BY 4.0</span>
-  </div>
   <div id="suelo-st" class="hidden" style="margin-bottom:.8rem;font-size:.78rem;display:flex;align-items:center;gap:.5rem;color:#B87A20">
     <span id="suelo-sp" style="display:inline-block"></span>
     <span id="suelo-msg"></span>
@@ -4628,7 +4617,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=121"></script>
+<script src="js/config.js?v=122"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=97"></script>
 
@@ -4642,7 +4631,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=95"></script>
+<script src="js/nav.js?v=96"></script>
 
 
 
