@@ -413,9 +413,10 @@ function ncRenderSueloPanel() {
     var esLab  = v.fuente === 'laboratorio';
     var esOLM  = v.fuente === 'openlandmap' || v.fuente === 'idecor+olm';
     var esIDEC = v.fuente === 'idecor';
+    var esDBP  = v.fuente === 'db-prov';
     var esDB   = v.fuente === 'db';
-    var srcIco = esLab ? ' 🔬' : esOLM ? ' 🌍' : esIDEC ? ' 📍' : esDB ? ' 📚' : '';
-    var color = esLab ? '#1b5e35' : esOLM ? '#2A6E3A' : esIDEC ? '#1A5A8C' : esDB ? '#7a5c3a' : '#2A5A8C';
+    var srcIco = esLab ? ' 🔬' : esOLM ? ' 🌍' : esIDEC ? ' 📍' : esDBP ? ' 📍' : esDB ? ' 📚' : '';
+    var color = esLab ? '#1b5e35' : esOLM ? '#2A6E3A' : esIDEC ? '#1A5A8C' : esDBP ? '#5A7A3A' : esDB ? '#7a5c3a' : '#2A5A8C';
     var bg    = esLab ? 'rgba(74,140,92,.07)' : esOLM ? 'rgba(42,110,58,.05)' : esIDEC ? 'rgba(26,90,140,.05)' : esDB ? 'rgba(122,92,58,.05)' : 'rgba(42,90,140,.04)';
     var bdr   = esLab ? 'rgba(74,140,92,.22)' : esOLM ? 'rgba(42,110,58,.18)' : esIDEC ? 'rgba(26,90,140,.18)' : esDB ? 'rgba(122,92,58,.14)' : 'rgba(42,90,140,.12)';
     var val   = typeof v.valor === 'number'
@@ -672,6 +673,8 @@ function ncRenderPlan(res, ctx) {
       fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(42,110,58,.12);color:#2A6E3A;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">🌍 OLM</span>';
     } else if (fd === 'idecor') {
       fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(26,90,140,.1);color:#1A5A8C;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">📍 IDECOR</span>';
+    } else if (fd === 'db-prov') {
+      fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(90,122,58,.1);color:#5A7A3A;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">📍 Prov.</span>';
     } else if (fd === 'db') {
       fuenteBadge = '<span style="font-size:.58rem;font-weight:700;background:rgba(122,92,58,.1);color:#7a5c3a;padding:.04rem .28rem;border-radius:3px;margin-left:.25rem">📚 DB</span>';
     } else if (fd && fd !== 'estimado') {

@@ -224,6 +224,48 @@ const DB_PKZ_PAMPA = {
   Oxisol:   { p:  4, k:  80, zn: 0.7 },
 };
 
+// Promedios provinciales P/K/Zn — Fertilizar Guía de Fertilización por Regiones (2022)
+// + INTA EEAs · P = ppm Bray I · K = ppm intercambiable · Zn = mg/kg DTPA
+// Fuente primaria: https://fertilizar.org.ar/publicaciones/ + Sainz Rozas et al. 2013
+const DB_PKZ_PROVINCIAL = {
+  // ── Pampa Húmeda ──────────────────────────────────────────
+  'buenos aires':        { p: 13, k: 165, zn: 0.9 },  // promedio; norte ~20, sur ~8
+  'santa fe':            { p: 17, k: 170, zn: 0.9 },
+  'cordoba':             { p: 18, k: 185, zn: 0.8 },  // IDECOR 90m preferido si disponible
+  'entre rios':          { p: 12, k: 150, zn: 0.8 },
+  // ── Pampa Semiárida / Seca ────────────────────────────────
+  'la pampa':            { p: 10, k: 170, zn: 0.7 },
+  'san luis':            { p: 10, k: 175, zn: 0.7 },
+  'mendoza':             { p: 11, k: 200, zn: 0.6 },
+  'san juan':            { p:  9, k: 190, zn: 0.6 },
+  'la rioja':            { p:  8, k: 180, zn: 0.6 },
+  'catamarca':           { p:  9, k: 185, zn: 0.6 },
+  // ── NOA ──────────────────────────────────────────────────
+  'tucuman':             { p: 14, k: 195, zn: 0.8 },
+  'salta':               { p: 12, k: 180, zn: 0.7 },
+  'jujuy':               { p: 10, k: 160, zn: 0.7 },
+  // ── NEA ──────────────────────────────────────────────────
+  'chaco':               { p: 10, k: 210, zn: 0.7 },
+  'formosa':             { p:  9, k: 200, zn: 0.7 },
+  'santiago del estero': { p: 11, k: 220, zn: 0.7 },
+  'corrientes':          { p:  8, k: 100, zn: 0.7 },
+  'misiones':            { p:  4, k:  80, zn: 0.8 },  // suelos muy meteorizados (Ultisoles)
+  // ── Patagonia ─────────────────────────────────────────────
+  'rio negro':           { p:  8, k: 155, zn: 0.6 },
+  'neuquen':             { p:  7, k: 145, zn: 0.6 },
+  'chubut':              { p:  6, k: 130, zn: 0.5 },
+  'santa cruz':          { p:  5, k: 120, zn: 0.5 },
+};
+
+// Normaliza nombre de provincia para búsqueda en DB_PKZ_PROVINCIAL
+function _normProv(s) {
+  if (!s) return '';
+  return s.toLowerCase()
+    .replace(/provincia\s+(de\s+|del\s+)?/gi, '')
+    .replace(/\s+/g, ' ').trim()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
 // Clasifica textura USDA
 function clasificarTextura(clay, sand, silt) {
   if (clay >= 40) return 'Vertisol';
@@ -422,7 +464,7 @@ async function buscarIDECOR(lat, lon) {
   return null;
 }
 
-async function buscarPKZ(lat, lon, textura) {
+async function buscarPKZ(lat, lon, textura, provincia) {
   // 1° OpenLandMap — P+K+Zn, 250m, Argentina completa
   var olm = await buscarOpenLandMap(lat, lon);
   if (olm && (olm.p != null || olm.k != null || olm.zn != null)) {
@@ -443,7 +485,23 @@ async function buscarPKZ(lat, lon, textura) {
   var idecorSolo = await buscarIDECOR(lat, lon);
   if (idecorSolo) return idecorSolo;
 
-  // 3° DB interna por tipo de suelo
+  // 3° DB provincial (Fertilizar/INTA por provincia — mejor resolución que suelo tipo)
+  if (provincia) {
+    var provKey  = _normProv(provincia);
+    var provData = DB_PKZ_PROVINCIAL[provKey];
+    if (provData) {
+      return {
+        p:              provData.p,
+        k:              provData.k,
+        zn:             provData.zn,
+        fuente_pkz:     '📍 DB provincial · ' + provincia,
+        fuente_pkz_id:  'db-prov',
+        fuente_pkz_det: 'Promedios provinciales Fertilizar/INTA (P=Bray I · K=intercambiable) · ' + provincia + ' · Calibrar con análisis local',
+      };
+    }
+  }
+
+  // 4° DB interna por tipo de suelo (fallback final)
   var tipo = (textura && DB_PKZ_PAMPA[textura]) ? textura : 'Molisol';
   var db   = DB_PKZ_PAMPA[tipo];
   return {
@@ -466,6 +524,7 @@ function renderSoilGrids(d) {
   const pkzBadge = pkzId === 'openlandmap' ? '🌍 OLM 250m'
                  : pkzId === 'idecor'      ? '📍 IDECOR 90m'
                  : pkzId === 'idecor+olm'  ? '📍+🌍 90m/250m'
+                 : pkzId === 'db-prov'     ? '📍 DB provincial'
                  : pkzId === 'db'          ? '📚 DB regional'
                  : '—';
 
@@ -1282,7 +1341,9 @@ window.sgAutoFetchLote = async function(lote) {
   if (_sgCacheCheck(loteId, lat, lon)) return; // cache válido
   try {
     var datos = await buscarSoilGrids(lat, lon);
-    var pkz   = await buscarPKZ(lat, lon, datos.textura || 'Molisol');
+    var loteParaProv = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    var provNombre   = loteParaProv && loteParaProv.data ? loteParaProv.data.provincia_nombre : null;
+    var pkz   = await buscarPKZ(lat, lon, datos.textura || 'Molisol', provNombre);
     if (pkz) {
       if (pkz.p  != null) datos.p  = pkz.p;
       if (pkz.k  != null) datos.k  = pkz.k;
@@ -1348,7 +1409,9 @@ async function consultarSuelo() {
       ? 'Estimando suelo regional · Consultando P/K/Zn...'
       : 'SoilGrids OK · Consultando P/K/Zn (OLM)...';
 
-    const pkz = await buscarPKZ(lat, lon, datos.textura || 'Molisol');
+    var loteProvPKZ = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    var provPKZ     = loteProvPKZ && loteProvPKZ.data ? loteProvPKZ.data.provincia_nombre : null;
+    const pkz = await buscarPKZ(lat, lon, datos.textura || 'Molisol', provPKZ);
     if (pkz) {
       if (pkz.p  != null) datos.p  = pkz.p;
       if (pkz.k  != null) datos.k  = pkz.k;
