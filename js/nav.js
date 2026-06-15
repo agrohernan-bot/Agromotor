@@ -138,9 +138,6 @@ function _activarModulo(mod) {
   if (mod === 'suelo') {
     var coord = document.getElementById('s-coord');
     var coordVal = coord ? coord.value.trim() : '';
-    // Actualizar etiqueta del bar compacto
-    var lblCoord = document.getElementById('suelo-lbl-coord');
-    if (lblCoord && coordVal) lblCoord.textContent = coordVal;
     if (window._sgDatos && Object.keys(window._sgDatos).length > 0) {
       // Datos ya cargados — renderizar directamente
       if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
