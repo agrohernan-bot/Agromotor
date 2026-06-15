@@ -182,9 +182,22 @@ function ncCultivoKey(c) {
 
 // Convierte _sueloDatos a kg/ha para el plan de fertilización
 function ncSueloAkg(sd) {
-  // Si _sueloDatos está vacío, leer _sgDatos directamente sin necesitar sueloFusionar()
+  // Si _sueloDatos está vacío, leer _sgDatos; si también está vacío leer localStorage
+  // 'sg_full_<loteId>' (guardado por siembra-apis.js sin pasar por cacheGuardar)
   if (!sd || Object.keys(sd).length === 0) {
     var sg = window._sgDatos || {};
+    if (Object.keys(sg).length === 0) {
+      try {
+        var _lt = typeof ncLoteActivo === 'function' ? ncLoteActivo() : null;
+        if (_lt && _lt.id) {
+          var _raw = localStorage.getItem('sg_full_' + _lt.id);
+          if (_raw) {
+            var _p = JSON.parse(_raw);
+            if (_p && _p.datos) { sg = _p.datos; window._sgDatos = sg; }
+          }
+        }
+      } catch(_) {}
+    }
     if (Object.keys(sg).length === 0) return {};
     var sgDa = sg.da || 1.25;
     var sgMo = sg.soc != null ? sg.soc * 1.724 / 10 : null; // SOC g/kg → MO%
