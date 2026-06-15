@@ -498,6 +498,25 @@ function renderSueloModulo(d) {
   // ── PROPIEDADES DEL SUELO — TABLA ─────────────────────────
   var tblEl = document.getElementById('suelo-tabla');
   if (tblEl) {
+    // P, K, Zn: prioridad lab > estimado externo (OLM/IDECOR/DB)
+    var sd = window._sueloDatos || {};
+    var pkzId = d.fuente_pkz_id || '';
+    var pkzBadge = pkzId === 'openlandmap' ? ' 🌍' : pkzId.includes('idecor') ? ' 📍' : pkzId === 'db-prov' ? ' 📍' : pkzId === 'db' ? ' 📚' : ' ~';
+    var _pRow = (function() {
+      if (sd.p && sd.p.fuente === 'laboratorio') return ['⚗️ P disp. 🔬', sd.p.valor.toFixed(1) + ' ppm', 'Fósforo disponible · lab · Bray I'];
+      if (d.p != null) return ['⚗️ P disp.' + pkzBadge, d.p.toFixed(1) + ' ppm', 'Fósforo disponible · estimado'];
+      return null;
+    })();
+    var _kRow = (function() {
+      if (sd.k && sd.k.fuente === 'laboratorio') return ['🧲 K int. 🔬', sd.k.valor.toFixed(0) + ' ppm', 'Potasio intercambiable · lab'];
+      if (d.k != null) return ['🧲 K int.' + pkzBadge, d.k.toFixed(0) + ' ppm', 'Potasio intercambiable · estimado'];
+      return null;
+    })();
+    var _znRow = (function() {
+      if (sd.zn && sd.zn.fuente === 'laboratorio') return ['💎 Zn disp. 🔬', sd.zn.valor.toFixed(2) + ' ppm', 'Zinc disponible · lab'];
+      if (d.zn != null) return ['💎 Zn disp.' + pkzBadge, d.zn.toFixed(2) + ' ppm', 'Zinc disponible · estimado'];
+      return null;
+    })();
     var rows = [
       ['⚗️ pH (H₂O)',          d.ph != null ? d.ph.toFixed(1) : '—',           'Acidez/alcalinidad del suelo · óptimo 6.0–7.5'],
       ['🌱 C orgánico',         d.soc != null ? d.soc.toFixed(1) + ' g/kg' : '—', 'Carbono orgánico — base de la fertilidad biológica'],
@@ -510,6 +529,9 @@ function renderSueloModulo(d) {
       ['🪨 Limo',               d.silt != null ? parseFloat(d.silt).toFixed(1) + ' %' : '—', 'Fracción media · agua disponible'],
       ['🗺️ Tipo de suelo',      d.textura || '—',                                 'Clasificación textural'],
     ];
+    if (_pRow)  rows.push(_pRow);
+    if (_kRow)  rows.push(_kRow);
+    if (_znRow) rows.push(_znRow);
     var html = '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.82rem">';
     html += '<thead><tr style="background:#f3ede0"><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Propiedad</th><th style="text-align:right;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Valor</th><th style="text-align:left;padding:.55rem .8rem;font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#5a4a32">Interpretación</th></tr></thead><tbody>';
     rows.forEach(function(r, i) {
