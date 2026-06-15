@@ -218,25 +218,6 @@ function ncSugerirRendimiento(cultKey, sd) {
   return { max: rendMax, rec: rendRec, factorSuelo: Math.round(factor * 100), notas: notas, tieneDatos: tieneDatos };
 }
 
-function ncRenderRendSugerencias(sug) {
-  var el = document.getElementById('nc-rend-sugerencias');
-  if (!el) return;
-  if (!sug) { el.innerHTML = ''; return; }
-  var notaTxt = sug.notas.length > 0 ? sug.notas.join(', ') : '';
-  var qualityNote = sug.tieneDatos && sug.factorSuelo < 90 ? ' (' + sug.factorSuelo + '% pot.)' : sug.tieneDatos ? '' : ' (sin datos suelo)';
-  var html = '<div style="display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;padding:.2rem 0">';
-  html += '<span style="font-size:.63rem;color:rgba(74,46,26,.4)">Referencia:</span>';
-  html += '<button type="button" onclick="ncAplicarRend(' + sug.max + ')" title="Máximo regional' + (notaTxt ? ' · ' + notaTxt : '') + '" style="font-size:.67rem;padding:.14rem .45rem;border:1px solid rgba(200,100,42,.35);border-radius:4px;background:rgba(200,100,42,.07);color:#7A4A1A;cursor:pointer;font-family:inherit">📈 Máx ' + sug.max + ' t/ha</button>';
-  html += '<button type="button" onclick="ncAplicarRend(' + sug.rec + ')" title="Recomendado según calidad de suelo" style="font-size:.67rem;padding:.14rem .45rem;border:1px solid rgba(74,140,92,.35);border-radius:4px;background:rgba(74,140,92,.07);color:#1b5e35;cursor:pointer;font-family:inherit">✅ Rec ' + sug.rec + ' t/ha' + qualityNote + '</button>';
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-window.ncAplicarRend = function(val) {
-  var el = document.getElementById('nc-rend-obj');
-  if (el) { el.value = val; el._touched = true; ncValidarRendimiento(el); }
-};
-
 window.ncValidarRendimiento = function(input) {
   input._touched = true;
   var alertEl = document.getElementById('nc-rend-alerta');
@@ -341,19 +322,16 @@ window.ncActualizar = function() {
       }
       if (ncBnSup && !ncBnSup._touched) ncBnSup.value = supLote;
     }
-    // Rendimiento del plan guardado previamente (si balance hídrico no lo pisó)
-    var planPrev = lote.data.nutricionPlan;
-    if (ncRend && !ncRend._touched && planPrev && planPrev.rendimiento && !bhRend?.value) {
-      ncRend.value = planPrev.rendimiento;
+    // Rendimiento objetivo desde panel de planificación (fuente primaria)
+    var rendObj = lote.data.rendimientoObjetivo;
+    if (ncRend && !ncRend._touched && rendObj) {
+      ncRend.value = rendObj;
     }
   }
 
   if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
   if (ecPrecio && ecPrecio.value && ncPrecio && !ncPrecio._touched) ncPrecio.value = ecPrecio.value;
   if (ncSup && ncBnSup && ncSup.value && !ncBnSup._touched) ncBnSup.value = ncSup.value;
-
-  // Chips de rendimiento sugerido según cultivo + calidad de suelo
-  ncRenderRendSugerencias(ncSugerirRendimiento(ncCultivoKey(cultivo), sd));
 };
 
 function ncRenderSueloPanel() {
@@ -807,10 +785,9 @@ function ncRenderBalance(balance, recs, ctx) {
 }
 
   // Exposición global
-  window.CULTIVO_DB           = CULTIVO_DB;
-  window.NC_FERTS             = NC_FERTS;
-  window.ncActualizar         = ncActualizar;
-  window.ncRenderSueloPanel   = ncRenderSueloPanel;
-  window.ncSugerirRendimiento = ncSugerirRendimiento;
+  window.CULTIVO_DB         = CULTIVO_DB;
+  window.NC_FERTS           = NC_FERTS;
+  window.ncActualizar       = ncActualizar;
+  window.ncRenderSueloPanel = ncRenderSueloPanel;
 
 })();

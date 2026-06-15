@@ -43,7 +43,7 @@
   <link rel="stylesheet" href="css/dashboard.css?v=103">
   <link rel="stylesheet" href="css/lote-nuevo.css?v=92">
   <link rel="stylesheet" href="css/clientes.css?v=1">
-  <link rel="stylesheet" href="css/score-cultivares.css?v=94">
+  <link rel="stylesheet" href="css/score-cultivares.css?v=95">
   <link rel="stylesheet" href="css/siembra-planificacion.css?v=2">
 
   <!-- PWA -->
@@ -696,7 +696,6 @@
           <div class="grid-2">
             <div class="fg">
               <label>Rendimiento objetivo (t/ha)</label>
-              <div id="nc-rend-sugerencias"></div>
               <input type="number" id="nc-rend-obj" value="4.5" min="0.5" max="20" step="0.1" placeholder="ej: 4.5" oninput="this._touched=true;ncValidarRendimiento(this)">
               <div id="nc-rend-alerta" style="display:none"></div>
             </div>
@@ -1380,7 +1379,7 @@
         <div class="grid-2">
           <div class="fg">
             <label>Rendimiento objetivo (t/ha)</label>
-            <input type="number" id="bh-rend-obj" value="3.5" step="0.1" min="0.5" max="15" oninput="bhActualizar()">
+            <input type="number" id="bh-rend-obj" value="3.5" step="0.1" min="0.5" max="15" oninput="this._touched=true;bhActualizar()">
           </div>
           <div class="fg">
             <label>Tipo de suelo <span style="font-size:.65rem;color:rgba(74,46,26,.5);font-weight:normal">(Lote Activo)</span></label>
@@ -4673,7 +4672,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=105"></script>
+<script src="js/config.js?v=106"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=97"></script>
 

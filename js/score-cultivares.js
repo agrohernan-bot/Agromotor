@@ -474,6 +474,41 @@
 
     html += '</div>'; // .sc-tabla
 
+    // ── Rendimiento objetivo (solo cuando hay cultivo activo en el grupo)
+    if (cultivoAct) {
+      var scoredActivo = scored.find(function(c) { return c.key === cultivoAct; });
+      var econActivo   = ECON[cultivoAct];
+      var rendRec = scoredActivo && scoredActivo.score && scoredActivo.score.eco
+        ? scoredActivo.score.eco.rendEstim : null;
+      var rendMax = econActivo ? econActivo.rendOpt : null;
+      var rendActual = planGrupo.rendimientoObjetivo;
+      var cultivoLbl = listaCultivos.find(function(c) { return c.key === cultivoAct; });
+      var cultivoNom = cultivoLbl ? cultivoLbl.label : cultivoAct;
+      var lId = esc(lote.id);
+      var gEsc = esc(grupo || '');
+
+      html += '<div class="sc-rend-obj">';
+      html += '<div class="sc-rend-titulo">🎯 Rendimiento objetivo · <strong>' + esc(cultivoNom) + '</strong></div>';
+      html += '<div class="sc-rend-chips">';
+      if (rendMax != null) {
+        html += '<button class="sc-rend-chip sc-rend-chip-max" onclick="window.dlSetRendimientoObjetivo(' + rendMax.toFixed(1) + ',\'' + lId + '\',\'' + gEsc + '\')">📈 Máx ' + rendMax.toFixed(1) + ' t/ha</button>';
+      }
+      if (rendRec != null) {
+        html += '<button class="sc-rend-chip sc-rend-chip-rec" onclick="window.dlSetRendimientoObjetivo(' + rendRec.toFixed(1) + ',\'' + lId + '\',\'' + gEsc + '\')">✅ Rec ' + rendRec.toFixed(1) + ' t/ha</button>';
+      }
+      html += '</div>';
+      html += '<div class="sc-rend-custom">';
+      html += '<input type="number" id="sc-rend-input-' + lId + '" class="sc-rend-input" min="0.5" max="20" step="0.1" placeholder="Otro..." value="' + (rendActual ? String(rendActual) : '') + '">';
+      html += '<button class="sc-rend-confirm" onclick="window.dlSetRendimientoObjetivo(+document.getElementById(\'sc-rend-input-' + lId + '\').value,\'' + lId + '\',\'' + gEsc + '\')">Confirmar</button>';
+      html += '</div>';
+      if (rendActual) {
+        html += '<div class="sc-rend-actual">🎯 Objetivo actual: <strong>' + rendActual + ' t/ha</strong> · Aplicado en Nutrición y Balance Hídrico</div>';
+      } else {
+        html += '<div class="sc-rend-hint">Elegí un rendimiento objetivo · Se usará automáticamente en Nutrición y Balance Hídrico</div>';
+      }
+      html += '</div>';
+    }
+
     html += '<div class="sc-nota">Score agronómico: Fecha (25) · Agua (20) · ENSO (15) · Zona (25) · Rotación (15) = 100 pts. Margen bruto con precios y costos de referencia campaña 2024/25. No reemplaza el análisis profesional.</div>';
 
     // CTA
@@ -520,7 +555,8 @@
     return {
       cultivo: plan.cultivo || legacy || (legacyActivoValido ? d.cultivo : ''),
       fechaSiembraPlan: plan.fechaSiembraPlan || (legacyActivoValido ? d.fechaSiembraPlan : ''),
-      fechaSiembraConf: plan.fechaSiembraConf || (legacyActivoValido ? d.fechaSiembraConf : '')
+      fechaSiembraConf: plan.fechaSiembraConf || (legacyActivoValido ? d.fechaSiembraConf : ''),
+      rendimientoObjetivo: plan.rendimientoObjetivo || d.rendimientoObjetivo || null
     };
   }
 
@@ -555,6 +591,24 @@
     if (sec === 'planfina') return 'invierno';
     return '';
   }
+
+  window.dlSetRendimientoObjetivo = function(val, loteId, grupo) {
+    val = Math.round(parseFloat(val) * 10) / 10;
+    if (!val || isNaN(val) || val < 0.5) return;
+    var lote = (window.AM_LOTES || []).find(function(l) { return l.id === loteId; });
+    if (!lote) return;
+    lote.data = lote.data || {};
+    lote.data.rendimientoObjetivo = val;
+    var g = grupo || grupoActualFallback();
+    if (g) {
+      lote.data.planificacionSiembra = lote.data.planificacionSiembra || {};
+      lote.data.planificacionSiembra[g] = lote.data.planificacionSiembra[g] || {};
+      lote.data.planificacionSiembra[g].rendimientoObjetivo = val;
+    }
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof amToast === 'function') amToast('Rendimiento objetivo: ' + val + ' t/ha', 'ok');
+    _reabrirSeccion();
+  };
 
   window.dlSeleccionarCultivo = function (cultivo, loteId, grupo) {
     var lote = (window.AM_LOTES || []).find(function (l) { return l.id === loteId; });

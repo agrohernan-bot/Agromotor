@@ -230,6 +230,12 @@ function _activarModulo(mod) {
       document.getElementById('bh-precip-hist').value = fenPrecipNasa;
     if (typeof ENSO_DATA !== 'undefined' && ENSO_DATA.fase && document.getElementById('bh-enso'))
       document.getElementById('bh-enso').value = ENSO_DATA.fase;
+    // Rendimiento objetivo desde planificación (si el usuario no lo cambió manualmente)
+    var bhRendEl = document.getElementById('bh-rend-obj');
+    var loteHid = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    if (bhRendEl && !bhRendEl._touched && loteHid && loteHid.data && loteHid.data.rendimientoObjetivo) {
+      bhRendEl.value = loteHid.data.rendimientoObjetivo;
+    }
     if (typeof bhActualizar === 'function') bhActualizar();
     // Auto-cargar ENSO si no fue consultado aún o si los datos tienen más de 1 hora
     if (typeof consultarENSO === 'function') {
