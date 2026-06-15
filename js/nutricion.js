@@ -185,13 +185,21 @@ function ncSueloAkg(sd) {
   if (!sd || Object.keys(sd).length === 0) return {};
   var da  = (sd.da && sd.da.valor) ? sd.da.valor : 1.25;   // g/cm³
   var res = {};
-  // N total (g/kg) → kg/ha en 0-30cm: N_g/kg × DA × 0.30m × 10 = N × DA × 3
-  if (sd.n && sd.n.valor != null)
-    res.N = { valor: Math.round(sd.n.valor * da * 3), fuente: sd.n.fuente };
-  // Alternativa: MO (%) → N mineralizable ≈ 20 kg N/% MO/año
-  else if (sd.mo && sd.mo.valor != null)
-    res.N = { valor: Math.round(sd.mo.valor * 20), fuente: (sd.mo.fuente || '') + '·estimado' };
-  // P disponible (ppm Bray) → kg/ha en 0-20cm: P_ppm × DA × 0.20m × 10 = P × DA × 2
+
+  // N mineralizable (prioridad: lab N > MO método INTA > N total SoilGrids con tasa mineralización)
+  if (sd.n && sd.n.fuente === 'laboratorio') {
+    // N total de laboratorio (g/kg) → mineralizable (N × DA × 3000 kg/ha × 1.5%/año)
+    res.N = { valor: Math.round(sd.n.valor * da * 45), fuente: 'laboratorio' };
+  } else if (sd.mo && sd.mo.valor != null) {
+    // MO (%) → N mineralizable ≈ 20 kg N/% MO/año (metodología INTA para Pampa)
+    var fuenteMO = sd.mo.fuente === 'laboratorio' ? 'lab·MO' : 'estimado';
+    res.N = { valor: Math.round(sd.mo.valor * 20), fuente: fuenteMO };
+  } else if (sd.n && sd.n.valor != null) {
+    // N total SoilGrids (g/kg) → mineralizable: N × DA × 3000 kg/ha × 1.5%/año = N × DA × 45
+    res.N = { valor: Math.round(sd.n.valor * da * 45), fuente: sd.n.fuente };
+  }
+
+  // P disponible (ppm Bray) → kg/ha en 0-20cm: P_ppm × DA × 0.20m × 0.1 × 10 = P × DA × 2
   if (sd.p && sd.p.valor != null)
     res.P = { valor: Math.round(sd.p.valor * da * 2), fuente: sd.p.fuente };
   // K intercambiable (ppm) → kg/ha 0-20cm
@@ -309,6 +317,12 @@ function ncLoteActivo() {
 }
 
 window.ncActualizar = function() {
+  // Si _sueloDatos está vacío pero _sgDatos tiene datos (restaurado del caché), re-fusionar
+  var _sd0 = window._sueloDatos || {};
+  if (Object.keys(_sd0).length === 0 && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+    if (typeof window.sueloFusionar === 'function') window.sueloFusionar();
+  }
+
   var cultivo = ncCultStr();
   var lote = ncLoteActivo();
   var sd = window._sueloDatos || {};
