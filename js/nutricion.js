@@ -441,27 +441,8 @@ window.ncValidarRendimiento = function(input) {
   }
 };
 
-// ── TABS ─────────────────────────────────────────────────
-window.ncSwitchTab = function(tab) {
-  ['plan', 'balance'].forEach(function(t) {
-    var btn   = document.getElementById('nc-tab-' + t);
-    var panel = document.getElementById('nc-panel-' + t);
-    var activo = t === tab;
-    if (btn) {
-      btn.style.color         = activo ? '#2D5A30'  : 'rgba(74,46,26,.55)';
-      btn.style.borderBottom  = activo ? '3px solid #4A8C4E' : '3px solid transparent';
-      btn.style.background    = activo ? 'rgba(74,140,92,.06)' : 'transparent';
-      btn.style.fontWeight    = activo ? '700' : '600';
-    }
-    if (panel) panel.style.display = activo ? '' : 'none';
-  });
-  // Re-sincronizar cultivo al entrar en la pestaña balance
-  if (tab === 'balance') {
-    var cultivo = ncCultStr();
-    var selBal  = document.getElementById('nc-bn-cultivo');
-    if (selBal) selBal.value = ncCultivoKey(cultivo);
-  }
-};
+// ── TABS (eliminados: panel unificado) ───────────────────
+window.ncSwitchTab = function() {};
 
 // ── CONTEXTO LOTE Y PANEL SUELO ───────────────────────────
 function ncLoteActivo() {
@@ -508,15 +489,10 @@ window.ncActualizar = function() {
 
   ncRenderSueloPanel();
 
-  // Sincronizar select de balance con cultivo del lote
-  var selBal = document.getElementById('nc-bn-cultivo');
-  if (selBal) selBal.value = ncCultivoKey(cultivo);
-
   // Auto-completar desde módulos ya cargados (primera vez)
   var ncRend    = document.getElementById('nc-rend-obj');
   var ncPrecio  = document.getElementById('nc-precio-grano');
   var ncSup     = document.getElementById('nc-sup');
-  var ncBnSup   = document.getElementById('nc-bn-sup');
   var bhRend    = document.getElementById('bh-rend-obj');
   var ecPrecio  = document.getElementById('ec-precio-disp');
 
@@ -529,13 +505,11 @@ window.ncActualizar = function() {
         var supBadge = document.getElementById('nc-sup-badge');
         if (supBadge) { supBadge.textContent = '← lote'; supBadge.style.display = 'inline'; }
       }
-      if (ncBnSup && !ncBnSup._touched) ncBnSup.value = supLote;
     }
   }
 
   if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
   if (ecPrecio && ecPrecio.value && ncPrecio && !ncPrecio._touched) ncPrecio.value = ecPrecio.value;
-  if (ncSup && ncBnSup && ncSup.value && !ncBnSup._touched) ncBnSup.value = ncSup.value;
 
   // Rendimiento objetivo desde panel de planificación — prioridad máxima, ejecuta último
   if (lote && lote.data && lote.data.rendimientoObjetivo && ncRend && !ncRend._touched) {
@@ -937,19 +911,22 @@ function ncRenderPlan(res, ctx) {
 
   out.innerHTML = html;
   out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  // Auto-actualizar el balance con los datos del plan recién calculado
+  if (typeof window.ncBalanceCalcular === 'function') window.ncBalanceCalcular();
 }
 
 // ════════════════════════════════════════════════════════
-// TAB B — BALANCE POST-COSECHA
+// BALANCE POST-COSECHA (integrado en panel único)
 // ════════════════════════════════════════════════════════
 window.ncBalanceCalcular = function() {
-  var cultStr  = ncGv('nc-bn-cultivo') || 'Soja';
+  var cultStr  = ncCultStr();
   var cultKey  = ncCultivoKey(cultStr);
   var db       = CULTIVO_DB[cultKey];
-  if (!db) { alert('Cultivo no encontrado: ' + cultStr); return; }
+  if (!db) return;
 
   var rend     = parseFloat(ncGv('nc-bn-rend'))   || 3.5;
-  var sup      = parseFloat(ncGv('nc-bn-sup'))    || 100;
+  var sup      = parseFloat(ncGv('nc-sup'))        || 100;
   var rastrojo = ncGv('nc-bn-rastrojo') || 'campo';
   var fertN    = parseFloat(ncGv('nc-bn-fert-n')) || 0;
   var fertP    = parseFloat(ncGv('nc-bn-fert-p')) || 0;
