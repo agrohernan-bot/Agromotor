@@ -178,6 +178,71 @@ function ncCalcOptima(curva, Pg_kg, Pf_kg) {
   return { Xopt: Xopt, beneficio: beneficio, costo: costo, bc: costo > 0 ? beneficio / costo : 0 };
 }
 
+// ── RENDIMIENTO SUGERIDO ─────────────────────────────────
+// Calcula máximo regional y recomendado según calidad del suelo
+function ncSugerirRendimiento(cultKey, sd) {
+  var db = CULTIVO_DB[cultKey];
+  if (!db) return null;
+  var rMax = db.rendR[1];
+  var factor = 1.0;
+  var notas = [];
+  var tieneDatos = sd && Object.keys(sd).length > 0;
+  if (tieneDatos) {
+    if (sd.mo && sd.mo.valor != null) {
+      var mo = sd.mo.valor;
+      if      (mo >= 3.5) factor *= 1.00;
+      else if (mo >= 2.5) { factor *= 0.90; notas.push('MO ' + mo.toFixed(1) + '%'); }
+      else if (mo >= 1.5) { factor *= 0.78; notas.push('MO baja ' + mo.toFixed(1) + '%'); }
+      else                { factor *= 0.62; notas.push('MO muy baja ' + mo.toFixed(1) + '%'); }
+    } else {
+      factor *= 0.90;
+    }
+    if (sd.ph && sd.ph.valor != null) {
+      var ph = sd.ph.valor;
+      if      (ph >= 6.0 && ph <= 7.2) factor *= 1.00;
+      else if (ph >= 5.5 && ph < 6.0)  { factor *= 0.93; notas.push('pH ' + ph.toFixed(1)); }
+      else if (ph < 5.5)               { factor *= 0.80; notas.push('pH ácido ' + ph.toFixed(1)); }
+      else if (ph > 7.5)               { factor *= 0.88; notas.push('pH alcalino ' + ph.toFixed(1)); }
+    }
+    if (sd.p && sd.p.valor != null && sd.p.fuente === 'laboratorio') {
+      var p = sd.p.valor;
+      if      (p >= 25) factor *= 1.00;
+      else if (p >= 15) factor *= 0.96;
+      else if (p >= 8)  { factor *= 0.88; notas.push('P bajo ' + Math.round(p) + ' ppm'); }
+      else              { factor *= 0.75; notas.push('P muy bajo ' + Math.round(p) + ' ppm'); }
+    }
+  }
+  var rendMax = Math.round(rMax * 10) / 10;
+  var rendRec = Math.round(rMax * factor * 0.80 * 10) / 10;
+  rendRec = Math.max(db.rendR[0], rendRec);
+  return { max: rendMax, rec: rendRec, factorSuelo: Math.round(factor * 100), notas: notas, tieneDatos: tieneDatos };
+}
+
+window.ncValidarRendimiento = function(input) {
+  input._touched = true;
+  var alertEl = document.getElementById('nc-rend-alerta');
+  if (!alertEl) return;
+  var val = parseFloat(input.value);
+  if (!val) { alertEl.style.display = 'none'; return; }
+  var cultKey = ncCultivoKey(ncCultStr());
+  var db = CULTIVO_DB[cultKey];
+  if (!db) { alertEl.style.display = 'none'; return; }
+  var sug = ncSugerirRendimiento(cultKey, window._sueloDatos || {});
+  var rendMax = sug ? sug.max : db.rendR[1];
+  if (val > rendMax * 1.12) {
+    alertEl.style.cssText = 'display:block;font-size:.68rem;margin-top:.25rem;padding:.25rem .5rem;border-radius:5px;background:rgba(201,74,42,.08);color:#C0392B;border:1px solid rgba(201,74,42,.2)';
+    alertEl.textContent = '⚠️ Por encima del máximo estimado para este suelo (' + rendMax + ' t/ha). Verificá el dato antes de calcular.';
+  } else if (val > db.rendR[1]) {
+    alertEl.style.cssText = 'display:block;font-size:.68rem;margin-top:.25rem;padding:.25rem .5rem;border-radius:5px;background:rgba(184,122,32,.08);color:#7A5A10;border:1px solid rgba(184,122,32,.2)';
+    alertEl.textContent = '💡 Valor optimista para ' + db.nombre + ' en la región (rango usual: ' + db.rendR[0] + '–' + db.rendR[1] + ' t/ha). Revisá con históricos de zona.';
+  } else if (val < db.rendR[0] * 0.7) {
+    alertEl.style.cssText = 'display:block;font-size:.68rem;margin-top:.25rem;padding:.25rem .5rem;border-radius:5px;background:rgba(42,90,140,.08);color:#2A5A8C;border:1px solid rgba(42,90,140,.2)';
+    alertEl.textContent = '💡 Rendimiento muy bajo para ' + db.nombre + '. El plan se ajustará a este objetivo.';
+  } else {
+    alertEl.style.display = 'none';
+  }
+};
+
 // ── TABS ─────────────────────────────────────────────────
 window.ncSwitchTab = function(tab) {
   ['plan', 'balance'].forEach(function(t) {
@@ -245,6 +310,24 @@ window.ncActualizar = function() {
   var ncBnSup   = document.getElementById('nc-bn-sup');
   var bhRend    = document.getElementById('bh-rend-obj');
   var ecPrecio  = document.getElementById('ec-precio-disp');
+
+  // Superficie desde el lote activo (tiene prioridad sobre el default)
+  if (lote && lote.data) {
+    var supLote = parseFloat(lote.data.superficie) || 0;
+    if (supLote > 0) {
+      if (ncSup && !ncSup._touched) {
+        ncSup.value = supLote;
+        var supBadge = document.getElementById('nc-sup-badge');
+        if (supBadge) { supBadge.textContent = '← lote'; supBadge.style.display = 'inline'; }
+      }
+      if (ncBnSup && !ncBnSup._touched) ncBnSup.value = supLote;
+    }
+    // Rendimiento objetivo desde panel de planificación (fuente primaria)
+    var rendObj = lote.data.rendimientoObjetivo;
+    if (ncRend && !ncRend._touched && rendObj) {
+      ncRend.value = rendObj;
+    }
+  }
 
   if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
   if (ecPrecio && ecPrecio.value && ncPrecio && !ncPrecio._touched) ncPrecio.value = ecPrecio.value;
@@ -702,9 +785,9 @@ function ncRenderBalance(balance, recs, ctx) {
 }
 
   // Exposición global
-  window.CULTIVO_DB       = CULTIVO_DB;
-  window.NC_FERTS         = NC_FERTS;
-  window.ncActualizar     = ncActualizar;
+  window.CULTIVO_DB         = CULTIVO_DB;
+  window.NC_FERTS           = NC_FERTS;
+  window.ncActualizar       = ncActualizar;
   window.ncRenderSueloPanel = ncRenderSueloPanel;
 
 })();

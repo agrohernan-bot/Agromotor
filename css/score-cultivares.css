@@ -390,3 +390,82 @@
   .sc-row { grid-template-columns: 1.5fr .5fr .6fr .7fr auto; }
   .sc-info-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Rendimiento objetivo ────────────────────────────── */
+.sc-rend-obj {
+  padding: .75rem 1.1rem;
+  border-top: 1px solid rgba(237,224,196,.1);
+  background: rgba(255,255,255,.03);
+}
+.sc-rend-titulo {
+  font-size: .72rem;
+  color: rgba(237,224,196,.75);
+  margin-bottom: .52rem;
+  font-weight: 600;
+}
+.sc-rend-chips {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: .48rem;
+}
+.sc-rend-chip {
+  font-size: .72rem;
+  padding: .3rem .7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+  transition: opacity .15s;
+}
+.sc-rend-chip:hover { opacity: .82; }
+.sc-rend-chip-max {
+  background: rgba(200,100,42,.15);
+  color: #E8A060;
+  border: 1px solid rgba(200,100,42,.3);
+}
+.sc-rend-chip-rec {
+  background: rgba(74,140,92,.15);
+  color: #6DBF82;
+  border: 1px solid rgba(74,140,92,.3);
+}
+.sc-rend-custom {
+  display: flex;
+  gap: .4rem;
+  align-items: center;
+}
+.sc-rend-input {
+  width: 80px;
+  padding: .28rem .45rem;
+  border: 1px solid rgba(237,224,196,.2);
+  border-radius: 6px;
+  background: rgba(255,255,255,.06);
+  color: rgba(237,224,196,.9);
+  font-size: .78rem;
+  font-family: 'DM Mono', monospace;
+}
+.sc-rend-confirm {
+  font-size: .72rem;
+  padding: .28rem .65rem;
+  border-radius: 6px;
+  border: 1px solid rgba(109,191,130,.3);
+  background: rgba(109,191,130,.12);
+  color: #6DBF82;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 600;
+}
+.sc-rend-confirm:hover { background: rgba(109,191,130,.22); }
+.sc-rend-actual {
+  font-size: .68rem;
+  color: rgba(109,191,130,.78);
+  margin-top: .42rem;
+  font-weight: 600;
+}
+.sc-rend-hint {
+  font-size: .67rem;
+  color: rgba(237,224,196,.28);
+  margin-top: .42rem;
+  font-style: italic;
+}
+
