@@ -720,7 +720,20 @@
           </div>
           <div style="font-size:.67rem;color:rgba(74,46,26,.42);margin-top:.5rem;padding:.3rem .55rem;background:rgba(74,46,26,.04);border-radius:5px">💡 Precios de referencia — verificar con valores actuales de mercado antes de calcular.</div>
           <div class="divider"></div>
-          <button onclick="ncPlanCalcular()" class="btn btn-p btn-full btn-lg">🧮 Calcular plan integrado</button>
+          <div style="font-size:.72rem;font-weight:700;color:rgba(74,46,26,.55);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem">Estrategia de fertilización</div>
+          <div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-bottom:.55rem">
+            <button id="nc-chip-estr-productiva"
+              onclick="ncSetEstrategia('productiva')"
+              style="padding:.35rem .75rem;font-size:.76rem;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .18s;background:rgba(200,162,85,.13);color:#7A5A10;border:1.5px solid rgba(200,162,85,.45);font-weight:700">🎯 Productiva</button>
+            <button id="nc-chip-estr-equilibrada"
+              onclick="ncSetEstrategia('equilibrada')"
+              style="padding:.35rem .75rem;font-size:.76rem;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .18s;background:rgba(74,46,26,.04);color:rgba(74,46,26,.45);border:1.5px solid rgba(74,46,26,.12);font-weight:500">⚖️ Equilibrada</button>
+            <button id="nc-chip-estr-regenerativa"
+              onclick="ncSetEstrategia('regenerativa')"
+              style="padding:.35rem .75rem;font-size:.76rem;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .18s;background:rgba(74,46,26,.04);color:rgba(74,46,26,.45);border:1.5px solid rgba(74,46,26,.12);font-weight:500">🌱 Regenerativa</button>
+          </div>
+          <div id="nc-estrategia-desc" style="font-size:.7rem;color:rgba(74,46,26,.52);margin-bottom:.8rem;padding:.38rem .65rem;background:rgba(74,46,26,.04);border-radius:6px;border:1px solid rgba(74,46,26,.1)">Aprovecha el stock del suelo y fertiliza solo el déficit real. Mínimo insumo para alcanzar el rendimiento objetivo.</div>
+          <button onclick="ncPlanCalcular()" class="btn btn-p btn-full btn-lg">🧮 Calcular plan</button>
         </div>
         <div class="card gap-top" style="background:rgba(42,90,140,.04);border-color:rgba(42,90,140,.15)">
           <div class="card-title" style="color:#2A5A8C;font-size:.85rem">ℹ️ Metodología</div>
@@ -4672,7 +4685,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=107"></script>
+<script src="js/config.js?v=108"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=97"></script>
 
