@@ -490,24 +490,6 @@ window.ncActualizar = function() {
   var tieneLab = Object.values(sd).some(function(v) { return v && v.fuente === 'laboratorio'; });
   var tieneSG  = Object.values(sd).some(function(v) { return v && v.fuente === 'soilgrids'; });
 
-  // Si el cultivo cambió respecto al último plan calculado → resetear resultados
-  var cultivoKey = ncCultivoKey(cultivo);
-  var ultimoCultivo = window._ncPlanResultados && window._ncPlanResultados.__cultivo;
-  if (ultimoCultivo && ultimoCultivo !== cultivoKey) {
-    window._ncPlanResultados = null;
-    var _ph = document.getElementById('nc-plan-placeholder');
-    var _out = document.getElementById('nc-plan-resultado');
-    if (_ph) _ph.style.display = '';
-    if (_out) { _out.style.display = 'none'; _out.innerHTML = ''; }
-    var _bph = document.getElementById('nc-balance-placeholder');
-    var _bout = document.getElementById('nc-balance-resultado');
-    if (_bph) _bph.classList.remove('hidden');
-    if (_bout) { _bout.classList.add('hidden'); _bout.innerHTML = ''; }
-    // Forzar actualización del rendimiento desde lote (nuevo cultivo = nueva planificación)
-    var _ncRend = document.getElementById('nc-rend-obj');
-    if (_ncRend) _ncRend._touched = false;
-  }
-
   var lblCult   = document.getElementById('nc-lbl-cultivo');
   var lblLote   = document.getElementById('nc-lbl-lote');
   var lblFuente = document.getElementById('nc-lbl-fuente-badge');
@@ -614,6 +596,15 @@ function ncRenderSueloPanel() {
 window.ncPlanCalcular = async function() {
   var cultStr = ncCultStr();
   var cultKey = ncCultivoKey(cultStr);
+
+  // Si el cultivo cambió respecto al plan anterior, limpiar antes de recalcular
+  if (window._ncPlanResultados && window._ncPlanResultados.__cultivo &&
+      window._ncPlanResultados.__cultivo !== cultKey) {
+    window._ncPlanResultados = null;
+    var _ncRend = document.getElementById('nc-rend-obj');
+    if (_ncRend) _ncRend._touched = false;
+  }
+
   var db      = CULTIVO_DB[cultKey];
   if (!db) { alert('Cultivo no encontrado: ' + cultStr + '\nVerificá el cultivo seleccionado en el Dashboard.'); return; }
 
