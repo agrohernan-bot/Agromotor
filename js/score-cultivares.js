@@ -569,6 +569,10 @@
     window.dlAbrirSeccion(sec || 'planfina');
   }
 
+  // Exponer utilidades de época para el módulo Siembra
+  window.calcScoreFecha = calcScoreFecha;
+  window.detectarZona   = detectarZona;
+
   // ── Acciones globales ──────────────────────────────────
 
   window.dlToggleScoreInfo = function (id) {

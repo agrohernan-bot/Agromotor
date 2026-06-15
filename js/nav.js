@@ -135,6 +135,31 @@ function _activarModulo(mod) {
   // Scroll al inicio al cambiar de módulo
   try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch(e) { window.scrollTo(0,0); }
 
+  if (mod === 'siembra') {
+    // Sync cultivo y fecha desde la planificación activa del lote
+    var _ltSb = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    if (_ltSb && _ltSb.data) {
+      var _dSb  = _ltSb.data;
+      var _rendSb = parseFloat(_dSb.rendimientoObjetivo);
+      var _psSb = _dSb.planificacionSiembra || {};
+      var _sCult  = document.getElementById('s-cultivo');
+      var _sFecha = document.getElementById('s-fecha');
+      var _syncOk = false;
+      Object.keys(_psSb).forEach(function(g) {
+        var gd = _psSb[g];
+        if (!_syncOk && gd && gd.cultivo && gd.rendimientoObjetivo &&
+            Math.abs(parseFloat(gd.rendimientoObjetivo) - _rendSb) < 0.01) {
+          if (_sCult) _sCult.value = gd.cultivo;
+          var _fech = gd.fechaSiembraConf || gd.fechaSiembraPlan || '';
+          if (_fech && _sFecha && !_sFecha._touched) _sFecha.value = _fech;
+          _syncOk = true;
+        }
+      });
+      // Fallback: cultivo directo del lote
+      if (!_syncOk && _sCult && _dSb.cultivo) _sCult.value = _dSb.cultivo;
+    }
+  }
+
   if (mod === 'suelo') {
     var coord = document.getElementById('s-coord');
     var coordVal = coord ? coord.value.trim() : '';
