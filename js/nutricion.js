@@ -182,7 +182,23 @@ function ncCultivoKey(c) {
 
 // Convierte _sueloDatos a kg/ha para el plan de fertilización
 function ncSueloAkg(sd) {
-  if (!sd || Object.keys(sd).length === 0) return {};
+  // Si _sueloDatos está vacío, leer _sgDatos directamente sin necesitar sueloFusionar()
+  if (!sd || Object.keys(sd).length === 0) {
+    var sg = window._sgDatos || {};
+    if (Object.keys(sg).length === 0) return {};
+    var sgDa = sg.da || 1.25;
+    var sgMo = sg.soc != null ? sg.soc * 1.724 / 10 : null; // SOC g/kg → MO%
+    var rsg = {};
+    if (sgMo != null) {
+      rsg.N = { valor: Math.round(sgMo * 20), fuente: 'estimado' };
+    } else if (sg.n != null) {
+      rsg.N = { valor: Math.round(sg.n * sgDa * 45), fuente: 'soilgrids' };
+    }
+    if (sg.p  != null) rsg.P = { valor: Math.round(sg.p  * sgDa * 2), fuente: sg.fuente_pkz_id || 'estimado' };
+    if (sg.k  != null) rsg.K = { valor: Math.round(sg.k  * sgDa * 2), fuente: sg.fuente_pkz_id || 'estimado' };
+    rsg.S = { valor: Math.round(8 + (sgMo != null ? sgMo * 1.5 : 0)), fuente: 'estimado' };
+    return rsg;
+  }
   var da  = (sd.da && sd.da.valor) ? sd.da.valor : 1.25;   // g/cm³
   var res = {};
 
@@ -337,7 +353,7 @@ window.ncActualizar = function() {
   if (lblFuente) {
     var sg2 = window._sgDatos || {};
     var pkzId2 = sg2.fuente_pkz_id || '';
-    var pkzSfx = pkzId2 === 'openlandmap' ? ' + 🌍 OLM' : pkzId2.includes('idecor') ? ' + 📍 IDECOR' : pkzId2 === 'db' ? ' + 📚 DB' : '';
+    var pkzSfx = pkzId2 === 'openlandmap' ? ' + 🌍 OLM' : pkzId2.includes('idecor') ? ' + 📍 IDECOR' : pkzId2 === 'db-prov' ? ' + 📍 Prov.' : pkzId2 === 'db' ? ' + 📚 DB' : '';
     var fTxt, fSty;
     if      (tieneLab && tieneSG) { fTxt = '🔬 Lab + 🛰️ SoilGrids' + pkzSfx; fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
     else if (tieneLab)            { fTxt = '🔬 Lab activo' + pkzSfx;            fSty = 'background:rgba(74,140,92,.12);color:#1b5e35;border:1px solid rgba(74,140,92,.25)'; }
@@ -464,7 +480,7 @@ window.ncPlanCalcular = function() {
   var estrategia = window._ncEstrategia || 'productiva';
 
   var nutList = ['N', 'P', 'S'];
-  if (tieneKLab) nutList.push('K');
+  if (sueloKg.K) nutList.push('K');
 
   var resultados = {};
   var costoTotal = 0;
