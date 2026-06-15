@@ -148,6 +148,14 @@ function _activarModulo(mod) {
       // Sin datos aún pero hay coordenadas — disparar consulta automática
       setTimeout(consultarSuelo, 250);
     }
+    // Hidratar P/K/Zn desde OLM/IDECOR si nutricion.js ya está cargado
+    if (typeof window.ncHidratarPKZ === 'function') {
+      window.ncHidratarPKZ().then(function() {
+        if (window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+          if (typeof renderSueloModulo === 'function') renderSueloModulo(window._sgDatos);
+        }
+      });
+    }
   }
   // ── Sincronizar cultivo/fecha a módulos ──────────────────
   // Lee siempre desde el DOM master (s-cultivo / s-fecha), que es la fuente
