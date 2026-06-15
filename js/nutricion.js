@@ -311,7 +311,7 @@ window.ncActualizar = function() {
   var bhRend    = document.getElementById('bh-rend-obj');
   var ecPrecio  = document.getElementById('ec-precio-disp');
 
-  // Superficie desde el lote activo (tiene prioridad sobre el default)
+  // Superficie desde el lote activo
   if (lote && lote.data) {
     var supLote = parseFloat(lote.data.superficie) || 0;
     if (supLote > 0) {
@@ -322,16 +322,16 @@ window.ncActualizar = function() {
       }
       if (ncBnSup && !ncBnSup._touched) ncBnSup.value = supLote;
     }
-    // Rendimiento objetivo desde panel de planificación (fuente primaria)
-    var rendObj = lote.data.rendimientoObjetivo;
-    if (ncRend && !ncRend._touched && rendObj) {
-      ncRend.value = rendObj;
-    }
   }
 
   if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
   if (ecPrecio && ecPrecio.value && ncPrecio && !ncPrecio._touched) ncPrecio.value = ecPrecio.value;
   if (ncSup && ncBnSup && ncSup.value && !ncBnSup._touched) ncBnSup.value = ncSup.value;
+
+  // Rendimiento objetivo desde panel de planificación — prioridad máxima, ejecuta último
+  if (lote && lote.data && lote.data.rendimientoObjetivo && ncRend && !ncRend._touched) {
+    ncRend.value = lote.data.rendimientoObjetivo;
+  }
 };
 
 function ncRenderSueloPanel() {
