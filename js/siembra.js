@@ -389,10 +389,39 @@
       }
     }catch(_){}
 
+    // ÉPOCA DE SIEMBRA — verificar ventana antes de mostrar el diagnóstico
+    let epocaHtml = '';
+    try {
+      const fechaSb = gv('s-fecha');
+      const coordSb = parsCoord(gv('s-coord'));
+      const latSb   = coordSb[0] !== null ? coordSb[0] : null;
+      const zonaSb  = (typeof window.detectarZona === 'function') ? window.detectarZona(latSb) : null;
+      if (fechaSb && zonaSb && typeof window.calcScoreFecha === 'function') {
+        const ep = window.calcScoreFecha(cult, zonaSb, fechaSb);
+        if (ep.pts === 0) {
+          epocaHtml = `<div style="background:#7A1A0A;border-radius:12px;padding:1rem 1.2rem;margin-bottom:.9rem;display:flex;align-items:flex-start;gap:.8rem">
+            <span style="font-size:1.6rem;line-height:1">⏰</span>
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:white;font-weight:700">FUERA DE ÉPOCA DE SIEMBRA</div>
+              <div style="font-size:.74rem;color:rgba(255,255,255,.8);margin-top:.25rem">${cult} · ${ep.label} · Revisá el calendario de siembra para tu zona antes de sembrar.</div>
+            </div>
+          </div>`;
+        } else if (ep.pts < 18) {
+          epocaHtml = `<div style="background:#7A4A10;border-radius:12px;padding:1rem 1.2rem;margin-bottom:.9rem;display:flex;align-items:flex-start;gap:.8rem">
+            <span style="font-size:1.6rem;line-height:1">⚠️</span>
+            <div>
+              <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:white;font-weight:700">FECHA FUERA DE VENTANA ÓPTIMA</div>
+              <div style="font-size:.74rem;color:rgba(255,255,255,.8);margin-top:.25rem">${cult} · ${ep.label} · El diagnóstico aplica igual si decidís sembrar.</div>
+            </div>
+          </div>`;
+        }
+      }
+    } catch(_) {}
+
     // RENDER
     $('s-ph').classList.add('hidden');$('s-res').classList.remove('hidden');
 
-    $('s-banner').innerHTML=`<div style="background:${dCol};border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
+    $('s-banner').innerHTML=epocaHtml+`<div style="background:${dCol};border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem;display:flex;align-items:center;gap:1rem">
       <span style="font-size:1.8rem">${dIco}</span>
       <div>
         <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:white">${dec}</div>
