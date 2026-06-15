@@ -180,25 +180,31 @@ function ncCultivoKey(c) {
   return map[c] || c;
 }
 
+function ncTieneDatos(obj) {
+  if (!obj) return false;
+  return Object.keys(obj).some(function(k) { return k !== 'esFallback' && obj[k] != null; });
+}
+
 // Convierte _sueloDatos a kg/ha para el plan de fertilización
 function ncSueloAkg(sd) {
   // Si _sueloDatos está vacío, leer _sgDatos; si también está vacío leer localStorage
   // 'sg_full_<loteId>' (guardado por siembra-apis.js sin pasar por cacheGuardar)
-  if (!sd || Object.keys(sd).length === 0) {
+  if (!ncTieneDatos(sd)) {
     var sg = window._sgDatos || {};
-    if (Object.keys(sg).length === 0) {
+    if (!ncTieneDatos(sg)) {
       try {
         var _lt = typeof ncLoteActivo === 'function' ? ncLoteActivo() : null;
         if (_lt && _lt.id) {
           var _raw = localStorage.getItem('sg_full_' + _lt.id);
           if (_raw) {
             var _p = JSON.parse(_raw);
-            if (_p && _p.datos) { sg = _p.datos; window._sgDatos = sg; }
+            var _datos = _p && (_p.datos || _p.data);
+            if (ncTieneDatos(_datos)) { sg = _datos; window._sgDatos = sg; }
           }
         }
       } catch(_) {}
     }
-    if (Object.keys(sg).length === 0) return {};
+    if (!ncTieneDatos(sg)) return {};
     var sgDa = sg.da || 1.25;
     var sgMo = sg.soc != null ? sg.soc * 1.724 / 10 : null; // SOC g/kg → MO%
     var rsg = {};
@@ -348,7 +354,7 @@ function ncLoteActivo() {
 window.ncActualizar = function() {
   // Si _sueloDatos está vacío pero _sgDatos tiene datos (restaurado del caché), re-fusionar
   var _sd0 = window._sueloDatos || {};
-  if (Object.keys(_sd0).length === 0 && window._sgDatos && Object.keys(window._sgDatos).length > 0) {
+  if (!ncTieneDatos(_sd0) && ncTieneDatos(window._sgDatos)) {
     if (typeof window.sueloFusionar === 'function') window.sueloFusionar();
   }
 
@@ -417,7 +423,7 @@ function ncRenderSueloPanel() {
   var panel = document.getElementById('nc-suelo-panel');
   if (!panel) return;
   var sd    = window._sueloDatos || {};
-  var hasDatos = Object.keys(sd).length > 0;
+  var hasDatos = ncTieneDatos(sd);
 
   if (!hasDatos) {
     panel.innerHTML = '<div style="text-align:center;padding:2.2rem 1rem;color:rgba(74,46,26,.35)">'
@@ -487,9 +493,9 @@ window.ncPlanCalcular = function() {
   var sd        = window._sueloDatos || {};
   var sueloKg   = ncSueloAkg(sd);
   var mo        = sd.mo && sd.mo.valor != null ? sd.mo.valor : null;
-  var tienePLab = sd.p && sd.p.valor != null;
-  var tieneKLab = sd.k && sd.k.valor != null;
-  var fuenteP   = sd.p ? (sd.p.fuente || null) : null;
+  var tienePLab = !!(sueloKg.P && sueloKg.P.valor != null);
+  var tieneKLab = !!(sueloKg.K && sueloKg.K.valor != null);
+  var fuenteP   = sueloKg.P ? (sueloKg.P.fuente || null) : (sd.p ? (sd.p.fuente || null) : null);
   var estrategia = window._ncEstrategia || 'productiva';
 
   var nutList = ['N', 'P', 'S'];

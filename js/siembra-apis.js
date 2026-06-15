@@ -1307,6 +1307,7 @@ function _sgCacheSave(loteId, lat, lon, datos) {
   } catch(e) {}
   var lote = (window.AM_LOTES || []).find(function(l) { return l.id === loteId; });
   if (lote) {
+    lote.data.sgDatos      = datos;
     lote.data['sg-textura'] = datos.textura || '';
     lote.data['sg-ph']      = datos.ph   != null ? datos.ph   : '';
     lote.data['sg-clay']    = datos.clay != null ? datos.clay : '';

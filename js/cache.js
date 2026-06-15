@@ -442,6 +442,24 @@ function amGuardarLotesEstado() {
   amProgramarGuardarLotesRemotos();
 }
 
+function cacheTieneDatos(obj) {
+  if (!obj) return false;
+  return Object.keys(obj).some(function(k) { return k !== 'esFallback' && obj[k] != null; });
+}
+
+function cacheLeerSgFull(loteId) {
+  try {
+    if (!loteId || !window.localStorage) return null;
+    const raw = localStorage.getItem('sg_full_' + loteId);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    const datos = cache && (cache.datos || cache.data);
+    return cacheTieneDatos(datos) ? datos : null;
+  } catch(_) {
+    return null;
+  }
+}
+
 function amProgramarGuardarLotesRemotos() {
   if (!amLotesRemoteDisponible() || _amLotesRemoteLoading) return;
   clearTimeout(_amLotesRemoteTimer);
@@ -705,8 +723,16 @@ function cacheCargar() {
     if (datos.bhFecha    && document.getElementById('bh-fecha'))       document.getElementById('bh-fecha').value        = datos.bhFecha;
     if (datos.bhRendObj  && document.getElementById('bh-rend-obj'))    document.getElementById('bh-rend-obj').value     = datos.bhRendObj;
 
-    if (datos.sgDatos)  window._sgDatos  = datos.sgDatos;
-    else                window._sgDatos  = null;
+    const sgRestaurado = cacheTieneDatos(datos.sgDatos) ? datos.sgDatos : cacheLeerSgFull(lote.id);
+    if (sgRestaurado) {
+      window._sgDatos = sgRestaurado;
+      if (!cacheTieneDatos(datos.sgDatos)) {
+        datos.sgDatos = sgRestaurado;
+        amGuardarLotesEstado();
+      }
+    } else {
+      window._sgDatos = null;
+    }
     if (datos.labDatos) window._labDatos = datos.labDatos;
     else                window._labDatos = {};
     // Fusionar y restaurar panel lab si hay datos
