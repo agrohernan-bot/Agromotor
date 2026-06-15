@@ -739,6 +739,7 @@ window.ncPlanCalcular = async function() {
     };
   });
 
+  window._ncPlanResultados = resultados;
   ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN, tienePLab, tieneKLab, fuenteP, estrategia });
 };
 
@@ -925,12 +926,26 @@ window.ncBalanceCalcular = function() {
   var db       = CULTIVO_DB[cultKey];
   if (!db) return;
 
-  var rend     = parseFloat(ncGv('nc-bn-rend'))   || 3.5;
-  var sup      = parseFloat(ncGv('nc-sup'))        || 100;
+  // Tomar rendimiento y fertilización del plan calculado
+  var rend     = parseFloat(ncGv('nc-rend-obj')) || 4.5;
+  var sup      = parseFloat(ncGv('nc-sup'))       || 100;
   var rastrojo = ncGv('nc-bn-rastrojo') || 'campo';
-  var fertN    = parseFloat(ncGv('nc-bn-fert-n')) || 0;
-  var fertP    = parseFloat(ncGv('nc-bn-fert-p')) || 0;
-  var fertS    = parseFloat(ncGv('nc-bn-fert-s')) || 0;
+
+  var pr   = window._ncPlanResultados || {};
+  var fertN = pr.N ? (pr.N.kgFert || 0) : 0;
+  var fertP = pr.P ? (pr.P.kgFert || 0) : 0;
+  var fertS = pr.S ? (pr.S.kgFert || 0) : 0;
+
+  // Actualizar chip informativo con datos heredados del plan
+  var infoEl = document.getElementById('nc-balance-plan-info');
+  if (infoEl) {
+    var partes = ['📐 Rend. objetivo: <strong>' + rend + ' t/ha</strong>'];
+    if (fertN > 0) partes.push('🌿 Urea: <strong>' + Math.round(fertN) + ' kg/ha</strong>');
+    if (fertP > 0) partes.push('⚗️ MAP: <strong>' + Math.round(fertP) + ' kg/ha</strong>');
+    if (fertS > 0) partes.push('🟡 SuMag: <strong>' + Math.round(fertS) + ' kg/ha</strong>');
+    infoEl.innerHTML = 'Datos del plan: ' + partes.join(' · ');
+    infoEl.style.display = partes.length ? '' : 'none';
+  }
 
   // MO del suelo (para N mineralizable)
   var sd = window._sueloDatos || {};
