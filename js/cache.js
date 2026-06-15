@@ -615,7 +615,11 @@ function cacheGuardar() {
       fechaSiembraConf: lote.data?.fechaSiembraConf || '',
       sembConfig: lote.data?.sembConfig || null,
       antecesor: lote.data?.antecesor || '',
-      'hub-enso-fase': lote.data?.['hub-enso-fase'] || ''
+      'hub-enso-fase': lote.data?.['hub-enso-fase'] || '',
+      planificacionSiembra: lote.data?.planificacionSiembra || null,
+      rendimientoObjetivo: lote.data?.rendimientoObjetivo || '',
+      faseGrupos: lote.data?.faseGrupos || null,
+      siembraRealizada: lote.data?.siembraRealizada || null,
     };
     
     lote.data = {
@@ -632,6 +636,10 @@ function cacheGuardar() {
       sembConfig: workflowData.sembConfig,
       antecesor: workflowData.antecesor,
       'hub-enso-fase': workflowData['hub-enso-fase'],
+      planificacionSiembra: workflowData.planificacionSiembra,
+      rendimientoObjetivo: workflowData.rendimientoObjetivo,
+      faseGrupos: workflowData.faseGrupos,
+      siembraRealizada: workflowData.siembraRealizada,
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,
@@ -862,6 +870,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }, 500);
 });
+
+  window.amGetFaseGrupo = function(lote, grupo) {
+    if (!lote || !lote.data) return 'planificacion';
+    return (lote.data.faseGrupos || {})[grupo] || 'planificacion';
+  };
 
   // Exposición global
   window.cacheGuardar = cacheGuardar;
