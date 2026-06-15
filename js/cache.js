@@ -460,6 +460,34 @@ function cacheLeerSgFull(loteId) {
   }
 }
 
+function cacheNum(v) {
+  if (v == null || v === '') return null;
+  const m = String(v).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  const n = parseFloat(m[0]);
+  return isFinite(n) ? n : null;
+}
+
+function cacheSgDesdeLegacy(datos) {
+  datos = datos || {};
+  const sg = {
+    ph:      cacheNum(datos['sg-ph']),
+    clay:    cacheNum(datos['sg-clay']),
+    sand:    cacheNum(datos['sg-sand']),
+    soc:     cacheNum(datos['sg-soc']),
+    n:       cacheNum(datos['sg-n']),
+    da:      cacheNum(datos['sg-da']),
+    cec:     cacheNum(datos['sg-cec']),
+    textura: datos['sg-textura'] || datos.suelo || null,
+    lat:     cacheNum(datos['sg-lat']),
+    lon:     cacheNum(datos['sg-lon']),
+  };
+  Object.keys(sg).forEach(k => {
+    if (sg[k] == null || sg[k] === '') delete sg[k];
+  });
+  return cacheTieneDatos(sg) ? sg : null;
+}
+
 function amProgramarGuardarLotesRemotos() {
   if (!amLotesRemoteDisponible() || _amLotesRemoteLoading) return;
   clearTimeout(_amLotesRemoteTimer);
@@ -723,7 +751,7 @@ function cacheCargar() {
     if (datos.bhFecha    && document.getElementById('bh-fecha'))       document.getElementById('bh-fecha').value        = datos.bhFecha;
     if (datos.bhRendObj  && document.getElementById('bh-rend-obj'))    document.getElementById('bh-rend-obj').value     = datos.bhRendObj;
 
-    const sgRestaurado = cacheTieneDatos(datos.sgDatos) ? datos.sgDatos : cacheLeerSgFull(lote.id);
+    const sgRestaurado = cacheTieneDatos(datos.sgDatos) ? datos.sgDatos : (cacheLeerSgFull(lote.id) || cacheSgDesdeLegacy(datos));
     if (sgRestaurado) {
       window._sgDatos = sgRestaurado;
       if (!cacheTieneDatos(datos.sgDatos)) {

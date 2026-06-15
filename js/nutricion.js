@@ -186,11 +186,130 @@ function ncTieneDatos(obj) {
 }
 
 // Convierte _sueloDatos a kg/ha para el plan de fertilización
+function ncNum(v) {
+  if (v == null || v === '') return null;
+  var m = String(v).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+  if (!m) return null;
+  var n = parseFloat(m[0]);
+  return isFinite(n) ? n : null;
+}
+
+function ncSgDesdeLegacy(lote) {
+  var d = lote && lote.data ? lote.data : {};
+  var sg = {
+    ph:      ncNum(d['sg-ph']),
+    clay:    ncNum(d['sg-clay']),
+    sand:    ncNum(d['sg-sand']),
+    soc:     ncNum(d['sg-soc']),
+    n:       ncNum(d['sg-n']),
+    da:      ncNum(d['sg-da']),
+    cec:     ncNum(d['sg-cec']),
+    textura: d['sg-textura'] || d.suelo || null,
+    lat:     ncNum(d['sg-lat']),
+    lon:     ncNum(d['sg-lon']),
+  };
+  Object.keys(sg).forEach(function(k) {
+    if (sg[k] == null || sg[k] === '') delete sg[k];
+  });
+  return ncTieneDatos(sg) ? sg : null;
+}
+
+function ncCoordDesdeLote(lote, sg) {
+  if (sg && sg.lat != null && sg.lon != null) return { lat: sg.lat, lon: sg.lon };
+  var d = lote && lote.data ? lote.data : {};
+  var parts = String(d.coord || '').split(',');
+  if (parts.length === 2) {
+    var lat = ncNum(parts[0]);
+    var lon = ncNum(parts[1]);
+    if (lat != null && lon != null) return { lat: lat, lon: lon };
+  }
+  return null;
+}
+
+function ncPersistirSg(lote, sg) {
+  if (!lote || !sg) return;
+  lote.data = lote.data || {};
+  lote.data.sgDatos = sg;
+  try {
+    localStorage.setItem('sg_full_' + lote.id, JSON.stringify({
+      ts: Date.now(), lat: sg.lat, lon: sg.lon, datos: sg
+    }));
+  } catch(_) {}
+  if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+}
+
+function ncRestaurarSgDatos() {
+  var sg = window._sgDatos || null;
+  if (ncTieneDatos(sg)) return sg;
+
+  var lote = ncLoteActivo();
+  if (lote && lote.data && ncTieneDatos(lote.data.sgDatos)) {
+    window._sgDatos = lote.data.sgDatos;
+    return window._sgDatos;
+  }
+
+  try {
+    if (lote && lote.id) {
+      var raw = localStorage.getItem('sg_full_' + lote.id);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        var datos = parsed && (parsed.datos || parsed.data);
+        if (ncTieneDatos(datos)) {
+          window._sgDatos = datos;
+          return datos;
+        }
+      }
+    }
+  } catch(_) {}
+
+  sg = ncSgDesdeLegacy(lote);
+  if (ncTieneDatos(sg)) {
+    window._sgDatos = sg;
+    return sg;
+  }
+  return null;
+}
+
+var _ncPkzPromise = null;
+async function ncHidratarPKZ() {
+  var lote = ncLoteActivo();
+  var sg = ncRestaurarSgDatos();
+  if (!ncTieneDatos(sg)) return null;
+  if (sg.p != null && sg.k != null) return sg;
+  if (typeof buscarPKZ !== 'function') return sg;
+
+  var coord = ncCoordDesdeLote(lote, sg);
+  if (!coord) return sg;
+  if (_ncPkzPromise) return _ncPkzPromise;
+
+  _ncPkzPromise = buscarPKZ(coord.lat, coord.lon, sg.textura || 'Molisol')
+    .then(function(pkz) {
+      if (pkz) {
+        if (pkz.p  != null) sg.p  = pkz.p;
+        if (pkz.k  != null) sg.k  = pkz.k;
+        if (pkz.zn != null) sg.zn = pkz.zn;
+        sg.fuente_pkz     = pkz.fuente_pkz;
+        sg.fuente_pkz_id  = pkz.fuente_pkz_id;
+        sg.fuente_pkz_det = pkz.fuente_pkz_det;
+      }
+      sg.lat = coord.lat;
+      sg.lon = coord.lon;
+      window._sgDatos = sg;
+      ncPersistirSg(lote, sg);
+      if (typeof sueloFusionar === 'function') sueloFusionar();
+      return sg;
+    })
+    .catch(function() { return sg; })
+    .finally(function() { _ncPkzPromise = null; });
+
+  return _ncPkzPromise;
+}
+
 function ncSueloAkg(sd) {
   // Si _sueloDatos está vacío, leer _sgDatos; si también está vacío leer localStorage
   // 'sg_full_<loteId>' (guardado por siembra-apis.js sin pasar por cacheGuardar)
   if (!ncTieneDatos(sd)) {
-    var sg = window._sgDatos || {};
+    var sg = ncRestaurarSgDatos() || {};
     if (!ncTieneDatos(sg)) {
       try {
         var _lt = typeof ncLoteActivo === 'function' ? ncLoteActivo() : null;
@@ -352,11 +471,16 @@ function ncLoteActivo() {
 }
 
 window.ncActualizar = function() {
+  ncRestaurarSgDatos();
   // Si _sueloDatos está vacío pero _sgDatos tiene datos (restaurado del caché), re-fusionar
   var _sd0 = window._sueloDatos || {};
   if (!ncTieneDatos(_sd0) && ncTieneDatos(window._sgDatos)) {
     if (typeof window.sueloFusionar === 'function') window.sueloFusionar();
   }
+  ncHidratarPKZ().then(function() {
+    if (typeof sueloFusionar === 'function') sueloFusionar();
+    ncRenderSueloPanel();
+  });
 
   var cultivo = ncCultStr();
   var lote = ncLoteActivo();
@@ -474,7 +598,7 @@ function ncRenderSueloPanel() {
 // ════════════════════════════════════════════════════════
 // TAB A — PLAN DE FERTILIZACIÓN INTEGRADO
 // ════════════════════════════════════════════════════════
-window.ncPlanCalcular = function() {
+window.ncPlanCalcular = async function() {
   var cultStr = ncCultStr();
   var cultKey = ncCultivoKey(cultStr);
   var db      = CULTIVO_DB[cultKey];
@@ -490,6 +614,9 @@ window.ncPlanCalcular = function() {
     precios[n] = ncGf(NC_FERTS[n].idPrecio) || NC_FERTS[n].precioRef;
   });
 
+  ncRestaurarSgDatos();
+  await ncHidratarPKZ();
+  if (!ncTieneDatos(window._sueloDatos) && ncTieneDatos(window._sgDatos) && typeof sueloFusionar === 'function') sueloFusionar();
   var sd        = window._sueloDatos || {};
   var sueloKg   = ncSueloAkg(sd);
   var mo        = sd.mo && sd.mo.valor != null ? sd.mo.valor : null;
