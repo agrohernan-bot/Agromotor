@@ -1160,5 +1160,6 @@ function ncRenderBalance(balance, recs, ctx) {
   window.NC_FERTS           = NC_FERTS;
   window.ncActualizar       = ncActualizar;
   window.ncRenderSueloPanel = ncRenderSueloPanel;
+  window.ncHidratarPKZ      = ncHidratarPKZ;
 
 })();
