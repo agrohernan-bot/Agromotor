@@ -330,6 +330,27 @@ test('assetVersion, config query y service worker versionado quedan alineados', 
   assert.match(app, /navigator\.serviceWorker\.register\('\.\/sw\.js\?v='/);
 });
 
+test('amGetFaseGrupo devuelve planificacion por defecto y respeta faseGrupos persistido', () => {
+  const { window } = loadCacheWithStorage({
+    am_global_lotes_v2: JSON.stringify({
+      activo: 'lote-a',
+      lotes: [
+        { id: 'lote-a', nombre: 'La Monona', data: { faseGrupos: { verano: 'pre-siembra', invierno: 'planificacion' } } },
+        { id: 'lote-b', nombre: 'Lote sin fase', data: {} },
+      ],
+    }),
+  });
+  window.amCargarLotesGlobales();
+
+  const loteA = window.AM_LOTES.find(l => l.id === 'lote-a');
+  const loteB = window.AM_LOTES.find(l => l.id === 'lote-b');
+
+  assert.equal(window.amGetFaseGrupo(loteA, 'verano'), 'pre-siembra');
+  assert.equal(window.amGetFaseGrupo(loteA, 'invierno'), 'planificacion');
+  assert.equal(window.amGetFaseGrupo(loteB, 'verano'), 'planificacion');
+  assert.equal(window.amGetFaseGrupo(null, 'verano'), 'planificacion');
+});
+
 test('mapeo geografico Nominatim a IDs de Supabase', () => {
   const prov = "Provincia de Entre Ríos";
   const county = "Departamento Concordia";

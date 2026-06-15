@@ -20,7 +20,6 @@
   // Ambas secciones tienen los mismos módulos; la diferencia
   // está en los cultivos que evalúa el score (invierno vs verano).
   var MOD_PLAN_COMUN = [
-    { mod: 'siembra',          emoji: '🌱', titulo: 'Siembra',                desc: 'Fecha óptima, densidad y ambientes de siembra' },
     { mod: 'cultivares',       emoji: '🌾', titulo: 'Cultivares RECSO/INTA',   desc: 'Ranking de cultivares por zona y ciclo' },
     { mod: 'suelo',            emoji: '🌍', titulo: 'Suelo P/K/Zn',           desc: 'Análisis de suelo · IDECOR · OLM · SoilGrids ISRIC' },
     { mod: 'hidrico',          emoji: '💧', titulo: 'Balance hídrico',         desc: 'ETC FAO + ENSO/NOAA + proyección de lluvias' },
@@ -59,6 +58,7 @@
       desc:   'Clima · Fenología · Plagas · NDVI · Economía · Cosecha',
       color:  '#7B3F00',
       modulos: [
+        { mod: 'siembra',          emoji: '🌱', titulo: 'Condiciones de siembra',   desc: 'Verificar aptitud de suelo y clima antes de sembrar' },
         { mod: 'fen-seg',          emoji: '🌿', titulo: 'Fenología en tiempo real', desc: 'Estadio actual · días transcurridos · % ciclo completado' },
         { mod: 'plagas',           emoji: '🐛', titulo: 'Plagas',                   desc: 'Umbrales de acción y favorabilidad climática por zona' },
         { mod: 'alerta-sanitaria', emoji: '🦠', titulo: 'Enfermedades',             desc: 'Alertas sanitarias por cultivo/región — umbrales INTA' },
@@ -603,6 +603,64 @@
     ].join('');
   }
 
+  // ── WIDGET PRE-SIEMBRA (mostrado en Monitoreo cuando hay grupo en pre-siembra) ──
+  function renderPreSiembraWidget(lote, loteId) {
+    var d = lote.data || {};
+    var faseGrupos = d.faseGrupos || {};
+    var planes = d.planificacionSiembra || {};
+    var html = '';
+    ['verano', 'invierno'].forEach(function(grupo) {
+      if (faseGrupos[grupo] !== 'pre-siembra') return;
+      var plan = planes[grupo] || {};
+      var cultivo = plan.cultivo || (grupo === 'verano' ? 'Soja' : 'Trigo');
+      var fechaPlan = plan.fechaSiembraConf || plan.fechaSiembraPlan || '';
+      var grupLabel = grupo === 'verano' ? 'Gruesa' : 'Fina';
+
+      var epHoy = '', epFecha = '';
+      var coord = d.coord || '';
+      var lat = coord ? parseFloat(String(coord).split(',')[0]) : NaN;
+      if (!isNaN(lat) && typeof window.calcScoreFecha === 'function' && typeof window.detectarZona === 'function') {
+        var zona = window.detectarZona(lat);
+        if (zona) {
+          var hoy = new Date().toISOString().split('T')[0];
+          var epNow = window.calcScoreFecha(cultivo, zona, hoy);
+          epHoy = epNow.pts >= 25 ? '🟢 HOY en primera época — condiciones óptimas'
+                : epNow.pts >= 18 ? '🟡 HOY en segunda época — condiciones aceptables'
+                : epNow.pts >= 13 ? '🟠 HOY en ventana marginal — revisar condiciones'
+                : epNow.pts >= 6  ? '🔴 HOY fuera de ventana óptima'
+                : '⛔ HOY fuera de época de siembra';
+          if (fechaPlan) {
+            var epFch = window.calcScoreFecha(cultivo, zona, fechaPlan);
+            epFecha = epFch.pts >= 18 ? 'Fecha plan (' + fechaPlan + '): época óptima ✅'
+                    : epFch.pts >= 6  ? 'Fecha plan (' + fechaPlan + '): ventana marginal ⚠️'
+                    : 'Fecha plan (' + fechaPlan + '): fuera de época ⛔';
+          }
+        }
+      }
+
+      html += '<div style="background:linear-gradient(135deg,rgba(74,140,92,.12),rgba(42,90,140,.08));border:1.5px solid rgba(74,140,92,.3);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1rem">';
+      html +=   '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.55rem">';
+      html +=     '<span style="font-size:1.3rem">⏳</span>';
+      html +=     '<div>';
+      html +=       '<div style="font-weight:700;font-size:.88rem;color:#1E4D2B">Pre-siembra · ' + esc(cultivo) + ' · Plan. ' + grupLabel + '</div>';
+      html +=       '<div style="font-size:.73rem;color:rgba(26,42,32,.55);margin-top:.1rem">Planificación cerrada — monitoreá condiciones para decidir cuándo sembrar</div>';
+      html +=     '</div>';
+      html +=   '</div>';
+      if (epHoy) {
+        html += '<div style="font-size:.8rem;font-weight:600;color:#1E4D2B;background:rgba(74,140,92,.1);border-radius:8px;padding:.4rem .7rem;margin-bottom:.45rem">' + epHoy + '</div>';
+      }
+      if (epFecha) {
+        html += '<div style="font-size:.75rem;color:rgba(26,42,32,.65);margin-bottom:.55rem">' + epFecha + '</div>';
+      }
+      html +=   '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
+      html +=     '<button onclick="window.dlAbrirModulo(\'siembra\',\'' + esc(loteId) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">🔍 Analizar condiciones hoy</button>';
+      html +=     '<button onclick="window.dlRegistrarSiembra(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:rgba(74,140,92,.15);color:#1E4D2B;border:1.5px solid rgba(74,140,92,.35);border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">✓ Registrar siembra realizada</button>';
+      html +=   '</div>';
+      html += '</div>';
+    });
+    return html;
+  }
+
   // ══════════════════════════════════════════════════════
   // PANTALLA 3: SECCIÓN (lista de módulos)
   // ══════════════════════════════════════════════════════
@@ -628,6 +686,7 @@
 
     // Widgets contextuales según sección
     if (secKey === 'monitoreo') {
+      html += renderPreSiembraWidget(lote, loteId);
       html += renderWidgetPlanFina(lote);
       html += renderFenologiaMonitoreo(lote);
       html += renderWidgetMonitoreo(lote);
@@ -660,6 +719,23 @@
       html += '</div>';
     });
     html += '</div>'; // .dl-modulos-grid
+
+    // Botón "Cerrar planificación" al final de las secciones de planificación
+    if (secKey === 'planfina' || secKey === 'plangruesa') {
+      var grupo = sec.grupo;
+      var faseActual = ((lote.data || {}).faseGrupos || {})[grupo] || 'planificacion';
+      if (faseActual === 'planificacion') {
+        html += '<div style="margin-top:1.5rem;padding:1.1rem 1.2rem;background:rgba(42,90,60,.06);border:1.5px solid rgba(42,90,60,.2);border-radius:12px">';
+        html +=   '<div style="font-size:.78rem;color:rgba(26,42,32,.65);margin-bottom:.7rem">Cuando hayas completado la planificación, cerrala para pasar al Monitoreo de condiciones de siembra.</div>';
+        html +=   '<button onclick="window.dlCerrarPlanificacion(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:9px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%">✓ Cerrar planificación y pasar a Monitoreo</button>';
+        html += '</div>';
+      } else {
+        html += '<div style="margin-top:1.5rem;padding:.8rem 1rem;background:rgba(74,140,92,.1);border:1px solid rgba(74,140,92,.25);border-radius:10px;font-size:.8rem;color:#1E4D2B;display:flex;align-items:center;justify-content:space-between">';
+        html +=   '<span>✅ Planificación cerrada · fase: <strong>' + esc(faseActual) + '</strong></span>';
+        html +=   '<button onclick="window.dlAbrirSeccion(\'monitoreo\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:7px;padding:.35rem .8rem;font-size:.78rem;cursor:pointer">→ Ir a Monitoreo</button>';
+        html += '</div>';
+      }
+    }
 
     html += '</div>'; // .dl-page
     return html;
@@ -1795,6 +1871,42 @@
       _fetchHubData(loteId);
     }).catch(function() {
       if (typeof amToast === 'function') amToast('Error al consultar SoilGrids', 'err');
+    });
+  };
+
+  window.dlCerrarPlanificacion = function(loteId, grupo) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    lote.data = lote.data || {};
+    lote.data.faseGrupos = lote.data.faseGrupos || {};
+    lote.data.faseGrupos[grupo] = 'pre-siembra';
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof amToast === 'function') amToast('Planificación cerrada. Ahora monitoreá las condiciones de siembra.', 'ok');
+    _loteAbierto = loteId;
+    _seccionAbierta = 'monitoreo';
+    renderPanel();
+  };
+
+  window.dlRegistrarSiembra = function(loteId, grupo) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    var plan = ((lote.data || {}).planificacionSiembra || {})[grupo] || {};
+    var hoy = new Date().toISOString().split('T')[0];
+    var defFecha = plan.fechaSiembraConf || plan.fechaSiembraPlan || hoy;
+    if (typeof amInputModal !== 'function') return;
+    amInputModal('Fecha de siembra realizada', defFecha, function(fechaConf) {
+      if (!fechaConf) return;
+      lote.data = lote.data || {};
+      lote.data.faseGrupos = lote.data.faseGrupos || {};
+      lote.data.faseGrupos[grupo] = 'en-curso';
+      lote.data.siembraRealizada = lote.data.siembraRealizada || {};
+      lote.data.siembraRealizada[grupo] = { fecha: fechaConf, cultivo: plan.cultivo || '', ts: Date.now() };
+      if (lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) {
+        lote.data.planificacionSiembra[grupo].fechaSiembraConf = fechaConf;
+      }
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+      if (typeof amToast === 'function') amToast('Siembra registrada el ' + fechaConf + '. ¡A monitorear el cultivo!', 'ok');
+      renderPanel();
     });
   };
 
