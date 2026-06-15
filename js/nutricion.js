@@ -168,7 +168,28 @@ window.ncSetEstrategia = function(s) {
 // ── HELPERS ──────────────────────────────────────────────
 function ncGv(id) { var e = document.getElementById(id); return e ? (e.value || '') : ''; }
 function ncGf(id) { return parseFloat(document.getElementById(id) && document.getElementById(id).value) || 0; }
-function ncCultStr()  { return document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : 'Soja'; }
+function ncCultStr() {
+  // 1. Buscar en planificacionSiembra el grupo que coincide con el rendimientoObjetivo activo
+  try {
+    var _lt = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    if (_lt && _lt.data) {
+      var d = _lt.data;
+      var rend = parseFloat(d.rendimientoObjetivo);
+      var ps = d.planificacionSiembra || {};
+      var gs = Object.keys(ps);
+      for (var i = 0; i < gs.length; i++) {
+        var g = ps[gs[i]];
+        if (g && g.cultivo && g.rendimientoObjetivo && Math.abs(parseFloat(g.rendimientoObjetivo) - rend) < 0.01) {
+          return g.cultivo;
+        }
+      }
+      if (d.cultivoPlanificacion) return d.cultivoPlanificacion;
+      if (d.cultivo) return d.cultivo;
+    }
+  } catch(_) {}
+  // 2. Fallback al select del módulo Siembra
+  return document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : 'Soja';
+}
 function ncCultivoKey(c) {
   var map = { 'Maíz':'Maiz', 'Maiz':'Maiz', 'maíz':'Maiz', 'maiz':'Maiz',
               'Soja':'Soja', 'soja':'Soja',
@@ -469,6 +490,24 @@ window.ncActualizar = function() {
   var tieneLab = Object.values(sd).some(function(v) { return v && v.fuente === 'laboratorio'; });
   var tieneSG  = Object.values(sd).some(function(v) { return v && v.fuente === 'soilgrids'; });
 
+  // Si el cultivo cambió respecto al último plan calculado → resetear resultados
+  var cultivoKey = ncCultivoKey(cultivo);
+  var ultimoCultivo = window._ncPlanResultados && window._ncPlanResultados.__cultivo;
+  if (ultimoCultivo && ultimoCultivo !== cultivoKey) {
+    window._ncPlanResultados = null;
+    var _ph = document.getElementById('nc-plan-placeholder');
+    var _out = document.getElementById('nc-plan-resultado');
+    if (_ph) _ph.style.display = '';
+    if (_out) { _out.style.display = 'none'; _out.innerHTML = ''; }
+    var _bph = document.getElementById('nc-balance-placeholder');
+    var _bout = document.getElementById('nc-balance-resultado');
+    if (_bph) _bph.classList.remove('hidden');
+    if (_bout) { _bout.classList.add('hidden'); _bout.innerHTML = ''; }
+    // Forzar actualización del rendimiento desde lote (nuevo cultivo = nueva planificación)
+    var _ncRend = document.getElementById('nc-rend-obj');
+    if (_ncRend) _ncRend._touched = false;
+  }
+
   var lblCult   = document.getElementById('nc-lbl-cultivo');
   var lblLote   = document.getElementById('nc-lbl-lote');
   var lblFuente = document.getElementById('nc-lbl-fuente-badge');
@@ -740,6 +779,7 @@ window.ncPlanCalcular = async function() {
   });
 
   window._ncPlanResultados = resultados;
+  window._ncPlanResultados.__cultivo = ncCultivoKey(cultStr);
   ncRenderPlan(resultados, { cultStr, rendObj, precioG, sup, costoTotal, esFBN: db.esFBN, tienePLab, tieneKLab, fuenteP, estrategia });
 };
 
