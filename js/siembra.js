@@ -621,6 +621,118 @@
     return { nivel, titulo, detalle };
   }
 
+  function scFechaCorta(fecha) {
+    if (!fecha || typeof fecha !== 'string') return '--/--';
+    const p = fecha.split('-');
+    return p.length >= 3 ? (p[2] + '/' + p[1]) : fecha;
+  }
+
+  function scHoyISO() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  function scGetHaDia(sr, lote) {
+    const maqLote = (lote && lote.data && lote.data.maquinaria) || {};
+    const manual = parseFloat(sr.haDiaria || 0);
+    const maq = parseFloat(maqLote.haDia || 0);
+    let local = 0;
+    try { local = parseFloat(localStorage.getItem('am_maq_hd') || '0'); } catch(_) {}
+    if (manual > 0) return { valor: manual, fuente: 'ajuste manual' };
+    if (maq > 0) return { valor: maq, fuente: 'Maquinaria' };
+    if (local > 0) return { valor: local, fuente: 'ultimo calculo de Maquinaria' };
+    return { valor: 0, fuente: '' };
+  }
+
+  function scIndiceInicioProyeccion(clasif, sr, idxHoy) {
+    const fecha = sr.fecha || sr.fechaReal || sr.fechaSiembra || '';
+    const idxFecha = fecha ? clasif.findIndex(c => c.fecha >= fecha) : -1;
+    if (idxFecha >= 0) return Math.min(idxFecha, Math.max(0, idxHoy));
+    return Math.max(0, idxHoy);
+  }
+
+  function scAvanceConfirmadoPorFecha(sr) {
+    const out = {};
+    const arr = Array.isArray(sr.avanceDiario) ? sr.avanceDiario : [];
+    arr.forEach(r => {
+      if (!r || !r.fecha) return;
+      const acum = parseFloat(r.haAcumuladasReales);
+      if (!isNaN(acum)) out[r.fecha] = { acumuladas: acum, ts: r.ts || 0 };
+    });
+    return out;
+  }
+
+  function scProyectarAvance(clasif, idxHoy, sr, total, haDia) {
+    const hoy = scHoyISO();
+    const confirmadas = scAvanceConfirmadoPorFecha(sr);
+    const baseManual = parseFloat(sr.hectareasCompletadas || 0) || 0;
+    const idxInicio = scIndiceInicioProyeccion(clasif, sr, idxHoy);
+    let acumuladas = 0;
+    let anclaFecha = '';
+
+    Object.keys(confirmadas).sort().forEach(fecha => {
+      if (fecha < clasif[idxInicio].fecha || fecha > hoy) return;
+      acumuladas = Math.max(acumuladas, confirmadas[fecha].acumuladas);
+      anclaFecha = fecha;
+    });
+    acumuladas = Math.max(acumuladas, baseManual);
+
+    const filas = [];
+    let finEstim = null;
+    let diasAptos = 0;
+    let diasBloqueados = 0;
+
+    for (let i = idxInicio; i < clasif.length; i++) {
+      const c = clasif[i];
+      const antes = acumuladas;
+      const real = confirmadas[c.fecha];
+      let haDiaReal = 0;
+      let estadoAvance = 'estimado';
+      let motivo = c.label;
+
+      if (real) {
+        acumuladas = Math.min(total || real.acumuladas, Math.max(0, real.acumuladas));
+        haDiaReal = Math.max(0, acumuladas - antes);
+        estadoAvance = 'confirmado';
+        motivo = 'Cargado por usuario';
+      } else if (total > 0 && acumuladas >= total) {
+        estadoAvance = 'completo';
+        motivo = 'Siembra completa';
+      } else if (c.sembrable && haDia > 0) {
+        if (c.fecha >= hoy) diasAptos++;
+        haDiaReal = total > 0 ? Math.min(haDia, Math.max(0, total - acumuladas)) : haDia;
+        acumuladas += haDiaReal;
+        motivo = c.label + ' · avance estimado';
+      } else {
+        if (c.fecha >= hoy) diasBloqueados++;
+        estadoAvance = 'bloqueado';
+      }
+
+      if (!finEstim && total > 0 && acumuladas >= total) finEstim = c.fecha;
+      filas.push({
+        fecha: c.fecha,
+        estado: c.estado,
+        sembrable: c.sembrable,
+        label: c.label,
+        avance: haDiaReal,
+        acumuladas: acumuladas,
+        estadoAvance: estadoAvance,
+        motivo: motivo,
+        esHoy: c.fecha === hoy,
+        desdeAncla: !!anclaFecha
+      });
+    }
+
+    const hoyFila = filas.find(f => f.fecha === hoy) || filas.find(f => f.fecha > hoy) || filas[0] || null;
+    return {
+      filas: filas,
+      completadasHoy: hoyFila ? hoyFila.acumuladas : acumuladas,
+      finEstim: finEstim,
+      diasAptos: diasAptos,
+      diasBloqueados: diasBloqueados,
+      anclaFecha: anclaFecha
+    };
+  }
+
   function renderGestionSiembra() {
     const card = $('siembra-curso');
     if (!card) return;
@@ -685,26 +797,17 @@
         '<span>🟢 Apto</span><span>🟡 Marginal</span><span>🔴 Lluvia</span><span>⛔ Saturado</span><span>🟤 Muy seco</span><span>🔵 Frío</span><span>💨 Viento</span></div>';
 
       // 3. PROGRESO DE SIEMBRA
-      const total = parseFloat((lote && lote.data && lote.data.superficie) || sr.hectareasTotal || 0) || 0;
+      const total = parseFloat(sr.hectareasTotal || (lote && lote.data && lote.data.superficie) || 0) || 0;
       const completadas = parseFloat(sr.hectareasCompletadas || 0) || 0;
-      const maqLote = (lote && lote.data && lote.data.maquinaria) || {};
-      let haDia = parseFloat(sr.haDiaria || 0)
-        || parseFloat(maqLote.haDia || 0)
-        || parseFloat(localStorage.getItem('am_maq_hd') || '')
-        || 0;
+      const haDiaInfo = scGetHaDia(sr, lote);
+      let haDia = haDiaInfo.valor;
+      const proy = scProyectarAvance(clasif, idxHoy, sr, total, haDia);
       const restantes = Math.max(0, total - completadas);
       const pct = total > 0 ? Math.min(100, Math.round(completadas / total * 100)) : 0;
       const diasNec = haDia > 0 ? Math.ceil(restantes / haDia) : null;
 
       // Proyectar fin sobre días aptos del forecast
-      let finEstim = null;
-      if (haDia > 0 && restantes > 0) {
-        let acum = 0, diasUsados = 0;
-        for (let k = 0; k < futuros.length && acum < restantes; k++) {
-          if (futuros[k].sembrable) { acum += haDia; diasUsados = k; }
-        }
-        if (acum >= restantes) finEstim = futuros[diasUsados].fecha;
-      }
+      const finEstim = proy.finEstim;
 
       html += '<div class="sl">Progreso de siembra</div>';
       html += '<div style="margin:.5rem 0">';
@@ -719,12 +822,35 @@
       html += '<div class="kc blue"><div class="kl">Fin estimado</div><div class="kv" style="font-size:1rem">' + (finEstim?finEstim.split('-').slice(1).reverse().join('/'):'—') + '</div><div class="ku">según ventanas</div></div>';
       html += '</div>';
 
+      html += '<div style="margin-top:.75rem;background:rgba(42,90,58,.07);border:1px solid rgba(42,90,58,.12);border-radius:10px;padding:.75rem .85rem">';
+      html += '<div style="display:flex;justify-content:space-between;gap:.7rem;align-items:center;flex-wrap:wrap;margin-bottom:.55rem">';
+      html += '<div style="font-size:.74rem;font-weight:800;color:#1E4D2B;text-transform:uppercase;letter-spacing:.04em">Proyección automática</div>';
+      html += '<div style="font-size:.68rem;color:rgba(74,46,26,.58)">Capacidad: ' + (haDia>0?haDia.toFixed(1) + ' ha/día': 'sin dato') + (haDiaInfo.fuente ? ' · ' + esc(haDiaInfo.fuente) : '') + '</div>';
+      html += '</div>';
+      const filasGraf = proy.filas.filter(f => f.fecha >= scHoyISO()).slice(0, 12);
+      if (!filasGraf.length || haDia <= 0) {
+        html += '<div style="font-size:.75rem;color:rgba(74,46,26,.55)">AgroMotor puede estimar el avance automáticamente cuando tenga la capacidad operativa en ha/día. Cargala acá o calculala en Maquinaria.</div>';
+      } else {
+        html += '<div style="display:grid;grid-template-columns:repeat(' + Math.min(6, filasGraf.length) + ',minmax(42px,1fr));gap:.4rem">';
+        filasGraf.forEach(f => {
+          const basePct = haDia > 0 ? Math.min(100, Math.round((f.avance / haDia) * 100)) : 0;
+          const bg = f.estadoAvance === 'confirmado' ? '#2E6EA5' : (f.estadoAvance === 'bloqueado' ? '#C94A2A' : (f.estadoAvance === 'completo' ? '#7C8A77' : '#2A8A4A'));
+          const fill = f.estadoAvance === 'bloqueado' ? 100 : Math.max(8, basePct);
+          html += '<div title="' + esc(f.motivo) + '" style="min-width:0">';
+          html += '<div style="height:54px;background:rgba(74,46,26,.08);border-radius:8px;display:flex;align-items:flex-end;overflow:hidden;border:1px solid rgba(74,46,26,.08)"><div style="width:100%;height:' + fill + '%;background:' + bg + ';opacity:' + (f.avance>0 || f.estadoAvance==='bloqueado' ? '1' : '.35') + '"></div></div>';
+          html += '<div style="font-size:.58rem;color:rgba(74,46,26,.55);text-align:center;margin-top:.22rem">' + scFechaCorta(f.fecha) + '</div>';
+          html += '<div style="font-size:.62rem;font-weight:800;color:#1E4D2B;text-align:center">' + (f.avance>0?f.avance.toFixed(0):'0') + ' ha</div>';
+          html += '</div>';
+        });
+        html += '</div>';
+        html += '<div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-top:.55rem;font-size:.64rem;color:rgba(74,46,26,.58)"><span><b style="color:#2A8A4A">■</b> Estimado</span><span><b style="color:#2E6EA5">■</b> Confirmado</span><span><b style="color:#C94A2A">■</b> Bloqueado</span><span>' + proy.diasAptos + ' días aptos · ' + proy.diasBloqueados + ' bloqueados</span></div>';
+      }
+      html += '</div>';
+
       // Inputs de avance
       html += '<div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(74,46,26,.1)">';
       html += '<div style="flex:1;min-width:120px"><label style="font-size:.7rem;color:rgba(74,46,26,.55);display:block;margin-bottom:.2rem">Ha completadas</label><input type="number" id="sc-ha-comp" value="' + completadas + '" min="0" max="' + (total||99999) + '" style="width:100%;padding:.45rem .6rem;border:1px solid rgba(74,46,26,.2);border-radius:8px"></div>';
-      if (haDia <= 0) {
-        html += '<div style="flex:1;min-width:120px"><label style="font-size:.7rem;color:rgba(74,46,26,.55);display:block;margin-bottom:.2rem">Ha/día (capacidad)</label><input type="number" id="sc-ha-dia" value="" placeholder="ej: 35" min="0" style="width:100%;padding:.45rem .6rem;border:1px solid rgba(74,46,26,.2);border-radius:8px"></div>';
-      }
+      html += '<div style="flex:1;min-width:120px"><label style="font-size:.7rem;color:rgba(74,46,26,.55);display:block;margin-bottom:.2rem">Ha/día (capacidad)</label><input type="number" id="sc-ha-dia" value="' + (haDia>0?haDia.toFixed(1):'') + '" placeholder="ej: 35" min="0" step="0.1" style="width:100%;padding:.45rem .6rem;border:1px solid rgba(74,46,26,.2);border-radius:8px"></div>';
       html += '<button onclick="window.scGuardarAvance(\'' + esc(grupo) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.55rem 1.1rem;font-size:.8rem;font-weight:700;cursor:pointer">Actualizar avance</button>';
       if (haDia <= 0) {
         html += '<button onclick="window.dlAbrirModulo&&window.dlAbrirModulo(\'maquinaria\',(window.amGetLoteActivo&&window.amGetLoteActivo()||{}).id)" style="background:rgba(74,140,92,.12);color:#1E4D2B;border:1px solid rgba(74,140,92,.3);border-radius:8px;padding:.55rem 1.1rem;font-size:.8rem;font-weight:600;cursor:pointer">🚜 Calcular en Maquinaria</button>';
@@ -748,7 +874,21 @@
     lote.data.siembraRealizada = lote.data.siembraRealizada || {};
     const entry = lote.data.siembraRealizada[grupo] || {};
     const haComp = parseFloat((document.getElementById('sc-ha-comp')||{}).value);
-    if (!isNaN(haComp)) entry.hectareasCompletadas = haComp;
+    if (!isNaN(haComp)) {
+      entry.hectareasCompletadas = Math.max(0, haComp);
+      entry.avanceDiario = Array.isArray(entry.avanceDiario) ? entry.avanceDiario : [];
+      const hoy = scHoyISO();
+      const idx = entry.avanceDiario.findIndex(r => r && r.fecha === hoy);
+      const rec = {
+        fecha: hoy,
+        haAcumuladasReales: entry.hectareasCompletadas,
+        estado: 'confirmado',
+        ts: Date.now()
+      };
+      if (idx >= 0) entry.avanceDiario[idx] = Object.assign({}, entry.avanceDiario[idx], rec);
+      else entry.avanceDiario.push(rec);
+      entry.avanceDiario.sort((a, b) => String(a.fecha || '').localeCompare(String(b.fecha || '')));
+    }
     const haDiaEl = document.getElementById('sc-ha-dia');
     if (haDiaEl) {
       const v = parseFloat(haDiaEl.value);
