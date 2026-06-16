@@ -1949,6 +1949,7 @@
     if (typeof amInputModal !== 'function') return;
     amInputModal('Fecha de siembra realizada', defFecha, function(fechaConf) {
       if (!fechaConf) return;
+      fechaConf = (typeof window.amFechaISO === 'function') ? window.amFechaISO(fechaConf) : fechaConf;
       lote.data = lote.data || {};
       if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'en-curso');
       else {
@@ -1995,6 +1996,7 @@
     if (typeof amInputModal !== 'function') return;
     amInputModal('Editar fecha de siembra realizada', defFecha, function(fechaConf) {
       if (!fechaConf) return;
+      fechaConf = (typeof window.amFechaISO === 'function') ? window.amFechaISO(fechaConf) : fechaConf;
       lote.data = lote.data || {};
       lote.data.siembraRealizada = lote.data.siembraRealizada || {};
       var entry = lote.data.siembraRealizada[grupo] || {};

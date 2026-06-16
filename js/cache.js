@@ -92,6 +92,19 @@ function amGetFaseGrupo(lote, grupo) {
   return raw || 'planificacion';
 }
 
+function amFechaISO(fecha) {
+  if (!fecha) return '';
+  var s = String(fecha).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (m) {
+    var dd = String(m[1]).padStart(2, '0');
+    var mm = String(m[2]).padStart(2, '0');
+    return m[3] + '-' + mm + '-' + dd;
+  }
+  return s;
+}
+
 function amSetFaseGrupo(lote, grupo, fase) {
   if (!lote) return;
   lote.data = lote.data || {};
@@ -101,11 +114,11 @@ function amSetFaseGrupo(lote, grupo, fase) {
 
 function amGetFechaSiembraGrupo(lote, grupo) {
   var real = amGetSiembraRealizadaGrupo(lote, grupo);
-  if (real.fecha) return real.fecha;
+  if (real.fecha) return amFechaISO(real.fecha);
   var plan = amGetPlanGrupo(lote, grupo);
   var d = (lote && lote.data) || {};
-  return plan.fechaSiembraConf || plan.fechaSiembraPlan
-    || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '';
+  return amFechaISO(plan.fechaSiembraConf || plan.fechaSiembraPlan
+    || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '');
 }
 
 function amPersistirLotesLocal() {
@@ -927,6 +940,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amGetFaseGrupo = amGetFaseGrupo;
   window.amSetFaseGrupo = amSetFaseGrupo;
   window.amGetFechaSiembraGrupo = amGetFechaSiembraGrupo;
+  window.amFechaISO = amFechaISO;
 
   // Exposición global
   window.cacheGuardar = cacheGuardar;

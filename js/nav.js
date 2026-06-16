@@ -162,7 +162,9 @@ function _activarModulo(mod) {
         // Si no hay cultivo en el plan, usar el default del grupo
         var _cultDefault = _targetGrupo === 'invierno' ? 'Trigo' : 'Soja';
         if (_sCult) _sCult.value = _gdT.cultivo || _cultDefault;
-        var _fechT = _gdT.fechaSiembraConf || _gdT.fechaSiembraPlan || '';
+        var _fechT = (typeof window.amGetFechaSiembraGrupo === 'function')
+          ? window.amGetFechaSiembraGrupo(_ltSb, _targetGrupo)
+          : (_gdT.fechaSiembraConf || _gdT.fechaSiembraPlan || '');
         if (_fechT && _sFecha && !_sFecha._touched) _sFecha.value = _fechT;
         _syncOk = true;
       }
