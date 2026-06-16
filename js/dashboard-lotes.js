@@ -188,10 +188,11 @@
       var fechaGrupo = window.amGetFechaSiembraGrupo({ data: d }, grupo);
       if (fechaGrupo) return fechaGrupo;
     }
-    return planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan
+    var fecha = planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan
       || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
       || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
       || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
+    return (typeof window.amFechaISO === 'function') ? window.amFechaISO(fecha) : fecha;
   }
 
   function _coordsFromLote(lote) {

@@ -774,6 +774,7 @@ function cacheCargar() {
       || datos.fechaSiembraConf || datos.fechaSiembraPlan || datos.fechaSiembra || datos.fecha || ''
       || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
       || (planes.verano && (planes.verano.fechaSiembraConf || planes.verano.fechaSiembraPlan)) || '';
+    fechaEfectiva = amFechaISO(fechaEfectiva);
     if (fechaEfectiva && document.getElementById('s-fecha')) document.getElementById('s-fecha').value = fechaEfectiva;
     if (datos.suelo   && document.getElementById('s-suelo'))   document.getElementById('s-suelo').value   = datos.suelo;
 
@@ -957,6 +958,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── MODAL DE INPUT GENÉRICO (reemplaza window.prompt) ────────────────────────
 // amInputModal('Título', 'placeholder', callback(valor|null))
 window.amInputModal = function(titulo, placeholder, callback) {
+  function modalFechaISO(v) {
+    if (typeof window.amFechaISO === 'function') return window.amFechaISO(v);
+    if (!v) return '';
+    var s = String(v).trim();
+    var m = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (m) return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
+    return s;
+  }
+  var esFecha = /fecha/i.test(String(titulo || '')) || /^\d{1,4}[\/-]\d{1,2}[\/-]\d{1,4}$/.test(String(placeholder || '').trim());
   var overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(28,18,8,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;backdrop-filter:blur(4px)';
 
@@ -968,10 +978,23 @@ window.amInputModal = function(titulo, placeholder, callback) {
   h.textContent = titulo;
 
   var input = document.createElement('input');
-  input.type = 'text';
-  input.placeholder = placeholder || '';
+  input.type = esFecha ? 'date' : 'text';
+  if (esFecha) input.value = modalFechaISO(placeholder);
+  else input.placeholder = placeholder || '';
   input.style.cssText = 'width:100%;box-sizing:border-box;border:1.5px solid #d4c9b8;border-radius:10px;padding:.65rem .9rem;font-size:.9rem;font-family:inherit;color:#1c1208;outline:none;margin-bottom:1rem';
-  input.addEventListener('focus', function(){ input.style.borderColor='#3A7A4A'; });
+  input.addEventListener('focus', function(){
+    input.style.borderColor='#3A7A4A';
+    if (esFecha && typeof input.showPicker === 'function') {
+      try { input.showPicker(); } catch(_) {}
+    }
+  });
+  if (esFecha) {
+    input.addEventListener('click', function(){
+      if (typeof input.showPicker === 'function') {
+        try { input.showPicker(); } catch(_) {}
+      }
+    });
+  }
   input.addEventListener('blur', function(){ input.style.borderColor='#d4c9b8'; });
 
   var btns = document.createElement('div');
@@ -982,7 +1005,7 @@ window.amInputModal = function(titulo, placeholder, callback) {
   btnCancel.style.cssText = 'border:1.5px solid #d4c9b8;background:#fff;color:#5a4a32;border-radius:8px;padding:.5rem 1rem;font-size:.85rem;cursor:pointer;font-family:inherit';
 
   var btnOk = document.createElement('button');
-  btnOk.textContent = 'Crear';
+  btnOk.textContent = esFecha ? 'Confirmar' : 'Crear';
   btnOk.style.cssText = 'border:none;background:#3A7A4A;color:#fff;border-radius:8px;padding:.5rem 1.1rem;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit';
 
   function cerrar(val) {
@@ -991,10 +1014,10 @@ window.amInputModal = function(titulo, placeholder, callback) {
   }
 
   btnCancel.addEventListener('click', function(){ cerrar(null); });
-  btnOk.addEventListener('click', function(){ cerrar(input.value.trim()); });
+  btnOk.addEventListener('click', function(){ cerrar(esFecha ? modalFechaISO(input.value) : input.value.trim()); });
   overlay.addEventListener('click', function(e){ if(e.target===overlay) cerrar(null); });
   input.addEventListener('keydown', function(e){
-    if(e.key==='Enter') cerrar(input.value.trim());
+    if(e.key==='Enter') cerrar(esFecha ? modalFechaISO(input.value) : input.value.trim());
     if(e.key==='Escape') cerrar(null);
   });
 
