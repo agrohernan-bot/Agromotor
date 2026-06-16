@@ -147,6 +147,7 @@ function _activarModulo(mod) {
       // Prioridad: grupo explícito pasado por dlAbrirModulo o widget pre-siembra
       var _targetGrupo = window.AM_SIEMBRA_GRUPO || null;
       window.AM_SIEMBRA_GRUPO = null;
+      window.AM_SIEMBRA_CURRENT_GRUPO = _targetGrupo; // persiste para siembra.js
       if (_targetGrupo) {
         var _gdT = _psSb[_targetGrupo] || {};
         // Si no hay cultivo en el plan, usar el default del grupo
@@ -179,6 +180,19 @@ function _activarModulo(mod) {
     if (_sYaDiv) {
       if (_sYaInfo && _sYaInfo.fecha) {
         var _sYaGrupLabel = _sYaInfo.grupo === 'invierno' ? 'Plan. Fina' : 'Plan. Gruesa';
+        var _sYaCond = _sYaInfo.condiciones || null;
+        var _sYaCondHtml = '';
+        if (_sYaCond && _sYaCond.score != null) {
+          var _sYaCol = _sYaCond.score >= 75 ? '#4A9A5A' : _sYaCond.score >= 50 ? '#B87A20' : '#C94A2A';
+          _sYaCondHtml =
+            '<div style="margin-top:.6rem;padding:.55rem .7rem;background:rgba(0,0,0,.18);border-radius:8px;display:flex;flex-wrap:wrap;gap:.5rem .9rem">' +
+              '<span style="font-size:.75rem;color:#A8E6BB;font-weight:700">Score ' + _sYaCond.score + '/100</span>' +
+              '<span style="font-size:.75rem;color:rgba(168,230,187,.7)">' + _sYaCond.label + '</span>' +
+              (_sYaCond.humedad   != null ? '<span style="font-size:.73rem;color:rgba(168,230,187,.6)">Hum. ' + _sYaCond.humedad + '%</span>' : '') +
+              (_sYaCond.vpd       != null ? '<span style="font-size:.73rem;color:rgba(168,230,187,.6)">VPD ' + _sYaCond.vpd + ' kPa</span>' : '') +
+              (_sYaCond.diasReserva != null ? '<span style="font-size:.73rem;color:rgba(168,230,187,.6)">' + _sYaCond.diasReserva + ' días reserva</span>' : '') +
+            '</div>';
+        }
         _sYaDiv.innerHTML =
           '<div style="background:linear-gradient(135deg,#1A4D2E,#2A6D4E);border:1.5px solid rgba(74,140,92,.4);border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1.2rem">' +
             '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.45rem">' +
@@ -188,7 +202,8 @@ function _activarModulo(mod) {
                 '<div style="font-size:.8rem;color:rgba(168,230,187,.8);margin-top:.15rem">' + _sYaInfo.cultivo + ' · ' + _sYaInfo.fecha + ' · ' + _sYaGrupLabel + '</div>' +
               '</div>' +
             '</div>' +
-            '<div style="font-size:.76rem;color:rgba(168,230,187,.6);border-top:1px solid rgba(74,140,92,.25);padding-top:.55rem;margin-top:.35rem">' +
+            _sYaCondHtml +
+            '<div style="font-size:.76rem;color:rgba(168,230,187,.6);border-top:1px solid rgba(74,140,92,.25);padding-top:.55rem;margin-top:.55rem">' +
               'El cultivo está en curso. Podés usar este diagnóstico para referencia retrospectiva o para evaluar condiciones de resiembra.' +
             '</div>' +
           '</div>';
