@@ -213,6 +213,13 @@ function _activarModulo(mod) {
         _sYaDiv.style.display = 'none';
       }
     }
+    // Fase del grupo para el panel de gestión de siembra en curso
+    var _faseGrupo = (_ltSb && _ltSb.data && _ltSb.data.faseGrupos && _targetGrupo)
+      ? _ltSb.data.faseGrupos[_targetGrupo] : null;
+    window.AM_SIEMBRA_FASE = _faseGrupo || null;
+    if (typeof window.siembraRenderGestion === 'function') {
+      try { window.siembraRenderGestion(); } catch(e) {}
+    }
   }
 
   if (mod === 'suelo') {

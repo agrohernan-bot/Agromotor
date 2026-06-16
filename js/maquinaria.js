@@ -156,6 +156,7 @@
       hd = ha; rc = r;
     } else hd = cT * hs;
     const hp = rc * (tr / 60), cr = hd / hs;
+    try { localStorage.setItem('am_maq_hd', String(hd.toFixed(1))); } catch(_) {}
     $('m-ph').classList.add('hidden'); $('m-res').classList.remove('hidden');
     $('m-kpis').innerHTML = `
       <div class="kc"><div class="kl">Ha/jornada</div><div class="kv">${hd.toFixed(1)}</div></div>

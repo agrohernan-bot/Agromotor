@@ -1929,6 +1929,12 @@
       lote.data.faseGrupos[grupo] = 'en-curso';
       lote.data.siembraRealizada = lote.data.siembraRealizada || {};
       var _siembraEntry = { fecha: fechaConf, cultivo: plan.cultivo || '', ts: Date.now() };
+      // Capturar superficie total del lote para el tracker de progreso
+      var _supLote = parseFloat((lote.data || {}).superficie);
+      if (!isNaN(_supLote) && _supLote > 0) {
+        _siembraEntry.hectareasTotal = _supLote;
+        _siembraEntry.hectareasCompletadas = 0;
+      }
       // Capturar snapshot del diagnóstico si fue ejecutado para este lote
       var _lr = window.AM_SIEMBRA_LAST_RESULT;
       if (_lr && _lr.loteId === loteId) {
