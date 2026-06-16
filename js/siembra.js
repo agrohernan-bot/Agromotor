@@ -463,6 +463,39 @@
     const spec=['💨','💨'];
     $('s-recs').innerHTML=msgs.map(([m,e])=>`<div class="alert ${tipos[e]}"><span class="ai">${iconos[e]}</span><div class="ac">${m}</div></div>`).join('')+
       `<div class="alert info"><span class="ai">📏</span><div class="ac"><strong>Profundidad de siembra:</strong> ${profRec} para ${cult} en ${suelo}</div></div>`;
+
+    // Exponer resultado para captura en dlRegistrarSiembra (Fase B snapshot)
+    try {
+      const _ltR = typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+      window.AM_SIEMBRA_LAST_RESULT = {
+        loteId: _ltR ? _ltR.id : null,
+        score: sg, label: dec,
+        humedad: h1, vpd, viento,
+        diasReserva: diasR > 99 ? null : diasR,
+        fechaDiag: gv('s-fecha'),
+        ts: Date.now(),
+      };
+    } catch(_) {}
+
+    // Botón "Registrar siembra" si hay un grupo en pre-siembra para este lote
+    const _sRegDiv = $('s-registrar-btn');
+    if (_sRegDiv) {
+      try {
+        const _ltReg = typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+        const _fgReg = (_ltReg && _ltReg.data && _ltReg.data.faseGrupos) || {};
+        const _preReg = ['verano','invierno'].filter(g => _fgReg[g] === 'pre-siembra');
+        const _grupoReg = window.AM_SIEMBRA_CURRENT_GRUPO || _preReg[0] || null;
+        if (_grupoReg && _ltReg && _fgReg[_grupoReg] === 'pre-siembra') {
+          const _liReg = _ltReg.id;
+          _sRegDiv.innerHTML = `<div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid rgba(74,46,26,.12)">
+            <button onclick="window.dlRegistrarSiembra('${_liReg}','${_grupoReg}')"
+              style="background:#2A5A3A;color:#fff;border:none;border-radius:10px;padding:.7rem 1.4rem;font-size:.88rem;font-weight:700;cursor:pointer;width:100%">
+              ✅ Registrar siembra realizada
+            </button>
+          </div>`;
+        } else { _sRegDiv.innerHTML = ''; }
+      } catch(_) { _sRegDiv.innerHTML = ''; }
+    }
   }
 
   // Exponer a global por retrocompatibilidad HTML

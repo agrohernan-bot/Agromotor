@@ -1928,7 +1928,21 @@
       lote.data.faseGrupos = lote.data.faseGrupos || {};
       lote.data.faseGrupos[grupo] = 'en-curso';
       lote.data.siembraRealizada = lote.data.siembraRealizada || {};
-      lote.data.siembraRealizada[grupo] = { fecha: fechaConf, cultivo: plan.cultivo || '', ts: Date.now() };
+      var _siembraEntry = { fecha: fechaConf, cultivo: plan.cultivo || '', ts: Date.now() };
+      // Capturar snapshot del diagnóstico si fue ejecutado para este lote
+      var _lr = window.AM_SIEMBRA_LAST_RESULT;
+      if (_lr && _lr.loteId === loteId) {
+        _siembraEntry.condiciones = {
+          score:       _lr.score,
+          label:       _lr.label,
+          humedad:     _lr.humedad,
+          vpd:         _lr.vpd,
+          viento:      _lr.viento,
+          diasReserva: _lr.diasReserva,
+          fechaDiag:   _lr.fechaDiag,
+        };
+      }
+      lote.data.siembraRealizada[grupo] = _siembraEntry;
       if (lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) {
         lote.data.planificacionSiembra[grupo].fechaSiembraConf = fechaConf;
       }
