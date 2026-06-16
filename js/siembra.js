@@ -407,10 +407,13 @@
             </div>
           </div>`;
         } else if (ep.pts < 18) {
+          const epTitulo = ep.label.toLowerCase().includes('temprana') ? 'FECHA TEMPRANA — Riesgo leve'
+                         : ep.label.toLowerCase().includes('tard')     ? 'FECHA TARDÍA — Menor potencial'
+                         : 'FECHA FUERA DE VENTANA ÓPTIMA';
           epocaHtml = `<div style="background:#7A4A10;border-radius:12px;padding:1rem 1.2rem;margin-bottom:.9rem;display:flex;align-items:flex-start;gap:.8rem">
             <span style="font-size:1.6rem;line-height:1">⚠️</span>
             <div>
-              <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:white;font-weight:700">FECHA FUERA DE VENTANA ÓPTIMA</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:1.05rem;color:white;font-weight:700">${epTitulo}</div>
               <div style="font-size:.74rem;color:rgba(255,255,255,.8);margin-top:.25rem">${cult} · ${ep.label} · El diagnóstico aplica igual si decidís sembrar.</div>
             </div>
           </div>`;

@@ -172,6 +172,32 @@ function _activarModulo(mod) {
         if (!_syncOk && _sCult && _dSb.cultivo) _sCult.value = _dSb.cultivo;
       }
     }
+    // Banner "ya sembrado" cuando el cultivo ya está en curso
+    var _sYaInfo = window.AM_SIEMBRA_SEMBRADO || null;
+    window.AM_SIEMBRA_SEMBRADO = null;
+    var _sYaDiv = document.getElementById('siembra-ya-sembrado-card');
+    if (_sYaDiv) {
+      if (_sYaInfo && _sYaInfo.fecha) {
+        var _sYaGrupLabel = _sYaInfo.grupo === 'invierno' ? 'Plan. Fina' : 'Plan. Gruesa';
+        _sYaDiv.innerHTML =
+          '<div style="background:linear-gradient(135deg,#1A4D2E,#2A6D4E);border:1.5px solid rgba(74,140,92,.4);border-radius:14px;padding:1.2rem 1.5rem;margin-bottom:1.2rem">' +
+            '<div style="display:flex;align-items:center;gap:1rem;margin-bottom:.45rem">' +
+              '<span style="font-size:1.8rem">✅</span>' +
+              '<div>' +
+                '<div style="font-family:\'DM Serif Display\',serif;font-size:1.1rem;color:#A8E6BB;font-weight:700">CULTIVO YA SEMBRADO</div>' +
+                '<div style="font-size:.8rem;color:rgba(168,230,187,.8);margin-top:.15rem">' + _sYaInfo.cultivo + ' · ' + _sYaInfo.fecha + ' · ' + _sYaGrupLabel + '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="font-size:.76rem;color:rgba(168,230,187,.6);border-top:1px solid rgba(74,140,92,.25);padding-top:.55rem;margin-top:.35rem">' +
+              'El cultivo está en curso. Podés usar este diagnóstico para referencia retrospectiva o para evaluar condiciones de resiembra.' +
+            '</div>' +
+          '</div>';
+        _sYaDiv.style.display = '';
+      } else {
+        _sYaDiv.innerHTML = '';
+        _sYaDiv.style.display = 'none';
+      }
+    }
   }
 
   if (mod === 'suelo') {

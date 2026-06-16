@@ -1700,18 +1700,31 @@
 
   window.dlAbrirModulo = function (mod, loteId) {
     activarLote(loteId);
-    // Auto-detectar grupo para siembra si no viene del widget pre-siembra
-    if (mod === 'siembra' && !window.AM_SIEMBRA_GRUPO) {
+    if (mod === 'siembra') {
       var _lt = getLote(loteId);
       if (_lt && _lt.data) {
-        var _fg = _lt.data.faseGrupos || {};
-        var _pre = ['verano', 'invierno'].filter(function(g) { return _fg[g] === 'pre-siembra'; });
-        if (_pre.length === 1) {
-          window.AM_SIEMBRA_GRUPO = _pre[0];
-        } else if (_pre.length === 0) {
-          // Fallback: alinear con el cultivo principal del lote
-          var _cult = ((_lt.data.cultivo) || '').toLowerCase();
-          window.AM_SIEMBRA_GRUPO = (_cult === 'trigo' || _cult === 'cebada' || _cult === 'colza') ? 'invierno' : 'verano';
+        if (!window.AM_SIEMBRA_GRUPO) {
+          var _fg = _lt.data.faseGrupos || {};
+          var _pre = ['verano', 'invierno'].filter(function(g) { return _fg[g] === 'pre-siembra'; });
+          if (_pre.length === 1) {
+            window.AM_SIEMBRA_GRUPO = _pre[0];
+          } else if (_pre.length === 0) {
+            var _cult = (_lt.data.cultivo || '').toLowerCase();
+            window.AM_SIEMBRA_GRUPO = (_cult === 'trigo' || _cult === 'cebada' || _cult === 'colza') ? 'invierno' : 'verano';
+          }
+        }
+        // Si el grupo está en 'en-curso', pasar info para mostrar banner "ya sembrado"
+        window.AM_SIEMBRA_SEMBRADO = null;
+        if (window.AM_SIEMBRA_GRUPO) {
+          var _fgFinal = (_lt.data.faseGrupos || {})[window.AM_SIEMBRA_GRUPO];
+          if (_fgFinal === 'en-curso') {
+            var _srFinal = (_lt.data.siembraRealizada || {})[window.AM_SIEMBRA_GRUPO] || {};
+            window.AM_SIEMBRA_SEMBRADO = {
+              grupo:   window.AM_SIEMBRA_GRUPO,
+              fecha:   _srFinal.fecha   || '',
+              cultivo: _srFinal.cultivo || (window.AM_SIEMBRA_GRUPO === 'invierno' ? 'Trigo' : 'Soja'),
+            };
+          }
         }
       }
     }
