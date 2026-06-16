@@ -687,7 +687,11 @@
       // 3. PROGRESO DE SIEMBRA
       const total = parseFloat((lote && lote.data && lote.data.superficie) || sr.hectareasTotal || 0) || 0;
       const completadas = parseFloat(sr.hectareasCompletadas || 0) || 0;
-      let haDia = parseFloat(localStorage.getItem('am_maq_hd') || '') || parseFloat(sr.haDiaria || 0) || 0;
+      const maqLote = (lote && lote.data && lote.data.maquinaria) || {};
+      let haDia = parseFloat(sr.haDiaria || 0)
+        || parseFloat(maqLote.haDia || 0)
+        || parseFloat(localStorage.getItem('am_maq_hd') || '')
+        || 0;
       const restantes = Math.max(0, total - completadas);
       const pct = total > 0 ? Math.min(100, Math.round(completadas / total * 100)) : 0;
       const diasNec = haDia > 0 ? Math.ceil(restantes / haDia) : null;
@@ -746,7 +750,15 @@
     const haComp = parseFloat((document.getElementById('sc-ha-comp')||{}).value);
     if (!isNaN(haComp)) entry.hectareasCompletadas = haComp;
     const haDiaEl = document.getElementById('sc-ha-dia');
-    if (haDiaEl) { const v = parseFloat(haDiaEl.value); if (!isNaN(v) && v > 0) { entry.haDiaria = v; try{ localStorage.setItem('am_maq_hd', String(v)); }catch(_){} } }
+    if (haDiaEl) {
+      const v = parseFloat(haDiaEl.value);
+      if (!isNaN(v) && v > 0) {
+        entry.haDiaria = v;
+        lote.data.maquinaria = lote.data.maquinaria || {};
+        lote.data.maquinaria.haDia = v;
+        try{ localStorage.setItem('am_maq_hd', String(v)); }catch(_){}
+      }
+    }
     if (!entry.hectareasTotal && lote.data.superficie) entry.hectareasTotal = parseFloat(lote.data.superficie) || 0;
     lote.data.siembraRealizada[grupo] = entry;
     if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();

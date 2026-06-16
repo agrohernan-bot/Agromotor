@@ -294,6 +294,10 @@
     var planes = d.planificacionSiembra || {};
     var grupo = grupoCultivoAM(cultivo || d.cultivo || ck['am_siembra_cultivo'] || '');
     var plan = grupo ? (planes[grupo] || {}) : {};
+    if (grupo && typeof window.amGetFechaSiembraGrupo === 'function') {
+      var fechaGrupo = window.amGetFechaSiembraGrupo(lote, grupo);
+      if (fechaGrupo) return fechaGrupo;
+    }
     return plan.fechaSiembraConf || plan.fechaSiembraPlan
       || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
       || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''

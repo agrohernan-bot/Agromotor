@@ -348,7 +348,33 @@ test('amGetFaseGrupo devuelve planificacion por defecto y respeta faseGrupos per
   assert.equal(window.amGetFaseGrupo(loteA, 'verano'), 'pre-siembra');
   assert.equal(window.amGetFaseGrupo(loteA, 'invierno'), 'planificacion');
   assert.equal(window.amGetFaseGrupo(loteB, 'verano'), 'planificacion');
+  assert.equal(loteB.data.faseGrupos.verano, 'planificacion');
+  assert.equal(loteB.data.faseGrupos.invierno, 'planificacion');
   assert.equal(window.amGetFaseGrupo(null, 'verano'), 'planificacion');
+});
+
+test('amGetFechaSiembraGrupo prioriza siembra real sobre fecha planificada', () => {
+  const { window } = loadCacheWithStorage({
+    am_global_lotes_v2: JSON.stringify({
+      activo: 'lote-a',
+      lotes: [
+        {
+          id: 'lote-a',
+          nombre: 'La Monona',
+          data: {
+            planificacionSiembra: { invierno: { cultivo: 'Trigo', fechaSiembraConf: '2026-06-05' } },
+            siembraRealizada: { invierno: { fecha: '2026-06-09', cultivo: 'Trigo' } },
+          },
+        },
+      ],
+    }),
+  });
+  window.amCargarLotesGlobales();
+  const lote = window.AM_LOTES.find(l => l.id === 'lote-a');
+
+  assert.equal(window.amGetFechaSiembraGrupo(lote, 'invierno'), '2026-06-09');
+  assert.equal(window.amGrupoPorCultivo('Trigo'), 'invierno');
+  assert.equal(window.amGrupoPorCultivo('Maíz'), 'verano');
 });
 
 test('mapeo geografico Nominatim a IDs de Supabase', () => {

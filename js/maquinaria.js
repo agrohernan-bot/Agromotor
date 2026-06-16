@@ -157,6 +157,15 @@
     } else hd = cT * hs;
     const hp = rc * (tr / 60), cr = hd / hs;
     try { localStorage.setItem('am_maq_hd', String(hd.toFixed(1))); } catch(_) {}
+    try {
+      const lote = typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+      if (lote) {
+        lote.data = lote.data || {};
+        lote.data.maquinaria = lote.data.maquinaria || {};
+        lote.data.maquinaria.haDia = parseFloat(hd.toFixed(1));
+        if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+      }
+    } catch(_) {}
     $('m-ph').classList.add('hidden'); $('m-res').classList.remove('hidden');
     $('m-kpis').innerHTML = `
       <div class="kc"><div class="kl">Ha/jornada</div><div class="kv">${hd.toFixed(1)}</div></div>

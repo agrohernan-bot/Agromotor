@@ -184,6 +184,10 @@
     var planes = d.planificacionSiembra || {};
     var grupo = _grupoPorCultivo(cultivo || d.cultivo || ck['am_siembra_cultivo'] || '');
     var planGrupo = grupo ? (planes[grupo] || {}) : {};
+    if (grupo && typeof window.amGetFechaSiembraGrupo === 'function') {
+      var fechaGrupo = window.amGetFechaSiembraGrupo({ data: d }, grupo);
+      if (fechaGrupo) return fechaGrupo;
+    }
     return planGrupo.fechaSiembraConf || planGrupo.fechaSiembraPlan
       || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || ''
       || (planes.invierno && (planes.invierno.fechaSiembraConf || planes.invierno.fechaSiembraPlan)) || ''
@@ -1705,10 +1709,17 @@
       if (_lt && _lt.data) {
         if (!window.AM_SIEMBRA_GRUPO) {
           var _fg = _lt.data.faseGrupos || {};
-          var _pre = ['verano', 'invierno'].filter(function(g) { return _fg[g] === 'pre-siembra'; });
-          if (_pre.length === 1) {
+          var _enCurso = ['verano', 'invierno'].filter(function(g) {
+            return (typeof amGetFaseGrupo === 'function' ? amGetFaseGrupo(_lt, g) : _fg[g]) === 'en-curso';
+          });
+          var _pre = ['verano', 'invierno'].filter(function(g) {
+            return (typeof amGetFaseGrupo === 'function' ? amGetFaseGrupo(_lt, g) : _fg[g]) === 'pre-siembra';
+          });
+          if (_enCurso.length === 1) {
+            window.AM_SIEMBRA_GRUPO = _enCurso[0];
+          } else if (_pre.length === 1) {
             window.AM_SIEMBRA_GRUPO = _pre[0];
-          } else if (_pre.length === 0) {
+          } else if (_pre.length === 0 && _enCurso.length === 0) {
             var _cult = (_lt.data.cultivo || '').toLowerCase();
             window.AM_SIEMBRA_GRUPO = (_cult === 'trigo' || _cult === 'cebada' || _cult === 'colza') ? 'invierno' : 'verano';
           }
@@ -1716,13 +1727,16 @@
         // Si el grupo está en 'en-curso', pasar info para mostrar banner "ya sembrado"
         window.AM_SIEMBRA_SEMBRADO = null;
         if (window.AM_SIEMBRA_GRUPO) {
-          var _fgFinal = (_lt.data.faseGrupos || {})[window.AM_SIEMBRA_GRUPO];
+          var _fgFinal = typeof amGetFaseGrupo === 'function'
+            ? amGetFaseGrupo(_lt, window.AM_SIEMBRA_GRUPO)
+            : ((_lt.data.faseGrupos || {})[window.AM_SIEMBRA_GRUPO]);
           if (_fgFinal === 'en-curso') {
             var _srFinal = (_lt.data.siembraRealizada || {})[window.AM_SIEMBRA_GRUPO] || {};
             window.AM_SIEMBRA_SEMBRADO = {
               grupo:   window.AM_SIEMBRA_GRUPO,
               fecha:   _srFinal.fecha   || '',
               cultivo: _srFinal.cultivo || (window.AM_SIEMBRA_GRUPO === 'invierno' ? 'Trigo' : 'Soja'),
+              condiciones: _srFinal.condiciones || null,
             };
           }
         }
@@ -1906,8 +1920,11 @@
     var lote = getLote(loteId);
     if (!lote) return;
     lote.data = lote.data || {};
-    lote.data.faseGrupos = lote.data.faseGrupos || {};
-    lote.data.faseGrupos[grupo] = 'pre-siembra';
+    if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'pre-siembra');
+    else {
+      lote.data.faseGrupos = lote.data.faseGrupos || {};
+      lote.data.faseGrupos[grupo] = 'pre-siembra';
+    }
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     if (typeof amToast === 'function') amToast('Planificación cerrada. Ahora monitoreá las condiciones de siembra.', 'ok');
     _loteAbierto = loteId;
@@ -1925,10 +1942,16 @@
     amInputModal('Fecha de siembra realizada', defFecha, function(fechaConf) {
       if (!fechaConf) return;
       lote.data = lote.data || {};
-      lote.data.faseGrupos = lote.data.faseGrupos || {};
-      lote.data.faseGrupos[grupo] = 'en-curso';
+      if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'en-curso');
+      else {
+        lote.data.faseGrupos = lote.data.faseGrupos || {};
+        lote.data.faseGrupos[grupo] = 'en-curso';
+      }
       lote.data.siembraRealizada = lote.data.siembraRealizada || {};
-      var _siembraEntry = { fecha: fechaConf, cultivo: plan.cultivo || '', ts: Date.now() };
+      var _siembraEntry = lote.data.siembraRealizada[grupo] || {};
+      _siembraEntry.fecha = fechaConf;
+      _siembraEntry.cultivo = plan.cultivo || _siembraEntry.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+      _siembraEntry.ts = Date.now();
       // Capturar superficie total del lote para el tracker de progreso
       var _supLote = parseFloat((lote.data || {}).superficie);
       if (!isNaN(_supLote) && _supLote > 0) {
@@ -1949,9 +1972,6 @@
         };
       }
       lote.data.siembraRealizada[grupo] = _siembraEntry;
-      if (lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) {
-        lote.data.planificacionSiembra[grupo].fechaSiembraConf = fechaConf;
-      }
       if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
       if (typeof amToast === 'function') amToast('Siembra registrada el ' + fechaConf + '. ¡A monitorear el cultivo!', 'ok');
       renderPanel();

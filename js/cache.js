@@ -38,10 +38,17 @@ function amNormalizarEstadoLotes() {
   });
 
   if (!window.AM_LOTES.length) {
-    window.AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: {} }];
+    window.AM_LOTES = [{ id: 'default', nombre: 'Lote Principal', data: { faseGrupos: { verano: 'planificacion', invierno: 'planificacion' } } }];
     window.AM_LOTE_ACTIVO = 'default';
     return window.AM_LOTES[0];
   }
+
+  window.AM_LOTES.forEach(function(l) {
+    l.data = l.data || {};
+    l.data.faseGrupos = l.data.faseGrupos || {};
+    if (!l.data.faseGrupos.verano) l.data.faseGrupos.verano = 'planificacion';
+    if (!l.data.faseGrupos.invierno) l.data.faseGrupos.invierno = 'planificacion';
+  });
 
   var activo = window.AM_LOTES.find(function(l) {
     return String(l.id) === String(window.AM_LOTE_ACTIVO);
@@ -58,6 +65,47 @@ function amGetLoteActivo() {
   return window.AM_LOTES.find(function(l) {
     return String(l.id) === String(window.AM_LOTE_ACTIVO);
   }) || null;
+}
+
+function amGrupoPorCultivo(cultivo) {
+  var c = String(cultivo || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if (['trigo', 'cebada', 'colza'].indexOf(c) >= 0) return 'invierno';
+  if (['soja', 'maiz', 'girasol', 'sorgo'].indexOf(c) >= 0) return 'verano';
+  return '';
+}
+
+function amGetPlanGrupo(lote, grupo) {
+  var d = (lote && lote.data) || {};
+  return (d.planificacionSiembra && d.planificacionSiembra[grupo]) || {};
+}
+
+function amGetSiembraRealizadaGrupo(lote, grupo) {
+  var d = (lote && lote.data) || {};
+  return (d.siembraRealizada && d.siembraRealizada[grupo]) || {};
+}
+
+function amGetFaseGrupo(lote, grupo) {
+  var d = (lote && lote.data) || {};
+  var raw = (d.faseGrupos || {})[grupo];
+  if (raw && typeof raw === 'object') return raw.fase || 'planificacion';
+  return raw || 'planificacion';
+}
+
+function amSetFaseGrupo(lote, grupo, fase) {
+  if (!lote) return;
+  lote.data = lote.data || {};
+  lote.data.faseGrupos = lote.data.faseGrupos || {};
+  lote.data.faseGrupos[grupo] = fase || 'planificacion';
+}
+
+function amGetFechaSiembraGrupo(lote, grupo) {
+  var real = amGetSiembraRealizadaGrupo(lote, grupo);
+  if (real.fecha) return real.fecha;
+  var plan = amGetPlanGrupo(lote, grupo);
+  var d = (lote && lote.data) || {};
+  return plan.fechaSiembraConf || plan.fechaSiembraPlan
+    || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '';
 }
 
 function amPersistirLotesLocal() {
@@ -620,6 +668,7 @@ function cacheGuardar() {
       rendimientoObjetivo: lote.data?.rendimientoObjetivo || '',
       faseGrupos: lote.data?.faseGrupos || null,
       siembraRealizada: lote.data?.siembraRealizada || null,
+      maquinaria: lote.data?.maquinaria || null,
     };
     
     lote.data = {
@@ -640,6 +689,7 @@ function cacheGuardar() {
       rendimientoObjetivo: workflowData.rendimientoObjetivo,
       faseGrupos: workflowData.faseGrupos,
       siembraRealizada: workflowData.siembraRealizada,
+      maquinaria: workflowData.maquinaria,
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,
@@ -871,10 +921,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 500);
 });
 
-  window.amGetFaseGrupo = function(lote, grupo) {
-    if (!lote || !lote.data) return 'planificacion';
-    return (lote.data.faseGrupos || {})[grupo] || 'planificacion';
-  };
+  window.amGrupoPorCultivo = amGrupoPorCultivo;
+  window.amGetPlanGrupo = amGetPlanGrupo;
+  window.amGetSiembraRealizadaGrupo = amGetSiembraRealizadaGrupo;
+  window.amGetFaseGrupo = amGetFaseGrupo;
+  window.amSetFaseGrupo = amSetFaseGrupo;
+  window.amGetFechaSiembraGrupo = amGetFechaSiembraGrupo;
 
   // Exposición global
   window.cacheGuardar = cacheGuardar;

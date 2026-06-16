@@ -147,6 +147,12 @@ function _activarModulo(mod) {
       // Prioridad: grupo explícito pasado por dlAbrirModulo o widget pre-siembra
       var _targetGrupo = window.AM_SIEMBRA_GRUPO || null;
       window.AM_SIEMBRA_GRUPO = null;
+      if (!_targetGrupo && typeof window.amGetFaseGrupo === 'function') {
+        var _enCursoGs = ['verano', 'invierno'].filter(function(g) { return window.amGetFaseGrupo(_ltSb, g) === 'en-curso'; });
+        var _preGs = ['verano', 'invierno'].filter(function(g) { return window.amGetFaseGrupo(_ltSb, g) === 'pre-siembra'; });
+        if (_enCursoGs.length === 1) _targetGrupo = _enCursoGs[0];
+        else if (_preGs.length === 1) _targetGrupo = _preGs[0];
+      }
       window.AM_SIEMBRA_CURRENT_GRUPO = _targetGrupo; // persiste para siembra.js
       if (_targetGrupo) {
         var _gdT = _psSb[_targetGrupo] || {};
@@ -214,8 +220,9 @@ function _activarModulo(mod) {
       }
     }
     // Fase del grupo para el panel de gestión de siembra en curso
-    var _faseGrupo = (_ltSb && _ltSb.data && _ltSb.data.faseGrupos && _targetGrupo)
-      ? _ltSb.data.faseGrupos[_targetGrupo] : null;
+    var _faseGrupo = (_ltSb && _targetGrupo && typeof window.amGetFaseGrupo === 'function')
+      ? window.amGetFaseGrupo(_ltSb, _targetGrupo)
+      : ((_ltSb && _ltSb.data && _ltSb.data.faseGrupos && _targetGrupo) ? _ltSb.data.faseGrupos[_targetGrupo] : null);
     window.AM_SIEMBRA_FASE = _faseGrupo || null;
     if (typeof window.siembraRenderGestion === 'function') {
       try { window.siembraRenderGestion(); } catch(e) {}
