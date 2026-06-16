@@ -154,6 +154,9 @@ function _activarModulo(mod) {
         else if (_preGs.length === 1) _targetGrupo = _preGs[0];
       }
       window.AM_SIEMBRA_CURRENT_GRUPO = _targetGrupo; // persiste para siembra.js
+      var _faseGrupo = (_ltSb && _targetGrupo && typeof window.amGetFaseGrupo === 'function')
+        ? window.amGetFaseGrupo(_ltSb, _targetGrupo)
+        : ((_ltSb && _ltSb.data && _ltSb.data.faseGrupos && _targetGrupo) ? _ltSb.data.faseGrupos[_targetGrupo] : null);
       if (_targetGrupo) {
         var _gdT = _psSb[_targetGrupo] || {};
         // Si no hay cultivo en el plan, usar el default del grupo
@@ -214,15 +217,34 @@ function _activarModulo(mod) {
             '</div>' +
           '</div>';
         _sYaDiv.style.display = '';
+      } else if (_faseGrupo === 'pre-siembra' && _targetGrupo) {
+        var _gdPre = (_psSb && _psSb[_targetGrupo]) || {};
+        var _cultPre = _gdPre.cultivo || (_targetGrupo === 'invierno' ? 'Trigo' : 'Soja');
+        var _fechaPre = _gdPre.fechaSiembraConf || _gdPre.fechaSiembraPlan || '';
+        var _labelPre = _targetGrupo === 'invierno' ? 'Plan. Fina' : 'Plan. Gruesa';
+        var _loteIdPre = _ltSb ? _ltSb.id : '';
+        _sYaDiv.innerHTML =
+          '<div style="background:linear-gradient(135deg,#123820,#1D4F32);border:1.5px solid rgba(109,191,130,.45);border-radius:14px;padding:1rem 1.2rem;margin-bottom:1.2rem">' +
+            '<div style="display:flex;align-items:flex-start;gap:.85rem">' +
+              '<span style="font-size:1.55rem;line-height:1">⏳</span>' +
+              '<div style="flex:1;min-width:0">' +
+                '<div style="font-family:\'DM Serif Display\',serif;font-size:1.05rem;color:#A8E6BB;font-weight:700">PRE-SIEMBRA · ' + _cultPre + '</div>' +
+                '<div style="font-size:.78rem;color:rgba(237,224,196,.78);margin-top:.18rem">' + _labelPre + (_fechaPre ? ' · fecha plan ' + _fechaPre : '') + '</div>' +
+                '<div style="font-size:.74rem;color:rgba(237,224,196,.68);margin-top:.55rem;line-height:1.45">Este módulo sirve para decidir si conviene sembrar hoy. El panel de avance por hectáreas aparece después de registrar la siembra realizada.</div>' +
+                '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.75rem">' +
+                  '<button onclick="if(typeof calcSiembra===\'function\')calcSiembra()" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.45rem .85rem;font-size:.78rem;font-weight:700;cursor:pointer">Analizar condiciones</button>' +
+                  '<button onclick="window.dlRegistrarSiembra&&window.dlRegistrarSiembra(\'' + _loteIdPre + '\',\'' + _targetGrupo + '\')" style="background:rgba(109,191,130,.12);color:#DDF6E4;border:1.5px solid rgba(109,191,130,.45);border-radius:8px;padding:.45rem .85rem;font-size:.78rem;font-weight:700;cursor:pointer">Registrar siembra</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        _sYaDiv.style.display = '';
       } else {
         _sYaDiv.innerHTML = '';
         _sYaDiv.style.display = 'none';
       }
     }
     // Fase del grupo para el panel de gestión de siembra en curso
-    var _faseGrupo = (_ltSb && _targetGrupo && typeof window.amGetFaseGrupo === 'function')
-      ? window.amGetFaseGrupo(_ltSb, _targetGrupo)
-      : ((_ltSb && _ltSb.data && _ltSb.data.faseGrupos && _targetGrupo) ? _ltSb.data.faseGrupos[_targetGrupo] : null);
     window.AM_SIEMBRA_FASE = _faseGrupo || null;
     if (typeof window.siembraRenderGestion === 'function') {
       try { window.siembraRenderGestion(); } catch(e) {}

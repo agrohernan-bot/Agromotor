@@ -642,23 +642,23 @@
         }
       }
 
-      html += '<div style="background:linear-gradient(135deg,rgba(74,140,92,.12),rgba(42,90,140,.08));border:1.5px solid rgba(74,140,92,.3);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1rem">';
+      html += '<div style="background:linear-gradient(135deg,rgba(74,140,92,.24),rgba(42,90,140,.16));border:1.5px solid rgba(109,191,130,.42);border-radius:12px;padding:1rem 1.1rem;margin-bottom:1rem;box-shadow:0 10px 28px rgba(0,0,0,.14)">';
       html +=   '<div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.55rem">';
       html +=     '<span style="font-size:1.3rem">⏳</span>';
       html +=     '<div>';
-      html +=       '<div style="font-weight:700;font-size:.88rem;color:#1E4D2B">Pre-siembra · ' + esc(cultivo) + ' · Plan. ' + grupLabel + '</div>';
-      html +=       '<div style="font-size:.73rem;color:rgba(26,42,32,.55);margin-top:.1rem">Planificación cerrada — monitoreá condiciones para decidir cuándo sembrar</div>';
+      html +=       '<div style="font-weight:700;font-size:.88rem;color:#A8E6BB">Pre-siembra · ' + esc(cultivo) + ' · Plan. ' + grupLabel + '</div>';
+      html +=       '<div style="font-size:.73rem;color:rgba(237,224,196,.78);margin-top:.1rem">Planificación cerrada — monitoreá condiciones para decidir cuándo sembrar</div>';
       html +=     '</div>';
       html +=   '</div>';
       if (epHoy) {
-        html += '<div style="font-size:.8rem;font-weight:600;color:#1E4D2B;background:rgba(74,140,92,.1);border-radius:8px;padding:.4rem .7rem;margin-bottom:.45rem">' + epHoy + '</div>';
+        html += '<div style="font-size:.8rem;font-weight:700;color:#DDF6E4;background:rgba(109,191,130,.18);border:1px solid rgba(109,191,130,.22);border-radius:8px;padding:.4rem .7rem;margin-bottom:.45rem">' + epHoy + '</div>';
       }
       if (epFecha) {
-        html += '<div style="font-size:.75rem;color:rgba(26,42,32,.65);margin-bottom:.55rem">' + epFecha + '</div>';
+        html += '<div style="font-size:.75rem;color:rgba(237,224,196,.74);margin-bottom:.55rem">' + epFecha + '</div>';
       }
       html +=   '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
       html +=     '<button onclick="window.AM_SIEMBRA_GRUPO=\'' + grupo + '\';window.dlAbrirModulo(\'siembra\',\'' + esc(loteId) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">🔍 Analizar condiciones hoy</button>';
-      html +=     '<button onclick="window.dlRegistrarSiembra(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:rgba(74,140,92,.15);color:#1E4D2B;border:1.5px solid rgba(74,140,92,.35);border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">✓ Registrar siembra realizada</button>';
+      html +=     '<button onclick="window.dlRegistrarSiembra(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:rgba(109,191,130,.12);color:#DDF6E4;border:1.5px solid rgba(109,191,130,.45);border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">✓ Registrar siembra realizada</button>';
       html +=   '</div>';
       html += '</div>';
     });
@@ -734,8 +734,8 @@
         html +=   '<button onclick="window.dlCerrarPlanificacion(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:9px;padding:.6rem 1.2rem;font-size:.85rem;font-weight:700;cursor:pointer;width:100%">✓ Cerrar planificación y pasar a Monitoreo</button>';
         html += '</div>';
       } else {
-        html += '<div style="margin-top:1.5rem;padding:.8rem 1rem;background:rgba(74,140,92,.1);border:1px solid rgba(74,140,92,.25);border-radius:10px;font-size:.8rem;color:#1E4D2B;display:flex;align-items:center;justify-content:space-between">';
-        html +=   '<span>✅ Planificación cerrada · fase: <strong>' + esc(faseActual) + '</strong></span>';
+        html += '<div style="margin-top:1.5rem;padding:.8rem 1rem;background:rgba(74,140,92,.18);border:1px solid rgba(109,191,130,.35);border-radius:10px;font-size:.8rem;color:#DDF6E4;display:flex;align-items:center;justify-content:space-between;gap:.8rem">';
+        html +=   '<span>✅ Planificación cerrada · fase: <strong style="color:#A8E6BB">' + esc(faseActual) + '</strong></span>';
         html +=   '<button onclick="window.dlAbrirSeccion(\'monitoreo\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:7px;padding:.35rem .8rem;font-size:.78rem;cursor:pointer">→ Ir a Monitoreo</button>';
         html += '</div>';
       }
