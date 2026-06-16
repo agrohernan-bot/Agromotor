@@ -861,6 +861,8 @@
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
     var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
+    var grupoFen = typeof window.amGrupoPorCultivo === 'function' ? window.amGrupoPorCultivo(cultivo) : _grupoPorCultivo(cultivo);
+    var srFen = grupoFen && d.siembraRealizada ? (d.siembraRealizada[grupoFen] || null) : null;
     var fechaSiembra = _fechaSiembraEfectiva(d, ck, cultivo);
     var key = normCultivoFen(cultivo);
     var etapas = key ? FEN_ETAPAS_MON[key] : null;
@@ -917,6 +919,12 @@
     else if (ep.idx < etapas.length - 1) html += '<span>Proxima etapa: ' + esc(etapas[ep.idx + 1].label) + '</span>';
     else html += '<span>Ciclo en tramo final</span>';
     html += '</div></div>';
+    if (srFen && srFen.fecha && grupoFen) {
+      html += '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.7rem">';
+      html +=   '<button type="button" onclick="window.dlEditarSiembra&&window.dlEditarSiembra(\'' + esc(lote.id) + '\',\'' + grupoFen + '\')" style="background:rgba(109,191,130,.12);color:#DDF6E4;border:1px solid rgba(109,191,130,.35);border-radius:8px;padding:.4rem .75rem;font-size:.74rem;font-weight:700;cursor:pointer">Editar siembra</button>';
+      html +=   '<button type="button" onclick="window.dlRevertirSiembra&&window.dlRevertirSiembra(\'' + esc(lote.id) + '\',\'' + grupoFen + '\')" style="background:rgba(201,74,42,.10);color:#F3A08D;border:1px solid rgba(201,74,42,.35);border-radius:8px;padding:.4rem .75rem;font-size:.74rem;font-weight:700;cursor:pointer">Volver a pre-siembra</button>';
+      html += '</div>';
+    }
     return html;
   }
 
@@ -1976,6 +1984,57 @@
       if (typeof amToast === 'function') amToast('Siembra registrada el ' + fechaConf + '. ¡A monitorear el cultivo!', 'ok');
       renderPanel();
     });
+  };
+
+  window.dlEditarSiembra = function(loteId, grupo) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    var sr = ((lote.data || {}).siembraRealizada || {})[grupo] || {};
+    var plan = ((lote.data || {}).planificacionSiembra || {})[grupo] || {};
+    var defFecha = sr.fecha || plan.fechaSiembraConf || plan.fechaSiembraPlan || new Date().toISOString().split('T')[0];
+    if (typeof amInputModal !== 'function') return;
+    amInputModal('Editar fecha de siembra realizada', defFecha, function(fechaConf) {
+      if (!fechaConf) return;
+      lote.data = lote.data || {};
+      lote.data.siembraRealizada = lote.data.siembraRealizada || {};
+      var entry = lote.data.siembraRealizada[grupo] || {};
+      entry.fecha = fechaConf;
+      entry.cultivo = entry.cultivo || plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+      entry.editadoAt = Date.now();
+      lote.data.siembraRealizada[grupo] = entry;
+      if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'en-curso');
+      else {
+        lote.data.faseGrupos = lote.data.faseGrupos || {};
+        lote.data.faseGrupos[grupo] = 'en-curso';
+      }
+      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+      if (typeof amToast === 'function') amToast('Fecha de siembra actualizada', 'ok');
+      renderPanel();
+    });
+  };
+
+  window.dlRevertirSiembra = function(loteId, grupo) {
+    var lote = getLote(loteId);
+    if (!lote) return;
+    var ok = confirm('¿Volver este cultivo a pre-siembra? Se conserva la fecha registrada en historial interno, pero deja de contar como siembra realizada.');
+    if (!ok) return;
+    lote.data = lote.data || {};
+    if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'pre-siembra');
+    else {
+      lote.data.faseGrupos = lote.data.faseGrupos || {};
+      lote.data.faseGrupos[grupo] = 'pre-siembra';
+    }
+    lote.data.siembraRealizada = lote.data.siembraRealizada || {};
+    if (lote.data.siembraRealizada[grupo]) {
+      lote.data.siembraRealizada[grupo].revertidaAt = Date.now();
+      lote.data.siembraRealizada[grupo].fechaAnterior = lote.data.siembraRealizada[grupo].fecha || '';
+      delete lote.data.siembraRealizada[grupo].fecha;
+    }
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof amToast === 'function') amToast('El cultivo volvió a pre-siembra', 'ok');
+    _loteAbierto = loteId;
+    _seccionAbierta = 'monitoreo';
+    renderPanel();
   };
 
   window.dlInit = init;

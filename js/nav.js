@@ -212,6 +212,10 @@ function _activarModulo(mod) {
               '</div>' +
             '</div>' +
             _sYaCondHtml +
+            '<div style="display:flex;gap:.45rem;flex-wrap:wrap;margin:.75rem 0 .2rem">' +
+              '<button onclick="window.dlEditarSiembra&&window.dlEditarSiembra(\'' + (_ltSb ? _ltSb.id : '') + '\',\'' + _sYaInfo.grupo + '\')" style="background:rgba(109,191,130,.12);color:#DDF6E4;border:1.5px solid rgba(109,191,130,.45);border-radius:8px;padding:.42rem .78rem;font-size:.76rem;font-weight:700;cursor:pointer">Editar fecha</button>' +
+              '<button onclick="window.dlRevertirSiembra&&window.dlRevertirSiembra(\'' + (_ltSb ? _ltSb.id : '') + '\',\'' + _sYaInfo.grupo + '\')" style="background:rgba(201,74,42,.10);color:#F3A08D;border:1.5px solid rgba(201,74,42,.35);border-radius:8px;padding:.42rem .78rem;font-size:.76rem;font-weight:700;cursor:pointer">Volver a pre-siembra</button>' +
+            '</div>' +
             '<div style="font-size:.76rem;color:rgba(168,230,187,.6);border-top:1px solid rgba(74,140,92,.25);padding-top:.55rem;margin-top:.55rem">' +
               'El cultivo está en curso. Podés usar este diagnóstico para referencia retrospectiva o para evaluar condiciones de resiembra.' +
             '</div>' +
