@@ -665,7 +665,8 @@
   }
 
   function scIndiceInicioProyeccion(clasif, sr, idxHoy) {
-    const fecha = sr.fecha || sr.fechaReal || sr.fechaSiembra || '';
+    let fecha = sr.fecha || sr.fechaReal || sr.fechaSiembra || '';
+    if (typeof window.amFechaISO === 'function') fecha = window.amFechaISO(fecha);
     const idxFecha = fecha ? clasif.findIndex(c => c.fecha >= fecha) : -1;
     if (idxFecha >= 0) return Math.min(idxFecha, Math.max(0, idxHoy));
     return Math.max(0, idxHoy);
