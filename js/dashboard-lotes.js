@@ -653,7 +653,7 @@
         html += '<div style="font-size:.75rem;color:rgba(26,42,32,.65);margin-bottom:.55rem">' + epFecha + '</div>';
       }
       html +=   '<div style="display:flex;gap:.5rem;flex-wrap:wrap">';
-      html +=     '<button onclick="window.dlAbrirModulo(\'siembra\',\'' + esc(loteId) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">🔍 Analizar condiciones hoy</button>';
+      html +=     '<button onclick="window.AM_SIEMBRA_GRUPO=\'' + grupo + '\';window.dlAbrirModulo(\'siembra\',\'' + esc(loteId) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">🔍 Analizar condiciones hoy</button>';
       html +=     '<button onclick="window.dlRegistrarSiembra(\'' + esc(loteId) + '\',\'' + grupo + '\')" style="background:rgba(74,140,92,.15);color:#1E4D2B;border:1.5px solid rgba(74,140,92,.35);border-radius:8px;padding:.45rem .9rem;font-size:.8rem;font-weight:600;cursor:pointer">✓ Registrar siembra realizada</button>';
       html +=   '</div>';
       html += '</div>';
