@@ -631,6 +631,21 @@
     return new Date().toISOString().split('T')[0];
   }
 
+  function scTieneCoordSiembra() {
+    try { return parsCoord(gv('s-coord'))[0] !== null; } catch(_) { return false; }
+  }
+
+  async function scCargarPronosticoSiembra() {
+    if (window.AM_SIEMBRA_FORECAST_LOADING) return;
+    window.AM_SIEMBRA_FORECAST_LOADING = true;
+    try {
+      await buscarAPI();
+    } finally {
+      window.AM_SIEMBRA_FORECAST_LOADING = false;
+      try { renderGestionSiembra(); } catch(_) {}
+    }
+  }
+
   function scGetHaDia(sr, lote) {
     const maqLote = (lote && lote.data && lote.data.maquinaria) || {};
     const manual = parseFloat(sr.haDiaria || 0);
@@ -751,7 +766,22 @@
     html += '<div class="card-title">📅 Gestión de siembra en curso <span style="font-size:.66rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">' + esc(cult) + ' · pronóstico Open-Meteo</span></div>';
 
     if (!dias || !dias.length) {
-      html += '<div style="padding:1.5rem;text-align:center;color:rgba(74,46,26,.5);font-size:.85rem">Presioná <strong>Obtener datos</strong> para ver el pronóstico de ventanas de siembra de los próximos días.</div>';
+      const puedeCargarPron = scTieneCoordSiembra();
+      const cargandoPron = !!window.AM_SIEMBRA_FORECAST_LOADING;
+      if (puedeCargarPron && !cargandoPron && !window.AM_SIEMBRA_FORECAST_AUTO_TRIED) {
+        window.AM_SIEMBRA_FORECAST_AUTO_TRIED = true;
+        setTimeout(scCargarPronosticoSiembra, 0);
+      }
+      html += '<div style="padding:1.5rem;text-align:center;color:rgba(74,46,26,.58);font-size:.85rem;line-height:1.55">';
+      if (cargandoPron) {
+        html += '<strong>Consultando Open-Meteo...</strong><br>Estoy cargando el pronóstico extendido para proyectar las ventanas de siembra.';
+      } else if (puedeCargarPron) {
+        html += 'Para proyectar el avance de siembra necesito cargar el pronóstico extendido del lote.';
+        html += '<div style="margin-top:.9rem"><button type="button" onclick="window.scCargarPronosticoSiembra&&window.scCargarPronosticoSiembra()" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.55rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer">Cargar pronóstico Open-Meteo</button></div>';
+      } else {
+        html += 'Ingresá o heredá las coordenadas del lote y luego cargá el pronóstico para ver ventanas y avance estimado.';
+      }
+      html += '</div>';
     } else {
       // Clasificar todos los días
       const clasif = dias.map((_, i) => clasificarDiaSiembra(dias, i, cult, suelo));
@@ -909,6 +939,7 @@
   // Exponer a global por retrocompatibilidad HTML
   window.buscarAPI = buscarAPI;
   window.calcSiembra = calcSiembra;
+  window.scCargarPronosticoSiembra = scCargarPronosticoSiembra;
   window.siembraRenderGestion = renderGestionSiembra;
 
 })();
