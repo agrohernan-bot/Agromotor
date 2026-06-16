@@ -144,12 +144,14 @@ function _activarModulo(mod) {
       var _sCult  = document.getElementById('s-cultivo');
       var _sFecha = document.getElementById('s-fecha');
       var _syncOk = false;
-      // Prioridad: grupo explícito pasado por el widget pre-siembra
+      // Prioridad: grupo explícito pasado por dlAbrirModulo o widget pre-siembra
       var _targetGrupo = window.AM_SIEMBRA_GRUPO || null;
       window.AM_SIEMBRA_GRUPO = null;
-      if (_targetGrupo && _psSb[_targetGrupo]) {
-        var _gdT = _psSb[_targetGrupo];
-        if (_sCult && _gdT.cultivo) _sCult.value = _gdT.cultivo;
+      if (_targetGrupo) {
+        var _gdT = _psSb[_targetGrupo] || {};
+        // Si no hay cultivo en el plan, usar el default del grupo
+        var _cultDefault = _targetGrupo === 'invierno' ? 'Trigo' : 'Soja';
+        if (_sCult) _sCult.value = _gdT.cultivo || _cultDefault;
         var _fechT = _gdT.fechaSiembraConf || _gdT.fechaSiembraPlan || '';
         if (_fechT && _sFecha && !_sFecha._touched) _sFecha.value = _fechT;
         _syncOk = true;

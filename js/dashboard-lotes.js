@@ -1700,6 +1700,21 @@
 
   window.dlAbrirModulo = function (mod, loteId) {
     activarLote(loteId);
+    // Auto-detectar grupo para siembra si no viene del widget pre-siembra
+    if (mod === 'siembra' && !window.AM_SIEMBRA_GRUPO) {
+      var _lt = getLote(loteId);
+      if (_lt && _lt.data) {
+        var _fg = _lt.data.faseGrupos || {};
+        var _pre = ['verano', 'invierno'].filter(function(g) { return _fg[g] === 'pre-siembra'; });
+        if (_pre.length === 1) {
+          window.AM_SIEMBRA_GRUPO = _pre[0];
+        } else if (_pre.length === 0) {
+          // Fallback: alinear con el cultivo principal del lote
+          var _cult = ((_lt.data.cultivo) || '').toLowerCase();
+          window.AM_SIEMBRA_GRUPO = (_cult === 'trigo' || _cult === 'cebada' || _cult === 'colza') ? 'invierno' : 'verano';
+        }
+      }
+    }
     _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod };
     if (typeof switchMod === 'function') switchMod(mod);
   };
