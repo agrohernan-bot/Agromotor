@@ -655,6 +655,12 @@
     if (manual > 0) return { valor: manual, fuente: 'ajuste manual' };
     if (maq > 0) return { valor: maq, fuente: 'Maquinaria' };
     if (local > 0) return { valor: local, fuente: 'ultimo calculo de Maquinaria' };
+    const a = parseFloat((document.getElementById('m-ancho') || {}).value || '0');
+    const v = parseFloat((document.getElementById('m-vel') || {}).value || '0');
+    const ef = parseFloat((document.getElementById('m-efic') || {}).value || '0.85') || 0.85;
+    const hs = parseFloat((document.getElementById('m-hs') || {}).value || '0');
+    const estimada = a > 0 && v > 0 && hs > 0 ? (a * v * ef / 10) * hs : 0;
+    if (estimada > 0) return { valor: estimada, fuente: 'estimado con parametros de Maquinaria' };
     return { valor: 0, fuente: '' };
   }
 
@@ -874,6 +880,9 @@
         });
         html += '</div>';
         html += '<div style="display:flex;gap:.65rem;flex-wrap:wrap;margin-top:.55rem;font-size:.64rem;color:rgba(74,46,26,.58)"><span><b style="color:#2A8A4A">■</b> Estimado</span><span><b style="color:#2E6EA5">■</b> Confirmado</span><span><b style="color:#C94A2A">■</b> Bloqueado</span><span>' + proy.diasAptos + ' días aptos · ' + proy.diasBloqueados + ' bloqueados</span></div>';
+        if (haDiaInfo.fuente && haDiaInfo.fuente.indexOf('estimado') >= 0) {
+          html += '<div style="margin-top:.45rem;font-size:.68rem;color:rgba(74,46,26,.55);line-height:1.45">Usé la configuración actual de Maquinaria como base. Podés confirmar o ajustar la capacidad en el campo ha/día.</div>';
+        }
       }
       html += '</div>';
 
