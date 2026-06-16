@@ -5,6 +5,8 @@
   window.AM = window.AM || {};
   window.AM.siembra = {};
 
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
   async function fetchOpenMeteoSeguro(url,urlFallback){
     async function leer(res){
       if(res.ok)return res.json();
@@ -150,6 +152,8 @@
         };
       });
 
+      window._siembraDias=dias;
+
       const fselStr=fmt(apiRef);
       const dRef=dias.find(d=>d.fecha===fselStr)||dias.find(d=>d.fecha>=fselStr)||dias[3];
       const iRef=dias.indexOf(dRef);
@@ -186,6 +190,7 @@
       $('api-info').classList.remove('hidden');
 
       renderPron(dias,fselStr);
+      try{ renderGestionSiembra(); }catch(_){}
       const avisoFechaApi=fechaFueraRango?' con fecha actual (la fecha elegida queda fuera del pronóstico disponible)':'';
       setStatus('✅ Open-Meteo cargado'+avisoFechaApi+' — consultando NASA POWER (histórico 30 años)...',true);
       // Actualizar banner del asistente IA
@@ -498,8 +503,260 @@
     }
   }
 
+  // ══════════════════════════════════════════════════════
+  // GESTIÓN DE SIEMBRA EN CURSO
+  // Motor de aptitud diaria + ventanas de siembra + progreso
+  // ══════════════════════════════════════════════════════
+
+  // Clasifica un día según humedad de suelo, temperatura (ventana 3 días),
+  // lluvia y viento. dias = array completo del forecast; i = índice del día.
+  function clasificarDiaSiembra(dias, i, cult, suelo) {
+    const d = dias[i];
+    const sRef = DB.suelo[suelo] || { cc:34, pm:12 };
+    const tMin = DB.tMin[cult] || 8;
+    const cc = sRef.cc, pm = sRef.pm;
+    const h = d.sm39, t = d.st6;
+    const precip = d.precS != null ? d.precS : 0;
+    const wind = d.windMax != null ? d.windMax : 0;
+
+    // Humedad → condición + agua disponible
+    let condHum = '—', aguaDisp = null, humSembrable = false;
+    if (h != null) {
+      aguaDisp = Math.max(0, h - pm);
+      if (h <= pm) { condHum = 'Muy seco'; humSembrable = false; }
+      else if (h >= cc) { condHum = 'Anegado'; humSembrable = false; }
+      else { condHum = 'Agua útil'; humSembrable = true; }
+    }
+
+    // Temperatura: ventana de 3 días (hoy + 2 previos), todos ≥ tMin
+    let tempApta = true;
+    if (t == null) { tempApta = false; }
+    else {
+      for (let k = Math.max(0, i - 2); k <= i; k++) {
+        if (dias[k].st6 == null || dias[k].st6 < tMin) { tempApta = false; break; }
+      }
+    }
+
+    // Profundidad dinámica (más profundo cuanto más seco, dentro del rango del suelo)
+    let prof = null;
+    const profR = (DB.prof[suelo] && DB.prof[suelo][cult]) || null;
+    if (profR && humSembrable && h != null) {
+      const mp = profR[0], xp = profR[2];
+      prof = (mp + (xp - mp) * ((cc - h) / (cc - pm))).toFixed(1);
+    }
+
+    // Estado final por prioridad
+    let estado, emoji, label;
+    if (precip > 5)                  { estado='lluvia';  emoji='🔴'; label='Lluvia ' + precip.toFixed(0) + ' mm'; }
+    else if (h != null && h >= cc)   { estado='anegado'; emoji='⛔'; label='Suelo saturado'; }
+    else if (h != null && h <= pm)   { estado='seco';    emoji='🟤'; label='Muy seco'; }
+    else if (!tempApta)              { estado='frio';    emoji='🔵'; label='Temp. baja'; }
+    else if (wind > 25)              { estado='viento';  emoji='💨'; label='Viento ' + wind.toFixed(0) + ' km/h'; }
+    else if (humSembrable && tempApta) { estado='apto';  emoji='🟢'; label='Apto'; }
+    else                             { estado='marginal';emoji='🟡'; label='Marginal'; }
+
+    return { fecha:d.fecha, estado, emoji, label, condHum, aguaDisp, tempApta, prof,
+             h, t, precip, wind, sembrable: (estado==='apto'||estado==='marginal') };
+  }
+
+  // Genera recomendación inteligente a partir de la secuencia de días.
+  function generarRecomendacion(clasif, idxHoy) {
+    if (!clasif.length) return null;
+    const hoy = clasif[idxHoy] || clasif[0];
+    const futuros = clasif.slice(idxHoy);
+
+    // Próxima lluvia
+    let proxLluvia = -1;
+    for (let k = 1; k < futuros.length; k++) {
+      if (futuros[k].estado === 'lluvia') { proxLluvia = k; break; }
+    }
+    // Próxima ventana sembrable y su largo
+    let proxVentana = -1, largoVentana = 0;
+    for (let k = 0; k < futuros.length; k++) {
+      if (futuros[k].sembrable) {
+        if (proxVentana === -1) proxVentana = k;
+        largoVentana++;
+      } else if (proxVentana !== -1) {
+        break;
+      }
+    }
+
+    let nivel, titulo, detalle;
+    const fechaLbl = f => { const p = f.split('-'); return p[2] + '/' + p[1]; };
+
+    if (hoy.estado === 'lluvia') {
+      nivel = 'esperar'; titulo = '⛔ No sembrar hoy — lluvia';
+      const sig = proxVentana >= 0 ? '· Próxima ventana: ' + fechaLbl(futuros[proxVentana].fecha) + (largoVentana>1?' ('+largoVentana+' días)':'') : '· Sin ventana clara en el pronóstico';
+      detalle = 'Hay ' + hoy.precip.toFixed(0) + ' mm previstos. ' + sig;
+    } else if (hoy.estado === 'anegado') {
+      let diasSecado = 0;
+      for (let k = 1; k < futuros.length; k++) { if (futuros[k].estado !== 'anegado') break; diasSecado++; }
+      nivel = 'esperar'; titulo = '⛔ Suelo saturado — esperá ' + (diasSecado>0?diasSecado+' día'+(diasSecado>1?'s':''):'el drenaje');
+      detalle = proxVentana >= 0 ? 'El suelo drena hacia ' + fechaLbl(futuros[proxVentana].fecha) + '. No ingreses hasta entonces para evitar compactación.' : 'Monitoreá el drenaje antes de ingresar.';
+    } else if (hoy.estado === 'seco') {
+      nivel = 'esperar'; titulo = '🟤 Suelo muy seco — riesgo de mala implantación';
+      detalle = proxLluvia >= 0 ? 'Lluvia prevista el ' + fechaLbl(futuros[proxLluvia].fecha) + ' podría mejorar la humedad. Evaluá esperar.' : 'Sin lluvia en el pronóstico. Considerá sembrar más profundo para alcanzar humedad.';
+    } else if (hoy.estado === 'frio') {
+      nivel = 'precaucion'; titulo = '🔵 Temperatura de suelo baja';
+      detalle = 'La germinación será lenta. ' + (proxVentana>=0 && futuros[proxVentana].estado==='apto' ? 'Mejores condiciones desde ' + fechaLbl(futuros[proxVentana].fecha) + '.' : 'Monitoreá la evolución de la temperatura.');
+    } else if (hoy.sembrable) {
+      // Hoy se puede sembrar — ¿urgencia por lluvia próxima?
+      if (proxLluvia >= 1 && proxLluvia <= 3) {
+        nivel = 'urgente';
+        let diasAntes = 0;
+        for (let k = 0; k < proxLluvia; k++) { if (futuros[k].sembrable) diasAntes++; }
+        titulo = '✅ URGENTE: aprovechá la ventana antes de la lluvia';
+        detalle = 'Tenés ' + diasAntes + ' día' + (diasAntes>1?'s':'') + ' aptos antes de la lluvia del ' + fechaLbl(futuros[proxLluvia].fecha) + '. Maximizá el avance.';
+      } else if (largoVentana >= 5) {
+        nivel = 'optimo'; titulo = '✅ Ventana extendida — condiciones óptimas';
+        detalle = 'Tenés ' + largoVentana + ' días consecutivos aptos. Ritmo de siembra normal sin apuro.';
+      } else {
+        nivel = 'optimo'; titulo = '✅ HOY: condiciones aptas para sembrar';
+        detalle = largoVentana>1 ? 'Ventana de ' + largoVentana + ' días. Aprovechá el clima favorable.' : 'Ventana corta de 1 día — priorizá el avance.';
+      }
+    } else {
+      nivel = 'precaucion'; titulo = '🟡 Condiciones marginales';
+      detalle = proxVentana>=0 ? 'Mejores condiciones desde ' + fechaLbl(futuros[proxVentana].fecha) + '.' : 'Evaluá con criterio profesional.';
+    }
+    return { nivel, titulo, detalle };
+  }
+
+  function renderGestionSiembra() {
+    const card = $('siembra-curso');
+    if (!card) return;
+
+    // Solo mostrar si el grupo activo está en-curso
+    if (window.AM_SIEMBRA_FASE !== 'en-curso') { card.classList.add('hidden'); card.innerHTML=''; return; }
+    card.classList.remove('hidden');
+
+    const cult = gv('s-cultivo'), suelo = gv('s-suelo');
+    const dias = window._siembraDias || null;
+    const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    const grupo = window.AM_SIEMBRA_CURRENT_GRUPO || (cult && ['Trigo','Cebada','Colza'].indexOf(cult)>=0 ? 'invierno':'verano');
+    const sr = (lote && lote.data && lote.data.siembraRealizada && lote.data.siembraRealizada[grupo]) || {};
+
+    let html = '<div class="card gap-top" style="border:1.5px solid rgba(74,140,92,.35)">';
+    html += '<div class="card-title">📅 Gestión de siembra en curso <span style="font-size:.66rem;font-weight:400;color:rgba(74,46,26,.4);margin-left:auto">' + esc(cult) + ' · pronóstico Open-Meteo</span></div>';
+
+    if (!dias || !dias.length) {
+      html += '<div style="padding:1.5rem;text-align:center;color:rgba(74,46,26,.5);font-size:.85rem">Presioná <strong>Obtener datos</strong> para ver el pronóstico de ventanas de siembra de los próximos días.</div>';
+    } else {
+      // Clasificar todos los días
+      const clasif = dias.map((_, i) => clasificarDiaSiembra(dias, i, cult, suelo));
+      const hoyStr = new Date().toISOString().split('T')[0];
+      let idxHoy = clasif.findIndex(c => c.fecha === hoyStr);
+      if (idxHoy < 0) idxHoy = clasif.findIndex(c => c.fecha >= hoyStr);
+      if (idxHoy < 0) idxHoy = 0;
+
+      // 1. RECOMENDACIÓN DESTACADA
+      const rec = generarRecomendacion(clasif, idxHoy);
+      if (rec) {
+        const colores = {
+          urgente:    ['#7A4A10','#FFF3D6'], optimo: ['#1A5C2A','#D6F5DE'],
+          precaucion: ['#7A4A10','#FFF3D6'], esperar:['#7A1A0A','#FBD9D2'],
+        };
+        const cz = colores[rec.nivel] || colores.optimo;
+        html += '<div style="background:' + cz[0] + ';border-radius:12px;padding:1.1rem 1.3rem;margin-bottom:1rem">' +
+          '<div style="font-family:\'DM Serif Display\',serif;font-size:1.1rem;color:white;font-weight:700">' + rec.titulo + '</div>' +
+          '<div style="font-size:.8rem;color:rgba(255,255,255,.85);margin-top:.3rem">' + rec.detalle + '</div>' +
+        '</div>';
+      }
+
+      // 2. CALENDARIO DE APTITUD (solo desde hoy en adelante)
+      const futuros = clasif.slice(idxHoy);
+      html += '<div class="sl">Ventanas de siembra — próximos ' + futuros.length + ' días</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0 1rem">';
+      const diaSemana = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      futuros.forEach(c => {
+        const dObj = new Date(c.fecha + 'T12:00:00');
+        const ds = diaSemana[dObj.getDay()];
+        const dnum = c.fecha.split('-')[2];
+        const bg = c.estado==='apto'?'rgba(74,140,92,.18)':c.estado==='marginal'?'rgba(184,122,32,.16)':c.estado==='lluvia'?'rgba(201,74,42,.16)':c.estado==='anegado'?'rgba(100,100,100,.16)':c.estado==='seco'?'rgba(140,90,40,.14)':c.estado==='frio'?'rgba(42,90,140,.14)':'rgba(120,120,180,.14)';
+        const bd = c.estado==='apto'?'rgba(74,140,92,.5)':'rgba(74,46,26,.12)';
+        const tip = c.label + (c.h!=null?' · Hum ' + c.h.toFixed(0) + '% (' + c.condHum + ')':'') + (c.t!=null?' · Suelo ' + c.t.toFixed(0) + '°':'') + (c.prof?' · Prof ' + c.prof + 'cm':'');
+        html += '<div title="' + esc(tip) + '" style="flex:1 1 calc(14.28% - .4rem);min-width:62px;background:' + bg + ';border:1px solid ' + bd + ';border-radius:9px;padding:.5rem .3rem;text-align:center">' +
+          '<div style="font-size:.62rem;color:rgba(74,46,26,.5);text-transform:uppercase;letter-spacing:.5px">' + ds + ' ' + dnum + '</div>' +
+          '<div style="font-size:1.15rem;line-height:1.4">' + c.emoji + '</div>' +
+          '<div style="font-size:.6rem;color:rgba(74,46,26,.55);font-weight:600">' + (c.h!=null?c.h.toFixed(0)+'%':'—') + '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem .9rem;font-size:.66rem;color:rgba(74,46,26,.5);margin-bottom:1rem">' +
+        '<span>🟢 Apto</span><span>🟡 Marginal</span><span>🔴 Lluvia</span><span>⛔ Saturado</span><span>🟤 Muy seco</span><span>🔵 Frío</span><span>💨 Viento</span></div>';
+
+      // 3. PROGRESO DE SIEMBRA
+      const total = parseFloat((lote && lote.data && lote.data.superficie) || sr.hectareasTotal || 0) || 0;
+      const completadas = parseFloat(sr.hectareasCompletadas || 0) || 0;
+      let haDia = parseFloat(localStorage.getItem('am_maq_hd') || '') || parseFloat(sr.haDiaria || 0) || 0;
+      const restantes = Math.max(0, total - completadas);
+      const pct = total > 0 ? Math.min(100, Math.round(completadas / total * 100)) : 0;
+      const diasNec = haDia > 0 ? Math.ceil(restantes / haDia) : null;
+
+      // Proyectar fin sobre días aptos del forecast
+      let finEstim = null;
+      if (haDia > 0 && restantes > 0) {
+        let acum = 0, diasUsados = 0;
+        for (let k = 0; k < futuros.length && acum < restantes; k++) {
+          if (futuros[k].sembrable) { acum += haDia; diasUsados = k; }
+        }
+        if (acum >= restantes) finEstim = futuros[diasUsados].fecha;
+      }
+
+      html += '<div class="sl">Progreso de siembra</div>';
+      html += '<div style="margin:.5rem 0">';
+      html += '<div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem"><span style="color:rgba(74,46,26,.6)">' + completadas.toFixed(0) + ' / ' + (total>0?total.toFixed(0):'—') + ' ha</span><span style="font-weight:700;color:#2A5A3A">' + pct + '%</span></div>';
+      html += '<div style="height:10px;background:rgba(74,46,26,.1);border-radius:6px;overflow:hidden"><div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,#4A9A5A,#2A5A3A);border-radius:6px"></div></div>';
+      html += '</div>';
+
+      html += '<div class="rg" style="margin-top:.7rem">';
+      html += '<div class="kc neutral"><div class="kl">Restante</div><div class="kv">' + restantes.toFixed(0) + '</div><div class="ku">ha</div></div>';
+      html += '<div class="kc neutral"><div class="kl">Capacidad</div><div class="kv">' + (haDia>0?haDia.toFixed(0):'—') + '</div><div class="ku">ha/día</div></div>';
+      html += '<div class="kc ' + (diasNec!=null&&diasNec>0?'':'neutral') + '"><div class="kl">Días de trabajo</div><div class="kv">' + (diasNec!=null?diasNec:'—') + '</div><div class="ku">a capacidad</div></div>';
+      html += '<div class="kc blue"><div class="kl">Fin estimado</div><div class="kv" style="font-size:1rem">' + (finEstim?finEstim.split('-').slice(1).reverse().join('/'):'—') + '</div><div class="ku">según ventanas</div></div>';
+      html += '</div>';
+
+      // Inputs de avance
+      html += '<div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:flex-end;margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(74,46,26,.1)">';
+      html += '<div style="flex:1;min-width:120px"><label style="font-size:.7rem;color:rgba(74,46,26,.55);display:block;margin-bottom:.2rem">Ha completadas</label><input type="number" id="sc-ha-comp" value="' + completadas + '" min="0" max="' + (total||99999) + '" style="width:100%;padding:.45rem .6rem;border:1px solid rgba(74,46,26,.2);border-radius:8px"></div>';
+      if (haDia <= 0) {
+        html += '<div style="flex:1;min-width:120px"><label style="font-size:.7rem;color:rgba(74,46,26,.55);display:block;margin-bottom:.2rem">Ha/día (capacidad)</label><input type="number" id="sc-ha-dia" value="" placeholder="ej: 35" min="0" style="width:100%;padding:.45rem .6rem;border:1px solid rgba(74,46,26,.2);border-radius:8px"></div>';
+      }
+      html += '<button onclick="window.scGuardarAvance(\'' + esc(grupo) + '\')" style="background:#2A5A3A;color:#fff;border:none;border-radius:8px;padding:.55rem 1.1rem;font-size:.8rem;font-weight:700;cursor:pointer">Actualizar avance</button>';
+      if (haDia <= 0) {
+        html += '<button onclick="window.dlAbrirModulo&&window.dlAbrirModulo(\'maquinaria\',(window.amGetLoteActivo&&window.amGetLoteActivo()||{}).id)" style="background:rgba(74,140,92,.12);color:#1E4D2B;border:1px solid rgba(74,140,92,.3);border-radius:8px;padding:.55rem 1.1rem;font-size:.8rem;font-weight:600;cursor:pointer">🚜 Calcular en Maquinaria</button>';
+      }
+      html += '</div>';
+
+      if (completadas >= total && total > 0) {
+        html += '<div style="margin-top:.9rem;background:rgba(74,140,92,.12);border-radius:10px;padding:.8rem 1rem;text-align:center;font-size:.85rem;font-weight:700;color:#1E4D2B">🎉 Siembra completada — el cultivo está 100% implantado</div>';
+      }
+    }
+
+    html += '</div>';
+    card.innerHTML = html;
+  }
+
+  // Guardar avance de siembra (ha completadas + capacidad opcional)
+  window.scGuardarAvance = function(grupo) {
+    const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    if (!lote) return;
+    lote.data = lote.data || {};
+    lote.data.siembraRealizada = lote.data.siembraRealizada || {};
+    const entry = lote.data.siembraRealizada[grupo] || {};
+    const haComp = parseFloat((document.getElementById('sc-ha-comp')||{}).value);
+    if (!isNaN(haComp)) entry.hectareasCompletadas = haComp;
+    const haDiaEl = document.getElementById('sc-ha-dia');
+    if (haDiaEl) { const v = parseFloat(haDiaEl.value); if (!isNaN(v) && v > 0) { entry.haDiaria = v; try{ localStorage.setItem('am_maq_hd', String(v)); }catch(_){} } }
+    if (!entry.hectareasTotal && lote.data.superficie) entry.hectareasTotal = parseFloat(lote.data.superficie) || 0;
+    lote.data.siembraRealizada[grupo] = entry;
+    if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+    if (typeof window.amToast === 'function') window.amToast('Avance de siembra actualizado', 'ok');
+    try { renderGestionSiembra(); } catch(_) {}
+  };
+
   // Exponer a global por retrocompatibilidad HTML
   window.buscarAPI = buscarAPI;
   window.calcSiembra = calcSiembra;
+  window.siembraRenderGestion = renderGestionSiembra;
 
 })();
