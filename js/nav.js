@@ -140,23 +140,35 @@ function _activarModulo(mod) {
     var _ltSb = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
     if (_ltSb && _ltSb.data) {
       var _dSb  = _ltSb.data;
-      var _rendSb = parseFloat(_dSb.rendimientoObjetivo);
       var _psSb = _dSb.planificacionSiembra || {};
       var _sCult  = document.getElementById('s-cultivo');
       var _sFecha = document.getElementById('s-fecha');
       var _syncOk = false;
-      Object.keys(_psSb).forEach(function(g) {
-        var gd = _psSb[g];
-        if (!_syncOk && gd && gd.cultivo && gd.rendimientoObjetivo &&
-            Math.abs(parseFloat(gd.rendimientoObjetivo) - _rendSb) < 0.01) {
-          if (_sCult) _sCult.value = gd.cultivo;
-          var _fech = gd.fechaSiembraConf || gd.fechaSiembraPlan || '';
-          if (_fech && _sFecha && !_sFecha._touched) _sFecha.value = _fech;
-          _syncOk = true;
-        }
-      });
-      // Fallback: cultivo directo del lote
-      if (!_syncOk && _sCult && _dSb.cultivo) _sCult.value = _dSb.cultivo;
+      // Prioridad: grupo explícito pasado por el widget pre-siembra
+      var _targetGrupo = window.AM_SIEMBRA_GRUPO || null;
+      window.AM_SIEMBRA_GRUPO = null;
+      if (_targetGrupo && _psSb[_targetGrupo]) {
+        var _gdT = _psSb[_targetGrupo];
+        if (_sCult && _gdT.cultivo) _sCult.value = _gdT.cultivo;
+        var _fechT = _gdT.fechaSiembraConf || _gdT.fechaSiembraPlan || '';
+        if (_fechT && _sFecha && !_sFecha._touched) _sFecha.value = _fechT;
+        _syncOk = true;
+      }
+      if (!_syncOk) {
+        var _rendSb = parseFloat(_dSb.rendimientoObjetivo);
+        Object.keys(_psSb).forEach(function(g) {
+          var gd = _psSb[g];
+          if (!_syncOk && gd && gd.cultivo && gd.rendimientoObjetivo &&
+              Math.abs(parseFloat(gd.rendimientoObjetivo) - _rendSb) < 0.01) {
+            if (_sCult) _sCult.value = gd.cultivo;
+            var _fech = gd.fechaSiembraConf || gd.fechaSiembraPlan || '';
+            if (_fech && _sFecha && !_sFecha._touched) _sFecha.value = _fech;
+            _syncOk = true;
+          }
+        });
+        // Fallback: cultivo directo del lote
+        if (!_syncOk && _sCult && _dSb.cultivo) _sCult.value = _dSb.cultivo;
+      }
     }
   }
 
