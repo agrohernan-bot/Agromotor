@@ -322,6 +322,53 @@ function cvCalcularAmbiente(sgDatos) {
   return               { nivel: 'bajo',  label: 'Bajo potencial',  razon, icono: '🔴', fuente };
 }
 
+// ── Densidad observada ReTAA ─────────────────────────────
+function cvMapCultivoReTAA(cultivo) {
+  const s = String(cultivo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (s.indexOf('maiz') >= 0) return 'maiz';
+  if (s.indexOf('soja') >= 0) return 'soja';
+  if (s.indexOf('girasol') >= 0) return 'girasol';
+  if (s.indexOf('trigo') >= 0) return 'trigo';
+  if (s.indexOf('cebada') >= 0) return 'cebada';
+  if (s.indexOf('sorgo') >= 0) return 'sorgo';
+  return null;
+}
+
+function cvSetTxt(id, v) { const e = document.getElementById(id); if (e) e.textContent = v; }
+
+// Muestra la densidad real relevada por ReTAA en la subregión del lote.
+// Es un dato observado (Bolsa de Cereales), no una recomendación teórica;
+// la densidad objetivo queda editable para el agrónomo.
+function cvRenderReTAA(lat, lon, cultivo, fechaStr, ambiente) {
+  const card = document.getElementById('cv-retaa-card');
+  if (!card) return;
+  if (typeof window.AM_RETAA === 'undefined' || lat === null) { card.classList.add('hidden'); return; }
+  const key = cvMapCultivoReTAA(cultivo);
+  if (!key) { card.classList.add('hidden'); return; }
+  const r = window.AM_RETAA.calcular({ lat, lon, cultivo: key, fechaSiembra: fechaStr, ambiente, hidrico: 'n' });
+  if (!r) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+
+  const badge = document.getElementById('cv-retaa-badge');
+  const colMap = { '◉': ['#1b5e35', 'rgba(27,94,53,.12)'], '◎': ['#1f6f9c', 'rgba(41,128,185,.12)'], '◈': ['#8a6200', 'rgba(212,168,71,.18)'] };
+  const col = colMap[r.densidad.fuente] || colMap['◎'];
+  if (badge) { badge.textContent = r.densidad.fuenteLabel; badge.style.color = col[0]; badge.style.background = col[1]; }
+
+  cvSetTxt('cv-retaa-sub', r.subregion.nombre + ' · ' + r.campania + ' · ' + r.informe + (r.fechaLabel ? ' · ' + r.fechaLabel : ''));
+  cvSetTxt('cv-retaa-obs', r.densidad.valor != null ? r.densidad.valor : '—');
+  cvSetTxt('cv-retaa-unit', r.unidad);
+  cvSetTxt('cv-retaa-n', r.fertilN != null ? r.fertilN : '—');
+  cvSetTxt('cv-retaa-p', r.fertilP != null ? r.fertilP : '—');
+  cvSetTxt('cv-retaa-dens-unit', r.unidad);
+
+  const edit = document.getElementById('cv-retaa-dens-edit');
+  if (edit && document.activeElement !== edit) edit.value = (r.densidad.ajustada != null ? r.densidad.ajustada : '');
+
+  cvSetTxt('cv-retaa-nota', (r.esFallback ? '⚠️ Sin relevamiento específico para esta subregión: se muestra referencia nacional/núcleo. ' : '') + r.nota);
+
+  window.AM_RETAA.renderTendencia('cv-retaa-chart', r);
+}
+
 function cvActualizar() {
   const cultivo  = gv('cv-cultivo')    || 'Soja';
   // Sincronizar densidad de siembra con el cultivo activo
@@ -423,6 +470,9 @@ function cvActualizar() {
   if (ambRazon) ambRazon.textContent = ambienteCalc.razon + (ambienteCalc.fuente ? ' · ' + ambienteCalc.fuente : '');
 
   const ambiente = ambienteCalc.nivel;
+
+  // ── Densidad observada ReTAA (Bolsa de Cereales) ──────
+  cvRenderReTAA(lat, lon, cultivo, fechaStr, ambiente);
 
   // zonaInfo ya declarado arriba — sólo verificar
   if (!zonaInfo) return;

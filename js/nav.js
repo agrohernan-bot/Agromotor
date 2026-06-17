@@ -62,7 +62,7 @@ function switchMod(mod) {
 
   var modLazy = {
     'hidrico':       ['hidrico.js'],
-    'cultivares':    ['cultivares.js', 'cultivares-extra.js'],
+    'cultivares':    ['densidad-retaa-db.js', 'densidad-retaa.js', 'cultivares.js', 'cultivares-extra.js'],
     'mapa':          ['mapa.js'],
     'donde-comprar': ['mapa.js'],
     'pulverizacion': ['pulverizacion.js'],
@@ -72,7 +72,7 @@ function switchMod(mod) {
     'seguimiento':   ['seguimiento.js'],
     'cosecha':       ['cosecha.js'],
     'plagas':           ['plagas.js'],
-    'siembra-variable':  ['siembra-variable.js'],
+    'siembra-variable':  ['densidad-retaa-db.js', 'densidad-retaa.js', 'siembra-variable.js'],
     'alerta-sanitaria':  ['alerta-sanitaria.js'],
   };
 

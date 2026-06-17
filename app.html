@@ -1670,6 +1670,39 @@
         </div>
       </div>
 
+      <!-- Densidad observada ReTAA -->
+      <div class="card gap-top hidden" id="cv-retaa-card">
+        <div class="card-title">📊 Densidad observada en tu zona (ReTAA)
+          <span id="cv-retaa-badge" style="margin-left:auto;font-size:.6rem;font-weight:700;padding:.18rem .5rem;border-radius:10px"></span>
+        </div>
+        <div id="cv-retaa-sub" style="font-size:.72rem;color:rgba(74,46,26,.55);margin:-.25rem 0 .7rem">—</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.7rem">
+          <div style="background:rgba(74,140,92,.08);border:1px solid rgba(74,140,92,.22);border-radius:8px;padding:.5rem;text-align:center">
+            <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(74,46,26,.5)">Observada</div>
+            <div id="cv-retaa-obs" style="font-size:1.3rem;font-weight:700;color:var(--canopy);line-height:1.15">—</div>
+            <div id="cv-retaa-unit" style="font-size:.58rem;color:rgba(74,46,26,.5)">—</div>
+          </div>
+          <div style="background:rgba(74,46,26,.04);border:1px solid var(--border);border-radius:8px;padding:.5rem;text-align:center">
+            <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(74,46,26,.5)">Nitrógeno</div>
+            <div id="cv-retaa-n" style="font-size:1.3rem;font-weight:700;color:var(--ink);line-height:1.15">—</div>
+            <div style="font-size:.58rem;color:rgba(74,46,26,.5)">kg N/ha</div>
+          </div>
+          <div style="background:rgba(74,46,26,.04);border:1px solid var(--border);border-radius:8px;padding:.5rem;text-align:center">
+            <div style="font-size:.58rem;text-transform:uppercase;letter-spacing:.5px;color:rgba(74,46,26,.5)">Fósforo</div>
+            <div id="cv-retaa-p" style="font-size:1.3rem;font-weight:700;color:var(--ink);line-height:1.15">—</div>
+            <div style="font-size:.58rem;color:rgba(74,46,26,.5)">kg P/ha</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.65rem;flex-wrap:wrap">
+          <label style="font-size:.74rem;font-weight:600;color:var(--ink)">Tu densidad objetivo:</label>
+          <input id="cv-retaa-dens-edit" type="number" step="0.1" style="width:95px;padding:.35rem .5rem;border:1.5px solid var(--border);border-radius:6px;font-size:.85rem;font-weight:600">
+          <span id="cv-retaa-dens-unit" style="font-size:.7rem;color:rgba(74,46,26,.5)">—</span>
+          <span style="font-size:.66rem;color:rgba(74,46,26,.45)">(ajustada a tu lote · editable)</span>
+        </div>
+        <div style="position:relative;height:150px"><canvas id="cv-retaa-chart"></canvas></div>
+        <div id="cv-retaa-nota" style="font-size:.68rem;color:rgba(74,46,26,.5);margin-top:.5rem;font-style:italic;line-height:1.5"></div>
+      </div>
+
       <!-- Ventana de siembra -->
       <div class="card gap-top hidden" id="cv-ventana-card">
         <div class="card-title">📅 Ventana óptima de siembra</div>
@@ -4659,14 +4692,14 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=145"></script>
+<script src="js/config.js?v=147"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=100"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
 <script src="js/campanas.js?v=85"></script>
-<script src="js/enso.js?v=86"></script>
+<script src="js/enso.js?v=87"></script>
 <script src="js/alertas.js?v=85"></script>
 <script src="js/barbecho.js?v=85"></script>
 <script src="js/fenologia.js?v=85"></script>
