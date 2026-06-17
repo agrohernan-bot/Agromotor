@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -2067,10 +2067,11 @@
         <div class="card-hdr"><div><div class="card-ttl">Parámetros de Aplicación</div><div class="card-sub">Lote, producto y equipo</div></div></div>
         <div class="card-bdy">
           <div class="form-fld"><label class="form-lbl">Cultivo objetivo</label>
-            <select class="form-sel" id="pc-cultivo" onchange="pulvCalcCaldo()">
+            <select class="form-sel" id="pc-cultivo" onchange="pulvCalcCaldo()" disabled>
               <option value="">— Seleccionar —</option>
               <option>Soja</option><option>Maíz</option><option>Trigo / Cebada</option><option>Girasol</option><option>Barbecho</option><option>Pasturas</option>
             </select>
+            <button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-cultivo')" style="margin-top:.45rem">Ajustar manualmente</button>
           </div>
           <div class="form-fld"><label class="form-lbl">Tipo de aplicación</label>
             <select class="form-sel" id="pc-tipo" onchange="pulvActualizarProductos()">
@@ -2079,21 +2080,49 @@
               <option value="fungicida">Fungicida</option>
               <option value="insecticida">Insecticida</option>
               <option value="fertilizante_foliar">Fertilizante foliar</option>
+              <option value="coadyuvante">Coadyuvante</option>
             </select>
           </div>
           <div class="form-fld"><label class="form-lbl">Producto / Principio activo</label>
-            <select class="form-sel" id="pc-producto" onchange="pulvCalcCaldo()">
+            <select class="form-sel" id="pc-producto" onchange="pulvAgregarProductoCaldo()">
               <option value="">— Seleccionar tipo primero —</option>
             </select>
+            <div style="display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.55rem">
+              <button type="button" class="mini-btn" onclick="pulvAbrirProductoManual()">+ Cargar producto nuevo</button>
+              <button type="button" class="mini-btn" onclick="document.getElementById('pc-marbete-file').click()">📷 Leer marbete</button>
+              <input type="file" id="pc-marbete-file" accept="image/*" capture="environment" style="display:none" onchange="pulvLeerMarbete(this)">
+            </div>
+            <div id="pc-marbete-status" style="font-size:.72rem;color:rgba(74,46,26,.5);margin-top:.45rem"></div>
+            <div id="pc-mix-list" style="margin-top:.75rem"></div>
+          </div>
+          <div class="panel-card hidden" id="pc-producto-manual" style="margin:.4rem 0 1rem;border-radius:12px">
+            <div class="card-bdy">
+              <div class="grid-2">
+                <div class="form-fld"><label class="form-lbl">Nombre comercial</label><input class="form-inp" id="pc-new-nombre" placeholder="Ej: Heat"></div>
+                <div class="form-fld"><label class="form-lbl">Principio activo</label><input class="form-inp" id="pc-new-activo" placeholder="Saflufenacil 70% WG"></div>
+                <div class="form-fld"><label class="form-lbl">Tipo</label><select class="form-sel" id="pc-new-tipo"><option value="herbicida">Herbicida</option><option value="fungicida">Fungicida</option><option value="insecticida">Insecticida</option><option value="fertilizante_foliar">Fertilizante foliar</option><option value="coadyuvante">Coadyuvante</option></select></div>
+                <div class="form-fld"><label class="form-lbl">Formulación</label><input class="form-inp" id="pc-new-form" placeholder="SL, EC, SC, WG..."></div>
+                <div class="form-fld"><label class="form-lbl">Dosis</label><input class="form-inp" type="number" step="0.001" id="pc-new-dosis" placeholder="Ej: 0.035"></div>
+                <div class="form-fld"><label class="form-lbl">Unidad</label><select class="form-sel" id="pc-new-unidad"><option>L/ha</option><option>kg/ha</option><option>g/ha</option><option>mL/ha</option><option>cc/100L</option></select></div>
+              </div>
+              <div style="display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.4rem"><button type="button" class="btn btn-p" onclick="pulvGuardarProductoManual()">Guardar y agregar</button><button type="button" class="btn" onclick="pulvCerrarProductoManual()">Cancelar</button></div>
+            </div>
           </div>
           <div class="sec-div"><span>Equipo</span></div>
           <div class="grid-2">
             <div class="form-fld"><label class="form-lbl">Volumen caldo (L/ha)</label><input class="form-inp" type="number" id="pc-volha" value="80" min="20" max="300" oninput="pulvCalcCaldo()"></div>
             <div class="form-fld"><label class="form-lbl">Capacidad tanque (L)</label><input class="form-inp" type="number" id="pc-tanque" value="3000" min="200" oninput="pulvCalcCaldo()"></div>
           </div>
-          <div class="form-fld"><label class="form-lbl">Superficie del lote (ha)</label><input class="form-inp" type="number" id="pc-ha" min="1" oninput="pulvCalcCaldo()" placeholder="Ej: 150"></div>
+          <div class="form-fld"><label class="form-lbl">Superficie del lote (ha)</label><input class="form-inp" type="number" id="pc-ha" min="1" oninput="pulvCalcCaldo()" placeholder="Ej: 150" readonly><button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-ha')" style="margin-top:.45rem">Ajustar manualmente</button></div>
+          <div class="sec-div"><span>Operativa</span></div>
+          <div class="grid-2">
+            <div class="form-fld"><label class="form-lbl">Ancho de trabajo (m)</label><input class="form-inp" type="number" id="pc-ancho" value="24" step="0.5" min="1" oninput="pulvCalcCaldo()"></div>
+            <div class="form-fld"><label class="form-lbl">Velocidad (km/h)</label><input class="form-inp" type="number" id="pc-vel" value="12" step="0.5" min="1" oninput="pulvCalcCaldo()"></div>
+            <div class="form-fld"><label class="form-lbl">Eficiencia campo (%)</label><input class="form-inp" type="number" id="pc-efic" value="70" step="5" min="30" max="95" oninput="pulvCalcCaldo()"></div>
+            <div class="form-fld"><label class="form-lbl">Horas/jornada</label><input class="form-inp" type="number" id="pc-horas" value="10" step="0.5" min="1" max="24" oninput="pulvCalcCaldo()"></div>
+          </div>
+          </div>
         </div>
-      </div>
       <div>
         <div class="caldo-res">
           <div style="font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(237,224,196,.4);margin-bottom:.8rem">Resultado</div>
@@ -2104,6 +2133,9 @@
             <div><div class="caldo-sl">Tanques</div><div class="caldo-val" id="pr-tanques">—</div><div class="caldo-unit">completos</div></div>
             <div><div class="caldo-sl">Agua total</div><div class="caldo-val" id="pr-agua">—</div><div class="caldo-unit">litros</div></div>
             <div><div class="caldo-sl">Concentración</div><div class="caldo-val" id="pr-conc">—</div><div class="caldo-unit">% v/v</div></div>
+            <div><div class="caldo-sl">Cap. efectiva</div><div class="caldo-val" id="pr-ha-h">—</div><div class="caldo-unit">ha/h</div></div>
+            <div><div class="caldo-sl">Jornada</div><div class="caldo-val" id="pr-ha-dia">—</div><div class="caldo-unit">ha/día</div></div>
+            <div><div class="caldo-sl">Duración</div><div class="caldo-val" id="pr-dias">—</div><div class="caldo-unit">días</div></div>
           </div>
           <div id="pr-alerta" class="caldo-al hidden"></div>
         </div>
@@ -4623,7 +4655,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=142"></script>
+<script src="js/config.js?v=143"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=100"></script>
 

@@ -26,6 +26,9 @@ function pulvEl(id) {
     'r-tanques': 'pr-tanques',
     'r-agua': 'pr-agua',
     'r-conc': 'pr-conc',
+    'r-ha-h': 'pr-ha-h',
+    'r-ha-dia': 'pr-ha-dia',
+    'r-dias': 'pr-dias',
     'caldo-alerta-box': 'pr-alerta',
     'caldo-alerta-txt': 'pr-alerta',
     'orden-body': 'pc-orden-body',
@@ -163,6 +166,8 @@ function pulvPrepararAutoLote() {
     pulvSetValue('pc-ha', superficie);
     pulvSetValue('reg-ha', superficie);
   }
+  var maq = pulvLeerPulverizadoraGuardada();
+  if (maq && maq.ancho && (!pulvGetValue('pc-ancho') || parseFloat(pulvGetValue('pc-ancho')) === 24)) pulvSetValue('pc-ancho', maq.ancho);
 
   var badge = document.getElementById('mod-lote-badge-pulv');
   if (badge) {
@@ -170,6 +175,18 @@ function pulvPrepararAutoLote() {
     badge.textContent = nombre + (cultivo ? ' · ' + cultivo : '');
   }
   return { lote: lote, coord: coord, cultivo: cultivo, superficie: superficie };
+}
+
+function pulvLeerPulverizadoraGuardada() {
+  try {
+    var uid = (typeof AM_SESION !== 'undefined' && AM_SESION && AM_SESION.id) ? AM_SESION.id : 'local';
+    var raw = localStorage.getItem('am_maquinaria_propias_v1_' + uid);
+    var arr = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(arr)) return null;
+    var maq = arr.find(function(m) { return m && /pulv|spray|mosquito|autoprop|arrastre/i.test(m.nombre || ''); });
+    if (maq && parseFloat(maq.a) > 0) return { ancho: parseFloat(maq.a), nombre: maq.nombre };
+  } catch (_) {}
+  return null;
 }
 
 async function pulvClaude(payload) {
@@ -225,7 +242,8 @@ function initGPS() {
   var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
+    var ctx = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
+    setGPSState('ok', '<strong>' + ctx + '</strong>');
     // btn-refresh always visible in HTML
     fetchMeteo();
     return;
@@ -257,7 +275,8 @@ function usarUbicacionDefault() {
   var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
+    var ctxDefault = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
+    setGPSState('ok', '<strong>' + ctxDefault + '</strong>');
   } else {
     STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
     setGPSState('ok', 'Ubicación de referencia: <strong>Córdoba capital</strong> — Ingresá coordenadas en el Dashboard para datos locales');
@@ -581,6 +600,12 @@ const PRODUCTOS = {
     { nombre: 'Boro líquido',          dosis: 0.5,  unidad: 'L/ha',  mezcla: 'foliar' },
     { nombre: 'Azufre líquido 20%',    dosis: 1.5,  unidad: 'L/ha',  mezcla: 'foliar' },
     { nombre: 'Zinc + Manganeso',      dosis: 1.0,  unidad: 'L/ha',  mezcla: 'foliar' },
+  ],
+  coadyuvante: [
+    { nombre: 'Sulfato de amonio',      dosis: 2.0,  unidad: 'kg/ha', mezcla: 'sulfatoamonio', formulacion: 'SG', grupo: 'sulfatoamonio' },
+    { nombre: 'Acidificante/buffer pH', dosis: 0.15, unidad: 'L/ha',  mezcla: 'acidificante',  formulacion: 'SL', grupo: 'acidificante' },
+    { nombre: 'Aceite metilado',        dosis: 0.8,  unidad: 'L/ha',  mezcla: 'aceite',        formulacion: 'EC', grupo: 'aceite' },
+    { nombre: 'Antideriva',             dosis: 0.08, unidad: 'L/ha',  mezcla: 'coadyuvante',   formulacion: 'SL', grupo: 'coadyuvante' },
   ]
 };
 
@@ -637,16 +662,188 @@ const PAUTAS = {
   </ul>`,
 };
 
+let caldoMezclaSeleccionada = [];
+
+function pulvProductosUsuario() {
+  try {
+    var arr = JSON.parse(localStorage.getItem('pulv_productos_usuario_v1') || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) { return []; }
+}
+
+function pulvGuardarProductosUsuario(arr) {
+  try { localStorage.setItem('pulv_productos_usuario_v1', JSON.stringify(arr || [])); } catch (_) {}
+}
+
+function pulvTodosProductosCaldo(tipo) {
+  var base = (PRODUCTOS[tipo] || []).map(function(p, i) {
+    return Object.assign({ key: tipo + ':' + i, tipo: tipo, source: 'base' }, p);
+  });
+  var propios = pulvProductosUsuario().filter(function(p) { return !tipo || p.tipo === tipo; });
+  return base.concat(propios.map(function(p) {
+    return Object.assign({ key: 'custom:' + p.id, source: 'custom' }, p);
+  }));
+}
+
+function pulvProductoCaldoPorKey(key) {
+  if (!key) return null;
+  if (key.indexOf('custom:') === 0) {
+    var id = key.slice(7);
+    return pulvProductosUsuario().find(function(p) { return String(p.id) === id; }) || null;
+  }
+  var parts = key.split(':');
+  var prod = PRODUCTOS[parts[0]] && PRODUCTOS[parts[0]][parseInt(parts[1], 10)];
+  return prod ? Object.assign({ key: key, tipo: parts[0], source: 'base' }, prod) : null;
+}
+
+function pulvNormalizarProductoCaldo(p) {
+  if (!p) return null;
+  var mezcla = p.mezcla || p.grupo || 'custom';
+  return Object.assign({}, p, {
+    tipo: p.tipo || pulvGetValue('c-tipo') || 'herbicida',
+    dosis: parseFloat(p.dosis) || 0,
+    unidad: p.unidad || 'L/ha',
+    formulacion: String(p.formulacion || '').toUpperCase(),
+    grupo: p.grupo || mezcla,
+    mezcla: mezcla
+  });
+}
+
+function pulvOrdenProductoCaldo(p) {
+  var f = String(p.formulacion || '').toUpperCase();
+  if (/WG|WP|SG|GR/.test(f)) return 1;
+  if (/SC|SE|OD/.test(f)) return 2;
+  if (/SL/.test(f)) return 3;
+  if (/EC|EW/.test(f)) return 4;
+  if (/aceite|coadyuvante/i.test(p.grupo || '')) return 5;
+  var orden = { acidificante: 0, sulfatoamonio: 1, aceite: 5, coadyuvante: 5 };
+  return orden[p.mezcla] != null ? orden[p.mezcla] : 3;
+}
+
+function pulvRenderMezclaCaldo() {
+  var cont = document.getElementById('pc-mix-list');
+  if (!cont) return;
+  if (!caldoMezclaSeleccionada.length) {
+    cont.innerHTML = '<div style="font-size:.75rem;color:rgba(74,46,26,.45);padding:.55rem .7rem;background:#fbf6ec;border-radius:8px">Seleccioná uno o más productos. La mezcla se ordena automáticamente por formulación.</div>';
+    return;
+  }
+  cont.innerHTML = caldoMezclaSeleccionada.map(function(p, idx) {
+    return '<div style="display:flex;align-items:flex-start;gap:.65rem;justify-content:space-between;padding:.65rem .75rem;border:1px solid var(--border);border-radius:10px;background:#fcf9f2;margin-bottom:.45rem">' +
+      '<div><div style="font-weight:700;color:var(--earth);font-size:.84rem">' + (idx + 1) + '. ' + p.nombre + '</div>' +
+      '<div style="font-size:.7rem;color:rgba(74,46,26,.55)">' + (p.activo || p.grupo || p.tipo || 'producto') + ' · ' + p.dosis + ' ' + p.unidad + (p.formulacion ? ' · ' + p.formulacion : '') + '</div></div>' +
+      '<button type="button" class="mini-btn" onclick="pulvQuitarProductoCaldo(' + idx + ')">Quitar</button>' +
+    '</div>';
+  }).join('');
+}
+
+function pulvAgregarProductoCaldo() {
+  var prod = pulvNormalizarProductoCaldo(pulvProductoCaldoPorKey(pulvGetValue('c-producto')));
+  if (!prod || !prod.nombre) return;
+  if (!caldoMezclaSeleccionada.some(function(p) { return p.key === prod.key; })) caldoMezclaSeleccionada.push(prod);
+  pulvRenderMezclaCaldo();
+  calcCaldo();
+}
+
+function pulvQuitarProductoCaldo(idx) {
+  caldoMezclaSeleccionada.splice(idx, 1);
+  pulvRenderMezclaCaldo();
+  calcCaldo();
+}
+
+function pulvAbrirProductoManual() {
+  var box = document.getElementById('pc-producto-manual');
+  if (box) box.classList.remove('hidden');
+}
+
+function pulvCerrarProductoManual() {
+  var box = document.getElementById('pc-producto-manual');
+  if (box) box.classList.add('hidden');
+}
+
+function pulvGuardarProductoManual() {
+  var nombre = (document.getElementById('pc-new-nombre') || {}).value || '';
+  var dosis = parseFloat((document.getElementById('pc-new-dosis') || {}).value || '');
+  if (!nombre.trim() || !dosis) { if (typeof window.amToast === 'function') window.amToast('Completá nombre y dosis del producto', 'warn'); return; }
+  var prod = pulvNormalizarProductoCaldo({
+    id: Date.now(),
+    key: 'custom:' + Date.now(),
+    nombre: nombre.trim(),
+    activo: (document.getElementById('pc-new-activo') || {}).value || '',
+    tipo: (document.getElementById('pc-new-tipo') || {}).value || 'herbicida',
+    formulacion: (document.getElementById('pc-new-form') || {}).value || '',
+    dosis: dosis,
+    unidad: (document.getElementById('pc-new-unidad') || {}).value || 'L/ha',
+    mezcla: 'custom',
+    grupo: 'custom'
+  });
+  var lista = pulvProductosUsuario();
+  lista.push(prod);
+  pulvGuardarProductosUsuario(lista);
+  if (pulvEl('c-tipo')) pulvEl('c-tipo').value = prod.tipo;
+  actualizarProductos();
+  caldoMezclaSeleccionada.push(prod);
+  pulvRenderMezclaCaldo();
+  calcCaldo();
+  pulvCerrarProductoManual();
+}
+
+function pulvToggleAutoCampo(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (el.tagName === 'SELECT') el.disabled = !el.disabled;
+  else el.readOnly = !el.readOnly;
+  el.focus();
+}
+
+async function pulvLeerMarbete(input) {
+  var file = input && input.files && input.files[0];
+  if (!file) return;
+  input.value = '';
+  var st = document.getElementById('pc-marbete-status');
+  function status(txt) { if (st) st.textContent = txt; }
+  if (!file.type || file.type.indexOf('image/') !== 0) { status('Subí una foto del marbete.'); return; }
+  if (file.size > 5 * 1024 * 1024) { status('La foto es grande. Tomá otra más liviana.'); return; }
+  status('Analizando marbete...');
+  try {
+    var base64 = await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function(e) { resolve(String(e.target.result || '').split(',')[1]); };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    var res = await pulvClaude({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 600,
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
+        { type: 'text', text: 'Extraé de este marbete un JSON válido con nombre, activo, tipo, dosis, unidad, formulacion, empresa, banda_toxicologica, carencia_dias y observaciones. Si no se lee, devuelve {"error":"no_leible"}.' }
+      ]}]
+    });
+    if (!res.ok) { status('No pude leer el marbete ahora. Podés cargarlo manualmente.'); return; }
+    var data = await res.json();
+    var text = data && data.content && data.content[0] && data.content[0].text ? data.content[0].text : '';
+    var match = text.match(/\{[\s\S]*\}/);
+    var parsed = match ? JSON.parse(match[0]) : null;
+    if (!parsed || parsed.error) { status('No se pudo identificar el marbete. Cargalo manualmente.'); return; }
+    pulvAbrirProductoManual();
+    if (document.getElementById('pc-new-nombre')) document.getElementById('pc-new-nombre').value = parsed.nombre || parsed.nombre_comercial || '';
+    if (document.getElementById('pc-new-activo')) document.getElementById('pc-new-activo').value = parsed.activo || parsed.principio_activo || '';
+    if (document.getElementById('pc-new-tipo')) document.getElementById('pc-new-tipo').value = parsed.tipo || 'herbicida';
+    if (document.getElementById('pc-new-form')) document.getElementById('pc-new-form').value = parsed.formulacion || '';
+    if (document.getElementById('pc-new-dosis')) document.getElementById('pc-new-dosis').value = parseFloat(parsed.dosis) || '';
+    if (document.getElementById('pc-new-unidad') && parsed.unidad) document.getElementById('pc-new-unidad').value = parsed.unidad;
+    status('Marbete interpretado. Revisá los datos y guardá el producto.');
+  } catch (e) { status('No pude procesar la foto. Podés cargar el producto manualmente.'); }
+}
+
 function actualizarProductos() {
   const tipo = pulvGetValue('c-tipo');
   const sel = pulvEl('c-producto');
   if (!sel) return;
   sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
-  if (PRODUCTOS[tipo]) {
-    PRODUCTOS[tipo].forEach((p, i) => {
-      sel.innerHTML += `<option value="${i}">${p.nombre} (${p.dosis} ${p.unidad})</option>`;
-    });
-  }
+  pulvTodosProductosCaldo(tipo).forEach((p) => {
+    sel.innerHTML += `<option value="${p.key}">${p.nombre} (${p.dosis} ${p.unidad})</option>`;
+  });
   // Mostrar pautas
   const pauta = pulvEl('pauta-body');
   if (PAUTAS[tipo]) { pauta.innerHTML = PAUTAS[tipo]; }
@@ -660,8 +857,23 @@ function calcCaldo() {
   const volha = parseFloat(pulvGetValue('c-volha')) || 80;
   const tanque = parseFloat(pulvGetValue('c-tanque')) || 3000;
   const ha = parseFloat(pulvGetValue('c-ha')) || null;
+  const ancho = parseFloat(pulvGetValue('pc-ancho')) || 0;
+  const vel = parseFloat(pulvGetValue('pc-vel')) || 0;
+  const efic = (parseFloat(pulvGetValue('pc-efic')) || 70) / 100;
+  const horas = parseFloat(pulvGetValue('pc-horas')) || 10;
+  var haHora = ancho && vel ? (ancho * vel / 10) * efic : 0;
+  var haDia = haHora * horas;
+  if (pulvEl('r-ha-h')) pulvEl('r-ha-h').textContent = haHora ? haHora.toFixed(1) : '—';
+  if (pulvEl('r-ha-dia')) pulvEl('r-ha-dia').textContent = haDia ? haDia.toFixed(0) : '—';
+  if (pulvEl('r-dias')) pulvEl('r-dias').textContent = ha && haDia ? (ha / haDia).toFixed(1) : '—';
 
-  if (!tipo || prodIdx === '') {
+  var productosCalc = caldoMezclaSeleccionada.slice();
+  if (!productosCalc.length && prodIdx) {
+    var single = pulvProductoCaldoPorKey(prodIdx);
+    if (single) productosCalc = [pulvNormalizarProductoCaldo(single)];
+  }
+
+  if (!tipo || !productosCalc.length) {
     // Resetear resultados
     ['r-dosis','r-prod-total','r-autonomia','r-tanques','r-agua','r-conc'].forEach(id => {
       const el = pulvEl(id);
@@ -675,23 +887,21 @@ function calcCaldo() {
     return;
   }
 
-  if (!PRODUCTOS[tipo]) return;
-  const prod = PRODUCTOS[tipo][parseInt(prodIdx)];
-  if (!prod) return;
   const autonomia = Math.round(tanque / volha);
-  const concPct = ((prod.dosis / volha) * 100).toFixed(2);
+  const dosisTotal = productosCalc.reduce(function(sum, p) { return sum + (parseFloat(p.dosis) || 0); }, 0);
+  const concPct = ((dosisTotal / volha) * 100).toFixed(2);
 
-  pulvEl('r-dosis').textContent = prod.dosis;
-  pulvEl('r-dosis-unit').textContent = prod.unidad;
+  pulvEl('r-dosis').textContent = productosCalc.length === 1 ? productosCalc[0].dosis : productosCalc.length;
+  pulvEl('r-dosis-unit').textContent = productosCalc.length === 1 ? productosCalc[0].unidad : 'productos';
   pulvEl('r-autonomia').textContent = autonomia;
   pulvEl('r-conc').textContent = concPct;
 
   if (ha) {
-    const prodTotal = (prod.dosis * ha).toFixed(1);
+    const prodTotal = productosCalc.reduce(function(sum, p) { return sum + ((parseFloat(p.dosis) || 0) * ha); }, 0).toFixed(1);
     const tanquesTotal = Math.ceil(ha / autonomia);
     const aguaTotal = Math.round(volha * ha);
     pulvEl('r-prod-total').textContent = prodTotal;
-    pulvEl('r-prod-unit').textContent = prod.unidad.replace('/ha','');
+    pulvEl('r-prod-unit').textContent = productosCalc.length === 1 ? productosCalc[0].unidad.replace('/ha','') : 'total mezcla';
     pulvEl('r-tanques').textContent = tanquesTotal;
     pulvEl('r-agua').textContent = aguaTotal.toLocaleString('es-AR');
   } else {
@@ -717,11 +927,21 @@ function calcCaldo() {
 
   // Orden de agregado
   const ordenBody = pulvEl('orden-body');
-  const orden = ORDENES_MEZCLA[prod.mezcla];
-  if (orden) {
+  if (productosCalc.length > 1) {
+    var ordenados = productosCalc.slice().sort(function(a, b) { return pulvOrdenProductoCaldo(a) - pulvOrdenProductoCaldo(b); });
+    ordenBody.innerHTML = '<ol style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:2;list-style:none">' +
+      ordenados.map(function(p, i) {
+        return '<li style="padding:.25rem 0;border-bottom:1px solid rgba(60,34,16,.06)"><strong>' + (i + 1) + '. ' + p.nombre + '</strong> <span style="color:rgba(74,46,26,.45)">(' + (p.formulacion || p.grupo || p.tipo || 'producto') + ')</span></li>';
+      }).join('') +
+      '<li style="padding:.25rem 0">Completar con agua y mantener agitación. Hacer test de jarrita si hay dudas.</li></ol>';
+  } else {
+    const prod = productosCalc[0];
+    const orden = ORDENES_MEZCLA[prod.mezcla];
+    if (orden) {
     ordenBody.innerHTML = `<ol style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:2;list-style:none">`
       + orden.map(s => `<li style="padding:.2rem 0;border-bottom:1px solid rgba(60,34,16,.06)">${s}</li>`).join('')
       + `</ol>`;
+    }
   }
 }
 
@@ -4402,6 +4622,13 @@ window.pulvCalcBuffer = () => calcBuffer();
 window.pulvCalcAgua = () => calcularAgua();
 window.pulvFiltrarHRAC = () => filtrarHRAC();
 window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);
+window.pulvAgregarProductoCaldo = () => pulvAgregarProductoCaldo();
+window.pulvQuitarProductoCaldo = (idx) => pulvQuitarProductoCaldo(idx);
+window.pulvAbrirProductoManual = () => pulvAbrirProductoManual();
+window.pulvCerrarProductoManual = () => pulvCerrarProductoManual();
+window.pulvGuardarProductoManual = () => pulvGuardarProductoManual();
+window.pulvToggleAutoCampo = (id) => pulvToggleAutoCampo(id);
+window.pulvLeerMarbete = (input) => pulvLeerMarbete(input);
 pulvPrepararAutoLote();
 renderHistorial();
 initGPS();
@@ -4450,9 +4677,16 @@ window.pulvTab = function(id, btn) {
 window.pulvShowTab         = (id) => showTab(id);
 window.pulvCalcAgua        = () => calcularAgua();
 window.pulvCalcBuffer      = () => calcBuffer();
-window.pulvActualizarProductos = () => actualizarProductos();
-window.pulvCalcCaldo       = () => calcCaldo();
-window.pulvGuardarRegistro = () => guardarRegistro();
+  window.pulvActualizarProductos = () => actualizarProductos();
+  window.pulvCalcCaldo       = () => calcCaldo();
+  window.pulvAgregarProductoCaldo = () => pulvAgregarProductoCaldo();
+  window.pulvQuitarProductoCaldo = (idx) => pulvQuitarProductoCaldo(idx);
+  window.pulvAbrirProductoManual = () => pulvAbrirProductoManual();
+  window.pulvCerrarProductoManual = () => pulvCerrarProductoManual();
+  window.pulvGuardarProductoManual = () => pulvGuardarProductoManual();
+  window.pulvToggleAutoCampo = (id) => pulvToggleAutoCampo(id);
+  window.pulvLeerMarbete = (input) => pulvLeerMarbete(input);
+  window.pulvGuardarRegistro = () => guardarRegistro();
 window.pulvExportarPDF     = () => exportarPDF();
 window.pulvLimpiarHistorial= () => limpiarHistorial();
 window.pulvFuentePH        = (el, val) => setFuente(el, val);
