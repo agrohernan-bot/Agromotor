@@ -790,11 +790,76 @@
   }
 
   // ── PRESCRIPCIÓN ──────────────────────────────────
+  // ── Densidad observada ReTAA (referencia regional) ──────
+  function svMapCultivoReTAA(cultivo) {
+    var s = String(cultivo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    if (s.indexOf('maiz') >= 0) return 'maiz';
+    if (s.indexOf('soja') >= 0) return 'soja';
+    if (s.indexOf('girasol') >= 0) return 'girasol';
+    if (s.indexOf('trigo') >= 0) return 'trigo';
+    if (s.indexOf('cebada') >= 0) return 'cebada';
+    if (s.indexOf('sorgo') >= 0) return 'sorgo';
+    return null;
+  }
+
+  // Densidad relevada ReTAA para la subregión del lote. Devuelve el
+  // resultado + semM2Base (conversión a sem/m² solo cuando es limpia y
+  // en rango: maíz/girasol). null si no aplica.
+  function svGetReTAA() {
+    if (typeof window.AM_RETAA === 'undefined' || !svLoteGeoJSON || typeof turf === 'undefined') return null;
+    var lote = _loteActivo(); if (!lote) return null;
+    var data = lote.data || {};
+    var key = svMapCultivoReTAA(data.cultivo); if (!key) return null;
+    var c;
+    try { c = turf.centroid(svLoteGeoJSON).geometry.coordinates; } catch (e) { return null; }
+    var r = window.AM_RETAA.calcular({ lat: c[1], lon: c[0], cultivo: key, fechaSiembra: data.fechaSiembra || '', ambiente: 'm', hidrico: 'n' });
+    if (!r) return null;
+    r.semM2Base = null; r.cultivoKey = key;
+    if (r.unidad === 'mil pl/ha' && (key === 'maiz' || key === 'girasol')) {
+      var logro = key === 'maiz' ? 0.92 : 0.88;
+      var v = r.densidad.ajustada / logro / 10; // mil pl/ha → sem/m²
+      if (v >= 2 && v <= 15) r.semM2Base = v;
+    }
+    return r;
+  }
+
+  // Distribuye la densidad base por zona según su NDVI (mejor ambiente →
+  // más densidad), acotado a ±15% y al rango válido del input.
+  function svDistribuirPorZona(base, zd) {
+    var cs = zd.centroids || [];
+    var mean = cs.length ? cs.reduce(function (s, v) { return s + v; }, 0) / cs.length : 0;
+    var out = [];
+    for (var i = 0; i < zd.k; i++) {
+      var f = mean > 0 ? 1 + Math.max(-0.15, Math.min(0.15, (cs[i] - mean) / mean * 0.5)) : 1;
+      var v = Math.round(base * f * 2) / 2;
+      out.push(Math.max(2, Math.min(15, v)));
+    }
+    return out;
+  }
+
+  function svReTAABanner(r) {
+    if (!r) return '';
+    var colMap = { '◉': ['#1b5e35', 'rgba(27,94,53,.10)'], '◎': ['#1f6f9c', 'rgba(41,128,185,.10)'], '◈': ['#8a6200', 'rgba(212,168,71,.15)'] };
+    var col = colMap[r.densidad.fuente] || colMap['◎'];
+    var conv = r.semM2Base ? ' · ≈ ' + r.semM2Base.toFixed(1) + ' sem/m² (base autollenada por zona, editable)' : '';
+    return '<div style="background:' + col[1] + ';border:1px solid ' + col[0] + '33;border-left:3px solid ' + col[0] +
+      ';border-radius:8px;padding:.55rem .7rem;margin-bottom:.7rem;font-size:.78rem;color:#374151;line-height:1.5">' +
+      '<strong style="color:' + col[0] + '">📊 Densidad observada ReTAA · ' + r.subregion.nombre + '</strong><br>' +
+      r.densidad.valor + ' ' + r.unidad + ' <span style="color:' + col[0] + ';font-weight:700">' + r.densidad.fuente + '</span> (' + r.campania + ')' + conv +
+      '</div>';
+  }
+
   function renderPrescrip(zd) {
     var tot = zd.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(zd.k).fill(0); zd.assignments.forEach(function (a) { cnt[a]++; });
     var ds = [8.5, 7.5, 6.5, 5.5], df = [200, 160, 120, 90];
-    var html = '<table class="sv-presc-table"><thead><tr><th>Amb.</th><th>ha</th>' +
+
+    // Referencia ReTAA: cartel para todos los cultivos; autollenado de
+    // sem/m² por zona solo cuando la conversión es válida (maíz/girasol).
+    var retaa = svGetReTAA();
+    if (retaa && retaa.semM2Base) ds = svDistribuirPorZona(retaa.semM2Base, zd);
+    var html = svReTAABanner(retaa) +
+      '<table class="sv-presc-table"><thead><tr><th>Amb.</th><th>ha</th>' +
       '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">sem/m²</small></th>' +
       '<th>Fertiliz.<br><small style="font-weight:400;color:#9ca3af">kg/ha</small></th></tr></thead><tbody>';
     for (var i = 0; i < zd.k; i++) {

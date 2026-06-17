@@ -459,6 +459,21 @@ test('ReTAA sorgo expresa la densidad en mil pl/ha (sin bug /1000)', () => {
   assert.equal(r.densidad.fuente, '◈');       // estimado por metodología ReTAA
 });
 
+test('ReTAA conversion a sem/m2 entra en rango para maiz/girasol, no para sorgo', () => {
+  // Siembra Variable autollenarsem/m² (rango input 2-15) solo cuando la
+  // conversion desde mil pl/ha es limpia y en rango.
+  const semM2 = (key, lat, lon, logro) => {
+    const r = RETAA.calcular({ lat, lon, cultivo: key, ambiente: 'm', hidrico: 'n' });
+    return r.densidad.ajustada / logro / 10;
+  };
+  const maiz = semM2('maiz', -33.9, -60.5, 0.92);
+  const gira = semM2('girasol', -37.5, -58.5, 0.88);
+  const sorgo = semM2('sorgo', -33, -60.5, 0.80);
+  assert.ok(maiz >= 2 && maiz <= 15, 'maiz debe convertir a sem/m2 en rango');
+  assert.ok(gira >= 2 && gira <= 15, 'girasol debe convertir a sem/m2 en rango');
+  assert.ok(sorgo > 15, 'sorgo excede el rango -> queda excluido del autollenado');
+});
+
 test('ReTAA deriva el codigo de fecha desde el mes de siembra', () => {
   assert.equal(RETAA.derivarFecha('maiz', '2025-12-15'), 'd'); // tardío
   assert.equal(RETAA.derivarFecha('maiz', '2025-09-20'), 't'); // temprano
