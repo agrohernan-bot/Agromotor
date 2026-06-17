@@ -150,6 +150,26 @@ test('modulos criticos leen el lote activo via helper central', () => {
   }
 });
 
+test('AgroENSO genera lectura agronomica accionable por fase actual', () => {
+  const enso = require(path.join(ROOT, 'js/enso.js'));
+  const lote = { data: { depto_nombre: 'Concordia' } };
+  const impactos = [
+    { fase_enso: 'ElNino', rend_vs_promedio_pct: 8.2, significativo: true },
+    { fase_enso: 'Neutral', rend_vs_promedio_pct: 1.1, significativo: false },
+    { fase_enso: 'LaNina', rend_vs_promedio_pct: -12.4, significativo: true },
+  ];
+
+  const riesgo = enso._buildDetailedAdvisory(lote, impactos, enso._faseLocalToDb('nina'), 'Soja');
+  assert.equal(riesgo.tone, 'risk');
+  assert.match(riesgo.summary, /riesgo/i);
+  assert.match(riesgo.dashboardText, /-12\.4%/);
+  assert.ok(riesgo.bullets.some(b => /R3-R6/.test(b)));
+
+  const oportunidad = enso._buildDetailedAdvisory(lote, impactos, enso._faseLocalToDb('nino'), 'Soja');
+  assert.equal(oportunidad.tone, 'opportunity');
+  assert.match(oportunidad.summary, /favorable/i);
+});
+
 test('Pulverizacion hereda lote activo y persiste historial en lote.data', () => {
   const pulverizacion = read('js/pulverizacion.js');
 
@@ -400,4 +420,48 @@ test('mapeo geografico Nominatim a IDs de Supabase', () => {
 
   assert.equal(cleanState, "Entre Ríos");
   assert.equal(cleanCounty, "Concordia");
+});
+
+// ── Densidad ReTAA ──────────────────────────────────────
+const RETAA = require('../js/densidad-retaa.js');
+
+test('ReTAA detecta la subregion por coordenadas (bbox + centroide)', () => {
+  // Pergamino → Núcleo Sur
+  const sr = RETAA.getSubregion(-33.9, -60.5);
+  assert.equal(sr.id, 'nuc_s');
+  // Balcarce → Sudeste Bs.As.
+  assert.equal(RETAA.getSubregion(-37.8, -58.3).id, 'se_ba');
+  // Coordenada inválida → null
+  assert.equal(RETAA.getSubregion(NaN, -60), null);
+});
+
+test('ReTAA devuelve densidad observada con bandera de calidad de dato', () => {
+  const r = RETAA.calcular({ lat: -33.9, lon: -60.5, cultivo: 'maiz', fecha: 't', ambiente: 'm', hidrico: 'n' });
+  assert.equal(r.subregion.id, 'nuc_s');
+  assert.equal(r.densidad.valor, 75.4);       // dato real ReTAA Núcleo Sur 2021/22 temprano
+  assert.equal(r.densidad.fuente, '◉');
+  assert.equal(r.fertilN, 116);
+  assert.equal(r.unidad, 'mil pl/ha');
+  assert.ok(Array.isArray(r.tendencia) && r.tendencia.length >= 3);
+});
+
+test('ReTAA aplica ajuste por ambiente e hidrico sobre la densidad', () => {
+  const base = RETAA.calcular({ lat: -33.9, lon: -60.5, cultivo: 'maiz', fecha: 't', ambiente: 'm', hidrico: 'n' });
+  const alto = RETAA.calcular({ lat: -33.9, lon: -60.5, cultivo: 'maiz', fecha: 't', ambiente: 'a', hidrico: 'n' });
+  // Maíz: ambiente alto = +8% sobre la densidad
+  assert.equal(alto.densidad.ajustada, +(base.densidad.valor * 1.08).toFixed(1));
+});
+
+test('ReTAA sorgo expresa la densidad en mil pl/ha (sin bug /1000)', () => {
+  const r = RETAA.calcular({ lat: -32.5, lon: -63.5, cultivo: 'sorgo', ambiente: 'm', hidrico: 'n' });
+  // Sorgo regional ~155-200 mil pl/ha — nunca un valor < 100 (regresión del /1000)
+  assert.ok(r.densidad.valor >= 100, 'densidad sorgo debe estar en mil pl/ha, no dividida');
+  assert.equal(r.densidad.fuente, '◈');       // estimado por metodología ReTAA
+});
+
+test('ReTAA deriva el codigo de fecha desde el mes de siembra', () => {
+  assert.equal(RETAA.derivarFecha('maiz', '2025-12-15'), 'd'); // tardío
+  assert.equal(RETAA.derivarFecha('maiz', '2025-09-20'), 't'); // temprano
+  assert.equal(RETAA.derivarFecha('soja', '2026-01-10'), 's'); // 2°
+  assert.equal(RETAA.derivarFecha('sorgo', '2025-11-01'), null); // sorgo no distingue fecha
 });
