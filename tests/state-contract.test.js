@@ -142,11 +142,24 @@ test('modulos criticos leen el lote activo via helper central', () => {
     'js/siembra-variable.js',
     'js/nutricion.js',
     'js/cultivares.js',
+    'js/pulverizacion.js',
   ];
 
   for (const relPath of modules) {
     assert.match(read(relPath), /amGetLoteActivo/, `${relPath} debe usar amGetLoteActivo`);
   }
+});
+
+test('Pulverizacion hereda lote activo y persiste historial en lote.data', () => {
+  const pulverizacion = read('js/pulverizacion.js');
+
+  assert.match(pulverizacion, /function pulvPrepararAutoLote/);
+  assert.match(pulverizacion, /window\.pulvPrepararAutoLote\s*=/);
+  assert.match(pulverizacion, /pulvGetLoteActivo/);
+  assert.match(pulverizacion, /amGetLoteActivo/);
+  assert.match(pulverizacion, /lote\.data\.pulverizacion\.aplicaciones/);
+  assert.match(pulverizacion, /amGuardarLotesEstado/);
+  assert.match(pulverizacion, /preg-historial/);
 });
 
 test('Plagas hereda cultivo, fecha y contexto desde lote activo', () => {

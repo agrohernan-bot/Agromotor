@@ -84,7 +84,7 @@ function switchMod(mod) {
       var panel = document.getElementById('mod-' + mod);
       if (panel && !panel.children.length) {
         panel.classList.add('active');
-        panel.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem;gap:1rem;color:rgba(237,224,196,.4)"><div style="font-size:3rem">âŸ³</div><div style="font-size:.9rem">Cargando...</div></div>';
+        panel.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4rem;gap:1rem;color:rgba(237,224,196,.4)"><div style="font-size:3rem">⟳</div><div style="font-size:.9rem">Cargando...</div></div>';
       } else if (panel) {
         panel.classList.add('active');
       }
@@ -391,6 +391,7 @@ function _activarModulo(mod) {
   if (mod === 'donde-comprar') setTimeout(function() { if (typeof mapaFiltrar === 'function') mapaFiltrar(); }, 100);
   if (mod === 'pulverizacion') {
     _syncCultivo('pulv-cultivo');
+    if (typeof window.pulvPrepararAutoLote === 'function') window.pulvPrepararAutoLote();
     setTimeout(function() { if (typeof pulvRefrescarMeteo === 'function') pulvRefrescarMeteo(); }, 200);
     setTimeout(function() {
       if (typeof pulvRenderHistorial === 'function') pulvRenderHistorial();

@@ -1,15 +1,143 @@
-﻿// MÃ³dulo PulverizaciÃ³n - Integrado
+// Módulo Pulverización - Integrado
 
 (function() {
   window.AM = window.AM || {};
   window.AM.pulverizacion = {};
 
-// â”€â”€â”€ ESTADO GLOBAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ESTADO GLOBAL ────────────────────────────────────────
 let STATE = {
   lat: null, lon: null,
   meteo: null,       // datos open-meteo actuales
-  hourly: null,      // pronÃ³stico horario
+  hourly: null,      // pronóstico horario
 };
+
+function pulvEl(id) {
+  return document.getElementById(id) ||
+    (id.indexOf('reg-') === 0 ? document.getElementById('preg-' + id.slice(4)) : null) ||
+    (id === 'historial-body' ? document.getElementById('preg-historial') : null);
+}
+
+function pulvSetValue(id, value) {
+  const el = pulvEl(id);
+  if (!el) return;
+  var val = value == null ? '' : String(value);
+  var before = el.value;
+  el.value = val;
+  if (el.tagName === 'SELECT' && el.value !== val) {
+    var wanted = val.toLowerCase();
+    var match = Array.from(el.options || []).find(function(opt) {
+      return opt.value.toLowerCase() === wanted || opt.textContent.trim().toLowerCase() === wanted;
+    });
+    if (!match) {
+      match = Array.from(el.options || []).find(function(opt) {
+        var txt = opt.textContent.trim().toLowerCase();
+        return wanted && (txt.indexOf(wanted) >= 0 || wanted.indexOf(txt) >= 0);
+      });
+    }
+    if (match) el.value = match.value;
+  }
+  if (el.value !== before && el.tagName === 'SELECT') el.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function pulvGetValue(id) {
+  const el = pulvEl(id);
+  return el ? el.value : '';
+}
+
+function pulvGetLoteActivo() {
+  try {
+    return typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function pulvParseCoord(raw) {
+  if (!raw || typeof raw !== 'string') return null;
+  var parts = raw.split(',');
+  if (parts.length < 2) return null;
+  var lat = parseFloat(parts[0].trim());
+  var lon = parseFloat(parts[1].trim());
+  if (isNaN(lat) || isNaN(lon)) return null;
+  return { lat, lon };
+}
+
+function pulvGetLoteCoord() {
+  var lote = pulvGetLoteActivo();
+  var coord = lote && lote.data ? pulvParseCoord(lote.data.coord) : null;
+  if (coord) return coord;
+  var raw = (document.getElementById('s-coord') || {}).value || '';
+  return pulvParseCoord(raw);
+}
+
+function pulvGetLoteSuperficie(lote) {
+  var d = (lote && lote.data) || {};
+  if (typeof turf !== 'undefined') {
+    try {
+      var gj = d.geojson || (lote && lote.geojson);
+      if (gj && gj.geometry) {
+        var areaHa = Math.round(turf.area(gj) / 10000 * 10) / 10;
+        if (areaHa > 0) return String(areaHa);
+      }
+      if (Array.isArray(d.polygon) && d.polygon.length > 2) {
+        var coords = d.polygon.map(function(p) { return [parseFloat(p.lng || p.lon), parseFloat(p.lat)]; });
+        coords.push(coords[0]);
+        var poly = turf.polygon([coords]);
+        var polyHa = Math.round(turf.area(poly) / 10000 * 10) / 10;
+        if (polyHa > 0) return String(polyHa);
+      }
+    } catch (e) {}
+  }
+  return d.superficie || d.sup || (lote && (lote.superficie || lote.sup)) || '';
+}
+
+function pulvGuardarHistorialLote(lista) {
+  var lote = pulvGetLoteActivo();
+  if (!lote) return false;
+  lote.data = lote.data || {};
+  lote.data.pulverizacion = lote.data.pulverizacion || {};
+  lote.data.pulverizacion.aplicaciones = lista;
+  lote.data.pulverizacion.ultimaAplicacion = lista[0] || null;
+  if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+  return true;
+}
+
+function pulvLeerHistorialLote() {
+  var lote = pulvGetLoteActivo();
+  var lista = lote && lote.data && lote.data.pulverizacion ? lote.data.pulverizacion.aplicaciones : null;
+  return Array.isArray(lista) ? lista : null;
+}
+
+function pulvPrepararAutoLote() {
+  var lote = pulvGetLoteActivo();
+  if (!lote) return null;
+  var d = lote.data || {};
+  var cultivo = d.cultivo || d.cultivoActual || '';
+  var superficie = pulvGetLoteSuperficie(lote);
+  var nombre = lote.nombre || d.nombre || 'Lote activo';
+  var coord = pulvGetLoteCoord();
+
+  if (coord) {
+    STATE.lat = coord.lat;
+    STATE.lon = coord.lon;
+  }
+  if (cultivo) {
+    pulvSetValue('pc-cultivo', cultivo);
+    pulvSetValue('reg-cultivo', cultivo);
+  }
+  pulvSetValue('reg-lote', nombre);
+  if (superficie) {
+    pulvSetValue('pc-ha', superficie);
+    pulvSetValue('reg-ha', superficie);
+  }
+
+  var badge = document.getElementById('mod-lote-badge-pulv');
+  if (badge) {
+    badge.style.display = 'inline-flex';
+    badge.textContent = nombre + (cultivo ? ' · ' + cultivo : '');
+  }
+  return { lote: lote, coord: coord, cultivo: cultivo, superficie: superficie };
+}
 
 async function pulvClaude(payload) {
   if (typeof AM_SB === 'undefined' || typeof AM_CONFIG === 'undefined') {
@@ -27,12 +155,12 @@ async function pulvClaude(payload) {
   });
 }
 
-// â”€â”€â”€ TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── TABS ─────────────────────────────────────────────────
 function showTab(id) {
   document.querySelectorAll('.module-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  // Marcar botÃ³n nav activo (cross-browser: no usa window.event legacy)
+  // Marcar botón nav activo (cross-browser: no usa window.event legacy)
   const activeBtn = document.querySelector(`.nav-tab[onclick*="'${id}'"]`);
   if (activeBtn) activeBtn.classList.add('active');
   // Inicializar mapa si corresponde
@@ -44,7 +172,7 @@ function showTab(id) {
   }
 }
 
-// â”€â”€â”€ HORA HEADER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HORA HEADER ──────────────────────────────────────────
 function tickHora() {
   const el = document.getElementById('hora-header');
   if (!el) return;
@@ -54,29 +182,22 @@ function tickHora() {
 }
 setInterval(tickHora, 1000); tickHora();
 
-// â”€â”€â”€ GPS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── GPS ──────────────────────────────────────────────────
 function _parsCoordDashboard() {
-  var raw = (document.getElementById('s-coord') || {}).value || '';
-  if (!raw.trim()) return null;
-  var parts = raw.split(',');
-  if (parts.length < 2) return null;
-  var lat = parseFloat(parts[0].trim());
-  var lon = parseFloat(parts[1].trim());
-  if (isNaN(lat) || isNaN(lon)) return null;
-  return { lat, lon };
+  return pulvGetLoteCoord();
 }
 
 function initGPS() {
-  // Primero intentar usar coordenadas del lote activo en el Dashboard
-  var dashCoord = _parsCoordDashboard();
+  var auto = pulvPrepararAutoLote();
+  var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}Â°, ${STATE.lon.toFixed(4)}Â°</strong>`);
+    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
     // btn-refresh always visible in HTML
     fetchMeteo();
     return;
   }
-  setGPSState('loading', 'Obteniendo ubicaciÃ³n GPS...');
+  setGPSState('loading', 'Obteniendo ubicación GPS...');
   if (!navigator.geolocation) {
     setGPSState('error', 'GPS no disponible en este dispositivo');
     usarUbicacionDefault();
@@ -86,12 +207,12 @@ function initGPS() {
     pos => {
       STATE.lat = pos.coords.latitude;
       STATE.lon = pos.coords.longitude;
-      setGPSState('ok', `UbicaciÃ³n: <strong>${STATE.lat.toFixed(4)}Â°, ${STATE.lon.toFixed(4)}Â°</strong> â€” PrecisiÃ³n: Â±${Math.round(pos.coords.accuracy)} m`);
+      setGPSState('ok', `Ubicación: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong> — Precisión: ±${Math.round(pos.coords.accuracy)} m`);
       // btn-refresh always visible in HTML
       fetchMeteo();
     },
     err => {
-      setGPSState('error', 'No se pudo obtener GPS â€” usando ubicaciÃ³n de referencia (CÃ³rdoba)');
+      setGPSState('error', 'No se pudo obtener GPS — usando ubicación de referencia (Córdoba)');
       usarUbicacionDefault();
     },
     { enableHighAccuracy: true, timeout: 8000 }
@@ -99,22 +220,23 @@ function initGPS() {
 }
 
 function usarUbicacionDefault() {
-  // Intentar coordenadas del Dashboard antes de usar CÃ³rdoba
-  var dashCoord = _parsCoordDashboard();
+  var auto = pulvPrepararAutoLote();
+  var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}Â°, ${STATE.lon.toFixed(4)}Â°</strong>`);
+    setGPSState('ok', `Coordenadas del lote: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong>`);
   } else {
-    STATE.lat = -31.42; STATE.lon = -64.18; // CÃ³rdoba fallback
-    setGPSState('ok', 'UbicaciÃ³n de referencia: <strong>CÃ³rdoba capital</strong> â€” IngresÃ¡ coordenadas en el Dashboard para datos locales');
+    STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
+    setGPSState('ok', 'Ubicación de referencia: <strong>Córdoba capital</strong> — Ingresá coordenadas en el Dashboard para datos locales');
   }
   // btn-refresh always visible in HTML
   fetchMeteo();
 }
 
-// Llamada desde nav.js al activar el mÃ³dulo
+// Llamada desde nav.js al activar el módulo
 window.pulvRefrescarMeteo = function() {
-  var dashCoord = _parsCoordDashboard();
+  var auto = pulvPrepararAutoLote();
+  var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) { STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon; }
   if (STATE.lat) {
     fetchMeteo();
@@ -131,7 +253,7 @@ function setGPSState(st, txt) {
   textEl.innerHTML = txt;
 }
 
-// â”€â”€â”€ FETCH OPEN-METEO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── FETCH OPEN-METEO ────────────────────────────────────
 async function fetchMeteo() {
   if (!STATE.lat) return;
   document.getElementById('pulv-sem-loading').style.display = 'flex';
@@ -167,12 +289,12 @@ async function fetchMeteo() {
   } catch(e) {
     document.getElementById('pulv-sem-loading').innerHTML = `
       <div style="color:var(--warn);text-align:center;padding:2rem">
-        âš ï¸ Error al conectar con Open-Meteo. VerificÃ¡ tu conexiÃ³n a internet.
+        ⚠️ Error al conectar con Open-Meteo. Verificá tu conexión a internet.
       </div>`;
   }
 }
 
-// â”€â”€â”€ RENDER SEMÃFORO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── RENDER SEMÁFORO ──────────────────────────────────────
 function renderSemaforo(c) {
   const temp    = c.temperature_2m;
   const hr      = c.relative_humidity_2m;
@@ -182,48 +304,48 @@ function renderSemaforo(c) {
   const pp_prob = c.precipitation_probability;
   const rocio   = c.dew_point_2m;
 
-  // â”€â”€ EVALUAR CONDICIONES â”€â”€
+  // ── EVALUAR CONDICIONES ──
   const alertas = [];
   let score = 0; // 0=verde, 1=amarillo, 2=rojo
 
   // Viento
-  if (viento > 25)      { score = Math.max(score, 2); alertas.push({ ico:'ðŸš«', txt:`<strong>Viento excesivo (${viento} km/h):</strong> Riesgo alto de deriva. Suspender aplicaciÃ³n.`, sev:'rojo' }); }
-  else if (viento > 15) { score = Math.max(score, 1); alertas.push({ ico:'âš ï¸', txt:`<strong>Viento moderado (${viento} km/h):</strong> Operar con precauciÃ³n, evaluar boquillas antideriva.`, sev:'amarillo' }); }
-  else if (viento < 3)  { score = Math.max(score, 1); alertas.push({ ico:'âš ï¸', txt:`<strong>Viento muy bajo (${viento} km/h):</strong> Posible inversiÃ³n tÃ©rmica. Riesgo de gotas en suspensiÃ³n.`, sev:'amarillo' }); }
-  else                  { alertas.push({ ico:'âœ…', txt:`<strong>Viento Ã³ptimo (${viento} km/h):</strong> CondiciÃ³n favorable para la aplicaciÃ³n.`, sev:'verde' }); }
+  if (viento > 25)      { score = Math.max(score, 2); alertas.push({ ico:'🚫', txt:`<strong>Viento excesivo (${viento} km/h):</strong> Riesgo alto de deriva. Suspender aplicación.`, sev:'rojo' }); }
+  else if (viento > 15) { score = Math.max(score, 1); alertas.push({ ico:'⚠️', txt:`<strong>Viento moderado (${viento} km/h):</strong> Operar con precaución, evaluar boquillas antideriva.`, sev:'amarillo' }); }
+  else if (viento < 3)  { score = Math.max(score, 1); alertas.push({ ico:'⚠️', txt:`<strong>Viento muy bajo (${viento} km/h):</strong> Posible inversión térmica. Riesgo de gotas en suspensión.`, sev:'amarillo' }); }
+  else                  { alertas.push({ ico:'✅', txt:`<strong>Viento óptimo (${viento} km/h):</strong> Condición favorable para la aplicación.`, sev:'verde' }); }
 
-  // RÃ¡fagas
-  if (rafagas > 30) { score = Math.max(score, 2); alertas.push({ ico:'ðŸ’¨', txt:`<strong>RÃ¡fagas de ${rafagas} km/h:</strong> Peligro de deriva severa. No aplicar.`, sev:'rojo' }); }
+  // Ráfagas
+  if (rafagas > 30) { score = Math.max(score, 2); alertas.push({ ico:'💨', txt:`<strong>Ráfagas de ${rafagas} km/h:</strong> Peligro de deriva severa. No aplicar.`, sev:'rojo' }); }
 
   // Temperatura
-  if (temp > 32)    { score = Math.max(score, 2); alertas.push({ ico:'ðŸŒ¡', txt:`<strong>Temperatura alta (${temp}Â°C):</strong> VolatilizaciÃ³n severa, especialmente de hormonales. Suspender.`, sev:'rojo' }); }
-  else if (temp > 28) { score = Math.max(score, 1); alertas.push({ ico:'ðŸŒ¡', txt:`<strong>Temperatura elevada (${temp}Â°C):</strong> Posible volatilizaciÃ³n de herbicidas. Vigilar.`, sev:'amarillo' }); }
-  else if (temp < 8) { score = Math.max(score, 1); alertas.push({ ico:'â„ï¸', txt:`<strong>Temperatura baja (${temp}Â°C):</strong> Metabolismo foliar lento, reducir absorciÃ³n de herbicidas sistÃ©micos.`, sev:'amarillo' }); }
-  else              { alertas.push({ ico:'âœ…', txt:`<strong>Temperatura Ã³ptima (${temp}Â°C):</strong> CondiciÃ³n favorable para absorciÃ³n foliar.`, sev:'verde' }); }
+  if (temp > 32)    { score = Math.max(score, 2); alertas.push({ ico:'🌡', txt:`<strong>Temperatura alta (${temp}°C):</strong> Volatilización severa, especialmente de hormonales. Suspender.`, sev:'rojo' }); }
+  else if (temp > 28) { score = Math.max(score, 1); alertas.push({ ico:'🌡', txt:`<strong>Temperatura elevada (${temp}°C):</strong> Posible volatilización de herbicidas. Vigilar.`, sev:'amarillo' }); }
+  else if (temp < 8) { score = Math.max(score, 1); alertas.push({ ico:'❄️', txt:`<strong>Temperatura baja (${temp}°C):</strong> Metabolismo foliar lento, reducir absorción de herbicidas sistémicos.`, sev:'amarillo' }); }
+  else              { alertas.push({ ico:'✅', txt:`<strong>Temperatura óptima (${temp}°C):</strong> Condición favorable para absorción foliar.`, sev:'verde' }); }
 
   // Humedad relativa
-  if (hr < 40)     { score = Math.max(score, 2); alertas.push({ ico:'ðŸœ', txt:`<strong>HR muy baja (${hr}%):</strong> Alta evaporaciÃ³n de gotas, deriva aumentada. No apto.`, sev:'rojo' }); }
-  else if (hr < 55) { score = Math.max(score, 1); alertas.push({ ico:'ðŸ’§', txt:`<strong>HR baja (${hr}%):</strong> Mayor evaporaciÃ³n de gotas. Aumentar volumen de caldo.`, sev:'amarillo' }); }
-  else if (hr > 90) { alertas.push({ ico:'ðŸŒ«', txt:`<strong>HR muy alta (${hr}%):</strong> Riesgo de hongos y lavado. Verificar fitotoxicidad del producto.`, sev:'info' }); }
-  else              { alertas.push({ ico:'âœ…', txt:`<strong>Humedad adecuada (${hr}%):</strong> Buenas condiciones para la deposiciÃ³n del caldo.`, sev:'verde' }); }
+  if (hr < 40)     { score = Math.max(score, 2); alertas.push({ ico:'🏜', txt:`<strong>HR muy baja (${hr}%):</strong> Alta evaporación de gotas, deriva aumentada. No apto.`, sev:'rojo' }); }
+  else if (hr < 55) { score = Math.max(score, 1); alertas.push({ ico:'💧', txt:`<strong>HR baja (${hr}%):</strong> Mayor evaporación de gotas. Aumentar volumen de caldo.`, sev:'amarillo' }); }
+  else if (hr > 90) { alertas.push({ ico:'🌫', txt:`<strong>HR muy alta (${hr}%):</strong> Riesgo de hongos y lavado. Verificar fitotoxicidad del producto.`, sev:'info' }); }
+  else              { alertas.push({ ico:'✅', txt:`<strong>Humedad adecuada (${hr}%):</strong> Buenas condiciones para la deposición del caldo.`, sev:'verde' }); }
 
   // Lluvia
-  if (pp > 0)      { score = Math.max(score, 2); alertas.push({ ico:'ðŸŒ§', txt:`<strong>Lluvia activa (${pp} mm):</strong> Suspender inmediatamente la aplicaciÃ³n.`, sev:'rojo' }); }
-  else if (pp_prob > 40) { score = Math.max(score, 1); alertas.push({ ico:'â›…', txt:`<strong>Probabilidad de lluvia: ${pp_prob}%:</strong> Riesgo de lavado. Verificar periodo libre de lluvia del producto.`, sev:'amarillo' }); }
+  if (pp > 0)      { score = Math.max(score, 2); alertas.push({ ico:'🌧', txt:`<strong>Lluvia activa (${pp} mm):</strong> Suspender inmediatamente la aplicación.`, sev:'rojo' }); }
+  else if (pp_prob > 40) { score = Math.max(score, 1); alertas.push({ ico:'⛅', txt:`<strong>Probabilidad de lluvia: ${pp_prob}%:</strong> Riesgo de lavado. Verificar periodo libre de lluvia del producto.`, sev:'amarillo' }); }
 
-  // InversiÃ³n tÃ©rmica nocturna (aproximaciÃ³n: hora + temp ~ rocÃ­o)
+  // Inversión térmica nocturna (aproximación: hora + temp ~ rocío)
   const hora = new Date().getHours();
   const deltaTD = temp - rocio;
   if ((hora >= 20 || hora <= 7) && deltaTD < 3) {
     score = Math.max(score, 1);
-    alertas.push({ ico:'ðŸŒ™', txt:`<strong>Posible inversiÃ³n tÃ©rmica:</strong> Horario nocturno con baja diferencia TÂ° - rocÃ­o (${deltaTD.toFixed(1)}Â°C). Riesgo de gotas en suspensiÃ³n y deriva a distancia.`, sev:'amarillo' });
+    alertas.push({ ico:'🌙', txt:`<strong>Posible inversión térmica:</strong> Horario nocturno con baja diferencia T° - rocío (${deltaTD.toFixed(1)}°C). Riesgo de gotas en suspensión y deriva a distancia.`, sev:'amarillo' });
   }
 
-  // â”€â”€ DEFINIR ESTADO FINAL â”€â”€
+  // ── DEFINIR ESTADO FINAL ──
   const estados = [
-    { cls:'verde',    emoji:'âœ…', txt:'APTO PARA APLICAR',        color:'var(--ok)',      desc:`Las condiciones meteorolÃ³gicas actuales son favorables para realizar aplicaciones. SeguÃ­ las buenas prÃ¡cticas y verificÃ¡ cada 30 minutos.` },
-    { cls:'amarillo', emoji:'âš ï¸', txt:'APLICAR CON PRECAUCIÃ“N',   color:'var(--caution)', desc:`Hay factores que requieren atenciÃ³n. PodÃ©s aplicar con precauciones adicionales. LeÃ© las alertas y ajustÃ¡ el equipo.` },
-    { cls:'rojo',     emoji:'ðŸš«', txt:'NO APTO â€” SUSPENDER',      color:'var(--red)',     desc:`Las condiciones actuales no son aptas para pulverizar. Existe riesgo de deriva, pÃ©rdida de eficacia o fitotoxicidad. EsperÃ¡ mejores condiciones.` },
+    { cls:'verde',    emoji:'✅', txt:'APTO PARA APLICAR',        color:'var(--ok)',      desc:`Las condiciones meteorológicas actuales son favorables para realizar aplicaciones. Seguí las buenas prácticas y verificá cada 30 minutos.` },
+    { cls:'amarillo', emoji:'⚠️', txt:'APLICAR CON PRECAUCIÓN',   color:'var(--caution)', desc:`Hay factores que requieren atención. Podés aplicar con precauciones adicionales. Leé las alertas y ajustá el equipo.` },
+    { cls:'rojo',     emoji:'🚫', txt:'NO APTO — SUSPENDER',      color:'var(--red)',     desc:`Las condiciones actuales no son aptas para pulverizar. Existe riesgo de deriva, pérdida de eficacia o fitotoxicidad. Esperá mejores condiciones.` },
   ];
   const e = estados[score];
 
@@ -235,15 +357,15 @@ function renderSemaforo(c) {
   document.getElementById('pulv-emoji').textContent = e.emoji;
   document.getElementById('pulv-badge-txt').textContent = e.cls.toUpperCase();
 
-  // â”€â”€ GRILLA VARIABLES â”€â”€
+  // ── GRILLA VARIABLES ──
   const dirLabel = gradosADireccion(c.wind_direction_10m);
   const variables = [
-    { var:'Temperatura', val: temp.toFixed(1), unit:'Â°C', st: temp>32?'warn': temp>28?'caution':'ok' },
+    { var:'Temperatura', val: temp.toFixed(1), unit:'°C', st: temp>32?'warn': temp>28?'caution':'ok' },
     { var:'Humedad rel.', val: hr, unit:'%', st: hr<40?'warn': hr<55?'caution':'ok' },
     { var:'Viento', val: viento.toFixed(1), unit:'km/h', st: viento>25?'warn': viento>15||viento<3?'caution':'ok' },
-    { var:'RÃ¡fagas', val: rafagas.toFixed(1), unit:'km/h', st: rafagas>30?'warn': rafagas>20?'caution':'ok' },
-    { var:'DirecciÃ³n', val: dirLabel, unit:'', st:'info' },
-    { var:'Punto de rocÃ­o', val: rocio.toFixed(1), unit:'Â°C', st:'info' },
+    { var:'Ráfagas', val: rafagas.toFixed(1), unit:'km/h', st: rafagas>30?'warn': rafagas>20?'caution':'ok' },
+    { var:'Dirección', val: dirLabel, unit:'', st:'info' },
+    { var:'Punto de rocío', val: rocio.toFixed(1), unit:'°C', st:'info' },
     { var:'Prob. lluvia', val: pp_prob, unit:'%', st: pp_prob>50?'warn': pp_prob>25?'caution':'ok' },
     { var:'Nubosidad', val: c.cloud_cover, unit:'%', st:'info' },
   ];
@@ -252,10 +374,10 @@ function renderSemaforo(c) {
     <div class="meteo-cell">
       <div class="meteo-var">${v.var}</div>
       <div class="meteo-val ${v.st}">${v.val}<span class="meteo-unit">${v.unit}</span></div>
-      <div class="meteo-status status-${v.st}">${v.st==='warn'?'âš  Alerta': v.st==='caution'?'PrecauciÃ³n': v.st==='ok'?'OK':'â€”'}</div>
+      <div class="meteo-status status-${v.st}">${v.st==='warn'?'⚠ Alerta': v.st==='caution'?'Precaución': v.st==='ok'?'OK':'—'}</div>
     </div>`).join('');
 
-  // â”€â”€ ALERTAS â”€â”€
+  // ── ALERTAS ──
   const lista = document.getElementById('pulv-alertas');
   lista.innerHTML = alertas.map(a => `
     <div class="alerta-item">
@@ -267,7 +389,7 @@ function renderSemaforo(c) {
   document.getElementById('pulv-sem-content').style.display = 'block';
 }
 
-// â”€â”€â”€ RENDER VENTANA HORARIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── RENDER VENTANA HORARIA ───────────────────────────────
 function renderVentana(hourly) {
   const ahora = new Date();
   const horas = hourly.time;
@@ -276,7 +398,7 @@ function renderVentana(hourly) {
   const hrs = hourly.relative_humidity_2m;
   const pps = hourly.precipitation_probability;
 
-  // PrÃ³ximas 24 horas desde ahora
+  // Próximas 24 horas desde ahora
   const idxAhora = horas.findIndex(t => new Date(t) >= ahora);
   const idxFin = Math.min(idxAhora + 24, horas.length);
   const bloquesSlice = horas.slice(idxAhora, idxFin);
@@ -291,12 +413,12 @@ function renderVentana(hourly) {
     const pp = pps[idx];
 
     let cls = 'apto';
-    let emoji = 'âœ…';
-    if (viento > 25 || temp > 32 || hr < 40 || pp > 50) { cls = 'no-apto'; emoji = 'ðŸš«'; }
-    else if (viento > 15 || viento < 3 || temp > 28 || hr < 55 || pp > 25) { cls = 'parcial'; emoji = 'âš ï¸'; }
+    let emoji = '✅';
+    if (viento > 25 || temp > 32 || hr < 40 || pp > 50) { cls = 'no-apto'; emoji = '🚫'; }
+    else if (viento > 15 || viento < 3 || temp > 28 || hr < 55 || pp > 25) { cls = 'parcial'; emoji = '⚠️'; }
 
     const esAhora = i === 0;
-    return `<div class="hour-block ${cls}" title="T: ${temp.toFixed(0)}Â°C | HR: ${hr}% | PP: ${pp}%">
+    return `<div class="hour-block ${cls}" title="T: ${temp.toFixed(0)}°C | HR: ${hr}% | PP: ${pp}%">
       ${esAhora ? '<div class="hour-now">AHORA</div>' : ''}
       <div class="hour-label">${String(hora).padStart(2,'0')}:00</div>
       <div class="hour-emoji">${emoji}</div>
@@ -308,14 +430,14 @@ function renderVentana(hourly) {
   document.getElementById('pulv-ventana-card').style.display = 'block';
 }
 
-// â”€â”€â”€ DERIVA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── DERIVA ───────────────────────────────────────────────
 function renderDeriva(c) {
   if (!c) return;
   const viento = c.wind_speed_10m;
   const temp = c.temperature_2m;
   const hr = c.relative_humidity_2m;
 
-  // Ãndice de riesgo 0â€“100
+  // Índice de riesgo 0–100
   let idx = 0;
   idx += Math.min(viento / 30 * 60, 60);   // viento aporta hasta 60 pts
   idx += Math.max(0, (35 - hr) / 35 * 20); // HR baja aporta hasta 20 pts
@@ -345,9 +467,9 @@ function renderDeriva(c) {
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem">
       ${[
         { lbl:'Velocidad de viento', val: viento.toFixed(1)+' km/h', peso: viento > 25 ? 'warn' : viento > 15 ? 'caution' : 'ok', tip: 'Determinante principal de deriva' },
-        { lbl:'Temperatura', val: temp.toFixed(1)+'Â°C', peso: temp>32?'warn':temp>28?'caution':'ok', tip: 'Afecta volatilizaciÃ³n' },
-        { lbl:'Humedad relativa', val: hr+'%', peso: hr<40?'warn':hr<55?'caution':'ok', tip: 'Determina evaporaciÃ³n de gotas' },
-        { lbl:'Estabilidad atmosfÃ©rica', val: (new Date().getHours()>=20||new Date().getHours()<=7)?'Nocturna âš ':'Diurna âœ“', peso: (new Date().getHours()>=20||new Date().getHours()<=7)?'caution':'ok', tip: 'InversiÃ³n tÃ©rmica nocturna' },
+        { lbl:'Temperatura', val: temp.toFixed(1)+'°C', peso: temp>32?'warn':temp>28?'caution':'ok', tip: 'Afecta volatilización' },
+        { lbl:'Humedad relativa', val: hr+'%', peso: hr<40?'warn':hr<55?'caution':'ok', tip: 'Determina evaporación de gotas' },
+        { lbl:'Estabilidad atmosférica', val: (new Date().getHours()>=20||new Date().getHours()<=7)?'Nocturna ⚠':'Diurna ✓', peso: (new Date().getHours()>=20||new Date().getHours()<=7)?'caution':'ok', tip: 'Inversión térmica nocturna' },
       ].map(f => `
         <div style="padding:1rem;background:rgba(28,18,8,.04);border-radius:12px;border:1px solid var(--border)">
           <div style="font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:rgba(28,18,8,.4);margin-bottom:.3rem">${f.lbl}</div>
@@ -356,11 +478,11 @@ function renderDeriva(c) {
         </div>`).join('')}
     </div>
     <div style="margin-top:1rem;padding:.9rem 1.1rem;background:rgba(58,122,184,.06);border-radius:10px;border:1px solid rgba(58,122,184,.15);font-size:.8rem;color:rgba(28,18,8,.65);line-height:1.6">
-      <strong>Nota agronÃ³mica INTA:</strong> El riesgo de deriva depende principalmente de la velocidad y turbulencia del viento, el tipo de boquilla, el volumen de aplicaciÃ³n y el tamaÃ±o de gota. Las condiciones de inversiÃ³n tÃ©rmica nocturna pueden transportar gotas pequeÃ±as varios kilÃ³metros.
+      <strong>Nota agronómica INTA:</strong> El riesgo de deriva depende principalmente de la velocidad y turbulencia del viento, el tipo de boquilla, el volumen de aplicación y el tamaño de gota. Las condiciones de inversión térmica nocturna pueden transportar gotas pequeñas varios kilómetros.
     </div>`;
 }
 
-// â”€â”€â”€ BUFFER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── BUFFER ───────────────────────────────────────────────
 function calcBuffer() {
   const lindero = document.getElementById('d-lindero').value;
   const boquilla = document.getElementById('d-boquilla').value;
@@ -376,11 +498,11 @@ function calcBuffer() {
     cono_hueco: 1.3
   };
   const notas = {
-    soja: 'Especialmente crÃ­tico en floraciÃ³n. La soja es muy sensible a hormonales (2,4-D, Dicamba).',
+    soja: 'Especialmente crítico en floración. La soja es muy sensible a hormonales (2,4-D, Dicamba).',
     hortalizas: 'Cultivos de alta sensibilidad. Se recomienda verificar viento < 8 km/h.',
     apicultura: 'Coordinar con apicultores. Aplicar en horario de menor actividad (noche o madrugada).',
-    agua: 'Respetar legislaciÃ³n provincial. Algunos productos tienen restricciones adicionales.',
-    urbano: 'Verificar ordenanzas municipales y zonas de exclusiÃ³n locales.',
+    agua: 'Respetar legislación provincial. Algunos productos tienen restricciones adicionales.',
+    urbano: 'Verificar ordenanzas municipales y zonas de exclusión locales.',
     forestal: 'Considerar fauna silvestre y polinizadores nativos.'
   };
 
@@ -389,11 +511,11 @@ function calcBuffer() {
   const buffer = Math.round(bufferBase[lindero] * factorBoquilla[boquilla] * factorViento);
 
   document.getElementById('buffer-val').textContent = buffer;
-  document.getElementById('buffer-nota').textContent = 'âš  ' + notas[lindero];
+  document.getElementById('buffer-nota').textContent = '⚠ ' + notas[lindero];
   document.getElementById('buffer-resultado').style.display = 'block';
 }
 
-// â”€â”€â”€ CALCULADORA CALDO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CALCULADORA CALDO ────────────────────────────────────
 const PRODUCTOS = {
   herbicida: [
     { nombre: 'Glifosato 48%',        dosis: 2.5,  unidad: 'L/ha',  mezcla: 'herbicida_sistemico' },
@@ -403,7 +525,7 @@ const PRODUCTOS = {
     { nombre: 'Cletodim 12%',          dosis: 0.8,  unidad: 'L/ha',  mezcla: 'graminicida' },
     { nombre: 'Haloxifop 12%',         dosis: 0.7,  unidad: 'L/ha',  mezcla: 'graminicida' },
     { nombre: 'Metribuzin 70%',        dosis: 0.35, unidad: 'kg/ha', mezcla: 'preemergente' },
-    { nombre: 'MetsulfurÃ³n 60%',       dosis: 0.007,unidad: 'kg/ha', mezcla: 'ats' },
+    { nombre: 'Metsulfurón 60%',       dosis: 0.007,unidad: 'kg/ha', mezcla: 'ats' },
   ],
   fungicida: [
     { nombre: 'Tebuconazole 25%',      dosis: 0.75, unidad: 'L/ha',  mezcla: 'triazol' },
@@ -423,69 +545,69 @@ const PRODUCTOS = {
   ],
   fertilizante_foliar: [
     { nombre: 'Urea foliar 20%',       dosis: 3.0,  unidad: 'L/ha',  mezcla: 'foliar' },
-    { nombre: 'Boro lÃ­quido',          dosis: 0.5,  unidad: 'L/ha',  mezcla: 'foliar' },
-    { nombre: 'Azufre lÃ­quido 20%',    dosis: 1.5,  unidad: 'L/ha',  mezcla: 'foliar' },
+    { nombre: 'Boro líquido',          dosis: 0.5,  unidad: 'L/ha',  mezcla: 'foliar' },
+    { nombre: 'Azufre líquido 20%',    dosis: 1.5,  unidad: 'L/ha',  mezcla: 'foliar' },
     { nombre: 'Zinc + Manganeso',      dosis: 1.0,  unidad: 'L/ha',  mezcla: 'foliar' },
   ]
 };
 
 const ORDENES_MEZCLA = {
-  herbicida_sistemico: ['1. Â½ tanque de agua limpia', '2. Coadyuvante / surfactante', '3. Glifosato', '4. Completar con agua', '5. Agitar suavemente'],
-  hormonal:  ['1. Â½ tanque de agua limpia', '2. Agitar', '3. Hormonal (2,4-D / Dicamba) â€” agregar despacio', '4. Completar con agua', 'âš  NUNCA mezclar con emulsionables sin prueba de jarrita'],
-  preemergente: ['1. Â½ tanque de agua limpia', '2. Dispersar el producto (PM) en agua aparte', '3. Agregar al tanque agitando', '4. Completar con agua', '5. Mantener agitaciÃ³n constante'],
-  graminicida: ['1. Â½ tanque de agua limpia', '2. Aceite metilado (si se requiere)', '3. Graminicida', '4. Completar con agua', 'âš  No mezclar con glifosato sin evaluaciÃ³n'],
-  ats: ['1. Â½ tanque de agua limpia', '2. Disolver el granulado en agua aparte', '3. Agregar al tanque', '4. Coadyuvante', '5. Completar con agua'],
-  triazol: ['1. Â½ tanque de agua', '2. Coadyuvante (si se requiere)', '3. Fungicida triazol', '4. Completar con agua'],
-  estrobilurina: ['1. Â½ tanque de agua', '2. Fungicida (generalmente mezcla formulada)', '3. Completar con agua'],
-  sdhi: ['1. Â½ tanque de agua', '2. Fungicida SDHI', '3. Completar con agua', 'âœ“ Buena compatibilidad con triazoles'],
-  contacto: ['1. Â½ tanque de agua', '2. Humectar el PM en agua aparte', '3. Agregar al tanque agitando', '4. Mantener agitaciÃ³n'],
-  dicarboximida: ['1. Â½ tanque de agua', '2. Producto', '3. Completar con agua'],
-  op: ['1. Â½ tanque de agua', '2. OP (aguas Ã¡cidas o neutras)', '3. Completar con agua', 'âš  Incompatible en pH > 7, usar buffer'],
-  piretroide: ['1. Â½ tanque de agua', '2. Piretroide', '3. Completar con agua', 'âœ“ Compatible con OP y fungicidas en general'],
-  neonicotinoide: ['1. Â½ tanque de agua', '2. Neonicotinoide', '3. Completar con agua'],
-  spinosina: ['1. Â½ tanque de agua', '2. Spinosad (activar baja agitaciÃ³n)', '3. Completar con agua', 'âœ“ Selectivo para enemigos naturales'],
-  foliar: ['1. Agua limpia pH 5.5â€“6.5', '2. Fertilizante foliar', '3. Completar con agua', 'âœ“ Aplicar con HR > 65% y temperatura fresca'],
+  herbicida_sistemico: ['1. ½ tanque de agua limpia', '2. Coadyuvante / surfactante', '3. Glifosato', '4. Completar con agua', '5. Agitar suavemente'],
+  hormonal:  ['1. ½ tanque de agua limpia', '2. Agitar', '3. Hormonal (2,4-D / Dicamba) — agregar despacio', '4. Completar con agua', '⚠ NUNCA mezclar con emulsionables sin prueba de jarrita'],
+  preemergente: ['1. ½ tanque de agua limpia', '2. Dispersar el producto (PM) en agua aparte', '3. Agregar al tanque agitando', '4. Completar con agua', '5. Mantener agitación constante'],
+  graminicida: ['1. ½ tanque de agua limpia', '2. Aceite metilado (si se requiere)', '3. Graminicida', '4. Completar con agua', '⚠ No mezclar con glifosato sin evaluación'],
+  ats: ['1. ½ tanque de agua limpia', '2. Disolver el granulado en agua aparte', '3. Agregar al tanque', '4. Coadyuvante', '5. Completar con agua'],
+  triazol: ['1. ½ tanque de agua', '2. Coadyuvante (si se requiere)', '3. Fungicida triazol', '4. Completar con agua'],
+  estrobilurina: ['1. ½ tanque de agua', '2. Fungicida (generalmente mezcla formulada)', '3. Completar con agua'],
+  sdhi: ['1. ½ tanque de agua', '2. Fungicida SDHI', '3. Completar con agua', '✓ Buena compatibilidad con triazoles'],
+  contacto: ['1. ½ tanque de agua', '2. Humectar el PM en agua aparte', '3. Agregar al tanque agitando', '4. Mantener agitación'],
+  dicarboximida: ['1. ½ tanque de agua', '2. Producto', '3. Completar con agua'],
+  op: ['1. ½ tanque de agua', '2. OP (aguas ácidas o neutras)', '3. Completar con agua', '⚠ Incompatible en pH > 7, usar buffer'],
+  piretroide: ['1. ½ tanque de agua', '2. Piretroide', '3. Completar con agua', '✓ Compatible con OP y fungicidas en general'],
+  neonicotinoide: ['1. ½ tanque de agua', '2. Neonicotinoide', '3. Completar con agua'],
+  spinosina: ['1. ½ tanque de agua', '2. Spinosad (activar baja agitación)', '3. Completar con agua', '✓ Selectivo para enemigos naturales'],
+  foliar: ['1. Agua limpia pH 5.5–6.5', '2. Fertilizante foliar', '3. Completar con agua', '✓ Aplicar con HR > 65% y temperatura fresca'],
 };
 
 const PAUTAS = {
   herbicida:   `<ul style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:1.8;list-style:none">
-    <li>ðŸŒ¡ Temperatura Ã³ptima: <strong>15â€“28Â°C</strong></li>
-    <li>ðŸ’§ Humedad relativa: <strong>> 55%</strong></li>
-    <li>ðŸ’¨ Viento: <strong>3â€“15 km/h</strong></li>
-    <li>â˜€ï¸ Evitar horas de mÃ¡xima radiaciÃ³n (12â€“16 hs)</li>
-    <li>ðŸŒ§ PerÃ­odo libre de lluvia: <strong>4â€“8 hs post-aplicaciÃ³n</strong> (segÃºn producto)</li>
-    <li>âš ï¸ Hormonales (2,4-D, Dicamba): NO aplicar > 28Â°C ni con inversiÃ³n tÃ©rmica</li>
+    <li>🌡 Temperatura óptima: <strong>15–28°C</strong></li>
+    <li>💧 Humedad relativa: <strong>> 55%</strong></li>
+    <li>💨 Viento: <strong>3–15 km/h</strong></li>
+    <li>☀️ Evitar horas de máxima radiación (12–16 hs)</li>
+    <li>🌧 Período libre de lluvia: <strong>4–8 hs post-aplicación</strong> (según producto)</li>
+    <li>⚠️ Hormonales (2,4-D, Dicamba): NO aplicar > 28°C ni con inversión térmica</li>
   </ul>`,
   fungicida:   `<ul style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:1.8;list-style:none">
-    <li>ðŸŒ¡ Temperatura: <strong>15â€“25Â°C</strong></li>
-    <li>ðŸ’§ HR: <strong>> 60%</strong> (favorece adhesiÃ³n y absorciÃ³n)</li>
-    <li>ðŸ’¨ Viento: <strong>3â€“12 km/h</strong></li>
-    <li>ðŸŒ§ PerÃ­odo libre de lluvia: <strong>2â€“4 hs</strong></li>
-    <li>ðŸ“… Aplicar en estadio preventivo (antes de infecciÃ³n)</li>
-    <li>âœ“ Triazoles + estrobilurinas: mayor espectro y residualidad</li>
+    <li>🌡 Temperatura: <strong>15–25°C</strong></li>
+    <li>💧 HR: <strong>> 60%</strong> (favorece adhesión y absorción)</li>
+    <li>💨 Viento: <strong>3–12 km/h</strong></li>
+    <li>🌧 Período libre de lluvia: <strong>2–4 hs</strong></li>
+    <li>📅 Aplicar en estadio preventivo (antes de infección)</li>
+    <li>✓ Triazoles + estrobilurinas: mayor espectro y residualidad</li>
   </ul>`,
   insecticida: `<ul style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:1.8;list-style:none">
-    <li>ðŸŒ¡ Temperatura: <strong>15â€“30Â°C</strong></li>
-    <li>ðŸ’¨ Viento: <strong>< 15 km/h</strong> (piretroides muy sensibles)</li>
-    <li>ðŸŒ™ Piretroides: preferir aplicaciÃ³n vespertina/nocturna</li>
-    <li>ðŸ Abejas: NO aplicar en floraciÃ³n con neonicotinoides u OP</li>
-    <li>ðŸŒ§ PerÃ­odo libre de lluvia: <strong>1â€“2 hs</strong></li>
-    <li>âš ï¸ OP organofosforados: mÃ¡xima precauciÃ³n EPP</li>
+    <li>🌡 Temperatura: <strong>15–30°C</strong></li>
+    <li>💨 Viento: <strong>< 15 km/h</strong> (piretroides muy sensibles)</li>
+    <li>🌙 Piretroides: preferir aplicación vespertina/nocturna</li>
+    <li>🐝 Abejas: NO aplicar en floración con neonicotinoides u OP</li>
+    <li>🌧 Período libre de lluvia: <strong>1–2 hs</strong></li>
+    <li>⚠️ OP organofosforados: máxima precaución EPP</li>
   </ul>`,
   fertilizante_foliar: `<ul style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:1.8;list-style:none">
-    <li>ðŸŒ¡ Temperatura: <strong>< 25Â°C</strong></li>
-    <li>ðŸ’§ HR: <strong>> 65%</strong> (clave para absorciÃ³n foliar)</li>
-    <li>â° Aplicar temprano (7â€“10 hs) o tarde (17â€“20 hs)</li>
-    <li>ðŸŒ§ PerÃ­odo libre de lluvia: <strong>6 hs</strong></li>
-    <li>ðŸ’¦ Aumentar volumen de caldo: <strong>100â€“150 L/ha</strong></li>
-    <li>âš ï¸ Urea foliar: riesgo de quemado si > 25Â°C y HR baja</li>
+    <li>🌡 Temperatura: <strong>< 25°C</strong></li>
+    <li>💧 HR: <strong>> 65%</strong> (clave para absorción foliar)</li>
+    <li>⏰ Aplicar temprano (7–10 hs) o tarde (17–20 hs)</li>
+    <li>🌧 Período libre de lluvia: <strong>6 hs</strong></li>
+    <li>💦 Aumentar volumen de caldo: <strong>100–150 L/ha</strong></li>
+    <li>⚠️ Urea foliar: riesgo de quemado si > 25°C y HR baja</li>
   </ul>`,
 };
 
 function actualizarProductos() {
   const tipo = document.getElementById('c-tipo').value;
   const sel = document.getElementById('c-producto');
-  sel.innerHTML = '<option value="">â€” Seleccionar producto â€”</option>';
+  sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
   if (PRODUCTOS[tipo]) {
     PRODUCTOS[tipo].forEach((p, i) => {
       sel.innerHTML += `<option value="${i}">${p.nombre} (${p.dosis} ${p.unidad})</option>`;
@@ -494,7 +616,7 @@ function actualizarProductos() {
   // Mostrar pautas
   const pauta = document.getElementById('pauta-body');
   if (PAUTAS[tipo]) { pauta.innerHTML = PAUTAS[tipo]; }
-  else { pauta.innerHTML = '<p class="txt-muted">SeleccionÃ¡ un tipo de aplicaciÃ³n.</p>'; }
+  else { pauta.innerHTML = '<p class="txt-muted">Seleccioná un tipo de aplicación.</p>'; }
   calcCaldo();
 }
 
@@ -508,7 +630,7 @@ function calcCaldo() {
   if (!tipo || prodIdx === '') {
     // Resetear resultados
     ['r-dosis','r-prod-total','r-autonomia','r-tanques','r-agua','r-conc'].forEach(id => {
-      document.getElementById(id).textContent = 'â€”';
+      document.getElementById(id).textContent = '—';
     });
     return;
   }
@@ -531,19 +653,19 @@ function calcCaldo() {
     document.getElementById('r-tanques').textContent = tanquesTotal;
     document.getElementById('r-agua').textContent = aguaTotal.toLocaleString('es-AR');
   } else {
-    document.getElementById('r-prod-total').textContent = 'â€”';
-    document.getElementById('r-tanques').textContent = 'â€”';
-    document.getElementById('r-agua').textContent = 'â€”';
+    document.getElementById('r-prod-total').textContent = '—';
+    document.getElementById('r-tanques').textContent = '—';
+    document.getElementById('r-agua').textContent = '—';
   }
 
-  // Alertas de concentraciÃ³n
+  // Alertas de concentración
   const alBox = document.getElementById('caldo-alerta-box');
   if (parseFloat(concPct) < 0.5) {
     alBox.style.display = 'flex';
-    document.getElementById('caldo-alerta-txt').textContent = `ConcentraciÃ³n muy baja (${concPct}%). Verificar que el volumen de caldo sea adecuado para lograr buena cobertura.`;
+    document.getElementById('caldo-alerta-txt').textContent = `Concentración muy baja (${concPct}%). Verificar que el volumen de caldo sea adecuado para lograr buena cobertura.`;
   } else if (parseFloat(concPct) > 5) {
     alBox.style.display = 'flex';
-    document.getElementById('caldo-alerta-txt').textContent = `ConcentraciÃ³n alta (${concPct}%). Riesgo de fitotoxicidad. Verificar dosis y compatibilidad.`;
+    document.getElementById('caldo-alerta-txt').textContent = `Concentración alta (${concPct}%). Riesgo de fitotoxicidad. Verificar dosis y compatibilidad.`;
   } else { alBox.style.display = 'none'; }
 
   // Orden de agregado
@@ -556,58 +678,64 @@ function calcCaldo() {
   }
 }
 
-// â”€â”€â”€ REGISTRO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── REGISTRO ─────────────────────────────────────────────
 function autoFillRegistro(c) {
   if (!c) return;
   const now = new Date();
-  document.getElementById('reg-fecha').value = now.toISOString().split('T')[0];
-  document.getElementById('reg-hora').value = now.toTimeString().slice(0,5);
-  document.getElementById('reg-temp').value = c.temperature_2m.toFixed(1);
-  document.getElementById('reg-viento').value = c.wind_speed_10m.toFixed(1);
-  document.getElementById('reg-hr').value = c.relative_humidity_2m;
+  pulvPrepararAutoLote();
+  pulvSetValue('reg-fecha', now.toISOString().split('T')[0]);
+  pulvSetValue('reg-hora', now.toTimeString().slice(0,5));
+  pulvSetValue('reg-temp', c.temperature_2m.toFixed(1));
+  pulvSetValue('reg-viento', c.wind_speed_10m.toFixed(1));
+  pulvSetValue('reg-hr', c.relative_humidity_2m);
 }
 
-let historial = JSON.parse(localStorage.getItem('pulv-historial') || '[]');
+let historial = pulvLeerHistorialLote() || JSON.parse(localStorage.getItem('pulv-historial') || '[]');
 
 function guardarRegistro() {
+  const lote = pulvGetLoteActivo();
   const r = {
     id: Date.now(),
-    fecha: document.getElementById('reg-fecha').value,
-    hora: document.getElementById('reg-hora').value,
-    lote: document.getElementById('reg-lote').value || 'â€”',
-    ha: parseFloat(document.getElementById('reg-ha').value) || 0,
-    cultivo: document.getElementById('reg-cultivo').value,
-    operador: document.getElementById('reg-operador').value,
-    equipo: document.getElementById('reg-equipo').value,
-    producto: document.getElementById('reg-producto').value,
-    dosis: document.getElementById('reg-dosis').value,
-    volha: document.getElementById('reg-volha').value,
-    temp: document.getElementById('reg-temp').value,
-    viento: document.getElementById('reg-viento').value,
-    hr: document.getElementById('reg-hr').value,
-    condicion: document.getElementById('reg-condicion').value,
-    obs: document.getElementById('reg-obs').value,
+    loteId: lote ? lote.id : null,
+    fecha: pulvGetValue('reg-fecha'),
+    hora: pulvGetValue('reg-hora'),
+    lote: pulvGetValue('reg-lote') || (lote && lote.nombre) || '—',
+    ha: parseFloat(pulvGetValue('reg-ha')) || 0,
+    cultivo: pulvGetValue('reg-cultivo'),
+    operador: pulvGetValue('reg-operador'),
+    equipo: pulvGetValue('reg-equipo'),
+    producto: pulvGetValue('reg-producto'),
+    dosis: pulvGetValue('reg-dosis'),
+    volha: pulvGetValue('reg-volha'),
+    temp: pulvGetValue('reg-temp'),
+    viento: pulvGetValue('reg-viento'),
+    hr: pulvGetValue('reg-hr'),
+    condicion: pulvGetValue('reg-condicion'),
+    obs: pulvGetValue('reg-obs'),
   };
   historial.unshift(r);
   localStorage.setItem('pulv-historial', JSON.stringify(historial));
+  pulvGuardarHistorialLote(historial);
   renderHistorial();
-  toast('âœ… Ficha guardada correctamente');
+  toast('✅ Ficha guardada correctamente');
 }
 
 function renderHistorial() {
-  const tbody = document.getElementById('historial-body');
+  const loteHistorial = pulvLeerHistorialLote();
+  if (loteHistorial) historial = loteHistorial;
+  const tbody = pulvEl('historial-body');
   if (!tbody) return;
   if (historial.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="txt-muted" style="text-align:center;padding:2rem">Sin registros aÃºn</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="txt-muted" style="text-align:center;padding:2rem">Sin registros aún</td></tr>';
     return;
   }
   tbody.innerHTML = historial.map(r => `
     <tr>
       <td style="white-space:nowrap">${r.fecha} ${r.hora}</td>
       <td>${r.lote}</td>
-      <td>${r.producto || 'â€”'}</td>
-      <td>${r.ha || 'â€”'}</td>
-      <td><span class="tag ${r.condicion}">${r.condicion==='verde'?'Apto':r.condicion==='amarillo'?'PrecauciÃ³n':'No apto'}</span></td>
+      <td>${r.producto || '—'}</td>
+      <td>${r.ha || '—'}</td>
+      <td><span class="tag ${r.condicion}">${r.condicion==='verde'?'Apto':r.condicion==='amarillo'?'Precaución':'No apto'}</span></td>
     </tr>`).join('');
 
   const totalHa = historial.reduce((s,r) => s+(r.ha||0), 0);
@@ -618,26 +746,27 @@ function renderHistorial() {
 }
 
 function limpiarHistorial() {
-  if (!confirm('Â¿Eliminar todos los registros?')) return;
+  if (!confirm('¿Eliminar todos los registros?')) return;
   historial = [];
   localStorage.setItem('pulv-historial', '[]');
+  pulvGuardarHistorialLote(historial);
   renderHistorial();
 }
 
 function exportarPDF() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const lote = document.getElementById('reg-lote').value || 'Sin nombre';
-  const fecha = document.getElementById('reg-fecha').value;
+  const lote = pulvGetValue('reg-lote') || 'Sin nombre';
+  const fecha = pulvGetValue('reg-fecha');
 
   doc.setFillColor(15, 31, 20);
   doc.rect(0, 0, 210, 40, 'F');
   doc.setTextColor(253, 250, 245);
   doc.setFontSize(20);
-  doc.text('AgroMotor â€” Registro de PulverizaciÃ³n', 15, 18);
+  doc.text('AgroMotor — Registro de Pulverización', 15, 18);
   doc.setFontSize(10);
   doc.setTextColor(200, 162, 85);
-  doc.text('MÃ³dulo PulverizaciÃ³n v1.0 Â· INTA', 15, 28);
+  doc.text('Módulo Pulverización v1.0 · INTA', 15, 28);
   doc.setTextColor(140, 170, 150);
   doc.text('Generado: ' + new Date().toLocaleDateString('es-AR'), 15, 35);
 
@@ -646,22 +775,22 @@ function exportarPDF() {
   const campos = [
     ['Lote / Establecimiento', lote],
     ['Fecha', fecha],
-    ['Hora inicio', document.getElementById('reg-hora').value],
-    ['Superficie', (document.getElementById('reg-ha').value || 'â€”') + ' ha'],
-    ['Cultivo', document.getElementById('reg-cultivo').value],
-    ['Operador', document.getElementById('reg-operador').value || 'â€”'],
-    ['Equipo', document.getElementById('reg-equipo').value || 'â€”'],
+    ['Hora inicio', pulvGetValue('reg-hora')],
+    ['Superficie', (pulvGetValue('reg-ha') || '—') + ' ha'],
+    ['Cultivo', pulvGetValue('reg-cultivo')],
+    ['Operador', pulvGetValue('reg-operador') || '—'],
+    ['Equipo', pulvGetValue('reg-equipo') || '—'],
     ['', ''],
-    ['Producto', document.getElementById('reg-producto').value || 'â€”'],
-    ['Dosis', (document.getElementById('reg-dosis').value || 'â€”') + ' L o kg/ha'],
-    ['Volumen de caldo', (document.getElementById('reg-volha').value || 'â€”') + ' L/ha'],
+    ['Producto', pulvGetValue('reg-producto') || '—'],
+    ['Dosis', (pulvGetValue('reg-dosis') || '—') + ' L o kg/ha'],
+    ['Volumen de caldo', (pulvGetValue('reg-volha') || '—') + ' L/ha'],
     ['', ''],
-    ['Temperatura', (document.getElementById('reg-temp').value || 'â€”') + ' Â°C'],
-    ['Viento', (document.getElementById('reg-viento').value || 'â€”') + ' km/h'],
-    ['Humedad relativa', (document.getElementById('reg-hr').value || 'â€”') + '%'],
-    ['Estado de aplicaciÃ³n', document.getElementById('reg-condicion').value.toUpperCase()],
+    ['Temperatura', (pulvGetValue('reg-temp') || '—') + ' °C'],
+    ['Viento', (pulvGetValue('reg-viento') || '—') + ' km/h'],
+    ['Humedad relativa', (pulvGetValue('reg-hr') || '—') + '%'],
+    ['Estado de aplicación', (pulvGetValue('reg-condicion') || '—').toUpperCase()],
     ['', ''],
-    ['Observaciones', document.getElementById('reg-obs').value || 'â€”'],
+    ['Observaciones', pulvGetValue('reg-obs') || '—'],
   ];
   campos.forEach(([k, v]) => {
     if (!k) { y += 4; return; }
@@ -673,13 +802,13 @@ function exportarPDF() {
   });
 
   doc.setFontSize(8); doc.setTextColor(150,130,100);
-  doc.text('AgroMotor Â· Motor AgronÃ³mico de DecisiÃ³n Â· INTA Argentina', 15, 285);
+  doc.text('AgroMotor · Motor Agronómico de Decisión · INTA Argentina', 15, 285);
 
   doc.save(`Pulverizacion_${lote.replace(/\s/g,'_')}_${fecha}.pdf`);
-  toast('ðŸ“„ PDF exportado correctamente');
+  toast('📄 PDF exportado correctamente');
 }
 
-// â”€â”€â”€ UTILIDADES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── UTILIDADES ───────────────────────────────────────────
 function gradosADireccion(deg) {
   const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
   return dirs[Math.round(deg / 22.5) % 16];
@@ -697,48 +826,48 @@ function toast(msg) {
 }
 
 
-// â”€â”€â”€ ASISTENTE IA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ASISTENTE IA ─────────────────────────────────────────
 let chatHistory = [];
 let chatBusy = false;
 
-const SYSTEM_PROMPT = `Sos un asistente tÃ©cnico agronÃ³mico especializado en pulverizaciÃ³n agrÃ­cola para Argentina.
-Tu nombre es "Asistente AgroMotor". RespondÃ©s en espaÃ±ol rioplatense, con terminologÃ­a tÃ©cnica precisa pero clara.
+const SYSTEM_PROMPT = `Sos un asistente técnico agronómico especializado en pulverización agrícola para Argentina.
+Tu nombre es "Asistente AgroMotor". Respondés en español rioplatense, con terminología técnica precisa pero clara.
 
 CONTEXTO Y ALCANCE:
-- Especialista en manejo de malezas, plagas y enfermedades en cultivos extensivos argentinos (soja, maÃ­z, trigo, girasol, sorgo, pasturas)
-- ConocÃ©s la normativa SENASA, los registros CASAFE, las recomendaciones INTA y la legislaciÃ³n fitosanitaria argentina
-- ManejÃ¡s las guÃ­as HRAC para resistencia a herbicidas y FRAC para fungicidas
-- ConocÃ©s los principales productos registrados en Argentina con sus principios activos, dosis y restricciones
+- Especialista en manejo de malezas, plagas y enfermedades en cultivos extensivos argentinos (soja, maíz, trigo, girasol, sorgo, pasturas)
+- Conocés la normativa SENASA, los registros CASAFE, las recomendaciones INTA y la legislación fitosanitaria argentina
+- Manejás las guías HRAC para resistencia a herbicidas y FRAC para fungicidas
+- Conocés los principales productos registrados en Argentina con sus principios activos, dosis y restricciones
 
-SOBRE PULVERIZACIÃ“N Y CONDICIONES:
-- ParÃ¡metros Ã³ptimos: temperatura 15-28Â°C, HR > 55%, viento 3-15 km/h, sin lluvia inminente
-- Alertas de deriva, inversiÃ³n tÃ©rmica, volatilizaciÃ³n de hormonales
-- Tipos de boquillas (XR, TTI, AI, cono hueco) y su relaciÃ³n con el espectro de gotas
-- VolÃºmenes de caldo recomendados por tipo de aplicaciÃ³n (herbicida, fungicida, insecticida)
+SOBRE PULVERIZACIÓN Y CONDICIONES:
+- Parámetros óptimos: temperatura 15-28°C, HR > 55%, viento 3-15 km/h, sin lluvia inminente
+- Alertas de deriva, inversión térmica, volatilización de hormonales
+- Tipos de boquillas (XR, TTI, AI, cono hueco) y su relación con el espectro de gotas
+- Volúmenes de caldo recomendados por tipo de aplicación (herbicida, fungicida, insecticida)
 
 SOBRE MEZCLAS:
-- ExplicÃ¡s el orden correcto de agregado al tanque (agua, coadyuvante, PM, SL, EC, etc.)
-- AlertÃ¡s sobre incompatibilidades fÃ­sico-quÃ­micas (pH, precipitados, emulsiones rotas)
-- MencionÃ¡s la importancia del test de jarrita
+- Explicás el orden correcto de agregado al tanque (agua, coadyuvante, PM, SL, EC, etc.)
+- Alertás sobre incompatibilidades físico-químicas (pH, precipitados, emulsiones rotas)
+- Mencionás la importancia del test de jarrita
 
 SOBRE RESISTENCIAS:
-- Malezas con resistencia documentada en Argentina: rama negra (Conyza), yuyo colorado (Amaranthus), raigrÃ¡s (Lolium), sorgo de Alepo (Sorghum halepense)
-- Estrategias de manejo: rotaciÃ³n de modos de acciÃ³n, mezclas, barbechos limpios, cultivos de cobertura
+- Malezas con resistencia documentada en Argentina: rama negra (Conyza), yuyo colorado (Amaranthus), raigrás (Lolium), sorgo de Alepo (Sorghum halepense)
+- Estrategias de manejo: rotación de modos de acción, mezclas, barbechos limpios, cultivos de cobertura
 
 FORMATO DE RESPUESTAS:
-- UsÃ¡ pÃ¡rrafos cortos y claros
-- Cuando listÃ©s recomendaciones, usÃ¡ bullet points simples (â€¢)
-- DestacÃ¡ alertas con âš ï¸ y recomendaciones positivas con âœ“
-- Siempre recordÃ¡ que tus respuestas son orientativas y que hay que verificar el marbete del producto
-- SÃ© concreto y prÃ¡ctico, como lo harÃ­a un tÃ©cnico de campo del INTA
-- MÃ¡ximo 350 palabras por respuesta salvo que se pida mÃ¡s detalle`;
+- Usá párrafos cortos y claros
+- Cuando listés recomendaciones, usá bullet points simples (•)
+- Destacá alertas con ⚠️ y recomendaciones positivas con ✓
+- Siempre recordá que tus respuestas son orientativas y que hay que verificar el marbete del producto
+- Sé concreto y práctico, como lo haría un técnico de campo del INTA
+- Máximo 350 palabras por respuesta salvo que se pida más detalle`;
 
 function buildContextMeteo() {
   if (!STATE.meteo) return '';
   const m = STATE.meteo;
   return `
 
-[CONTEXTO METEO ACTUAL: T=${m.temperature_2m}Â°C, HR=${m.relative_humidity_2m}%, Viento=${m.wind_speed_10m}km/h, RÃ¡fagas=${m.wind_gusts_10m}km/h, PP=${m.precipitation}mm, Prob.lluvia=${m.precipitation_probability}%]`;
+[CONTEXTO METEO ACTUAL: T=${m.temperature_2m}°C, HR=${m.relative_humidity_2m}%, Viento=${m.wind_speed_10m}km/h, Ráfagas=${m.wind_gusts_10m}km/h, PP=${m.precipitation}mm, Prob.lluvia=${m.precipitation_probability}%]`;
 }
 
 async function enviarMensaje() {
@@ -783,7 +912,7 @@ async function enviarMensaje() {
 
   } catch(e) {
     quitarTyping(typingId);
-    agregarMensaje('assistant', 'âš ï¸ No pude conectarme con el asistente IA. VerificÃ¡ tu conexiÃ³n a internet e intentÃ¡ nuevamente.');
+    agregarMensaje('assistant', '⚠️ No pude conectarme con el asistente IA. Verificá tu conexión a internet e intentá nuevamente.');
   }
 
   chatBusy = false;
@@ -794,14 +923,14 @@ async function enviarMensaje() {
 function agregarMensaje(rol, texto) {
   const msgs = document.getElementById('chat-messages');
   const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  const avatar = rol === 'user' ? 'ðŸ‘¤' : 'ðŸ¤–';
+  const avatar = rol === 'user' ? '👤' : '🤖';
   const tiempoLabel = rol === 'user' ? 'Vos' : 'Asistente IA';
 
-  // Convertir markdown bÃ¡sico a HTML
+  // Convertir markdown básico a HTML
   const html = texto
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\nâ€¢ /g, '<br>â€¢ ')
+    .replace(/\n• /g, '<br>• ')
     .replace(/\n/g, '<br>');
 
   const div = document.createElement('div');
@@ -810,7 +939,7 @@ function agregarMensaje(rol, texto) {
     <div class="msg-avatar">${avatar}</div>
     <div>
       <div class="msg-bubble">${html}</div>
-      <div class="msg-time">${tiempoLabel} Â· ${hora}</div>
+      <div class="msg-time">${tiempoLabel} · ${hora}</div>
     </div>`;
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
@@ -823,7 +952,7 @@ function mostrarTyping() {
   div.className = 'msg assistant';
   div.id = id;
   div.innerHTML = `
-    <div class="msg-avatar">ðŸ¤–</div>
+    <div class="msg-avatar">🤖</div>
     <div>
       <div class="msg-bubble">
         <div class="typing-dots">
@@ -865,12 +994,12 @@ function limpiarChat() {
   const msgs = document.getElementById('chat-messages');
   msgs.innerHTML = `
     <div class="msg assistant">
-      <div class="msg-avatar">ðŸ¤–</div>
+      <div class="msg-avatar">🤖</div>
       <div>
         <div class="msg-bubble">
-          <strong>Chat reiniciado.</strong> Â¿En quÃ© te puedo ayudar con la pulverizaciÃ³n?
+          <strong>Chat reiniciado.</strong> ¿En qué te puedo ayudar con la pulverización?
         </div>
-        <div class="msg-time">Asistente IA Â· listo</div>
+        <div class="msg-time">Asistente IA · listo</div>
       </div>
     </div>`;
   document.getElementById('chat-chips').style.display = 'flex';
@@ -883,7 +1012,7 @@ function actualizarCtxBadge() {
 }
 
 
-// â”€â”€â”€ BASE HRAC ARGENTINA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── BASE HRAC ARGENTINA ──────────────────────────────────
 // Fuentes: INTA Manfredi, AAPRESID Red de Malezas Resistentes, Heap I. (2024)
 const HRAC_DB = [
   {
@@ -895,26 +1024,26 @@ const HRAC_DB = [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'total' },
       { hrac: 'D (PS II)', nombre: 'Atrazina / Metribuzin', nivel: 'total' },
     ],
-    distribucion: 'Buenos Aires, CÃ³rdoba, Santa Fe, Entre RÃ­os, La Pampa, San Luis',
+    distribucion: 'Buenos Aires, Córdoba, Santa Fe, Entre Ríos, La Pampa, San Luis',
     primer_caso: 2003,
     alta_peligrosidad: true,
-    estadios_sensibles: 'Roseta pequeÃ±a (< 5 cm) o pre-emergencia',
+    estadios_sensibles: 'Roseta pequeña (< 5 cm) o pre-emergencia',
     metodos_alternativos: [
-      'âœ“ Herbicidas HRAC F1: Saflufenacil (KixorÂ®) + aceite metilado',
-      'âœ“ HRAC K3: Clormequat (en mezcla pre-siembra)',
-      'âœ“ HRAC O: 2,4-D amina en dosis bajas en mezcla (con precauciÃ³n por volatilizaciÃ³n)',
-      'âœ“ Control mecÃ¡nico: cincel o rastra de discos en barbecho',
-      'âœ“ Cultivos de cobertura: vicia, centeno â€” reducen emergencia hasta 70%',
-      'âœ“ Aplicar sobre rosetas pequeÃ±as; plantas > 10 cm requieren mezcla + aceite',
+      '✓ Herbicidas HRAC F1: Saflufenacil (Kixor®) + aceite metilado',
+      '✓ HRAC K3: Clormequat (en mezcla pre-siembra)',
+      '✓ HRAC O: 2,4-D amina en dosis bajas en mezcla (con precaución por volatilización)',
+      '✓ Control mecánico: cincel o rastra de discos en barbecho',
+      '✓ Cultivos de cobertura: vicia, centeno — reducen emergencia hasta 70%',
+      '✓ Aplicar sobre rosetas pequeñas; plantas > 10 cm requieren mezcla + aceite',
     ],
     manejo_integrado: [
-      'âš  No confiar en glifosato solo: resistencia extendida en toda la regiÃ³n pampeana',
-      'âš  Rotar modos de acciÃ³n en cada barbecho',
+      '⚠ No confiar en glifosato solo: resistencia extendida en toda la región pampeana',
+      '⚠ Rotar modos de acción en cada barbecho',
       'Monitorear lotes con historia de aplicaciones frecuentes de glifosato',
       'Priorizar aplicaciones en pre-emergencia o estadios muy tempranos',
     ],
-    notas_inta: 'Caso paradigmÃ¡tico de resistencia en Argentina. INTA recomienda el uso de mezclas con al menos 2 modos de acciÃ³n diferentes y el manejo del banco de semillas con cultivos de cobertura.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Trigo', 'Barbecho'],
+    notas_inta: 'Caso paradigmático de resistencia en Argentina. INTA recomienda el uso de mezclas con al menos 2 modos de acción diferentes y el manejo del banco de semillas con cultivos de cobertura.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Trigo', 'Barbecho'],
   },
   {
     id: 2,
@@ -926,27 +1055,27 @@ const HRAC_DB = [
       { hrac: 'B (ALS)', nombre: 'Imidazolinonas / Sulfonilureas', nivel: 'total' },
       { hrac: 'C1 (PS II)', nombre: 'Atrazina', nivel: 'parcial' },
     ],
-    distribucion: 'CÃ³rdoba, Buenos Aires, Santa Fe, Entre RÃ­os â€” expansiÃ³n acelerada A. palmeri desde 2018',
+    distribucion: 'Córdoba, Buenos Aires, Santa Fe, Entre Ríos — expansión acelerada A. palmeri desde 2018',
     primer_caso: 1997,
     alta_peligrosidad: true,
     estadios_sensibles: 'Pre-emergencia o estadios muy tempranos (< 3 cm)',
     metodos_alternativos: [
-      'âœ“ HRAC F1: Saflufenacil solo o en mezcla (KixorÂ® + glifosato)',
-      'âœ“ HRAC K3: PendimetalÃ­n, S-metolacloro (pre-emergentes)',
-      'âœ“ HRAC E: FomesafÃ©n en soja RR (post-emergencia temprana)',
-      'âœ“ HRAC O: 2,4-D + glifosato en barbecho (plantas < 10 cm)',
-      'âœ“ Soja con cobertura de cultivo + herbicida pre-emergente',
-      'âœ“ Laboreo estratÃ©gico: no invertir suelo para no traer semillas nuevas',
+      '✓ HRAC F1: Saflufenacil solo o en mezcla (Kixor® + glifosato)',
+      '✓ HRAC K3: Pendimetalín, S-metolacloro (pre-emergentes)',
+      '✓ HRAC E: Fomesafén en soja RR (post-emergencia temprana)',
+      '✓ HRAC O: 2,4-D + glifosato en barbecho (plantas < 10 cm)',
+      '✓ Soja con cobertura de cultivo + herbicida pre-emergente',
+      '✓ Laboreo estratégico: no invertir suelo para no traer semillas nuevas',
     ],
     manejo_integrado: [
-      'âš  A. palmeri: resistencia mÃºltiple documentada â€” mÃ¡xima alerta',
-      'âš  Tasa de producciÃ³n: hasta 600.000 semillas/planta',
-      'Umbral de daÃ±o: 1 planta/mÂ² puede costar 50% del rendimiento en soja',
-      'RotaciÃ³n de cultivos con cereales de invierno mejora el control',
+      '⚠ A. palmeri: resistencia múltiple documentada — máxima alerta',
+      '⚠ Tasa de producción: hasta 600.000 semillas/planta',
+      'Umbral de daño: 1 planta/m² puede costar 50% del rendimiento en soja',
+      'Rotación de cultivos con cereales de invierno mejora el control',
       'Nunca permitir que una planta llegue a semillar',
     ],
-    notas_inta: 'A. palmeri es considerado la maleza de mayor potencial invasivo en Argentina. INTA Manfredi alerta sobre casos de resistencia mÃºltiple (Grupos B + G) en el norte de CÃ³rdoba y sur de Santiago del Estero.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Barbecho'],
+    notas_inta: 'A. palmeri es considerado la maleza de mayor potencial invasivo en Argentina. INTA Manfredi alerta sobre casos de resistencia múltiple (Grupos B + G) en el norte de Córdoba y sur de Santiago del Estero.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Barbecho'],
   },
   {
     id: 3,
@@ -957,83 +1086,83 @@ const HRAC_DB = [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'total' },
       { hrac: 'A (ACCasa)', nombre: 'Haloxifop / Cletodim / Fluazifop', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires, CÃ³rdoba, Santa Fe, Entre RÃ­os, La Pampa, Chaco',
+    distribucion: 'Buenos Aires, Córdoba, Santa Fe, Entre Ríos, La Pampa, Chaco',
     primer_caso: 2005,
     alta_peligrosidad: true,
     estadios_sensibles: 'Macollos tempranos (< 30 cm), antes de que macollaje avance',
     metodos_alternativos: [
-      'âœ“ HRAC A alternativos: Clethodim 24% a dosis plenas (verificar biÃ³tipo)',
-      'âœ“ Control en Ã©pocas no crÃ­ticas: laboreo de rizomas (stress hÃ­drico verano)',
-      'âœ“ Cultivos de invierno competitivos (trigo, cebada) en rotaciÃ³n',
-      'âœ“ En maÃ­z: nicosulfurÃ³n en estadio adecuado (verificar hÃ­brido)',
-      'âœ“ CombinaciÃ³n de control quÃ­mico + labranza en verano',
+      '✓ HRAC A alternativos: Clethodim 24% a dosis plenas (verificar biótipo)',
+      '✓ Control en épocas no críticas: laboreo de rizomas (stress hídrico verano)',
+      '✓ Cultivos de invierno competitivos (trigo, cebada) en rotación',
+      '✓ En maíz: nicosulfurón en estadio adecuado (verificar híbrido)',
+      '✓ Combinación de control químico + labranza en verano',
     ],
     manejo_integrado: [
-      'âš  Biotipos resistentes a glifosato y ACCasa: opciones muy limitadas',
-      'Evitar semillar â€” las semillas viables persisten 3-5 aÃ±os en suelo',
-      'Limpiar mÃ¡quinas entre lotes para no diseminar rizomas',
-      'Monitorear lotes con mÃ¡s de 8 aÃ±os de SD continua sin rotaciÃ³n',
+      '⚠ Biotipos resistentes a glifosato y ACCasa: opciones muy limitadas',
+      'Evitar semillar — las semillas viables persisten 3-5 años en suelo',
+      'Limpiar máquinas entre lotes para no diseminar rizomas',
+      'Monitorear lotes con más de 8 años de SD continua sin rotación',
     ],
-    notas_inta: 'La resistencia a ACCasa en Sorghum halepense representa uno de los escenarios mÃ¡s complejos de manejo. INTA recomienda estrategias de largo plazo con rotaciÃ³n de cultivos como eje central.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Girasol', 'AlgodÃ³n'],
+    notas_inta: 'La resistencia a ACCasa en Sorghum halepense representa uno de los escenarios más complejos de manejo. INTA recomienda estrategias de largo plazo con rotación de cultivos como eje central.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Girasol', 'Algodón'],
   },
   {
     id: 4,
-    nombre: 'RaigrÃ¡s anual',
+    nombre: 'Raigrás anual',
     cientifico: 'Lolium multiflorum',
     familia: 'poaceas',
     grupos_resistentes: [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'total' },
       { hrac: 'A (ACCasa)', nombre: 'Cletodim / Haloxifop', nivel: 'total' },
-      { hrac: 'B (ALS)', nombre: 'MetsulfurÃ³n', nivel: 'parcial' },
+      { hrac: 'B (ALS)', nombre: 'Metsulfurón', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires (principalmente sur y sudeste), La Pampa, CÃ³rdoba sur',
+    distribucion: 'Buenos Aires (principalmente sur y sudeste), La Pampa, Córdoba sur',
     primer_caso: 1996,
     alta_peligrosidad: true,
     estadios_sensibles: '2-3 hojas, antes del macollaje',
     metodos_alternativos: [
-      'âœ“ HRAC K1: Trifluralin en presiembra incorporado en trigo',
-      'âœ“ HRAC K3: Clormequat o pendimetalÃ­n en barbecho',
-      'âœ“ HRAC F1: Pinoxaden en cereales (solo biotipos sin resistencia a ACCasa)',
-      'âœ“ Mezclas de modos de acciÃ³n diferentes (consultar asesor)',
-      'âœ“ Laboreo de alta calidad + fecha de siembra tardÃ­a en trigo',
-      'âœ“ RotaciÃ³n con cultivos de verano para interrumpir ciclo',
+      '✓ HRAC K1: Trifluralin en presiembra incorporado en trigo',
+      '✓ HRAC K3: Clormequat o pendimetalín en barbecho',
+      '✓ HRAC F1: Pinoxaden en cereales (solo biotipos sin resistencia a ACCasa)',
+      '✓ Mezclas de modos de acción diferentes (consultar asesor)',
+      '✓ Laboreo de alta calidad + fecha de siembra tardía en trigo',
+      '✓ Rotación con cultivos de verano para interrumpir ciclo',
     ],
     manejo_integrado: [
-      'âš  Resistencia mÃºltiple documentada (G + A + B) en varias zonas',
-      'El primer caso de resistencia en Argentina fue en raigrÃ¡s (1996)',
+      '⚠ Resistencia múltiple documentada (G + A + B) en varias zonas',
+      'El primer caso de resistencia en Argentina fue en raigrás (1996)',
       'Monitorear densidades en lotes de trigo y pasturas',
-      'Usar semilla certificada libre de raigrÃ¡s resistente',
+      'Usar semilla certificada libre de raigrás resistente',
     ],
-    notas_inta: 'Primer biotipo resistente a herbicidas documentado en Argentina. La resistencia mÃºltiple complica el manejo en sistemas de producciÃ³n de trigo y pasturas del sur bonaerense.',
+    notas_inta: 'Primer biotipo resistente a herbicidas documentado en Argentina. La resistencia múltiple complica el manejo en sistemas de producción de trigo y pasturas del sur bonaerense.',
     cultivos_afectados: ['Trigo', 'Cebada', 'Pasturas', 'Barbecho'],
   },
   {
     id: 5,
-    nombre: 'CapÃ­n / Pata de ganso',
+    nombre: 'Capín / Pata de ganso',
     cientifico: 'Echinochloa colona / E. crus-galli',
     familia: 'poaceas',
     grupos_resistentes: [
       { hrac: 'A (ACCasa)', nombre: 'Quizalofop / Fluazifop', nivel: 'total' },
       { hrac: 'B (ALS)', nombre: 'Bispyribac-sodium (arroz)', nivel: 'parcial' },
     ],
-    distribucion: 'Entre RÃ­os, Corrientes, Chaco, Formosa (principalmente en arroz irrigado)',
+    distribucion: 'Entre Ríos, Corrientes, Chaco, Formosa (principalmente en arroz irrigado)',
     primer_caso: 2010,
     alta_peligrosidad: false,
     estadios_sensibles: 'Pre-emergencia o 1-2 hojas',
     metodos_alternativos: [
-      'âœ“ HRAC K3: PendimetalÃ­n, S-metolacloro (pre-emergentes en maÃ­z/soja)',
-      'âœ“ HRAC N: Propanil en arroz (verificar biotipos)',
-      'âœ“ Manejo del agua en arroz: inundaciÃ³n temprana',
-      'âœ“ RotaciÃ³n arroz-soja-maÃ­z',
+      '✓ HRAC K3: Pendimetalín, S-metolacloro (pre-emergentes en maíz/soja)',
+      '✓ HRAC N: Propanil en arroz (verificar biotipos)',
+      '✓ Manejo del agua en arroz: inundación temprana',
+      '✓ Rotación arroz-soja-maíz',
     ],
     manejo_integrado: [
-      'Monitoreo temprano es clave â€” control en 1-2 hojas',
-      'En sistemas arroceros: auditorÃ­a de aplicaciones pasadas',
+      'Monitoreo temprano es clave — control en 1-2 hojas',
+      'En sistemas arroceros: auditoría de aplicaciones pasadas',
       'Limpieza de equipos entre lotes de distintos productores',
     ],
     notas_inta: 'Problema creciente en NEA, especialmente en sistemas arroceros del litoral. La resistencia a ACCasa limita el uso de graminicidas clave.',
-    cultivos_afectados: ['Arroz', 'Soja', 'MaÃ­z'],
+    cultivos_afectados: ['Arroz', 'Soja', 'Maíz'],
   },
   {
     id: 6,
@@ -1043,23 +1172,23 @@ const HRAC_DB = [
     grupos_resistentes: [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'parcial' },
     ],
-    distribucion: 'NOA: Santiago del Estero, Chaco, TucumÃ¡n, Salta',
+    distribucion: 'NOA: Santiago del Estero, Chaco, Tucumán, Salta',
     primer_caso: 2012,
     alta_peligrosidad: false,
     estadios_sensibles: 'Planta joven, < 15 cm',
     metodos_alternativos: [
-      'âœ“ HRAC O: 2,4-D amina a dosis plenas',
-      'âœ“ HRAC C: PiclorÃ¡m en barbechos (producto de acciÃ³n residual)',
-      'âœ“ Mezclas con dicamba o aminopiralid',
-      'âœ“ Control mecÃ¡nico temprano antes de floraciÃ³n',
+      '✓ HRAC O: 2,4-D amina a dosis plenas',
+      '✓ HRAC C: Piclorám en barbechos (producto de acción residual)',
+      '✓ Mezclas con dicamba o aminopiralid',
+      '✓ Control mecánico temprano antes de floración',
     ],
     manejo_integrado: [
-      'Resistencia parcial: biotipos con reducciÃ³n de sensibilidad, no total',
+      'Resistencia parcial: biotipos con reducción de sensibilidad, no total',
       'Aumentar dosis de glifosato + coadyuvante puede dar resultado en algunos biotipos',
-      'Monitorear lotes en segunda campaÃ±a o tardÃ­os del NOA',
+      'Monitorear lotes en segunda campaña o tardíos del NOA',
     ],
-    notas_inta: 'Maleza perenne de difÃ­cil control en el NOA. La resistencia parcial a glifosato requiere ajuste de estrategia en lotes con alta presiÃ³n.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Barbecho'],
+    notas_inta: 'Maleza perenne de difícil control en el NOA. La resistencia parcial a glifosato requiere ajuste de estrategia en lotes con alta presión.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Barbecho'],
   },
   {
     id: 7,
@@ -1069,24 +1198,24 @@ const HRAC_DB = [
     grupos_resistentes: [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'parcial' },
     ],
-    distribucion: 'CÃ³rdoba, Santa Fe, Buenos Aires norte, Entre RÃ­os',
+    distribucion: 'Córdoba, Santa Fe, Buenos Aires norte, Entre Ríos',
     primer_caso: 2014,
     alta_peligrosidad: false,
-    estadios_sensibles: '1-2 hojas verdaderas (muy pequeÃ±as)',
+    estadios_sensibles: '1-2 hojas verdaderas (muy pequeñas)',
     metodos_alternativos: [
-      'âœ“ HRAC F1: Saflufenacil (KixorÂ®) en pre o post temprana',
-      'âœ“ HRAC E: FomesafÃ©n + glifosato en soja RR',
-      'âœ“ HRAC O: 2,4-D en barbecho (control parcial)',
-      'âœ“ Pre-emergentes: flumioxazin, sulfentrazone',
-      'âœ“ Cosecha y limpieza: semillas con alta persistencia en suelo',
+      '✓ HRAC F1: Saflufenacil (Kixor®) en pre o post temprana',
+      '✓ HRAC E: Fomesafén + glifosato en soja RR',
+      '✓ HRAC O: 2,4-D en barbecho (control parcial)',
+      '✓ Pre-emergentes: flumioxazin, sulfentrazone',
+      '✓ Cosecha y limpieza: semillas con alta persistencia en suelo',
     ],
     manejo_integrado: [
-      'DifÃ­cil control post-emergente una vez establecida',
-      'Banco de semillas persistente: 5-7 aÃ±os en suelo',
+      'Difícil control post-emergente una vez establecida',
+      'Banco de semillas persistente: 5-7 años en suelo',
       'Priorizar manejo pre-emergente o en estadios muy tempranos',
     ],
-    notas_inta: 'Maleza de difÃ­cil control en soja. La resistencia parcial a glifosato suma complejidad. Estrategia clave: pre-emergentes + post temprana.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol'],
+    notas_inta: 'Maleza de difícil control en soja. La resistencia parcial a glifosato suma complejidad. Estrategia clave: pre-emergentes + post temprana.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol'],
   },
   {
     id: 8,
@@ -1094,26 +1223,26 @@ const HRAC_DB = [
     cientifico: 'Raphanus sativus / Sinapis arvensis',
     familia: 'otras',
     grupos_resistentes: [
-      { hrac: 'B (ALS)', nombre: 'MetsulfurÃ³n / Tribenuron', nivel: 'total' },
+      { hrac: 'B (ALS)', nombre: 'Metsulfurón / Tribenuron', nivel: 'total' },
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires, La Pampa, CÃ³rdoba sur â€” principalmente en trigo y barbecho',
+    distribucion: 'Buenos Aires, La Pampa, Córdoba sur — principalmente en trigo y barbecho',
     primer_caso: 2008,
     alta_peligrosidad: false,
-    estadios_sensibles: '2-4 hojas, antes de elongaciÃ³n del tallo',
+    estadios_sensibles: '2-4 hojas, antes de elongación del tallo',
     metodos_alternativos: [
-      'âœ“ HRAC O: 2,4-D amina + MCPA en trigo',
-      'âœ“ HRAC C: Diclorprop en mezclas',
-      'âœ“ HRAC I: Clopyralid (en girasol)',
-      'âœ“ Mezclas de ALS + hormonales para demorar resistencia',
+      '✓ HRAC O: 2,4-D amina + MCPA en trigo',
+      '✓ HRAC C: Diclorprop en mezclas',
+      '✓ HRAC I: Clopyralid (en girasol)',
+      '✓ Mezclas de ALS + hormonales para demorar resistencia',
     ],
     manejo_integrado: [
-      'âš  Resistencia a ALS extendida en zona triguera bonaerense',
-      'Rotar modos de acciÃ³n en cada campaÃ±a de trigo',
+      '⚠ Resistencia a ALS extendida en zona triguera bonaerense',
+      'Rotar modos de acción en cada campaña de trigo',
       'Monitorear presencia antes de decidir el herbicida',
-      'Evitar uso continuo de metsulfurÃ³n mÃ¡s de 2 campaÃ±as seguidas',
+      'Evitar uso continuo de metsulfurón más de 2 campañas seguidas',
     ],
-    notas_inta: 'La resistencia a ALS en mostacilla es uno de los casos mÃ¡s frecuentes en el cinturÃ³n triguero. INTA recomienda auditar el historial de herbicidas del lote antes de cada campaÃ±a.',
+    notas_inta: 'La resistencia a ALS en mostacilla es uno de los casos más frecuentes en el cinturón triguero. INTA recomienda auditar el historial de herbicidas del lote antes de cada campaña.',
     cultivos_afectados: ['Trigo', 'Cebada', 'Girasol', 'Barbecho'],
   },
   {
@@ -1124,22 +1253,22 @@ const HRAC_DB = [
     grupos_resistentes: [
       { hrac: 'A (ACCasa)', nombre: 'Fluazifop / Quizalofop', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires, CÃ³rdoba, Santa Fe â€” casos puntuales en lotes con SD prolongada',
+    distribucion: 'Buenos Aires, Córdoba, Santa Fe — casos puntuales en lotes con SD prolongada',
     primer_caso: 2016,
     alta_peligrosidad: false,
     estadios_sensibles: '1-3 hojas, antes de macollaje',
     metodos_alternativos: [
-      'âœ“ HRAC K3: S-metolacloro pre-emergente',
-      'âœ“ HRAC A alternativos: cletodim a dosis plenas',
-      'âœ“ RotaciÃ³n con cultivos de invierno',
+      '✓ HRAC K3: S-metolacloro pre-emergente',
+      '✓ HRAC A alternativos: cletodim a dosis plenas',
+      '✓ Rotación con cultivos de invierno',
     ],
     manejo_integrado: [
-      'Resistencia parcial â€” aumentar dosis puede ser efectivo en algunos biotipos',
-      'Pre-emergentes son la estrategia mÃ¡s confiable',
+      'Resistencia parcial — aumentar dosis puede ser efectivo en algunos biotipos',
+      'Pre-emergentes son la estrategia más confiable',
       'No descuidar el control en bordes y cabeceras',
     ],
-    notas_inta: 'Maleza secundaria que puede volverse problemÃ¡tica en sistemas con alta presiÃ³n de graminicidas. El monitoreo temprano permite el control con opciones todavÃ­a disponibles.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol'],
+    notas_inta: 'Maleza secundaria que puede volverse problemática en sistemas con alta presión de graminicidas. El monitoreo temprano permite el control con opciones todavía disponibles.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol'],
   },
   {
     id: 10,
@@ -1150,23 +1279,23 @@ const HRAC_DB = [
       { hrac: 'A (ACCasa)', nombre: 'Cletodim / Haloxifop / Fenoxaprop', nivel: 'total' },
       { hrac: 'B (ALS)', nombre: 'Difenzoquat', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires (centro y sur), La Pampa â€” principalmente en trigo y cebada',
+    distribucion: 'Buenos Aires (centro y sur), La Pampa — principalmente en trigo y cebada',
     primer_caso: 2009,
     alta_peligrosidad: false,
     estadios_sensibles: '2-3 hojas, antes del macollaje',
     metodos_alternativos: [
-      'âœ“ HRAC K1: Trifluralin presiembra incorporado',
-      'âœ“ HRAC K3: Clortolonil + pendimetalÃ­n (pre-emergente)',
-      'âœ“ Pinoxaden (HRAC A, diferente sitio de acciÃ³n) en algunos biotipos',
-      'âœ“ Fecha tardÃ­a de siembra en trigo para aprovechar falsa siembra',
-      'âœ“ Cosecha limpia y limpieza de maquinaria entre lotes',
+      '✓ HRAC K1: Trifluralin presiembra incorporado',
+      '✓ HRAC K3: Clortolonil + pendimetalín (pre-emergente)',
+      '✓ Pinoxaden (HRAC A, diferente sitio de acción) en algunos biotipos',
+      '✓ Fecha tardía de siembra en trigo para aprovechar falsa siembra',
+      '✓ Cosecha limpia y limpieza de maquinaria entre lotes',
     ],
     manejo_integrado: [
       'Falsa siembra: preparar cama de siembra, esperar emergencia y destruir antes de sembrar',
       'Semilla certificada libre de avena',
       'Evitar trasladar granos o suelo entre lotes infestados',
     ],
-    notas_inta: 'La resistencia a ACCasa limita severamente las opciones post-emergentes en cereales. El manejo preventivo (falsa siembra, semilla limpia) cobra importancia estratÃ©gica.',
+    notas_inta: 'La resistencia a ACCasa limita severamente las opciones post-emergentes en cereales. El manejo preventivo (falsa siembra, semilla limpia) cobra importancia estratégica.',
     cultivos_afectados: ['Trigo', 'Cebada', 'Pasturas'],
   },
   {
@@ -1177,48 +1306,48 @@ const HRAC_DB = [
     grupos_resistentes: [
       { hrac: 'C1 (PS II)', nombre: 'Atrazina', nivel: 'total' },
     ],
-    distribucion: 'CÃ³rdoba, Buenos Aires, Santa Fe â€” lotes con maÃ­z continuo y atrazina repetida',
+    distribucion: 'Córdoba, Buenos Aires, Santa Fe — lotes con maíz continuo y atrazina repetida',
     primer_caso: 2011,
     alta_peligrosidad: false,
     estadios_sensibles: 'Pre-emergencia o estadio muy temprano (cotiledones)',
     metodos_alternativos: [
-      'âœ“ HRAC K3: S-metolacloro, acetoclor pre-emergente',
-      'âœ“ HRAC G: Glifosato en post (no tiene resistencia)',
-      'âœ“ HRAC F1: Saflufenacil en mezcla',
-      'âœ“ RotaciÃ³n con soja para interrumpir presiÃ³n de atrazina',
+      '✓ HRAC K3: S-metolacloro, acetoclor pre-emergente',
+      '✓ HRAC G: Glifosato en post (no tiene resistencia)',
+      '✓ HRAC F1: Saflufenacil en mezcla',
+      '✓ Rotación con soja para interrumpir presión de atrazina',
     ],
     manejo_integrado: [
-      'Resistencia especÃ­fica a atrazina â€” glifosato sigue siendo efectivo',
-      'Rotar principios activos pre-emergentes en maÃ­z',
-      'Monitorear lotes con historia de maÃ­z continuo',
+      'Resistencia específica a atrazina — glifosato sigue siendo efectivo',
+      'Rotar principios activos pre-emergentes en maíz',
+      'Monitorear lotes con historia de maíz continuo',
     ],
-    notas_inta: 'La resistencia a atrazina en verdolaga es relativamente localizada pero advierte sobre el riesgo del uso repetido del mismo herbicida pre-emergente en maÃ­z.',
-    cultivos_afectados: ['MaÃ­z', 'Soja', 'Girasol'],
+    notas_inta: 'La resistencia a atrazina en verdolaga es relativamente localizada pero advierte sobre el riesgo del uso repetido del mismo herbicida pre-emergente en maíz.',
+    cultivos_afectados: ['Maíz', 'Soja', 'Girasol'],
   },
   {
     id: 12,
-    nombre: 'GramÃ³n / Gramilla',
+    nombre: 'Gramón / Gramilla',
     cientifico: 'Cynodon dactylon',
     familia: 'poaceas',
     grupos_resistentes: [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'parcial' },
     ],
-    distribucion: 'Todo el paÃ­s â€” casos de tolerancia/resistencia documentados en Pampa hÃºmeda',
+    distribucion: 'Todo el país — casos de tolerancia/resistencia documentados en Pampa húmeda',
     primer_caso: 2015,
     alta_peligrosidad: false,
-    estadios_sensibles: 'Control mÃ¡s efectivo en crecimiento activo',
+    estadios_sensibles: 'Control más efectivo en crecimiento activo',
     metodos_alternativos: [
-      'âœ“ HRAC A: Cletodim o haloxifop a dosis mÃ¡ximas + aceite',
-      'âœ“ Glifosato a dosis plenas en momento Ã³ptimo (final de verano)',
-      'âœ“ Control mecÃ¡nico de rizomas en barbechos',
+      '✓ HRAC A: Cletodim o haloxifop a dosis máximas + aceite',
+      '✓ Glifosato a dosis plenas en momento óptimo (final de verano)',
+      '✓ Control mecánico de rizomas en barbechos',
     ],
     manejo_integrado: [
       'Distinguir tolerancia natural vs resistencia real (alta biomasa dificulta control)',
       'Aplicar glifosato + ACCasa en mezcla para mayor eficacia',
-      'El momento de aplicaciÃ³n (fin de verano) es clave para control de rizomas',
+      'El momento de aplicación (fin de verano) es clave para control de rizomas',
     ],
-    notas_inta: 'La situaciÃ³n en gramÃ³n es mÃ¡s de tolerancia que resistencia confirmada en la mayorÃ­a de los casos. Sin embargo, la baja eficacia del glifosato en algunos lotes genera preocupaciÃ³n creciente.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Barbecho'],
+    notas_inta: 'La situación en gramón es más de tolerancia que resistencia confirmada en la mayoría de los casos. Sin embargo, la baja eficacia del glifosato en algunos lotes genera preocupación creciente.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Barbecho'],
   },
   {
     id: 13,
@@ -1228,23 +1357,23 @@ const HRAC_DB = [
     grupos_resistentes: [
       { hrac: 'G (EPSPS)', nombre: 'Glifosato', nivel: 'parcial' },
     ],
-    distribucion: 'Buenos Aires, CÃ³rdoba, Santa Fe, Entre RÃ­os',
+    distribucion: 'Buenos Aires, Córdoba, Santa Fe, Entre Ríos',
     primer_caso: 2013,
     alta_peligrosidad: false,
     estadios_sensibles: 'Cotiledones a 2 hojas verdaderas',
     metodos_alternativos: [
-      'âœ“ HRAC E: FomesafÃ©n en soja (post-emergente)',
-      'âœ“ HRAC O: 2,4-D en barbecho',
-      'âœ“ HRAC F1: Saflufenacil en mezclas de barbecho',
-      'âœ“ HRAC C: Dicamba en barbecho',
+      '✓ HRAC E: Fomesafén en soja (post-emergente)',
+      '✓ HRAC O: 2,4-D en barbecho',
+      '✓ HRAC F1: Saflufenacil en mezclas de barbecho',
+      '✓ HRAC C: Dicamba en barbecho',
     ],
     manejo_integrado: [
-      'Las semillas tienen dormancia â€” emergencias escalonadas complican el control',
+      'Las semillas tienen dormancia — emergencias escalonadas complican el control',
       'El abrojo produce 2 tipos de semillas con diferente dormancia',
-      'Impedir formaciÃ³n de frutos espinosos que se adhieren a cosechadoras',
+      'Impedir formación de frutos espinosos que se adhieren a cosechadoras',
     ],
-    notas_inta: 'La resistencia parcial al glifosato requiere complementar con herbicidas de otros grupos. El fomesafÃ©n post-emergente en soja es actualmente la principal alternativa.',
-    cultivos_afectados: ['Soja', 'MaÃ­z', 'Girasol', 'Barbecho'],
+    notas_inta: 'La resistencia parcial al glifosato requiere complementar con herbicidas de otros grupos. El fomesafén post-emergente en soja es actualmente la principal alternativa.',
+    cultivos_afectados: ['Soja', 'Maíz', 'Girasol', 'Barbecho'],
   },
   {
     id: 14,
@@ -1257,17 +1386,17 @@ const HRAC_DB = [
     distribucion: 'NEA: Misiones, Corrientes, Chaco, Formosa',
     primer_caso: 2017,
     alta_peligrosidad: false,
-    estadios_sensibles: 'PlÃ¡ntula pequeÃ±a',
+    estadios_sensibles: 'Plántula pequeña',
     metodos_alternativos: [
-      'âœ“ HRAC O: 2,4-D amina',
-      'âœ“ HRAC F1: Saflufenacil',
-      'âœ“ Control mecÃ¡nico en lotes con alta presencia',
+      '✓ HRAC O: 2,4-D amina',
+      '✓ HRAC F1: Saflufenacil',
+      '✓ Control mecánico en lotes con alta presencia',
     ],
     manejo_integrado: [
-      'Caso relativamente reciente y con distribuciÃ³n acotada al NEA',
-      'Monitorear su expansiÃ³n hacia zonas de soja en el noreste',
+      'Caso relativamente reciente y con distribución acotada al NEA',
+      'Monitorear su expansión hacia zonas de soja en el noreste',
     ],
-    notas_inta: 'Maleza de ambiente hÃºmedo con resistencia total a glifosato confirmada en NEA. Las alternativas son limitadas pero disponibles.',
+    notas_inta: 'Maleza de ambiente húmedo con resistencia total a glifosato confirmada en NEA. Las alternativas son limitadas pero disponibles.',
     cultivos_afectados: ['Soja', 'Pasturas'],
   },
 ];
@@ -1296,13 +1425,13 @@ function renderHRAC() {
   });
 
   if (!filtrados.length) {
-    grid.innerHTML = '<div class="hrac-empty">ðŸ” No se encontraron malezas con ese criterio.<br><span style="font-size:.75rem">ProbÃ¡ con otro nombre o quitÃ¡ el filtro.</span></div>';
+    grid.innerHTML = '<div class="hrac-empty">🔍 No se encontraron malezas con ese criterio.<br><span style="font-size:.75rem">Probá con otro nombre o quitá el filtro.</span></div>';
     return;
   }
 
   grid.innerHTML = filtrados.map(m => {
     const famCls = 'fam-' + m.familia;
-    const famLabel = { amarantaceas:'AmarantÃ¡ceas', asteraceas:'AsterÃ¡ceas', poaceas:'PoÃ¡ceas', otras:'Otras' }[m.familia];
+    const famLabel = { amarantaceas:'Amarantáceas', asteraceas:'Asteráceas', poaceas:'Poáceas', otras:'Otras' }[m.familia];
     const chips = m.grupos_resistentes.map(g =>
       `<span class="hrac-grupo-chip ${g.nivel === 'parcial' ? 'parcial' : ''}">${g.hrac}</span>`
     ).join('');
@@ -1310,7 +1439,7 @@ function renderHRAC() {
     return `<div class="hrac-card" onclick="pulvAbrirHRACModal(${m.id})">
       <div class="hrac-card-header">
         <div>
-          <div class="hrac-nombre">${m.alta_peligrosidad ? 'âš  ' : ''}${m.nombre}</div>
+          <div class="hrac-nombre">${m.alta_peligrosidad ? '⚠ ' : ''}${m.nombre}</div>
           <div class="hrac-cientifico">${m.cientifico}</div>
         </div>
         <span class="hrac-badge-familia ${famCls}">${famLabel}</span>
@@ -1331,7 +1460,7 @@ function renderHRAC() {
       </div>
       <div class="hrac-card-footer">
         <div class="hrac-alternativas">${m.metodos_alternativos[0]}</div>
-        ${m.alta_peligrosidad ? '<div class="hrac-alerta-zona">ðŸš¨ Alta peligrosidad â€” Manejo urgente</div>' : ''}
+        ${m.alta_peligrosidad ? '<div class="hrac-alerta-zona">🚨 Alta peligrosidad — Manejo urgente</div>' : ''}
       </div>
     </div>`;
   }).join('');
@@ -1357,7 +1486,7 @@ function abrirHRACModal(id) {
   document.getElementById('pulv-hrac-modal-sub').textContent = m.cientifico;
 
   const chips = m.grupos_resistentes.map(g =>
-    `<span class="hrac-grupo-chip ${g.nivel === 'parcial' ? 'parcial' : ''}" style="font-size:.72rem;padding:.25rem .65rem">${g.hrac} â€” ${g.nombre} <em style="font-weight:400;font-style:normal">(${g.nivel})</em></span>`
+    `<span class="hrac-grupo-chip ${g.nivel === 'parcial' ? 'parcial' : ''}" style="font-size:.72rem;padding:.25rem .65rem">${g.hrac} — ${g.nombre} <em style="font-weight:400;font-style:normal">(${g.nivel})</em></span>`
   ).join(' ');
 
   document.getElementById('pulv-hrac-modal-body').innerHTML = `
@@ -1379,17 +1508,17 @@ function abrirHRACModal(id) {
     <div class="hrac-section-title">Resistencias documentadas</div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.8rem">${chips}</div>
 
-    <div class="hrac-section-title">DistribuciÃ³n</div>
-    <p style="font-size:.83rem;color:rgba(28,18,8,.7);margin-bottom:.8rem;line-height:1.55">ðŸ“ ${m.distribucion}</p>
+    <div class="hrac-section-title">Distribución</div>
+    <p style="font-size:.83rem;color:rgba(28,18,8,.7);margin-bottom:.8rem;line-height:1.55">📍 ${m.distribucion}</p>
 
-    <div class="hrac-section-title">Estadio Ã³ptimo de control</div>
-    <p style="font-size:.83rem;color:rgba(28,18,8,.7);margin-bottom:.8rem;line-height:1.55">ðŸŽ¯ ${m.estadios_sensibles}</p>
+    <div class="hrac-section-title">Estadio óptimo de control</div>
+    <p style="font-size:.83rem;color:rgba(28,18,8,.7);margin-bottom:.8rem;line-height:1.55">🎯 ${m.estadios_sensibles}</p>
 
     <div class="hrac-section-title">Alternativas de control</div>
-    ${m.metodos_alternativos.map(a => `<div class="hrac-manejo-item"><span>â€¢</span><span>${a}</span></div>`).join('')}
+    ${m.metodos_alternativos.map(a => `<div class="hrac-manejo-item"><span>•</span><span>${a}</span></div>`).join('')}
 
     <div class="hrac-section-title">Manejo integrado</div>
-    ${m.manejo_integrado.map(a => `<div class="hrac-manejo-item"><span>â€¢</span><span>${a}</span></div>`).join('')}
+    ${m.manejo_integrado.map(a => `<div class="hrac-manejo-item"><span>•</span><span>${a}</span></div>`).join('')}
 
     <div class="hrac-section-title">Cultivos afectados</div>
     <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem">
@@ -1397,14 +1526,14 @@ function abrirHRACModal(id) {
     </div>
 
     <div style="background:rgba(58,122,184,.07);border:1px solid rgba(58,122,184,.2);border-radius:12px;padding:1rem;margin-top:.5rem">
-      <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--spray-blue);margin-bottom:.4rem">ðŸ“‹ Nota INTA</div>
+      <div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--spray-blue);margin-bottom:.4rem">📋 Nota INTA</div>
       <p style="font-size:.82rem;color:rgba(28,18,8,.7);line-height:1.6">${m.notas_inta}</p>
     </div>
 
     <div style="margin-top:1.2rem;text-align:center">
       <button class="btn-primary" style="font-size:.8rem;padding:.65rem 1.5rem"
         onclick="consultarAsistenteHRAC('${m.nombre}')">
-        ðŸ¤– Consultar al Asistente IA sobre esta maleza
+        🤖 Consultar al Asistente IA sobre esta maleza
       </button>
     </div>
   `;
@@ -1430,7 +1559,7 @@ function consultarAsistenteHRAC(nombreMaleza) {
   });
   // Pre-llenar la consulta
   const input = document.getElementById('chat-input');
-  input.value = `Â¿QuÃ© estrategia de manejo recomendÃ¡s para ${nombreMaleza} en lotes con resistencia confirmada a glifosato? Â¿QuÃ© productos y en quÃ© orden de mezcla?`;
+  input.value = `¿Qué estrategia de manejo recomendás para ${nombreMaleza} en lotes con resistencia confirmada a glifosato? ¿Qué productos y en qué orden de mezcla?`;
   autoResizeTextarea(input);
   input.focus();
 }
@@ -1439,18 +1568,18 @@ function consultarAsistenteHRAC(nombreMaleza) {
 renderHRAC();
 
 
-// â•â•â• CALIDAD DE AGUA â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ CALIDAD DE AGUA ═══════════════════════════════════════
 
 let productoAgua = 'glifosato';
 let phActual = 7.5;
 let fuenteAgua = 'pozo';
 
-// Perfiles tÃ­picos de pH por fuente
+// Perfiles típicos de pH por fuente
 const FUENTES_PH = {
-  red:    { ph: 7.8, tds: 350, label: 'Red pÃºblica: pH tÃ­pico 7.5â€“8.5, TDS ~200â€“500 ppm' },
-  pozo:   { ph: 7.5, tds: 500, label: 'Agua de pozo: pH tÃ­pico 7.0â€“8.5, TDS muy variable' },
-  laguna: { ph: 8.2, tds: 800, label: 'Laguna/zanja: pH tÃ­pico 7.5â€“9.0, alto TDS estacional' },
-  canal:  { ph: 7.6, tds: 450, label: 'Canal de riego: pH tÃ­pico 7.0â€“8.5, TDS moderado' },
+  red:    { ph: 7.8, tds: 350, label: 'Red pública: pH típico 7.5–8.5, TDS ~200–500 ppm' },
+  pozo:   { ph: 7.5, tds: 500, label: 'Agua de pozo: pH típico 7.0–8.5, TDS muy variable' },
+  laguna: { ph: 8.2, tds: 800, label: 'Laguna/zanja: pH típico 7.5–9.0, alto TDS estacional' },
+  canal:  { ph: 7.6, tds: 450, label: 'Canal de riego: pH típico 7.0–8.5, TDS moderado' },
 };
 
 // Base de conocimiento pH por producto
@@ -1459,8 +1588,8 @@ const PRODUCTO_PH = {
     ph_optimo: [4.5, 6.5],
     ph_limite: [6.5, 7.5],
     ph_critico: [7.5, 10],
-    problema_alcalino: 'El glifosato se hidroliza rÃ¡pidamente en agua alcalina (pH > 7). Por cada unidad de pH sobre 7, la vida media del producto en el caldo se reduce a la mitad. A pH 8 puede perder 20â€“30% de eficacia antes de depositarse en la hoja.',
-    problema_tds: 'Los cationes CaÂ²âº y MgÂ²âº de agua dura forman sales insolubles con el glifosato, neutralizando el principio activo antes de la aplicaciÃ³n.',
+    problema_alcalino: 'El glifosato se hidroliza rápidamente en agua alcalina (pH > 7). Por cada unidad de pH sobre 7, la vida media del producto en el caldo se reduce a la mitad. A pH 8 puede perder 20–30% de eficacia antes de depositarse en la hoja.',
+    problema_tds: 'Los cationes Ca²⁺ y Mg²⁺ de agua dura forman sales insolubles con el glifosato, neutralizando el principio activo antes de la aplicación.',
     acidificante: true,
     sulfato_amonio: true,
     sensibilidad_tds: 'alta',
@@ -1469,7 +1598,7 @@ const PRODUCTO_PH = {
     ph_optimo: [4.5, 6.0],
     ph_limite: [6.0, 7.0],
     ph_critico: [7.0, 10],
-    problema_alcalino: 'La mezcla glifosato + 2,4-D requiere pH mÃ¡s bajo que cada producto por separado. El 2,4-D amina es estable en rango amplio pero el glifosato se degrada. Mantener pH 5â€“6 es crÃ­tico.',
+    problema_alcalino: 'La mezcla glifosato + 2,4-D requiere pH más bajo que cada producto por separado. El 2,4-D amina es estable en rango amplio pero el glifosato se degrada. Mantener pH 5–6 es crítico.',
     problema_tds: 'Igual que glifosato solo. El TDS alto antagoniza principalmente al glifosato de la mezcla.',
     acidificante: true,
     sulfato_amonio: true,
@@ -1479,8 +1608,8 @@ const PRODUCTO_PH = {
     ph_optimo: [4.5, 6.0],
     ph_limite: [6.0, 7.5],
     ph_critico: [7.5, 10],
-    problema_alcalino: 'El dicamba es estable en rango amplio de pH. El riesgo es el glifosato. A pH > 7.5 la hidrÃ³lisis alcalina del glifosato compromete la eficacia de la mezcla.',
-    problema_tds: 'Moderado. El dicamba no se ve afectado por TDS alto pero el glifosato sÃ­.',
+    problema_alcalino: 'El dicamba es estable en rango amplio de pH. El riesgo es el glifosato. A pH > 7.5 la hidrólisis alcalina del glifosato compromete la eficacia de la mezcla.',
+    problema_tds: 'Moderado. El dicamba no se ve afectado por TDS alto pero el glifosato sí.',
     acidificante: true,
     sulfato_amonio: true,
     sensibilidad_tds: 'alta',
@@ -1489,19 +1618,19 @@ const PRODUCTO_PH = {
     ph_optimo: [5.0, 7.0],
     ph_limite: [7.0, 8.0],
     ph_critico: [4.0, 5.0],
-    problema_alcalino: 'Las sulfonilureas e imidazolinonas son mÃ¡s estables que el glifosato pero el pH alcalino acelera la hidrÃ³lisis. A pH > 8 la degradaciÃ³n es significativa.',
+    problema_alcalino: 'Las sulfonilureas e imidazolinonas son más estables que el glifosato pero el pH alcalino acelera la hidrólisis. A pH > 8 la degradación es significativa.',
     problema_tds: 'Baja sensibilidad al TDS. Los cationes Ca/Mg no antagonizan significativamente a los ALS.',
     acidificante: false,
     sulfato_amonio: false,
     sensibilidad_tds: 'baja',
-    alerta_ph_bajo: 'Ojo: con pH < 5 los ALS tambiÃ©n se degradan por hidrÃ³lisis Ã¡cida.',
+    alerta_ph_bajo: 'Ojo: con pH < 5 los ALS también se degradan por hidrólisis ácida.',
   },
   fungicida: {
     ph_optimo: [5.0, 8.0],
     ph_limite: [8.0, 9.0],
     ph_critico: [9.0, 10],
-    problema_alcalino: 'Los triazoles y estrobilurinas son generalmente estables en rango amplio de pH. El problema a pH > 9 es la estabilidad de la emulsiÃ³n del formulado.',
-    problema_tds: 'Baja sensibilidad. Los fungicidas de formulaciÃ³n EC o SC no se ven significativamente afectados por dureza.',
+    problema_alcalino: 'Los triazoles y estrobilurinas son generalmente estables en rango amplio de pH. El problema a pH > 9 es la estabilidad de la emulsión del formulado.',
+    problema_tds: 'Baja sensibilidad. Los fungicidas de formulación EC o SC no se ven significativamente afectados por dureza.',
     acidificante: false,
     sulfato_amonio: false,
     sensibilidad_tds: 'baja',
@@ -1510,18 +1639,18 @@ const PRODUCTO_PH = {
     ph_optimo: [5.0, 7.0],
     ph_limite: [7.0, 8.0],
     ph_critico: [8.0, 10],
-    problema_alcalino: 'Los organofosforados (clorpirifos, metamidofos) son muy sensibles al pH alcalino â€” se hidrolizan rÃ¡pidamente. Los piretroides son moderadamente estables.',
+    problema_alcalino: 'Los organofosforados (clorpirifos, metamidofos) son muy sensibles al pH alcalino — se hidrolizan rápidamente. Los piretroides son moderadamente estables.',
     problema_tds: 'Baja-media. Algunos OP pueden precipitar con agua muy dura.',
     acidificante: true,
     sulfato_amonio: false,
     sensibilidad_tds: 'media',
-    alerta_op: 'âš  Clorpirifos y otros OP: vida media de horas en agua alcalina. Usar buffer de pH es imprescindible.',
+    alerta_op: '⚠ Clorpirifos y otros OP: vida media de horas en agua alcalina. Usar buffer de pH es imprescindible.',
   },
   graminicida: {
     ph_optimo: [5.0, 7.0],
     ph_limite: [7.0, 8.0],
     ph_critico: [8.0, 10],
-    problema_alcalino: 'Los graminicidas ACCasa (cletodim, haloxifop, quizalofop) se degradan en agua alcalina. La formulaciÃ³n EC es mÃ¡s sensible.',
+    problema_alcalino: 'Los graminicidas ACCasa (cletodim, haloxifop, quizalofop) se degradan en agua alcalina. La formulación EC es más sensible.',
     problema_tds: 'Media. El aceite metilado requerido para algunos graminicidas puede emulsionar mal con agua muy dura.',
     acidificante: false,
     sulfato_amonio: false,
@@ -1532,8 +1661,8 @@ const PRODUCTO_PH = {
     ph_optimo: [5.5, 6.5],
     ph_limite: [6.5, 7.5],
     ph_critico: [7.5, 10],
-    problema_alcalino: 'El pH alcalino reduce la absorciÃ³n foliar de micronutrientes. La urea foliar requiere pH 5.5â€“6.5 para mÃ¡xima absorciÃ³n.',
-    problema_tds: 'Alta para micronutrientes. El TDS elevado puede competir con la absorciÃ³n del nutriente aplicado.',
+    problema_alcalino: 'El pH alcalino reduce la absorción foliar de micronutrientes. La urea foliar requiere pH 5.5–6.5 para máxima absorción.',
+    problema_tds: 'Alta para micronutrientes. El TDS elevado puede competir con la absorción del nutriente aplicado.',
     acidificante: true,
     sulfato_amonio: false,
     sensibilidad_tds: 'media',
@@ -1544,7 +1673,7 @@ function setFuente(el, fuente) {
   fuenteAgua = fuente;
   document.querySelectorAll('.fuente-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
-  // Prellenar valores tÃ­picos
+  // Prellenar valores típicos
   const f = FUENTES_PH[fuente];
   actualizarPH(f.ph);
   const phInput = document.getElementById('ph-slider') || document.getElementById('pa-ph');
@@ -1562,7 +1691,7 @@ function actualizarPH(val) {
   const input = document.getElementById('ph-slider') || document.getElementById('pa-ph');
   if (display) display.textContent = phActual.toFixed(1);
   if (input) input.value = phActual;
-  // Posicionar thumb (pH 4â€“10 = 0â€“100%)
+  // Posicionar thumb (pH 4–10 = 0–100%)
   const pct = ((phActual - 4) / 6) * 100;
   const thumb = document.getElementById('ph-thumb') || document.getElementById('pa-ph-thumb');
   if (thumb) thumb.style.left = pct + '%';
@@ -1586,7 +1715,7 @@ function sincronizarCE() {
   const ceEl = document.getElementById('agua-ce');
   const ce = parseFloat(ceEl ? ceEl.value : '');
   if (!isNaN(ce) && ce > 0) {
-    // CE (ÂµS/cm) â‰ˆ TDS (ppm) Ã— 0.64 (factor empÃ­rico)
+    // CE (µS/cm) ≈ TDS (ppm) × 0.64 (factor empírico)
     const tds = Math.round(ce * 0.64);
     const tdsInput = document.getElementById('agua-tds') || document.getElementById('pa-tds');
     if (tdsInput) tdsInput.value = tds;
@@ -1598,7 +1727,7 @@ function calcDeltaT() {
   if (!STATE.meteo) return null;
   const T = STATE.meteo.temperature_2m;
   const Td = STATE.meteo.dew_point_2m;
-  // AproximaciÃ³n: Tbh â‰ˆ T - (T - Td) / 3  (fÃ³rmula empÃ­rica Stull)
+  // Aproximación: Tbh ≈ T - (T - Td) / 3  (fórmula empírica Stull)
   const Tbh = T - (T - Td) / 3;
   return parseFloat((T - Tbh).toFixed(1));
 }
@@ -1611,25 +1740,25 @@ function renderDeltaT() {
   if (!elVal || !elLabel || !cursor) return;
 
   if (dt === null) {
-    elVal.textContent = 'â€”';
-    elLabel.textContent = 'Sin datos meteo Â· actualizÃ¡ GPS';
+    elVal.textContent = '—';
+    elLabel.textContent = 'Sin datos meteo · actualizá GPS';
     return;
   }
 
-  elVal.textContent = dt.toFixed(1) + 'Â°C';
+  elVal.textContent = dt.toFixed(1) + '°C';
 
   let color, label;
   if (dt < 8) {
-    color = 'var(--ok)'; label = 'CondiciÃ³n Ã³ptima';
+    color = 'var(--ok)'; label = 'Condición óptima';
   } else if (dt < 10) {
-    color = 'var(--caution)'; label = 'PrecauciÃ³n â€” evaporaciÃ³n elevada';
+    color = 'var(--caution)'; label = 'Precaución — evaporación elevada';
   } else {
-    color = 'var(--red)'; label = 'No aplicar â€” pÃ©rdida severa de gotas';
+    color = 'var(--red)'; label = 'No aplicar — pérdida severa de gotas';
   }
   elVal.style.color = color;
   elLabel.textContent = label;
 
-  // Cursor: 0Â°C=0%, 10Â°C+=100%
+  // Cursor: 0°C=0%, 10°C+=100%
   const pct = Math.min((dt / 12) * 100, 100);
   cursor.style.left = pct + '%';
 }
@@ -1643,7 +1772,7 @@ function renderMeteoBadges() {
   const vientoVal = document.getElementById('agua-viento-val') || document.getElementById('pa-viento-val');
   if (vientoVal) vientoVal.textContent = v.toFixed(1);
   const vientoLabel = document.getElementById('agua-viento-label') || document.getElementById('pa-viento-lbl');
-  if (vientoLabel) vientoLabel.textContent = 'km/h · ' + (v > 25 ? 'Excesivo' : v > 15 ? 'Moderado' : v < 3 ? 'Muy bajo' : 'Optimo');
+  if (vientoLabel) vientoLabel.textContent = 'km/h · ' + (v > 25 ? 'Excesivo' : v > 15 ? 'Moderado' : v < 3 ? 'Muy bajo' : 'Óptimo');
   const vientoDir = document.getElementById('agua-viento-dir');
   if (vientoDir) vientoDir.textContent = 'Direccion: ' + dir;
 
@@ -1664,7 +1793,7 @@ function calcularAgua() {
 
   const recs = [];
 
-  // â”€â”€ ANÃLISIS pH â”€â”€
+  // ── ANÁLISIS pH ──
   const [phOk1, phOk2] = prod.ph_optimo;
   const [phLim1, phLim2] = prod.ph_limite;
   const [phCrit1, phCrit2] = prod.ph_critico;
@@ -1674,9 +1803,9 @@ function calcularAgua() {
     phEstado = 'ok';
     phNivel = 'ok';
     recs.push({
-      nivel:'ok', icon:'âœ…',
-      titulo:'pH Ã³ptimo (' + ph.toFixed(1) + ')',
-      texto:'El pH del agua estÃ¡ dentro del rango ideal para ' + getProductoLabel() + '. No se requiere correcciÃ³n de pH.'
+      nivel:'ok', icon:'✅',
+      titulo:'pH óptimo (' + ph.toFixed(1) + ')',
+      texto:'El pH del agua está dentro del rango ideal para ' + getProductoLabel() + '. No se requiere corrección de pH.'
     });
   } else if (
     (ph > phOk2 && ph <= (prod.ph_critico[0] || 99)) ||
@@ -1686,70 +1815,70 @@ function calcularAgua() {
     const correccion = ph > phOk2 ? 'reducir' : 'elevar';
     const target = ph > phOk2 ? phOk2 : phOk1;
     recs.push({
-      nivel:'alerta', icon:'âš ï¸',
-      titulo:'pH fuera del rango Ã³ptimo (' + ph.toFixed(1) + ')',
+      nivel:'alerta', icon:'⚠️',
+      titulo:'pH fuera del rango óptimo (' + ph.toFixed(1) + ')',
       texto:(prod.problema_alcalino || 'El pH actual puede reducir la eficacia del producto.') +
-        ' RecomendaciÃ³n: usar acidificante/buffer para ' + correccion + ' el pH a ' + target + 'â€“' + phOk2 + '.'
+        ' Recomendación: usar acidificante/buffer para ' + correccion + ' el pH a ' + target + '–' + phOk2 + '.'
     });
   } else {
     phEstado = 'critico'; phNivel = 'critico';
     recs.push({
-      nivel:'critico', icon:'ðŸš¨',
-      titulo:'pH crÃ­tico (' + ph.toFixed(1) + ') â€” correcciÃ³n urgente',
+      nivel:'critico', icon:'🚨',
+      titulo:'pH crítico (' + ph.toFixed(1) + ') — corrección urgente',
       texto:(prod.problema_alcalino || 'El pH actual compromete severamente la eficacia.') +
-        ' Utilizar acidificante/buffer antes de agregar el fitosanitario. Target: pH ' + phOk1 + 'â€“' + phOk2 + '.'
+        ' Utilizar acidificante/buffer antes de agregar el fitosanitario. Target: pH ' + phOk1 + '–' + phOk2 + '.'
     });
   }
 
   if (prod.alerta_ph_bajo && ph < 5.0) {
-    recs.push({ nivel:'alerta', icon:'âš ï¸', titulo:'pH bajo â€” hidrÃ³lisis Ã¡cida', texto: prod.alerta_ph_bajo });
+    recs.push({ nivel:'alerta', icon:'⚠️', titulo:'pH bajo — hidrólisis ácida', texto: prod.alerta_ph_bajo });
   }
   if (prod.alerta_op) {
-    recs.push({ nivel:'critico', icon:'âš ï¸', titulo:'Organofosforado sensible al pH', texto: prod.alerta_op });
+    recs.push({ nivel:'critico', icon:'⚠️', titulo:'Organofosforado sensible al pH', texto: prod.alerta_op });
   }
 
-  // â”€â”€ ANÃLISIS TDS â”€â”€
+  // ── ANÁLISIS TDS ──
   if (prod.sensibilidad_tds === 'alta') {
     if (tds > 1000) {
       recs.push({
-        nivel:'critico', icon:'ðŸ’§',
-        titulo:'Agua muy dura (TDS ' + tds + ' ppm) â€” antagonismo severo',
-        texto:'La alta concentraciÃ³n de CaÂ²âº y MgÂ²âº neutraliza el glifosato formando sales insolubles. ' +
-          'Se recomienda sulfato de amonio al 2â€“3% (v/v) o 2â€“3 kg/100 L de caldo antes de agregar el herbicida.'
+        nivel:'critico', icon:'💧',
+        titulo:'Agua muy dura (TDS ' + tds + ' ppm) — antagonismo severo',
+        texto:'La alta concentración de Ca²⁺ y Mg²⁺ neutraliza el glifosato formando sales insolubles. ' +
+          'Se recomienda sulfato de amonio al 2–3% (v/v) o 2–3 kg/100 L de caldo antes de agregar el herbicida.'
       });
     } else if (tds > 500) {
       recs.push({
-        nivel:'alerta', icon:'ðŸ’§',
+        nivel:'alerta', icon:'💧',
         titulo:'Agua moderadamente dura (TDS ' + tds + ' ppm)',
-        texto:'Se recomienda sulfato de amonio al 1â€“2% para prevenir el antagonismo catiÃ³nico sobre el glifosato. ' +
+        texto:'Se recomienda sulfato de amonio al 1–2% para prevenir el antagonismo catiónico sobre el glifosato. ' +
           'Agregar el sulfato de amonio primero, dejar disolver, luego el herbicida.'
       });
     } else {
       recs.push({
-        nivel:'ok', icon:'ðŸ’§',
+        nivel:'ok', icon:'💧',
         titulo:'Calidad de agua adecuada (TDS ' + tds + ' ppm)',
         texto:'El TDS no representa riesgo de antagonismo significativo para este producto.'
       });
     }
   } else if (prod.sensibilidad_tds === 'media' && tds > 800) {
     recs.push({
-      nivel:'alerta', icon:'ðŸ’§',
-      titulo:'TDS elevado (' + tds + ' ppm) â€” verificar emulsiÃ³n',
-      texto:'Con agua muy dura, verificar que la formulaciÃ³n emulsione correctamente. Realizar prueba de jarrita antes de cargar el equipo.'
+      nivel:'alerta', icon:'💧',
+      titulo:'TDS elevado (' + tds + ' ppm) — verificar emulsión',
+      texto:'Con agua muy dura, verificar que la formulación emulsione correctamente. Realizar prueba de jarrita antes de cargar el equipo.'
     });
   } else if (prod.sensibilidad_tds === 'baja') {
     recs.push({
-      nivel:'info', icon:'ðŸ’§',
-      titulo:'TDS ' + tds + ' ppm â€” sin riesgo para este producto',
+      nivel:'info', icon:'💧',
+      titulo:'TDS ' + tds + ' ppm — sin riesgo para este producto',
       texto:'Los cationes disueltos no afectan significativamente la eficacia de este tipo de herbicida/fungicida.'
     });
   }
 
   if (prod.requiere_aceite) {
     recs.push({
-      nivel:'info', icon:'ðŸ›¢',
+      nivel:'info', icon:'🛢',
       titulo:'Requiere aceite metilado de soja',
-      texto:'Los graminicidas ACCasa necesitan aceite metilado de soja al 0.5â€“1% v/v para mejorar la absorciÃ³n cuticular. El agua dura puede afectar la calidad de la emulsiÃ³n â€” realizar prueba de jarrita.'
+      texto:'Los graminicidas ACCasa necesitan aceite metilado de soja al 0.5–1% v/v para mejorar la absorción cuticular. El agua dura puede afectar la calidad de la emulsión — realizar prueba de jarrita.'
     });
   }
 
@@ -1765,13 +1894,13 @@ function calcularAgua() {
       </div>
     </div>`).join('');
 
-  // Badge semÃ¡foro
+  // Badge semáforo
   const badge = document.getElementById('agua-semaforo-badge') || document.getElementById('pa-agua-badge');
   const hayCritico = recs.some(r => r.nivel === 'critico');
   const hayAlerta = recs.some(r => r.nivel === 'alerta');
-  if (badge) badge.textContent = hayCritico ? 'ðŸ”´' : hayAlerta ? 'ðŸŸ¡' : 'ðŸŸ¢';
+  if (badge) badge.textContent = hayCritico ? '🔴' : hayAlerta ? '🟡' : '🟢';
 
-  // â”€â”€ ADYUVANTES â”€â”€
+  // ── ADYUVANTES ──
   calcularAdyuvantes(ph, tds, prod);
 }
 
@@ -1786,10 +1915,10 @@ function calcularAdyuvantes(ph, tds, prod) {
     const urgencia = ph > 8 ? 'imprescindible' : ph > 7.5 ? 'recomendado' : 'recomendado';
     adyuvantes.push({
       nombre: 'Acidificante / buffer pH',
-      ejemplos: 'Ãcido cÃ­trico, RegulaidÂ®, AgriBufÂ®, CitrolaneÂ®',
-      dosis: ph > 8 ? '300â€“500 cc/100 L' : '150â€“300 cc/100 L',
+      ejemplos: 'Ácido cítrico, Regulaid®, AgriBuf®, Citrolane®',
+      dosis: ph > 8 ? '300–500 cc/100 L' : '150–300 cc/100 L',
       prioridad: urgencia,
-      razon: 'Corregir pH de ' + ph.toFixed(1) + ' â†’ 5.0â€“6.5 antes de agregar el fitosanitario',
+      razon: 'Corregir pH de ' + ph.toFixed(1) + ' → 5.0–6.5 antes de agregar el fitosanitario',
       orden: 1,
     });
   }
@@ -1798,38 +1927,38 @@ function calcularAdyuvantes(ph, tds, prod) {
   if (prod.sulfato_amonio && tds > 300) {
     adyuvantes.push({
       nombre: 'Sulfato de amonio (SA)',
-      ejemplos: '(NHâ‚„)â‚‚SOâ‚„ tÃ©cnico o formulado',
-      dosis: tds > 800 ? '3 kg / 100 L caldo' : tds > 500 ? '2 kg / 100 L caldo' : '1â€“1.5 kg / 100 L caldo',
+      ejemplos: '(NH₄)₂SO₄ técnico o formulado',
+      dosis: tds > 800 ? '3 kg / 100 L caldo' : tds > 500 ? '2 kg / 100 L caldo' : '1–1.5 kg / 100 L caldo',
       prioridad: tds > 800 ? 'imprescindible' : 'recomendado',
-      razon: 'Neutralizar antagonismo de CaÂ²âº/MgÂ²âº (TDS ' + tds + ' ppm). Agregar PRIMERO al agua.',
+      razon: 'Neutralizar antagonismo de Ca²⁺/Mg²⁺ (TDS ' + tds + ' ppm). Agregar PRIMERO al agua.',
       orden: 0,
     });
   }
 
-  // 3. Antievaporante segÃºn Delta T
+  // 3. Antievaporante según Delta T
   if (dt !== null) {
     if (dt >= 8) {
       adyuvantes.push({
         nombre: 'Antievaporante',
-        ejemplos: 'ExtravonÂ®, CitowettÂ®, Vapor GardÂ® (cera de pino)',
-        dosis: dt >= 10 ? '300â€“500 cc/100 L' : '200â€“300 cc/100 L',
+        ejemplos: 'Extravon®, Citowett®, Vapor Gard® (cera de pino)',
+        dosis: dt >= 10 ? '300–500 cc/100 L' : '200–300 cc/100 L',
         prioridad: dt >= 10 ? 'imprescindible' : 'recomendado',
-        razon: 'Delta T ' + dt.toFixed(1) + 'Â°C â€” evaporaciÃ³n de gotas aumentada. ' +
-          (dt >= 10 ? 'PÃ©rdida severa de producto antes del contacto foliar.' : 'Riesgo moderado de pÃ©rdida por evaporaciÃ³n.'),
+        razon: 'Delta T ' + dt.toFixed(1) + '°C — evaporación de gotas aumentada. ' +
+          (dt >= 10 ? 'Pérdida severa de producto antes del contacto foliar.' : 'Riesgo moderado de pérdida por evaporación.'),
         orden: 3,
       });
     }
   }
 
-  // 4. Reductor de deriva segÃºn viento
+  // 4. Reductor de deriva según viento
   if (viento !== null && viento > 12) {
     adyuvantes.push({
       nombre: 'Reductor de deriva / engrosador de gota',
-      ejemplos: 'AtplusÂ®, BondbreakerÂ®, BreakthruÂ® S240',
-      dosis: '200â€“400 cc/100 L',
+      ejemplos: 'Atplus®, Bondbreaker®, Breakthru® S240',
+      dosis: '200–400 cc/100 L',
       prioridad: viento > 18 ? 'imprescindible' : 'recomendado',
-      razon: 'Viento ' + viento.toFixed(1) + ' km/h â€” ' +
-        (viento > 18 ? 'riesgo alto de deriva. Aumentar tamaÃ±o de gota es imprescindible.' : 'riesgo moderado de deriva. Complementar con boquilla antideriva.'),
+      razon: 'Viento ' + viento.toFixed(1) + ' km/h — ' +
+        (viento > 18 ? 'riesgo alto de deriva. Aumentar tamaño de gota es imprescindible.' : 'riesgo moderado de deriva. Complementar con boquilla antideriva.'),
       orden: 4,
     });
   }
@@ -1838,51 +1967,51 @@ function calcularAdyuvantes(ph, tds, prod) {
   if (productoAgua === 'graminicida') {
     adyuvantes.push({
       nombre: 'Aceite metilado de soja (FAME)',
-      ejemplos: 'HastenÂ®, Soy Oil Methyl Ester, AssistÂ®',
-      dosis: '0.5â€“1% v/v (500â€“1000 cc/100 L)',
+      ejemplos: 'Hasten®, Soy Oil Methyl Ester, Assist®',
+      dosis: '0.5–1% v/v (500–1000 cc/100 L)',
       prioridad: 'imprescindible',
-      razon: 'Los graminicidas ACCasa requieren aceite metilado para penetraciÃ³n cuticular eficaz.',
+      razon: 'Los graminicidas ACCasa requieren aceite metilado para penetración cuticular eficaz.',
       orden: 2,
     });
   } else if (['glifosato','glifo_2bd','glifo_dicamba'].includes(productoAgua)) {
     adyuvantes.push({
-      nombre: 'Coadyuvante no iÃ³nico / silicona',
-      ejemplos: 'Silwet L-77Â®, Activator 90Â®, Silicone PlusÂ®',
-      dosis: '100â€“200 cc/100 L',
+      nombre: 'Coadyuvante no iónico / silicona',
+      ejemplos: 'Silwet L-77®, Activator 90®, Silicone Plus®',
+      dosis: '100–200 cc/100 L',
       prioridad: 'opcional',
-      razon: 'Mejora la cobertura y penetraciÃ³n del glifosato en condiciones de humedad baja o cutÃ­cula gruesa (malezas con cera).',
+      razon: 'Mejora la cobertura y penetración del glifosato en condiciones de humedad baja o cutícula gruesa (malezas con cera).',
       orden: 5,
     });
   } else if (productoAgua === 'fungicida') {
     adyuvantes.push({
       nombre: 'Surfactante adherente',
-      ejemplos: 'SticktiteÂ®, CodacideÂ®, AgralÂ®',
-      dosis: '100â€“150 cc/100 L',
+      ejemplos: 'Sticktite®, Codacide®, Agral®',
+      dosis: '100–150 cc/100 L',
       prioridad: 'opcional',
-      razon: 'Mejora la adhesiÃ³n del fungicida ante posibles lluvias leves o rocÃ­o post-aplicaciÃ³n.',
+      razon: 'Mejora la adhesión del fungicida ante posibles lluvias leves o rocío post-aplicación.',
       orden: 5,
     });
   }
 
-  // 6. HR muy baja â†’ recomendar horario
+  // 6. HR muy baja → recomendar horario
   if (hr !== null && hr < 50 && dt !== null && dt >= 6) {
     adyuvantes.push({
-      nombre: 'â° CorrecciÃ³n de horario',
-      ejemplos: 'No es un producto â€” es una decisiÃ³n operativa',
-      dosis: 'Aplicar antes de las 10 hs o despuÃ©s de las 17 hs',
+      nombre: '⏰ Corrección de horario',
+      ejemplos: 'No es un producto — es una decisión operativa',
+      dosis: 'Aplicar antes de las 10 hs o después de las 17 hs',
       prioridad: hr < 40 ? 'imprescindible' : 'recomendado',
-      razon: 'HR ' + hr + '% + Delta T ' + dt.toFixed(1) + 'Â°C: condiciÃ³n crÃ­tica de evaporaciÃ³n. NingÃºn antievaporante compensa una aplicaciÃ³n al mediodÃ­a en estas condiciones.',
+      razon: 'HR ' + hr + '% + Delta T ' + dt.toFixed(1) + '°C: condición crítica de evaporación. Ningún antievaporante compensa una aplicación al mediodía en estas condiciones.',
       orden: 6,
     });
   }
 
-  // Ordenar por orden de aplicaciÃ³n
+  // Ordenar por orden de aplicación
   adyuvantes.sort((a,b) => a.orden - b.orden);
 
   const container = document.getElementById('adyuvante-recs') || document.getElementById('pa-ady-recs');
   if (!container) return;
   if (!adyuvantes.length) {
-    container.innerHTML = '<div class="rec-item ok"><div class="rec-icon">âœ…</div><div class="rec-content"><div class="rec-titulo ok">Sin adyuvantes adicionales requeridos</div><div class="rec-texto">Las condiciones actuales y el producto seleccionado no requieren adyuvantes especiales.</div></div></div>';
+    container.innerHTML = '<div class="rec-item ok"><div class="rec-icon">✅</div><div class="rec-content"><div class="rec-titulo ok">Sin adyuvantes adicionales requeridos</div><div class="rec-texto">Las condiciones actuales y el producto seleccionado no requieren adyuvantes especiales.</div></div></div>';
     const sem = document.getElementById('adyuvante-semaforo') || document.getElementById('pa-ady-sem');
     if (sem) sem.textContent = 'OK';
     return;
@@ -1897,7 +2026,7 @@ function calcularAdyuvantes(ph, tds, prod) {
       <div class="adyuvante-row">
         <div>
           <div style="font-size:.65rem;color:rgba(28,18,8,.35);margin-bottom:.15rem">
-            ${i+1}Â° agregar
+            ${i+1}° agregar
           </div>
           <div class="adyuvante-nombre">${a.nombre}</div>
           <div style="font-size:.72rem;color:rgba(28,18,8,.5);margin-top:.15rem">${a.ejemplos}</div>
@@ -1928,15 +2057,15 @@ function actualizarPanelAgua() {
 }
 
 
-// â•â•â• MOTOR DE COBERTURA â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// FÃ³rmula central: L/ha = (VMDÂ³ Ã— N Ã— Ï€) / (6 Ã— 10â·)
+// ═══ MOTOR DE COBERTURA ══════════════════════════════════
+// Fórmula central: L/ha = (VMD³ × N × π) / (6 × 10⁷)
 // Fuente: Leiva P.D. (INTA), FAO, Mathews G.A.
 
-// â”€â”€ Base de boquillas ISO â”€â”€
-// VMD a 3 bar para boquilla XR (abanico estÃ¡ndar)
-// Factor de correcciÃ³n por tipo: TTI Ã—1.6, Twin Ã—1.1, HC Ã—0.85
+// ── Base de boquillas ISO ──
+// VMD a 3 bar para boquilla XR (abanico estándar)
+// Factor de corrección por tipo: TTI ×1.6, Twin ×1.1, HC ×0.85
 const ISO_BOQUILLAS = [
-  { iso:'005', nombre:'005 PÃºrpura',  color:'#7B2D8B', caudal_3bar:0.20, vmd_xr:130 },
+  { iso:'005', nombre:'005 Púrpura',  color:'#7B2D8B', caudal_3bar:0.20, vmd_xr:130 },
   { iso:'0075',nombre:'0075 Rosa',   color:'#E75480', caudal_3bar:0.30, vmd_xr:145 },
   { iso:'01', nombre:'01 Naranja',   color:'#E8721A', caudal_3bar:0.40, vmd_xr:155 },
   { iso:'015',nombre:'015 Verde',    color:'#2E8B57', caudal_3bar:0.60, vmd_xr:170 },
@@ -1944,7 +2073,7 @@ const ISO_BOQUILLAS = [
   { iso:'025',nombre:'025 Lila',     color:'#9370DB', caudal_3bar:1.00, vmd_xr:230 },
   { iso:'03', nombre:'03 Azul',      color:'#1E5799', caudal_3bar:1.20, vmd_xr:260 },
   { iso:'04', nombre:'04 Rojo',      color:'#C0392B', caudal_3bar:1.60, vmd_xr:320 },
-  { iso:'05', nombre:'05 MarrÃ³n',    color:'#7B5B3A', caudal_3bar:2.00, vmd_xr:380 },
+  { iso:'05', nombre:'05 Marrón',    color:'#7B5B3A', caudal_3bar:2.00, vmd_xr:380 },
   { iso:'06', nombre:'06 Gris',      color:'#607B8B', caudal_3bar:2.40, vmd_xr:440 },
   { iso:'08', nombre:'08 Blanco',    color:'#AAB8C2', caudal_3bar:3.20, vmd_xr:520 },
 ];
@@ -1953,17 +2082,17 @@ const TIPO_BOQUILLA_FACTOR_VMD = {
   xr: 1.0, tti: 1.65, twin: 1.10, hc: 0.85
 };
 const TIPO_BOQUILLA_FACTOR_CAUDAL_PRESION = {
-  // caudal âˆ âˆš(P/P_ref)  â€” P_ref = 3 bar
+  // caudal ∝ √(P/P_ref)  — P_ref = 3 bar
   xr: 1.0, tti: 1.0, twin: 1.0, hc: 1.0
 };
 
 // Impactos objetivo por tipo de producto (FAO / INTA)
 const IMPACTOS_OBJETIVO = {
-  herb_sistemico:  { min:20, max:30,  cv:30, label:'Herbicida sistÃ©mico' },
+  herb_sistemico:  { min:20, max:30,  cv:30, label:'Herbicida sistémico' },
   herb_contacto:   { min:30, max:40,  cv:30, label:'Herbicida contacto' },
-  fung_sistemico:  { min:20, max:30,  cv:70, label:'Fungicida sistÃ©mico' },
+  fung_sistemico:  { min:20, max:30,  cv:70, label:'Fungicida sistémico' },
   fung_contacto:   { min:50, max:70,  cv:70, label:'Fungicida contacto' },
-  insect_sistemico:{ min:20, max:30,  cv:70, label:'Insecticida sistÃ©mico' },
+  insect_sistemico:{ min:20, max:30,  cv:70, label:'Insecticida sistémico' },
   insect_contacto: { min:30, max:50,  cv:70, label:'Insecticida contacto' },
 };
 
@@ -1977,44 +2106,44 @@ const VMD_RECOMENDADO = {
   insect_contacto: { min:150, max:250, ideal:200 },
 };
 
-// Factor de correcciÃ³n de cobertura por blanco
+// Factor de corrección de cobertura por blanco
 const FACTOR_BLANCO = {
-  hoja_plana:     { factor:1.0, nota:'Hoja plana: cobertura directa sin penalizaciÃ³n.' },
-  hoja_erecta:    { factor:0.75, nota:'Hoja erecta: Ã¡ngulo reduce cobertura ~25%. Considerar mayor volumen o velocidad reducida.' },
-  'maleza_pequeÃ±a': { factor:1.0, nota:'Maleza pequeÃ±a: cobertura total del Ã¡rea objetivo.' },
-  maleza_grande:  { factor:0.65, nota:'Maleza desarrollada: penetraciÃ³n en canopeo reduce cobertura ~35%. Bajar VMD.' },
+  hoja_plana:     { factor:1.0, nota:'Hoja plana: cobertura directa sin penalización.' },
+  hoja_erecta:    { factor:0.75, nota:'Hoja erecta: ángulo reduce cobertura ~25%. Considerar mayor volumen o velocidad reducida.' },
+  'maleza_pequeña': { factor:1.0, nota:'Maleza pequeña: cobertura total del área objetivo.' },
+  maleza_grande:  { factor:0.65, nota:'Maleza desarrollada: penetración en canopeo reduce cobertura ~35%. Bajar VMD.' },
   suelo:          { factor:1.0, nota:'Suelo/pre-emergente: cobertura directa.' },
 };
 
-// ClasificaciÃ³n VMD segÃºn ASABE S-572
+// Clasificación VMD según ASABE S-572
 function clasificarVMD(vmd) {
-  if (vmd < 136) return { clase:'Extremadamente fino', color:'#3498db', deriva:'Muy alta â€” riesgo severo', code:'XF' };
-  if (vmd < 177) return { clase:'Muy fino',             color:'#5dade2', deriva:'Alta â€” precauciÃ³n',       code:'VF' };
+  if (vmd < 136) return { clase:'Extremadamente fino', color:'#3498db', deriva:'Muy alta — riesgo severo', code:'XF' };
+  if (vmd < 177) return { clase:'Muy fino',             color:'#5dade2', deriva:'Alta — precaución',       code:'VF' };
   if (vmd < 218) return { clase:'Fino',                 color:'#2ecc71', deriva:'Moderada',                code:'F' };
-  if (vmd < 349) return { clase:'Medio',                color:'#27ae60', deriva:'Baja â€” condiciÃ³n Ã³ptima', code:'M' };
+  if (vmd < 349) return { clase:'Medio',                color:'#27ae60', deriva:'Baja — condición óptima', code:'M' };
   if (vmd < 428) return { clase:'Grueso',               color:'#f39c12', deriva:'Muy baja',                code:'C' };
-  if (vmd < 622) return { clase:'Muy grueso',           color:'#e67e22', deriva:'MÃ­nima',                  code:'VC' };
-  return              { clase:'Extremadamente grueso', color:'#e74c3c', deriva:'Nula â€” cobertura limitada', code:'XC' };
+  if (vmd < 622) return { clase:'Muy grueso',           color:'#e67e22', deriva:'Mínima',                  code:'VC' };
+  return              { clase:'Extremadamente grueso', color:'#e74c3c', deriva:'Nula — cobertura limitada', code:'XC' };
 }
 
-// â”€â”€ FÃ“RMULA CENTRAL â”€â”€
-// L/ha = (VMDÂ³ Ã— N Ã— Ï€) / (6 Ã— 10â·)
+// ── FÓRMULA CENTRAL ──
+// L/ha = (VMD³ × N × π) / (6 × 10⁷)
 function calcLHaDesdeVMDyN(vmd, n) {
   return (Math.pow(vmd, 3) * n * Math.PI) / (6e7);
 }
-// N gotas/cmÂ² = (L/ha Ã— 6Ã—10â·) / (VMDÂ³ Ã— Ï€)
+// N gotas/cm² = (L/ha × 6×10⁷) / (VMD³ × π)
 function calcNDesdeVMDyLha(vmd, lha) {
   return (lha * 6e7) / (Math.pow(vmd, 3) * Math.PI);
 }
-// Cobertura % = N Ã— Ï€ Ã— (VMD/2)Â² / 10â¸  (Ã¡rea de cada gota sobre 1 cmÂ²)
+// Cobertura % = N × π × (VMD/2)² / 10⁸  (área de cada gota sobre 1 cm²)
 function calcCoberturaPct(n, vmd) {
   const r_cm = (vmd / 2) * 1e-4; // micrones a cm
   return Math.min(n * Math.PI * r_cm * r_cm * 100, 100);
 }
 
-// â”€â”€ AJUSTE AMBIENTAL DEL VMD â”€â”€
-// Delta T alto â†’ evaporaciÃ³n en vuelo â†’ VMD efectivo aumenta (gota se hace mÃ¡s pequeÃ±a = llega mÃ¡s chica)
-// Viento alto â†’ fragmentaciÃ³n adicional â†’ VMD efectivo disminuye
+// ── AJUSTE AMBIENTAL DEL VMD ──
+// Delta T alto → evaporación en vuelo → VMD efectivo aumenta (gota se hace más pequeña = llega más chica)
+// Viento alto → fragmentación adicional → VMD efectivo disminuye
 function calcVMDEfectivo(vmdNominal) {
   if (!STATE.meteo) return { vmdEf: vmdNominal, factorDT: 1.0, factorViento: 1.0, nota: null };
 
@@ -2026,31 +2155,31 @@ function calcVMDEfectivo(vmdNominal) {
   let notas = [];
 
   if (dt !== null) {
-    if (dt > 10)      { factorDT = 0.82; notas.push(`âš  Delta T ${dt.toFixed(1)}Â°C: evaporaciÃ³n severa en vuelo â†’ VMD efectivo -18%`); }
-    else if (dt > 8)  { factorDT = 0.90; notas.push(`âš  Delta T ${dt.toFixed(1)}Â°C: evaporaciÃ³n moderada â†’ VMD efectivo -10%`); }
-    else if (dt > 5)  { factorDT = 0.95; notas.push(`â„¹ Delta T ${dt.toFixed(1)}Â°C: evaporaciÃ³n leve â†’ VMD efectivo -5%`); }
+    if (dt > 10)      { factorDT = 0.82; notas.push(`⚠ Delta T ${dt.toFixed(1)}°C: evaporación severa en vuelo → VMD efectivo -18%`); }
+    else if (dt > 8)  { factorDT = 0.90; notas.push(`⚠ Delta T ${dt.toFixed(1)}°C: evaporación moderada → VMD efectivo -10%`); }
+    else if (dt > 5)  { factorDT = 0.95; notas.push(`ℹ Delta T ${dt.toFixed(1)}°C: evaporación leve → VMD efectivo -5%`); }
   }
-  if (viento > 20)    { factorViento = 0.88; notas.push(`âš  Viento ${viento.toFixed(1)} km/h: fragmentaciÃ³n de gotas â†’ VMD efectivo -12%`); }
-  else if (viento > 12){ factorViento = 0.94; notas.push(`â„¹ Viento ${viento.toFixed(1)} km/h: leve fragmentaciÃ³n â†’ VMD efectivo -6%`); }
+  if (viento > 20)    { factorViento = 0.88; notas.push(`⚠ Viento ${viento.toFixed(1)} km/h: fragmentación de gotas → VMD efectivo -12%`); }
+  else if (viento > 12){ factorViento = 0.94; notas.push(`ℹ Viento ${viento.toFixed(1)} km/h: leve fragmentación → VMD efectivo -6%`); }
 
   const vmdEf = Math.round(vmdNominal * factorDT * factorViento);
   return { vmdEf, factorDT, factorViento, nota: notas.join('<br>') };
 }
 
-// â”€â”€ CAUDAL DEL PICO segÃºn boquilla, presiÃ³n â”€â”€
-// Q âˆ âˆš(P/P_ref)  â†’  Q(P) = Q_ref Ã— âˆš(P/3)
+// ── CAUDAL DEL PICO según boquilla, presión ──
+// Q ∝ √(P/P_ref)  →  Q(P) = Q_ref × √(P/3)
 function calcCaudalPico(iso, presion, tipoBoquilla) {
   const bq = ISO_BOQUILLAS.find(b => b.iso === iso);
   if (!bq) return 0;
   return bq.caudal_3bar * Math.sqrt(presion / 3);
 }
 
-// VMD a presiÃ³n dada: VMD âˆ P^(-0.3) (empÃ­rico, Spraying Systems)
+// VMD a presión dada: VMD ∝ P^(-0.3) (empírico, Spraying Systems)
 function calcVMDaPrension(vmdRef, presionRef, presionTrabajo) {
   return Math.round(vmdRef * Math.pow(presionRef / presionTrabajo, 0.3));
 }
 
-// â”€â”€ ESTADO MODO â”€â”€
+// ── ESTADO MODO ──
 let cobModo = 'a';
 let tipoBoquillaSelec = 'xr';
 let isoBoquillaSelec = '02';
@@ -2077,8 +2206,8 @@ function actualizarObjetivo() {
   document.getElementById('cob-impactos-display').textContent = midImpactos;
 
   document.getElementById('cob-impactos-ref').innerHTML =
-    `FAO/INTA: <strong>${obj.min}â€“${obj.max} gotas/cmÂ²</strong> Â· CV â‰¤ ${obj.cv}% Â· ` +
-    `VMD recomendado: <strong>${vmdRec.min}â€“${vmdRec.max} Âµm</strong>`;
+    `FAO/INTA: <strong>${obj.min}–${obj.max} gotas/cm²</strong> · CV ≤ ${obj.cv}% · ` +
+    `VMD recomendado: <strong>${vmdRec.min}–${vmdRec.max} µm</strong>`;
 
   // Ajustar VMD selector al ideal
   const vmdSel = document.getElementById('cob-vmd-objetivo');
@@ -2101,16 +2230,16 @@ function calcularCobertura() {
   const factorBlanco = FACTOR_BLANCO[blanco].factor;
   const obj = IMPACTOS_OBJETIVO[tipo];
 
-  // CÃ¡lculo central
+  // Cálculo central
   const lhaRequerido = calcLHaDesdeVMDyN(vmdEf, impactosObj / factorBlanco);
   const impactosLogrados = Math.round(calcNDesdeVMDyLha(vmdEf, lhaRequerido) * factorBlanco);
   const cobPct = calcCoberturaPct(impactosLogrados, vmdEf).toFixed(1);
   const vmdInfo = clasificarVMD(vmdEf);
 
-  // Caudal necesario por pico: Q(L/min) = L/ha Ã— velocidad(km/h) Ã— distPicos(m) / 600
+  // Caudal necesario por pico: Q(L/min) = L/ha × velocidad(km/h) × distPicos(m) / 600
   const caudalPico = (lhaRequerido * velocidad * distPicos) / 600;
 
-  // Boquilla recomendada: buscar la ISO cuyo caudal a 2.5 bar sea mÃ¡s cercano
+  // Boquilla recomendada: buscar la ISO cuyo caudal a 2.5 bar sea más cercano
   const presionTrabajo = 2.5;
   let boquillaRec = null;
   let menorDiff = Infinity;
@@ -2151,11 +2280,11 @@ function calcularCobertura() {
   const excelente = impactosLogrados >= obj.max;
   const veredicto = document.getElementById('cob-veredicto-a');
   if (excelente) {
-    veredicto.innerHTML = `<div class="cob-veredicto-icon">âœ…</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Cobertura excelente</div><div class="cob-veredicto-texto">Con ${lhaRequerido.toFixed(0)} L/ha y VMD ${vmdEf} Âµm logrÃ¡s ${impactosLogrados} gotas/cmÂ² â€” supera el objetivo FAO de ${obj.min}â€“${obj.max} gotas/cmÂ² para ${obj.label.toLowerCase()}. ${FACTOR_BLANCO[blanco].nota}</div></div>`;
+    veredicto.innerHTML = `<div class="cob-veredicto-icon">✅</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Cobertura excelente</div><div class="cob-veredicto-texto">Con ${lhaRequerido.toFixed(0)} L/ha y VMD ${vmdEf} µm lográs ${impactosLogrados} gotas/cm² — supera el objetivo FAO de ${obj.min}–${obj.max} gotas/cm² para ${obj.label.toLowerCase()}. ${FACTOR_BLANCO[blanco].nota}</div></div>`;
   } else if (cumple) {
-    veredicto.innerHTML = `<div class="cob-veredicto-icon">âœ…</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Cobertura adecuada</div><div class="cob-veredicto-texto">Con ${lhaRequerido.toFixed(0)} L/ha y VMD ${vmdEf} Âµm logrÃ¡s ${impactosLogrados} gotas/cmÂ² â€” dentro del rango FAO. ${FACTOR_BLANCO[blanco].nota}</div></div>`;
+    veredicto.innerHTML = `<div class="cob-veredicto-icon">✅</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Cobertura adecuada</div><div class="cob-veredicto-texto">Con ${lhaRequerido.toFixed(0)} L/ha y VMD ${vmdEf} µm lográs ${impactosLogrados} gotas/cm² — dentro del rango FAO. ${FACTOR_BLANCO[blanco].nota}</div></div>`;
   } else {
-    veredicto.innerHTML = `<div class="cob-veredicto-icon">âš ï¸</div><div><div class="cob-veredicto-titulo" style="color:#E8B84B">Cobertura insuficiente</div><div class="cob-veredicto-texto">Con estos parÃ¡metros solo logrÃ¡s ${impactosLogrados} gotas/cmÂ², por debajo del mÃ­nimo FAO de ${obj.min} para ${obj.label.toLowerCase()}. AumentÃ¡ el L/ha o reducÃ­ el VMD.</div></div>`;
+    veredicto.innerHTML = `<div class="cob-veredicto-icon">⚠️</div><div><div class="cob-veredicto-titulo" style="color:#E8B84B">Cobertura insuficiente</div><div class="cob-veredicto-texto">Con estos parámetros solo lográs ${impactosLogrados} gotas/cm², por debajo del mínimo FAO de ${obj.min} para ${obj.label.toLowerCase()}. Aumentá el L/ha o reducí el VMD.</div></div>`;
   }
 
   // Ajuste ambiental
@@ -2163,10 +2292,10 @@ function calcularCobertura() {
   if (nota) {
     ajusteBody.innerHTML = `<div class="ajuste-ambiental">${nota}</div>
       <div style="font-size:.78rem;color:rgba(28,18,8,.6);margin-top:.7rem;line-height:1.55">
-        VMD nominal: <strong>${vmdNominal} Âµm</strong> â†’ VMD efectivo en campo: <strong>${vmdEf} Âµm</strong>
+        VMD nominal: <strong>${vmdNominal} µm</strong> → VMD efectivo en campo: <strong>${vmdEf} µm</strong>
       </div>`;
   } else {
-    ajusteBody.innerHTML = `<div class="rec-item ok"><div class="rec-icon">âœ…</div><div class="rec-content"><div class="rec-titulo ok">Condiciones sin correcciÃ³n significativa</div><div class="rec-texto">Las condiciones ambientales actuales no modifican el VMD nominal de manera importante.</div></div></div>`;
+    ajusteBody.innerHTML = `<div class="rec-item ok"><div class="rec-icon">✅</div><div class="rec-content"><div class="rec-titulo ok">Condiciones sin corrección significativa</div><div class="rec-texto">Las condiciones ambientales actuales no modifican el VMD nominal de manera importante.</div></div></div>`;
   }
 
   // Boquilla recomendada
@@ -2180,33 +2309,33 @@ function calcularCobertura() {
           <div class="nombre">${boquillaRec.nombre}</div>
           <div class="detalle">
             Caudal a ${presionTrabajo} bar: <strong>${boquillaRec.qTrabajo.toFixed(2)} L/min</strong><br>
-            VMD tÃ­pico a ${presionTrabajo} bar: <strong>${boquillaRec.vmdTrabajo} Âµm</strong><br>
-            Rango de trabajo: <strong>1.5â€“4 bar</strong>
+            VMD típico a ${presionTrabajo} bar: <strong>${boquillaRec.vmdTrabajo} µm</strong><br>
+            Rango de trabajo: <strong>1.5–4 bar</strong>
           </div>
         </div>
       </div>
       <p style="font-size:.75rem;color:rgba(28,18,8,.55);line-height:1.5;margin-top:.3rem">
-        RecomendaciÃ³n para boquilla tipo XR. Para TTI/AI el VMD aumenta ~65% â€” usar si viento > 12 km/h.
+        Recomendación para boquilla tipo XR. Para TTI/AI el VMD aumenta ~65% — usar si viento > 12 km/h.
       </p>`;
   }
 
-  // Tabla parÃ¡metros
+  // Tabla parámetros
   const presRec = (caudalPico / (boquillaRec ? boquillaRec.caudal_3bar : 1)) ** 2 * 3;
   document.getElementById('cob-params-tabla').innerHTML = `
     <table class="params-table">
-      <thead><tr><th>ParÃ¡metro</th><th>Valor recomendado</th><th>Fundamento</th><th class="status-col">Estado</th></tr></thead>
+      <thead><tr><th>Parámetro</th><th>Valor recomendado</th><th>Fundamento</th><th class="status-col">Estado</th></tr></thead>
       <tbody>
-        <tr><td>Caudal L/ha</td><td class="val-col">${lhaRequerido.toFixed(1)} L/ha</td><td>Para lograr ${impactosObj} gotas/cmÂ² con VMD ${vmdEf} Âµm</td><td class="status-col"><span class="tag ${lhaRequerido<20||lhaRequerido>150?'amarillo':'verde'}">${lhaRequerido<20?'Muy bajo':lhaRequerido>150?'Alto':'Ã“ptimo'}</span></td></tr>
-        <tr><td>VMD objetivo</td><td class="val-col">${vmdNominal} Âµm</td><td>Clase ${vmdInfo.clase} â€” ${vmdInfo.deriva.toLowerCase()}</td><td class="status-col"><span class="tag verde">${vmdInfo.code}</span></td></tr>
-        <tr><td>VMD efectivo campo</td><td class="val-col">${vmdEf} Âµm</td><td>Corregido por Delta T y viento</td><td class="status-col"><span class="tag ${vmdEf < 150?'rojo':vmdEf < 200?'amarillo':'verde'}">${vmdEf < 150?'Deriva alta':vmdEf < 200?'PrecauciÃ³n':'OK'}</span></td></tr>
+        <tr><td>Caudal L/ha</td><td class="val-col">${lhaRequerido.toFixed(1)} L/ha</td><td>Para lograr ${impactosObj} gotas/cm² con VMD ${vmdEf} µm</td><td class="status-col"><span class="tag ${lhaRequerido<20||lhaRequerido>150?'amarillo':'verde'}">${lhaRequerido<20?'Muy bajo':lhaRequerido>150?'Alto':'Óptimo'}</span></td></tr>
+        <tr><td>VMD objetivo</td><td class="val-col">${vmdNominal} µm</td><td>Clase ${vmdInfo.clase} — ${vmdInfo.deriva.toLowerCase()}</td><td class="status-col"><span class="tag verde">${vmdInfo.code}</span></td></tr>
+        <tr><td>VMD efectivo campo</td><td class="val-col">${vmdEf} µm</td><td>Corregido por Delta T y viento</td><td class="status-col"><span class="tag ${vmdEf < 150?'rojo':vmdEf < 200?'amarillo':'verde'}">${vmdEf < 150?'Deriva alta':vmdEf < 200?'Precaución':'OK'}</span></td></tr>
         <tr><td>Velocidad de avance</td><td class="val-col">${velocidad} km/h</td><td>Caudal por pico: ${caudalPico.toFixed(2)} L/min</td><td class="status-col"><span class="tag ${velocidad>25?'amarillo':'verde'}">${velocidad>25?'Revisar':'OK'}</span></td></tr>
-        <tr><td>PresiÃ³n estimada</td><td class="val-col">${presRec.toFixed(1)} bar</td><td>Con boquilla ${boquillaRec ? boquillaRec.nombre : 'â€”'}</td><td class="status-col"><span class="tag ${presRec<1?'rojo':presRec>5?'amarillo':'verde'}">${presRec<1?'Muy baja':presRec>5?'Alta':'OK'}</span></td></tr>
-        <tr><td>Cobertura foliar</td><td class="val-col">${cobPct}%</td><td>Ãrea cubierta por gotas sobre el blanco</td><td class="status-col"><span class="tag ${parseFloat(cobPct)<10?'rojo':parseFloat(cobPct)<25?'amarillo':'verde'}">${parseFloat(cobPct)<10?'Baja':parseFloat(cobPct)<25?'Moderada':'Buena'}</span></td></tr>
+        <tr><td>Presión estimada</td><td class="val-col">${presRec.toFixed(1)} bar</td><td>Con boquilla ${boquillaRec ? boquillaRec.nombre : '—'}</td><td class="status-col"><span class="tag ${presRec<1?'rojo':presRec>5?'amarillo':'verde'}">${presRec<1?'Muy baja':presRec>5?'Alta':'OK'}</span></td></tr>
+        <tr><td>Cobertura foliar</td><td class="val-col">${cobPct}%</td><td>Área cubierta por gotas sobre el blanco</td><td class="status-col"><span class="tag ${parseFloat(cobPct)<10?'rojo':parseFloat(cobPct)<25?'amarillo':'verde'}">${parseFloat(cobPct)<10?'Baja':parseFloat(cobPct)<25?'Moderada':'Buena'}</span></td></tr>
       </tbody>
     </table>`;
 }
 
-// â”€â”€ MODO B â”€â”€
+// ── MODO B ──
 function renderISOSelector() {
   const container = document.getElementById('iso-selector-b');
   if (!container) return;
@@ -2225,7 +2354,7 @@ function setISO(el, iso) {
   el.classList.add('active');
   const bq = ISO_BOQUILLAS.find(b => b.iso === iso);
   if (bq) document.getElementById('cob-b-presion-hint').textContent =
-    `Caudal nominal a 3 bar: ${bq.caudal_3bar} L/min Â· Rango tÃ­pico: 1.5â€“4 bar`;
+    `Caudal nominal a 3 bar: ${bq.caudal_3bar} L/min · Rango típico: 1.5–4 bar`;
   calcularModoB();
 }
 
@@ -2258,7 +2387,7 @@ function calcularModoB() {
   document.getElementById('b-vmd').textContent = vmdEf;
   document.getElementById('b-impactos').textContent = impactos;
   document.getElementById('b-impactos').className = 'cob-stat-val ' + (impactos >= obj.min ? 'ok' : 'danger');
-  document.getElementById('b-objetivo').textContent = obj.min + 'â€“' + obj.max;
+  document.getElementById('b-objetivo').textContent = obj.min + '–' + obj.max;
   document.getElementById('b-caudal-pico').textContent = caudalPico.toFixed(2);
 
   const vmdInfo = clasificarVMD(vmdEf);
@@ -2267,32 +2396,32 @@ function calcularModoB() {
 
   const verd = document.getElementById('cob-veredicto-b');
   if (excede) {
-    verd.innerHTML = `<div class="cob-veredicto-icon">âœ…</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">ConfiguraciÃ³n excelente</div><div class="cob-veredicto-texto">Tu equipo logra ${impactos} gotas/cmÂ² con VMD ${vmdEf} Âµm â€” supera el objetivo FAO para ${obj.label.toLowerCase()}.</div></div>`;
+    verd.innerHTML = `<div class="cob-veredicto-icon">✅</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Configuración excelente</div><div class="cob-veredicto-texto">Tu equipo logra ${impactos} gotas/cm² con VMD ${vmdEf} µm — supera el objetivo FAO para ${obj.label.toLowerCase()}.</div></div>`;
   } else if (cumple) {
-    verd.innerHTML = `<div class="cob-veredicto-icon">âœ…</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">ConfiguraciÃ³n adecuada</div><div class="cob-veredicto-texto">Tu equipo logra ${impactos} gotas/cmÂ² â€” dentro del rango FAO de ${obj.min}â€“${obj.max} para ${obj.label.toLowerCase()}.</div></div>`;
+    verd.innerHTML = `<div class="cob-veredicto-icon">✅</div><div><div class="cob-veredicto-titulo" style="color:#6DBF82">Configuración adecuada</div><div class="cob-veredicto-texto">Tu equipo logra ${impactos} gotas/cm² — dentro del rango FAO de ${obj.min}–${obj.max} para ${obj.label.toLowerCase()}.</div></div>`;
   } else {
     const lhaNeeded = calcLHaDesdeVMDyN(vmdEf, obj.min).toFixed(0);
-    verd.innerHTML = `<div class="cob-veredicto-icon">ðŸš«</div><div><div class="cob-veredicto-titulo" style="color:#E8604A">Cobertura insuficiente</div><div class="cob-veredicto-texto">Solo logrÃ¡s ${impactos} gotas/cmÂ² (mÃ­nimo: ${obj.min}). Para alcanzar el objetivo necesitÃ¡s <strong>${lhaNeeded} L/ha</strong> con este VMD, o reducir el tamaÃ±o de gota.</div></div>`;
+    verd.innerHTML = `<div class="cob-veredicto-icon">🚫</div><div><div class="cob-veredicto-titulo" style="color:#E8604A">Cobertura insuficiente</div><div class="cob-veredicto-texto">Solo lográs ${impactos} gotas/cm² (mínimo: ${obj.min}). Para alcanzar el objetivo necesitás <strong>${lhaNeeded} L/ha</strong> con este VMD, o reducir el tamaño de gota.</div></div>`;
   }
 
   const cobPct = calcCoberturaPct(impactos, vmdEf).toFixed(1);
   document.getElementById('cob-b-analisis').innerHTML = `
     <div class="rec-item ${cumple?'ok':'critico'}">
-      <div class="rec-icon">${cumple?'âœ…':'ðŸš«'}</div>
+      <div class="rec-icon">${cumple?'✅':'🚫'}</div>
       <div class="rec-content">
         <div class="rec-titulo ${cumple?'ok':'critico'}">
-          ${impactos} gotas/cmÂ² Â· Clase de gota: ${vmdInfo.clase}
+          ${impactos} gotas/cm² · Clase de gota: ${vmdInfo.clase}
         </div>
         <div class="rec-texto">
           Cobertura foliar estimada: <strong>${cobPct}%</strong><br>
           Deriva: <strong>${vmdInfo.deriva}</strong><br>
-          ${!cumple ? `âš  Para alcanzar ${obj.min} gotas/cmÂ² necesitÃ¡s aumentar L/ha a <strong>${calcLHaDesdeVMDyN(vmdEf, obj.min).toFixed(0)} L/ha</strong> o reducir el VMD.` : ''}
+          ${!cumple ? `⚠ Para alcanzar ${obj.min} gotas/cm² necesitás aumentar L/ha a <strong>${calcLHaDesdeVMDyN(vmdEf, obj.min).toFixed(0)} L/ha</strong> o reducir el VMD.` : ''}
         </div>
       </div>
     </div>
     <div style="font-size:.75rem;color:rgba(28,18,8,.5);margin-top:.8rem;line-height:1.6;padding:.7rem 1rem;background:rgba(28,18,8,.04);border-radius:10px">
-      <strong>FÃ³rmula:</strong> N = (L/ha Ã— 6Ã—10â·) / (VMDÂ³ Ã— Ï€)<br>
-      Con L/ha=${lha}, VMD efectivo=${vmdEf} Âµm â†’ <strong>${impactos} gotas/cmÂ²</strong>
+      <strong>Fórmula:</strong> N = (L/ha × 6×10⁷) / (VMD³ × π)<br>
+      Con L/ha=${lha}, VMD efectivo=${vmdEf} µm → <strong>${impactos} gotas/cm²</strong>
     </div>`;
 }
 
@@ -2303,11 +2432,11 @@ function actualizarMotorCobertura() {
 }
 
 
-// â•â•â• TARJETA HIDROSENSIBLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ TARJETA HIDROSENSIBLE ══════════════════════════════
 let thsGotas = [];
 let thsTamano = 7; // radio en px del canvas
 let thsModo = 'simulacion';
-const THS_CANVAS_CM = 1; // representa 1 cmÂ²
+const THS_CANVAS_CM = 1; // representa 1 cm²
 const THS_DPI_EQUIV = 96;
 
 function setThsSize(el, size) {
@@ -2340,7 +2469,7 @@ function thsTouchGota(e) {
 }
 
 function thsAgregarGota(x, y) {
-  // Radio variable Â± 20% para simular variabilidad natural
+  // Radio variable ± 20% para simular variabilidad natural
   const radio = thsTamano * (0.85 + Math.random() * 0.3);
   thsGotas.push({ x, y, r: radio });
   thsRenderCanvas();
@@ -2362,15 +2491,15 @@ function thsRenderCanvas() {
   for (let x = 0; x < W; x += 24) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for (let y = 0; y < H; y += 24) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-  // Escala 1 cmÂ² box
+  // Escala 1 cm² box
   ctx.strokeStyle = 'rgba(150,130,60,.5)';
   ctx.lineWidth = 1.5;
   ctx.strokeRect(10, 10, 96, 96);
   ctx.fillStyle = 'rgba(150,130,60,.6)';
   ctx.font = '10px DM Mono, monospace';
-  ctx.fillText('1 cmÂ²', 14, 22);
+  ctx.fillText('1 cm²', 14, 22);
 
-  // Gotas azul-Ã­ndigo
+  // Gotas azul-índigo
   thsGotas.forEach(g => {
     ctx.beginPath();
     ctx.arc(g.x, g.y, g.r, 0, Math.PI * 2);
@@ -2386,19 +2515,19 @@ function thsRenderCanvas() {
   const gotasCm2 = thsContarGotasCm2();
   ctx.fillStyle = 'rgba(28,18,8,.7)';
   ctx.font = 'bold 13px DM Sans, sans-serif';
-  ctx.fillText(`${gotasCm2} g/cmÂ²`, W - 90, H - 12);
+  ctx.fillText(`${gotasCm2} g/cm²`, W - 90, H - 12);
 }
 
 function thsContarGotasCm2() {
-  // Cuenta gotas dentro del cuadrado de 96Ã—96px = 1cmÂ² de referencia
+  // Cuenta gotas dentro del cuadrado de 96×96px = 1cm² de referencia
   return thsGotas.filter(g => g.x >= 10 && g.x <= 106 && g.y >= 10 && g.y <= 106).length;
 }
 
 function thsActualizarStats() {
   const n = thsContarGotasCm2();
-  // VMD estimado: el radio en px â†’ escala a micrones (96px = 1cm, 10000Âµm/cm)
+  // VMD estimado: el radio en px → escala a micrones (96px = 1cm, 10000µm/cm)
   const avgRadio = thsTamano; // px
-  const vmdEstimado = Math.round((avgRadio / 96) * 10000 * 0.5); // diÃ¡metro en Âµm
+  const vmdEstimado = Math.round((avgRadio / 96) * 10000 * 0.5); // diámetro en µm
   // L/ha estimado
   const lhaEst = ((Math.pow(vmdEstimado, 3) * n * Math.PI) / 6e7).toFixed(1);
   // Cobertura
@@ -2406,9 +2535,9 @@ function thsActualizarStats() {
   const cobPct = Math.min(n * Math.PI * r_cm * r_cm * 100, 100).toFixed(1);
 
   document.getElementById('ths-impactos').textContent = n;
-  document.getElementById('ths-vmd-est').textContent = vmdEstimado > 0 ? vmdEstimado + '' : 'â€”';
+  document.getElementById('ths-vmd-est').textContent = vmdEstimado > 0 ? vmdEstimado + '' : '—';
   document.getElementById('ths-cobertura').textContent = cobPct + '%';
-  document.getElementById('ths-lha-est').textContent = lhaEst > 0 ? lhaEst : 'â€”';
+  document.getElementById('ths-lha-est').textContent = lhaEst > 0 ? lhaEst : '—';
 
   evaluarTarjeta();
 }
@@ -2430,17 +2559,17 @@ function evaluarTarjeta() {
 
   // Calcular clases fuera del template
   const claseItem = excede ? 'ok' : cumple ? 'ok' : n > obj.min * 0.7 ? 'alerta' : 'critico';
-  const iconoItem = excede ? 'âœ…' : cumple ? 'âœ…' : n > obj.min * 0.7 ? 'âš ï¸' : 'ðŸš«';
+  const iconoItem = excede ? '✅' : cumple ? '✅' : n > obj.min * 0.7 ? '⚠️' : '🚫';
   const tituloItem = excede ? 'Cobertura excelente' : cumple ? 'Cobertura adecuada' : n > obj.min * 0.7 ? 'Cobertura marginal' : 'Cobertura insuficiente';
-  const textoItem = n + ' gotas/cmÂ² Â· Objetivo FAO: ' + obj.min + 'â€“' + obj.max + ' para ' + obj.label.toLowerCase() + '.' + (!cumple ? ' NecesitÃ¡s aumentar el caudal o reducir el VMD.' : '');
+  const textoItem = n + ' gotas/cm² · Objetivo FAO: ' + obj.min + '–' + obj.max + ' para ' + obj.label.toLowerCase() + '.' + (!cumple ? ' Necesitás aumentar el caudal o reducir el VMD.' : '');
 
   document.getElementById('ths-evaluacion').innerHTML =
     '<div style="margin-bottom:.8rem">' +
     '<div style="display:flex;justify-content:space-between;font-size:.72rem;color:rgba(28,18,8,.5);margin-bottom:.3rem">' +
-    '<span>0</span><span>MÃ­n: ' + obj.min + '</span><span>Ã“ptimo: ' + obj.max + '</span></div>' +
+    '<span>0</span><span>Mín: ' + obj.min + '</span><span>Óptimo: ' + obj.max + '</span></div>' +
     '<div style="height:10px;background:rgba(28,18,8,.08);border-radius:5px;overflow:hidden">' +
     '<div style="height:100%;width:' + barW + '%;background:' + barColor + ';border-radius:5px;transition:width .5s"></div></div>' +
-    '<div style="font-size:.72rem;color:rgba(28,18,8,.45);margin-top:.25rem;text-align:right">' + n + ' de ' + obj.min + ' mÃ­nimos (' + pct + '%)</div></div>' +
+    '<div style="font-size:.72rem;color:rgba(28,18,8,.45);margin-top:.25rem;text-align:right">' + n + ' de ' + obj.min + ' mínimos (' + pct + '%)</div></div>' +
     '<div class="rec-item ' + claseItem + '">' +
     '<div class="rec-icon">' + iconoItem + '</div>' +
     '<div class="rec-content">' +
@@ -2449,32 +2578,32 @@ function evaluarTarjeta() {
     '</div></div>';
 
   const verd = document.getElementById('ths-veredicto');
-  const verdTitulo = excede ? 'AplicaciÃ³n excelente' : cumple ? 'AplicaciÃ³n correcta' : n > obj.min * 0.7 ? 'Revisar parÃ¡metros' : 'AplicaciÃ³n deficiente';
+  const verdTitulo = excede ? 'Aplicación excelente' : cumple ? 'Aplicación correcta' : n > obj.min * 0.7 ? 'Revisar parámetros' : 'Aplicación deficiente';
   verd.innerHTML =
     '<div style="font-size:1.4rem">' + iconoItem + '</div>' +
     '<div><div style="font-family:\'DM Serif Display\',serif;font-size:1rem;margin-bottom:.2rem">' + verdTitulo + '</div>' +
-    '<div style="font-size:.78rem;color:rgba(255,253,248,.55)">' + n + ' gotas/cmÂ² Â· ' + pct + '% del objetivo FAO</div></div>';
+    '<div style="font-size:.78rem;color:rgba(255,253,248,.55)">' + n + ' gotas/cm² · ' + pct + '% del objetivo FAO</div></div>';
 
   const ajDiv = document.getElementById('ths-ajustes');
   if (cumple) {
-    ajDiv.innerHTML = '<div class="rec-item ok"><div class="rec-icon">âœ…</div><div class="rec-content"><div class="rec-titulo ok">Sin ajustes necesarios</div><div class="rec-texto">La cobertura lograda cumple con los estÃ¡ndares FAO/INTA para este tipo de aplicaciÃ³n.</div></div></div>';
+    ajDiv.innerHTML = '<div class="rec-item ok"><div class="rec-icon">✅</div><div class="rec-content"><div class="rec-titulo ok">Sin ajustes necesarios</div><div class="rec-texto">La cobertura lograda cumple con los estándares FAO/INTA para este tipo de aplicación.</div></div></div>';
   } else {
     ajDiv.innerHTML =
-      '<div class="rec-item alerta"><div class="rec-icon">âš ï¸</div><div class="rec-content"><div class="rec-titulo alerta">Aumentar volumen de caldo</div><div class="rec-texto">Incrementar L/ha o reducir VMD para lograr mÃ¡s impactos por cmÂ².</div></div></div>' +
-      '<div class="rec-item info"><div class="rec-icon">ðŸ’¨</div><div class="rec-content"><div class="rec-titulo info">Verificar velocidad de avance</div><div class="rec-texto">Reducir la velocidad aumenta el tiempo de exposiciÃ³n y mejora la cobertura.</div></div></div>' +
-      '<div class="rec-item info"><div class="rec-icon">ðŸ”©</div><div class="rec-content"><div class="rec-titulo info">Evaluar cambio de boquilla</div><div class="rec-texto">Una boquilla de menor tamaÃ±o ISO produce gotas mÃ¡s pequeÃ±as y mÃ¡s numerosas a igual presiÃ³n.</div></div></div>';
+      '<div class="rec-item alerta"><div class="rec-icon">⚠️</div><div class="rec-content"><div class="rec-titulo alerta">Aumentar volumen de caldo</div><div class="rec-texto">Incrementar L/ha o reducir VMD para lograr más impactos por cm².</div></div></div>' +
+      '<div class="rec-item info"><div class="rec-icon">💨</div><div class="rec-content"><div class="rec-titulo info">Verificar velocidad de avance</div><div class="rec-texto">Reducir la velocidad aumenta el tiempo de exposición y mejora la cobertura.</div></div></div>' +
+      '<div class="rec-item info"><div class="rec-icon">🔩</div><div class="rec-content"><div class="rec-titulo info">Evaluar cambio de boquilla</div><div class="rec-texto">Una boquilla de menor tamaño ISO produce gotas más pequeñas y más numerosas a igual presión.</div></div></div>';
   }
 }
 
 function thsAutoSpray() {
-  // Genera spray automÃ¡tico basado en parÃ¡metros del Motor de Cobertura
+  // Genera spray automático basado en parámetros del Motor de Cobertura
   const n = parseInt(document.getElementById('cob-impactos-slider')?.value) || 30;
   const canvas = document.getElementById('ths-canvas');
   const W = canvas.width, H = canvas.height;
   thsGotas = [];
 
-  // DistribuciÃ³n Poisson simulada en todo el canvas, concentrada en el cuadro 1cmÂ²
-  const totalGotas = Math.round(n * 1.5); // un poco mÃ¡s para el Ã¡rea total
+  // Distribución Poisson simulada en todo el canvas, concentrada en el cuadro 1cm²
+  const totalGotas = Math.round(n * 1.5); // un poco más para el área total
   for (let i = 0; i < totalGotas; i++) {
     const x = 10 + Math.random() * (W - 20);
     const y = 10 + Math.random() * (H - 20);
@@ -2493,9 +2622,9 @@ function thsLimpiar() {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   thsRenderCanvas();
   document.getElementById('ths-impactos').textContent = '0';
-  document.getElementById('ths-vmd-est').textContent = 'â€”';
+  document.getElementById('ths-vmd-est').textContent = '—';
   document.getElementById('ths-cobertura').textContent = '0%';
-  document.getElementById('ths-lha-est').textContent = 'â€”';
+  document.getElementById('ths-lha-est').textContent = '—';
 }
 
 function calcTarjetaReal() {
@@ -2503,14 +2632,14 @@ function calcTarjetaReal() {
   const diam_mm = parseFloat(document.getElementById('ths-real-diametro').value) || 0;
   const tipo = document.getElementById('ths-real-tipo').value;
 
-  // VMD real = diÃ¡metro mancha / factor de expansiÃ³n (~1.5â€“2x)
-  const vmdReal = diam_mm > 0 ? Math.round((diam_mm * 1000) / 1.7) : 0; // mm â†’ Âµm / factor
-  const lhaEst = vmdReal > 0 && n > 0 ? ((Math.pow(vmdReal,3) * n * Math.PI) / 6e7).toFixed(1) : 'â€”';
+  // VMD real = diámetro mancha / factor de expansión (~1.5–2x)
+  const vmdReal = diam_mm > 0 ? Math.round((diam_mm * 1000) / 1.7) : 0; // mm → µm / factor
+  const lhaEst = vmdReal > 0 && n > 0 ? ((Math.pow(vmdReal,3) * n * Math.PI) / 6e7).toFixed(1) : '—';
   const r_cm = (vmdReal / 2) * 1e-4;
   const cobPct = n > 0 && vmdReal > 0 ? Math.min(n * Math.PI * r_cm * r_cm * 100, 100).toFixed(1) : '0';
 
   document.getElementById('ths-impactos').textContent = n;
-  document.getElementById('ths-vmd-est').textContent = vmdReal > 0 ? vmdReal : 'â€”';
+  document.getElementById('ths-vmd-est').textContent = vmdReal > 0 ? vmdReal : '—';
   document.getElementById('ths-cobertura').textContent = cobPct + '%';
   document.getElementById('ths-lha-est').textContent = lhaEst;
 
@@ -2526,12 +2655,12 @@ function initTarjetaCanvas() {
 
 
 
-// â•â•â• EVALUACIÃ“N DE CANOPEO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ EVALUACIÓN DE CANOPEO ══════════════════════════════
 
 let canopeoEscenario = 'barbecho';
 let canopeoTeorico = { lha: null, vmd: null, impactos: null, tipo: null };
 
-// Estructura de datos para cada posiciÃ³n y sus 3 repeticiones
+// Estructura de datos para cada posición y sus 3 repeticiones
 // { superior: [{img, base64, resultado}, ...], medio: [...], inferior: [...] }
 let canopeoData = {
   barbecho: [ {img:null,base64:null,resultado:null}, {img:null,base64:null,resultado:null}, {img:null,base64:null,resultado:null} ],
@@ -2541,10 +2670,10 @@ let canopeoData = {
 };
 
 const POSICION_CONFIG = {
-  barbecho: { titulo:'Barbecho / Suelo desnudo', subtitulo:'Sin interferencia â€” cotejo directo con teÃ³rico', icon:'ðŸŒ¾', clase:'barbecho', color:'rgba(200,162,85,.15)' },
-  superior: { titulo:'Tarjeta Superior', subtitulo:'Sin interferencia de canopeo â€” parte alta del cultivo', icon:'â˜€ï¸', clase:'superior', color:'rgba(58,122,184,.12)' },
-  medio:    { titulo:'Tarjeta 1/3 Medio', subtitulo:'Interior del canopeo â€” zona media del cultivo', icon:'ðŸŒ¿', clase:'medio', color:'rgba(42,122,74,.1)' },
-  inferior: { titulo:'Tarjeta 1/3 Inferior', subtitulo:'Base del canopeo â€” zona mÃ¡s difÃ­cil de penetrar', icon:'ðŸŒ±', clase:'inferior', color:'rgba(184,122,32,.1)' },
+  barbecho: { titulo:'Barbecho / Suelo desnudo', subtitulo:'Sin interferencia — cotejo directo con teórico', icon:'🌾', clase:'barbecho', color:'rgba(200,162,85,.15)' },
+  superior: { titulo:'Tarjeta Superior', subtitulo:'Sin interferencia de canopeo — parte alta del cultivo', icon:'☀️', clase:'superior', color:'rgba(58,122,184,.12)' },
+  medio:    { titulo:'Tarjeta 1/3 Medio', subtitulo:'Interior del canopeo — zona media del cultivo', icon:'🌿', clase:'medio', color:'rgba(42,122,74,.1)' },
+  inferior: { titulo:'Tarjeta 1/3 Inferior', subtitulo:'Base del canopeo — zona más difícil de penetrar', icon:'🌱', clase:'inferior', color:'rgba(184,122,32,.1)' },
 };
 
 function setEscenario(esc) {
@@ -2587,15 +2716,15 @@ function renderPosiciones() {
                 ? `<img src="${rep.img}" class="rep-slot-img">
                    <div class="rep-slot-overlay">
                      <div class="rep-slot-val">${rep.resultado ? rep.resultado.impactos_cm2 : '...'}</div>
-                     <div class="rep-slot-lbl">g/cmÂ²</div>
+                     <div class="rep-slot-lbl">g/cm²</div>
                    </div>`
-                : `<div class="rep-add-icon">ðŸ“·</div>
+                : `<div class="rep-add-icon">📷</div>
                    <div class="rep-add-label">Foto Rep ${i+1}</div>`
               }
             </div>`).join('')}
         </div>
 
-        <!-- Stats de la posiciÃ³n -->
+        <!-- Stats de la posición -->
         <div class="posicion-stats" id="pos-stats-${pos}">
           ${calcStatsHTML(pos)}
         </div>
@@ -2608,10 +2737,10 @@ function calcStatsHTML(pos) {
   const resultados = datos.filter(d => d.resultado);
   if (!resultados.length) {
     return `
-      <div class="pos-stat"><div class="pos-stat-val">â€”</div><div class="pos-stat-lbl">Gotas/cmÂ²</div></div>
-      <div class="pos-stat"><div class="pos-stat-val">â€”</div><div class="pos-stat-lbl">VMD Âµm</div></div>
-      <div class="pos-stat"><div class="pos-stat-val">â€”</div><div class="pos-stat-lbl">L/ha</div></div>
-      <div class="pos-stat"><div class="pos-stat-val">â€”</div><div class="pos-stat-lbl">CV%</div></div>`;
+      <div class="pos-stat"><div class="pos-stat-val">—</div><div class="pos-stat-lbl">Gotas/cm²</div></div>
+      <div class="pos-stat"><div class="pos-stat-val">—</div><div class="pos-stat-lbl">VMD µm</div></div>
+      <div class="pos-stat"><div class="pos-stat-val">—</div><div class="pos-stat-lbl">L/ha</div></div>
+      <div class="pos-stat"><div class="pos-stat-val">—</div><div class="pos-stat-lbl">CV%</div></div>`;
   }
 
   const impactos = resultados.map(r => r.resultado.impactos_cm2);
@@ -2634,10 +2763,10 @@ function calcStatsHTML(pos) {
   const claseCV  = cv <= 25 ? 'ok' : cv <= 40 ? 'warn' : 'danger';
 
   return `
-    <div class="pos-stat"><div class="pos-stat-val ${claseImp}">${avgImp}</div><div class="pos-stat-lbl">Gotas/cmÂ²</div></div>
-    <div class="pos-stat"><div class="pos-stat-val">${avgVMD}</div><div class="pos-stat-lbl">VMD Âµm</div></div>
+    <div class="pos-stat"><div class="pos-stat-val ${claseImp}">${avgImp}</div><div class="pos-stat-lbl">Gotas/cm²</div></div>
+    <div class="pos-stat"><div class="pos-stat-val">${avgVMD}</div><div class="pos-stat-lbl">VMD µm</div></div>
     <div class="pos-stat"><div class="pos-stat-val">${lhaEst}</div><div class="pos-stat-lbl">L/ha est.</div></div>
-    <div class="pos-stat"><div class="pos-stat-val ${claseCV}">${impactos.length > 1 ? cv + '%' : 'â€”'}</div><div class="pos-stat-lbl">CV%</div></div>`;
+    <div class="pos-stat"><div class="pos-stat-val ${claseCV}">${impactos.length > 1 ? cv + '%' : '—'}</div><div class="pos-stat-lbl">CV%</div></div>`;
 }
 
 function actualizarBotonAnalizar() {
@@ -2646,8 +2775,8 @@ function actualizarBotonAnalizar() {
     s + canopeoData[pos].filter(d => d.base64).length, 0);
   const btn = document.getElementById('btn-analizar-todo');
   btn.textContent = totalFotos > 0
-    ? 'ðŸ¤– Analizar ' + totalFotos + ' tarjeta' + (totalFotos > 1 ? 's' : '') + ' con IA'
-    : 'ðŸ¤– Analizar todas las tarjetas con IA';
+    ? '🤖 Analizar ' + totalFotos + ' tarjeta' + (totalFotos > 1 ? 's' : '') + ' con IA'
+    : '🤖 Analizar todas las tarjetas con IA';
   btn.disabled = totalFotos === 0;
 }
 
@@ -2671,10 +2800,10 @@ async function analizarTodoCanopeo() {
 
       const posLabel = POSICION_CONFIG[pos].titulo;
       const condMeteo = STATE.meteo
-        ? 'T=' + STATE.meteo.temperature_2m + 'Â°C, HR=' + STATE.meteo.relative_humidity_2m + '%, viento=' + STATE.meteo.wind_speed_10m + 'km/h.'
+        ? 'T=' + STATE.meteo.temperature_2m + '°C, HR=' + STATE.meteo.relative_humidity_2m + '%, viento=' + STATE.meteo.wind_speed_10m + 'km/h.'
         : '';
 
-      const prompt = 'AnalizÃ¡ esta tarjeta hidrosensible. PosiciÃ³n: ' + posLabel + '. Tipo de aplicaciÃ³n: ' + obj.label + ' (objetivo FAO: ' + obj.min + '-' + obj.max + ' gotas/cmÂ²). ' + condMeteo + ' RespondÃ© SOLO con JSON: {"impactos_cm2":<int>,"vmd_estimado":<int>,"cobertura_pct":<float>,"distribucion":"<uniforme|irregular|muy_irregular>","confianza":"<alta|media|baja>","cumple_objetivo":<bool>}';
+      const prompt = 'Analizá esta tarjeta hidrosensible. Posición: ' + posLabel + '. Tipo de aplicación: ' + obj.label + ' (objetivo FAO: ' + obj.min + '-' + obj.max + ' gotas/cm²). ' + condMeteo + ' Respondé SOLO con JSON: {"impactos_cm2":<int>,"vmd_estimado":<int>,"cobertura_pct":<float>,"distribucion":"<uniforme|irregular|muy_irregular>","confianza":"<alta|media|baja>","cumple_objetivo":<bool>}';
 
       try {
         const response = await pulvClaude({
@@ -2690,7 +2819,7 @@ async function analizarTodoCanopeo() {
         const clean = texto.replace(/```json|```/g, '').trim();
         rep.resultado = JSON.parse(clean);
       } catch(e) {
-        rep.resultado = { impactos_cm2: 0, vmd_estimado: 0, cobertura_pct: 0, distribucion:'â€”', confianza:'baja', cumple_objetivo:false, error: true };
+        rep.resultado = { impactos_cm2: 0, vmd_estimado: 0, cobertura_pct: 0, distribucion:'—', confianza:'baja', cumple_objetivo:false, error: true };
       }
 
       // Actualizar slot con resultado
@@ -2701,18 +2830,18 @@ async function analizarTodoCanopeo() {
           '<img src="' + rep.img + '" class="rep-slot-img">' +
           '<div class="rep-slot-overlay">' +
             '<div class="rep-slot-val">' + (rep.resultado.impactos_cm2 || '?') + '</div>' +
-            '<div class="rep-slot-lbl">g/cmÂ²</div>' +
+            '<div class="rep-slot-lbl">g/cm²</div>' +
           '</div>' +
           '<input type="file" accept="image/*" capture="environment" onchange="cargarRepFoto(event,' + JSON.stringify(pos) + ',' + i + ')">';
       }
 
-      // Actualizar stats de la posiciÃ³n
+      // Actualizar stats de la posición
       document.getElementById('pos-stats-' + pos).innerHTML = calcStatsHTML(pos);
     }
   }
 
   btn.disabled = false;
-  btn.innerHTML = 'ðŸ”„ Re-analizar';
+  btn.innerHTML = '🔄 Re-analizar';
 
   // Mostrar cotejo
   generarCotejo();
@@ -2744,7 +2873,7 @@ function generarCotejo() {
 
   document.getElementById('canopeo-cotejo').style.display = '';
 
-  // Filas de cotejo (solo si hay teÃ³rico)
+  // Filas de cotejo (solo si hay teórico)
   const rows = [];
   if (teorico.impactos) {
     const desvImp = teorico.impactos ? Math.round(((statsRef.avgImp - teorico.impactos) / teorico.impactos) * 100) : null;
@@ -2754,9 +2883,9 @@ function generarCotejo() {
     const claseDesv = (d) => d === null ? '' : Math.abs(d) <= 15 ? 'ok' : Math.abs(d) <= 30 ? 'warn' : 'danger';
 
     rows.push(
-      { lbl:'Impactos/cmÂ²', teo: teorico.impactos || 'â€”', real: statsRef.avgImp, desv: desvImp },
-      { lbl:'VMD (Âµm)',      teo: teorico.vmd || 'â€”',      real: statsRef.avgVMD, desv: desvVMD },
-      { lbl:'L/ha estimado', teo: lhaReal || 'â€”',          real: statsRef.lhaEst, desv: desvLha },
+      { lbl:'Impactos/cm²', teo: teorico.impactos || '—', real: statsRef.avgImp, desv: desvImp },
+      { lbl:'VMD (µm)',      teo: teorico.vmd || '—',      real: statsRef.avgVMD, desv: desvVMD },
+      { lbl:'L/ha estimado', teo: lhaReal || '—',          real: statsRef.lhaEst, desv: desvLha },
     );
 
     document.getElementById('cotejo-rows').innerHTML = rows.map(r => {
@@ -2765,18 +2894,18 @@ function generarCotejo() {
         '<div class="cotejo-label">' + r.lbl + '</div>' +
         '<div class="cotejo-val">' + r.teo + '</div>' +
         '<div class="cotejo-val">' + r.real + '</div>' +
-        '<div class="cotejo-desvio ' + cls + '">' + (r.desv !== null ? (r.desv > 0 ? '+' : '') + r.desv + '%' : 'â€”') + '</div>' +
+        '<div class="cotejo-desvio ' + cls + '">' + (r.desv !== null ? (r.desv > 0 ? '+' : '') + r.desv + '%' : '—') + '</div>' +
         '</div>';
     }).join('');
 
-    // SemÃ¡foro global
+    // Semáforo global
     const desvios = [desvImp, desvVMD, desvLha].filter(d => d !== null);
     const maxDesv = Math.max(...desvios.map(Math.abs));
-    document.getElementById('cotejo-semaforo').textContent = maxDesv <= 15 ? 'âœ…' : maxDesv <= 30 ? 'âš ï¸' : 'ðŸš«';
+    document.getElementById('cotejo-semaforo').textContent = maxDesv <= 15 ? '✅' : maxDesv <= 30 ? '⚠️' : '🚫';
   } else {
     document.getElementById('cotejo-rows').innerHTML =
-      '<div style="font-size:.8rem;color:rgba(255,253,248,.4);padding:.5rem">SincronizÃ¡ los datos teÃ³ricos del Motor de Cobertura para ver el cotejo completo.</div>';
-    document.getElementById('cotejo-semaforo').textContent = 'â„¹ï¸';
+      '<div style="font-size:.8rem;color:rgba(255,253,248,.4);padding:.5rem">Sincronizá los datos teóricos del Motor de Cobertura para ver el cotejo completo.</div>';
+    document.getElementById('cotejo-semaforo').textContent = 'ℹ️';
   }
 
   // CV entre repeticiones
@@ -2795,7 +2924,7 @@ function generarCotejo() {
       '</div>';
   }).join('');
 
-  // PenetraciÃ³n de canopeo (solo cultivo)
+  // Penetración de canopeo (solo cultivo)
   if (canopeoEscenario === 'cultivo') {
     document.getElementById('penetracion-section').style.display = '';
     const stSup = calcPromedioPos('superior');
@@ -2823,7 +2952,7 @@ function generarCotejo() {
   // Sugerencias de ajuste
   generarSugerencias(statsRef, lhaReal);
 
-  // TelemetrÃ­a
+  // Telemetría
   guardarTelemetria(statsRef);
 }
 
@@ -2838,21 +2967,21 @@ function generarSugerencias(statsRef, lhaReal) {
     const deficit = Math.round(((obj.min - statsRef.avgImp) / statsRef.avgImp) * 100);
     sugs.push({
       tipo: 'critico',
-      txt: '<strong>Cobertura insuficiente (' + statsRef.avgImp + ' vs ' + obj.min + ' g/cmÂ²):</strong> ' +
-           'NecesitÃ¡s aumentar la cobertura un ' + deficit + '%. Opciones: ' +
-           'â‘  Reducir velocidad de avance (' + deficit + '% menos) ' +
-           'â‘¡ Aumentar L/ha (' + Math.round(lhaReal * (1 + deficit/100)) + ' L/ha) ' +
-           'â‘¢ Cambiar a boquilla de menor tamaÃ±o ISO para reducir VMD.'
+      txt: '<strong>Cobertura insuficiente (' + statsRef.avgImp + ' vs ' + obj.min + ' g/cm²):</strong> ' +
+           'Necesitás aumentar la cobertura un ' + deficit + '%. Opciones: ' +
+           '① Reducir velocidad de avance (' + deficit + '% menos) ' +
+           '② Aumentar L/ha (' + Math.round(lhaReal * (1 + deficit/100)) + ' L/ha) ' +
+           '③ Cambiar a boquilla de menor tamaño ISO para reducir VMD.'
     });
   } else if (statsRef.avgImp >= obj.max * 1.3) {
     sugs.push({
       tipo: 'ok',
-      txt: '<strong>Excelente cobertura (' + statsRef.avgImp + ' g/cmÂ²):</strong> SuperÃ¡s el objetivo FAO. PodÃ©s aumentar velocidad para mayor rendimiento sin comprometer eficacia.'
+      txt: '<strong>Excelente cobertura (' + statsRef.avgImp + ' g/cm²):</strong> Superás el objetivo FAO. Podés aumentar velocidad para mayor rendimiento sin comprometer eficacia.'
     });
   } else {
     sugs.push({
       tipo: 'ok',
-      txt: '<strong>Cobertura dentro del objetivo (' + statsRef.avgImp + ' g/cmÂ²):</strong> Los parÃ¡metros de aplicaciÃ³n son correctos para este tipo de producto.'
+      txt: '<strong>Cobertura dentro del objetivo (' + statsRef.avgImp + ' g/cm²):</strong> Los parámetros de aplicación son correctos para este tipo de producto.'
     });
   }
 
@@ -2860,23 +2989,23 @@ function generarSugerencias(statsRef, lhaReal) {
   if (statsRef.cv > 30 && statsRef.n > 1) {
     sugs.push({
       tipo: 'warn',
-      txt: '<strong>DistribuciÃ³n irregular (CV ' + statsRef.cv + '%):</strong> Alta variabilidad entre repeticiones. Verificar: uniformidad de picos (aforo), presiÃ³n constante en el botalÃ³n, superposiciÃ³n correcta entre pasadas.'
+      txt: '<strong>Distribución irregular (CV ' + statsRef.cv + '%):</strong> Alta variabilidad entre repeticiones. Verificar: uniformidad de picos (aforo), presión constante en el botalón, superposición correcta entre pasadas.'
     });
   }
 
-  // VMD vs teÃ³rico
+  // VMD vs teórico
   if (teo.vmd && Math.abs(statsRef.avgVMD - teo.vmd) > teo.vmd * 0.20) {
     const delta = statsRef.avgVMD - teo.vmd;
     sugs.push({
       tipo: delta > 0 ? 'warn' : 'warn',
-      txt: '<strong>VMD real ' + (delta > 0 ? 'mayor' : 'menor') + ' al teÃ³rico (' + statsRef.avgVMD + ' vs ' + teo.vmd + ' Âµm):</strong> ' +
+      txt: '<strong>VMD real ' + (delta > 0 ? 'mayor' : 'menor') + ' al teórico (' + statsRef.avgVMD + ' vs ' + teo.vmd + ' µm):</strong> ' +
            (delta > 0
-             ? 'El Delta T y/o viento estÃ¡n evaporando/fragmentando las gotas. Considerar antievaporante o reducir el VMD objetivo.'
-             : 'La presiÃ³n de trabajo puede ser mayor a la calibrada. Verificar manÃ³metro.')
+             ? 'El Delta T y/o viento están evaporando/fragmentando las gotas. Considerar antievaporante o reducir el VMD objetivo.'
+             : 'La presión de trabajo puede ser mayor a la calibrada. Verificar manómetro.')
     });
   }
 
-  // PenetraciÃ³n (cultivo)
+  // Penetración (cultivo)
   if (canopeoEscenario === 'cultivo') {
     const stSup = calcPromedioPos('superior');
     const stInf = calcPromedioPos('inferior');
@@ -2885,17 +3014,17 @@ function generarSugerencias(statsRef, lhaReal) {
       if (penPct < 20) {
         sugs.push({
           tipo: 'critico',
-          txt: '<strong>PenetraciÃ³n de canopeo muy baja (' + penPct + '%):</strong> Solo el ' + penPct + '% de la cobertura superior llega al estrato inferior. Para mejorar: â‘  Reducir VMD (gotas mÃ¡s chicas penetran mejor) â‘¡ Aumentar presiÃ³n de trabajo â‘¢ Considerar equipo con asistencia de aire â‘£ Aplicar en estadio fenolÃ³gico mÃ¡s temprano.'
+          txt: '<strong>Penetración de canopeo muy baja (' + penPct + '%):</strong> Solo el ' + penPct + '% de la cobertura superior llega al estrato inferior. Para mejorar: ① Reducir VMD (gotas más chicas penetran mejor) ② Aumentar presión de trabajo ③ Considerar equipo con asistencia de aire ④ Aplicar en estadio fenológico más temprano.'
         });
       } else if (penPct < 40) {
         sugs.push({
           tipo: 'warn',
-          txt: '<strong>PenetraciÃ³n de canopeo moderada (' + penPct + '%):</strong> Aceptable para fungicidas sistÃ©micos. Para contacto/protectores, considerar aumentar L/ha o reducir VMD.'
+          txt: '<strong>Penetración de canopeo moderada (' + penPct + '%):</strong> Aceptable para fungicidas sistémicos. Para contacto/protectores, considerar aumentar L/ha o reducir VMD.'
         });
       } else {
         sugs.push({
           tipo: 'ok',
-          txt: '<strong>Buena penetraciÃ³n de canopeo (' + penPct + '%):</strong> La cobertura llega adecuadamente a los estratos inferiores del cultivo.'
+          txt: '<strong>Buena penetración de canopeo (' + penPct + '%):</strong> La cobertura llega adecuadamente a los estratos inferiores del cultivo.'
         });
       }
     }
@@ -2907,7 +3036,7 @@ function generarSugerencias(statsRef, lhaReal) {
 }
 
 function guardarTelemetria(statsRef) {
-  // Guardar punto de datos en localStorage para futura sincronizaciÃ³n a Supabase
+  // Guardar punto de datos en localStorage para futura sincronización a Supabase
   const punto = {
     ts: new Date().toISOString(),
     lat: STATE.lat, lon: STATE.lon,
@@ -2929,12 +3058,12 @@ function guardarTelemetria(statsRef) {
 
   const telem = JSON.parse(localStorage.getItem('agromotor-telemetria') || '[]');
   telem.push(punto);
-  // Mantener solo los Ãºltimos 100 puntos
+  // Mantener solo los últimos 100 puntos
   if (telem.length > 100) telem.shift();
   localStorage.setItem('agromotor-telemetria', JSON.stringify(telem));
 
   document.getElementById('telem-status').innerHTML =
-    '<span style="color:var(--ok)">âœ… Guardado localmente (' + telem.length + ' registros)</span>';
+    '<span style="color:var(--ok)">✅ Guardado localmente (' + telem.length + ' registros)</span>';
 }
 
 function cargarTeoricoDesdeMotor() {
@@ -2948,15 +3077,15 @@ function cargarTeoricoDesdeMotor() {
   const imp = impEl ? parseInt(impEl.textContent) : null;
 
   if (!lha || !vmd || !imp || isNaN(lha) || isNaN(vmd) || isNaN(imp)) {
-    toast('âš ï¸ AndÃ¡ al Motor de Cobertura y calculÃ¡ primero');
+    toast('⚠️ Andá al Motor de Cobertura y calculá primero');
     return;
   }
 
   canopeoTeorico = { lha, vmd, impactos: imp };
   document.getElementById('canopeo-teorico-txt').innerHTML =
-    '<strong>' + imp + ' gotas/cmÂ²</strong> Â· VMD ' + vmd + ' Âµm Â· ' + lha + ' L/ha' +
-    ' <span style="color:var(--ok);font-weight:600">âœ“ Sincronizado</span>';
-  toast('âœ… Datos teÃ³ricos sincronizados desde el Motor de Cobertura');
+    '<strong>' + imp + ' gotas/cm²</strong> · VMD ' + vmd + ' µm · ' + lha + ' L/ha' +
+    ' <span style="color:var(--ok);font-weight:600">✓ Sincronizado</span>';
+  toast('✅ Datos teóricos sincronizados desde el Motor de Cobertura');
 }
 
 function actualizarCotejo() {
@@ -2966,10 +3095,10 @@ function actualizarCotejo() {
   if (st) generarCotejo();
 }
 
-// Parche: fix Ã­ndice en slot update durante anÃ¡lisis
+// Parche: fix índice en slot update durante análisis
 const _origAnalizarTodoCanopeo = analizarTodoCanopeo;
 
-// â•â•â• ANALIZADOR FOTO TARJETA HIDROSENSIBLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ ANALIZADOR FOTO TARJETA HIDROSENSIBLE ══════════════
 
 let fotoBase64 = null;
 let fotoMimeType = 'image/jpeg';
@@ -3010,31 +3139,31 @@ async function analizarFotoIA() {
   btnAnalizar.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0"></div> Analizando...';
 
   document.getElementById('foto-resultado-ia').style.display = '';
-  document.getElementById('ia-stats-row').innerHTML = '<div class="ia-typing"><div class="spinner" style="width:20px;height:20px;border-width:2px;flex-shrink:0"></div> La IA estÃ¡ analizando la tarjeta hidrosensible...</div>';
+  document.getElementById('ia-stats-row').innerHTML = '<div class="ia-typing"><div class="spinner" style="width:20px;height:20px;border-width:2px;flex-shrink:0"></div> La IA está analizando la tarjeta hidrosensible...</div>';
   document.getElementById('ia-veredicto-texto').innerHTML = '';
 
   const condMeteo = STATE.meteo ? (
-    'Condiciones ambientales al momento: temperatura ' + STATE.meteo.temperature_2m + 'Â°C, ' +
+    'Condiciones ambientales al momento: temperatura ' + STATE.meteo.temperature_2m + '°C, ' +
     'HR ' + STATE.meteo.relative_humidity_2m + '%, viento ' + STATE.meteo.wind_speed_10m + ' km/h.'
   ) : '';
 
-  const prompt = `Sos un experto en aplicaciÃ³n de fitosanitarios y anÃ¡lisis de tarjetas hidrosensibles. AnalizÃ¡ esta imagen de una tarjeta hidrosensible tomada despuÃ©s de una aplicaciÃ³n agrÃ­cola.
+  const prompt = `Sos un experto en aplicación de fitosanitarios y análisis de tarjetas hidrosensibles. Analizá esta imagen de una tarjeta hidrosensible tomada después de una aplicación agrícola.
 
-Tipo de aplicaciÃ³n realizada: ${obj.label} (objetivo FAO: ${obj.min}â€“${obj.max} gotas/cmÂ²).
+Tipo de aplicación realizada: ${obj.label} (objetivo FAO: ${obj.min}–${obj.max} gotas/cm²).
 ${condMeteo}
 
-Por favor analizÃ¡ la imagen y respondÃ© ÃšNICAMENTE con un objeto JSON con esta estructura exacta (sin texto adicional, sin backticks):
+Por favor analizá la imagen y respondé ÚNICAMENTE con un objeto JSON con esta estructura exacta (sin texto adicional, sin backticks):
 {
-  "impactos_cm2": <nÃºmero entero estimado de gotas por cmÂ²>,
-  "vmd_estimado": <VMD estimado en micrones, nÃºmero entero>,
-  "cobertura_pct": <porcentaje de cobertura foliar, nÃºmero con un decimal>,
+  "impactos_cm2": <número entero estimado de gotas por cm²>,
+  "vmd_estimado": <VMD estimado en micrones, número entero>,
+  "cobertura_pct": <porcentaje de cobertura foliar, número con un decimal>,
   "distribucion": "<uniforme|irregular|muy_irregular>",
   "confianza": "<alta|media|baja>",
   "cumple_objetivo": <true|false>,
   "calidad_imagen": "<buena|aceptable|deficiente>",
-  "veredicto": "<texto de 2-3 oraciones con el veredicto agronÃ³mico>",
-  "recomendaciones": ["<recomendaciÃ³n 1>", "<recomendaciÃ³n 2>", "<recomendaciÃ³n 3>"],
-  "observaciones_imagen": "<observaciÃ³n sobre la calidad de la foto o factores que afectan el anÃ¡lisis>"
+  "veredicto": "<texto de 2-3 oraciones con el veredicto agronómico>",
+  "recomendaciones": ["<recomendación 1>", "<recomendación 2>", "<recomendación 3>"],
+  "observaciones_imagen": "<observación sobre la calidad de la foto o factores que afectan el análisis>"
 }`;
 
   try {
@@ -3073,11 +3202,11 @@ Por favor analizÃ¡ la imagen y respondÃ© ÃšNICAMENTE con un objeto JSON co
 
   } catch(err) {
     document.getElementById('ia-stats-row').innerHTML =
-      '<div style="color:var(--warn);font-size:.82rem;padding:.5rem">âš ï¸ Error al analizar: ' + err.message + '. VerificÃ¡ tu conexiÃ³n e intentÃ¡ nuevamente.</div>';
+      '<div style="color:var(--warn);font-size:.82rem;padding:.5rem">⚠️ Error al analizar: ' + err.message + '. Verificá tu conexión e intentá nuevamente.</div>';
   }
 
   btnAnalizar.disabled = false;
-  btnAnalizar.innerHTML = 'ðŸ”„ Volver a analizar';
+  btnAnalizar.innerHTML = '🔄 Volver a analizar';
 }
 
 function renderResultadoIA(r, obj) {
@@ -3091,10 +3220,10 @@ function renderResultadoIA(r, obj) {
   document.getElementById('ia-stats-row').innerHTML =
     '<div class="ia-stat">' +
       '<div class="ia-stat-val" style="color:' + colorImpactos + '">' + r.impactos_cm2 + '</div>' +
-      '<div class="ia-stat-lbl">Gotas/cmÂ²</div>' +
+      '<div class="ia-stat-lbl">Gotas/cm²</div>' +
     '</div>' +
     '<div class="ia-stat">' +
-      '<div class="ia-stat-val" style="color:' + colorVMD + '">' + r.vmd_estimado + ' Âµm</div>' +
+      '<div class="ia-stat-val" style="color:' + colorVMD + '">' + r.vmd_estimado + ' µm</div>' +
       '<div class="ia-stat-lbl">VMD estimado</div>' +
     '</div>' +
     '<div class="ia-stat">' +
@@ -3103,9 +3232,9 @@ function renderResultadoIA(r, obj) {
     '</div>' +
     '<div class="ia-stat">' +
       '<div class="ia-stat-val" style="font-size:1rem;color:rgba(255,253,248,.7)">' +
-        (r.distribucion === 'uniforme' ? 'âœ… Uniforme' : r.distribucion === 'irregular' ? 'âš ï¸ Irregular' : 'ðŸš« Muy irregular') +
+        (r.distribucion === 'uniforme' ? '✅ Uniforme' : r.distribucion === 'irregular' ? '⚠️ Irregular' : '🚫 Muy irregular') +
       '</div>' +
-      '<div class="ia-stat-lbl">DistribuciÃ³n</div>' +
+      '<div class="ia-stat-lbl">Distribución</div>' +
     '</div>';
 
   // Confianza badge
@@ -3114,7 +3243,7 @@ function renderResultadoIA(r, obj) {
   // Veredicto
   const veredictoHtml =
     '<div style="margin-bottom:.8rem">' +
-      '<span style="font-size:1.1rem">' + (r.cumple_objetivo ? 'âœ…' : 'âš ï¸') + '</span>' +
+      '<span style="font-size:1.1rem">' + (r.cumple_objetivo ? '✅' : '⚠️') + '</span>' +
       '<span style="font-weight:700;margin-left:.4rem;color:' + (r.cumple_objetivo ? '#6DBF82' : 'var(--amber)') + '">' +
         (r.cumple_objetivo ? 'Cobertura adecuada' : 'Cobertura insuficiente') +
       '</span>' +
@@ -3123,19 +3252,19 @@ function renderResultadoIA(r, obj) {
     '<div style="margin-bottom:.9rem;line-height:1.7">' + r.veredicto + '</div>' +
     (r.recomendaciones && r.recomendaciones.length ? (
       '<div style="font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.5rem">Recomendaciones</div>' +
-      r.recomendaciones.map(rec => '<div style="display:flex;gap:.5rem;margin-bottom:.35rem"><span style="color:var(--spray-blue);flex-shrink:0">â†’</span><span>' + rec + '</span></div>').join('')
+      r.recomendaciones.map(rec => '<div style="display:flex;gap:.5rem;margin-bottom:.35rem"><span style="color:var(--spray-blue);flex-shrink:0">→</span><span>' + rec + '</span></div>').join('')
     ) : '') +
     (r.observaciones_imagen ? (
       '<div style="margin-top:.8rem;padding:.6rem .8rem;background:rgba(255,255,255,.04);border-radius:8px;font-size:.75rem;color:rgba(255,253,248,.4)">' +
-      'ðŸ“· ' + r.observaciones_imagen + '</div>'
+      '📷 ' + r.observaciones_imagen + '</div>'
     ) : '') +
     '<div style="margin-top:.9rem;padding:.6rem .8rem;background:rgba(255,255,255,.04);border-radius:8px;font-size:.7rem;color:rgba(255,253,248,.3);line-height:1.5">' +
-    'âš  El anÃ¡lisis por IA es orientativo. Para mediciÃ³n de precisiÃ³n usar DepositScan (USDA) o papel hidrosensible con lupa calibrada.' +
+    '⚠ El análisis por IA es orientativo. Para medición de precisión usar DepositScan (USDA) o papel hidrosensible con lupa calibrada.' +
     '</div>';
 
   document.getElementById('ia-veredicto-texto').innerHTML = veredictoHtml;
 
-  // Sincronizar con el panel de evaluaciÃ³n principal
+  // Sincronizar con el panel de evaluación principal
   document.getElementById('ths-impactos').textContent = r.impactos_cm2;
   document.getElementById('ths-vmd-est').textContent = r.vmd_estimado;
   document.getElementById('ths-cobertura').textContent = r.cobertura_pct + '%';
@@ -3144,7 +3273,7 @@ function renderResultadoIA(r, obj) {
   const lhaEst = ((Math.pow(r.vmd_estimado, 3) * r.impactos_cm2 * Math.PI) / 6e7).toFixed(1);
   document.getElementById('ths-lha-est').textContent = lhaEst;
 
-  // Disparar evaluaciÃ³n general
+  // Disparar evaluación general
   document.getElementById('ths-tipo-eval').value = document.getElementById('foto-tipo-aplic').value;
   evaluarTarjeta();
 }
@@ -3161,40 +3290,40 @@ function setThsModo(modo) {
   thsModo = modo;
 }
 
-// â•â•â• COMPATIBILIDAD DE MEZCLAS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ COMPATIBILIDAD DE MEZCLAS ════════════════════════════
 
-// Base de compatibilidad fÃ­sica y biolÃ³gica
+// Base de compatibilidad física y biológica
 // Estructura: clave = par de tipos, valor = {estado, titulo, texto, orden}
 const COMPAT_DB = {
-  // â”€â”€ PARES INCOMPATIBLES â”€â”€
-  'glifosato+calcio':       { st:'incompatible', txt:'El CaÂ²âº forma sal insoluble con el glifosato (glicina-Ca), inactivÃ¡ndolo. Si el agua es dura, agregar sulfato de amonio PRIMERO.' },
-  'glifosato+magnesio':     { st:'incompatible', txt:'Similar al calcio: el MgÂ²âº antagoniza el glifosato. Usar sulfato de amonio como corrector antes del herbicida.' },
-  'op+alcalino':            { st:'incompatible', txt:'Los organofosforados (clorpirifos, metamidofos) se hidrolizan rÃ¡pidamente en pH > 7. Usar buffer Ã¡cido antes de agregar el OP.' },
-  'cobre+emulsionable':     { st:'incompatible', txt:'Los fungicidas cÃºpricos son incompatibles con la mayorÃ­a de formulaciones EC (emulsionables). Pueden precipitar y tapar filtros.' },
-  '2bd+temperatura':        { st:'precaucion', txt:'El 2,4-D amina a temperaturas > 28Â°C volatiliza. Verificar condiciones antes de mezclar con cualquier producto.' },
-  'dicamba+temperatura':    { st:'precaucion', txt:'El dicamba a temperaturas > 30Â°C tiene alto riesgo de deriva por volatilizaciÃ³n. No mezclar en horas de calor extremo.' },
+  // ── PARES INCOMPATIBLES ──
+  'glifosato+calcio':       { st:'incompatible', txt:'El Ca²⁺ forma sal insoluble con el glifosato (glicina-Ca), inactivándolo. Si el agua es dura, agregar sulfato de amonio PRIMERO.' },
+  'glifosato+magnesio':     { st:'incompatible', txt:'Similar al calcio: el Mg²⁺ antagoniza el glifosato. Usar sulfato de amonio como corrector antes del herbicida.' },
+  'op+alcalino':            { st:'incompatible', txt:'Los organofosforados (clorpirifos, metamidofos) se hidrolizan rápidamente en pH > 7. Usar buffer ácido antes de agregar el OP.' },
+  'cobre+emulsionable':     { st:'incompatible', txt:'Los fungicidas cúpricos son incompatibles con la mayoría de formulaciones EC (emulsionables). Pueden precipitar y tapar filtros.' },
+  '2bd+temperatura':        { st:'precaucion', txt:'El 2,4-D amina a temperaturas > 28°C volatiliza. Verificar condiciones antes de mezclar con cualquier producto.' },
+  'dicamba+temperatura':    { st:'precaucion', txt:'El dicamba a temperaturas > 30°C tiene alto riesgo de deriva por volatilización. No mezclar en horas de calor extremo.' },
 
-  // â”€â”€ PARES COMPATIBLES CON PRECAUCIÃ“N â”€â”€
-  'glifosato+als':          { st:'precaucion', txt:'Compatibles fÃ­sicamente. BiolÃ³gicamente: algunos ALS pueden competir por absorciÃ³n con glifosato. Verificar cultivo objetivo.' },
-  'glifosato+2bd':          { st:'precaucion', txt:'Mezcla frecuente y funcional. Requiere pH 5â€“6 para ambos productos. Usar acidificante + sulfato de amonio. Temperatura < 28Â°C.' },
-  'glifosato+dicamba':      { st:'precaucion', txt:'Mezcla registrada (Engenia, Roundup PowerMax). Requiere pH < 7, temperatura < 30Â°C y condiciones de baja volatilizaciÃ³n.' },
-  'triazol+estrobilurina':  { st:'compatible', txt:'Mezcla de referencia para fungicidas foliares. Complemento de modos de acciÃ³n (DMI + QoI). Amplia compatibilidad fÃ­sica.' },
-  'triazol+insecticida':    { st:'compatible', txt:'Generalmente compatible. Verificar siempre test de jarrita. Mantener agitaciÃ³n durante la mezcla.' },
-  'glifosato+graminicida':  { st:'precaucion', txt:'Potencial antagonismo: el cletodim puede inhibirse con glifosato. Consultar bibliografÃ­a de la especie objetivo.' },
+  // ── PARES COMPATIBLES CON PRECAUCIÓN ──
+  'glifosato+als':          { st:'precaucion', txt:'Compatibles físicamente. Biológicamente: algunos ALS pueden competir por absorción con glifosato. Verificar cultivo objetivo.' },
+  'glifosato+2bd':          { st:'precaucion', txt:'Mezcla frecuente y funcional. Requiere pH 5–6 para ambos productos. Usar acidificante + sulfato de amonio. Temperatura < 28°C.' },
+  'glifosato+dicamba':      { st:'precaucion', txt:'Mezcla registrada (Engenia, Roundup PowerMax). Requiere pH < 7, temperatura < 30°C y condiciones de baja volatilización.' },
+  'triazol+estrobilurina':  { st:'compatible', txt:'Mezcla de referencia para fungicidas foliares. Complemento de modos de acción (DMI + QoI). Amplia compatibilidad física.' },
+  'triazol+insecticida':    { st:'compatible', txt:'Generalmente compatible. Verificar siempre test de jarrita. Mantener agitación durante la mezcla.' },
+  'glifosato+graminicida':  { st:'precaucion', txt:'Potencial antagonismo: el cletodim puede inhibirse con glifosato. Consultar bibliografía de la especie objetivo.' },
   'fungicida+insecticida':  { st:'compatible', txt:'Mezcla habitual en cereales. Generalmente compatible. Verificar pH neutro y test de jarrita.' },
-  'als+hormonal':           { st:'precaucion', txt:'Verificar compatibilidad por lote. Algunos ALS + hormonales pueden generar fitotoxicidad en condiciones de estrÃ©s.' },
-  'foliar+herbicida':       { st:'precaucion', txt:'Riesgo de fitotoxicidad si el herbicida daÃ±a la cutÃ­cula. Generalmente evitar mezclar con herbicidas de contacto.' },
-  'coadyuvante+fungicida':  { st:'compatible', txt:'Los surfactantes no iÃ³nicos son compatibles con la mayorÃ­a de fungicidas. Verificar concentraciÃ³n para evitar espuma.' },
+  'als+hormonal':           { st:'precaucion', txt:'Verificar compatibilidad por lote. Algunos ALS + hormonales pueden generar fitotoxicidad en condiciones de estrés.' },
+  'foliar+herbicida':       { st:'precaucion', txt:'Riesgo de fitotoxicidad si el herbicida daña la cutícula. Generalmente evitar mezclar con herbicidas de contacto.' },
+  'coadyuvante+fungicida':  { st:'compatible', txt:'Los surfactantes no iónicos son compatibles con la mayoría de fungicidas. Verificar concentración para evitar espuma.' },
   'sulfatoamonio+glifosato':{ st:'compatible', txt:'Mezcla recomendada: el sulfato de amonio mejora la eficacia del glifosato en agua dura. Agregar PRIMERO al agua, dejar disolver.' },
-  'acidificante+op':        { st:'compatible', txt:'El buffer Ã¡cido es imprescindible para OP en agua alcalina. Agregar primero el acidificante, verificar pH 5â€“6.5 antes del OP.' },
+  'acidificante+op':        { st:'compatible', txt:'El buffer ácido es imprescindible para OP en agua alcalina. Agregar primero el acidificante, verificar pH 5–6.5 antes del OP.' },
 };
 
 const PRODUCTOS_MEZCLA = [
   { id:'glifosato',     nombre:'Glifosato 48%',           tipo:'herbicida', grupo:'glifosato',    orden:3, formulacion:'SL' },
-  { id:'glifo_amonio',  nombre:'Glifosato amÃ³nico 66%',   tipo:'herbicida', grupo:'glifosato',    orden:3, formulacion:'SL' },
+  { id:'glifo_amonio',  nombre:'Glifosato amónico 66%',   tipo:'herbicida', grupo:'glifosato',    orden:3, formulacion:'SL' },
   { id:'2bd',           nombre:'2,4-D amina 72%',          tipo:'herbicida', grupo:'2bd',           orden:4, formulacion:'SL' },
   { id:'dicamba',       nombre:'Dicamba 48%',              tipo:'herbicida', grupo:'dicamba',       orden:4, formulacion:'SL' },
-  { id:'als_metsulfuron',nombre:'MetsulfurÃ³n 60%',         tipo:'herbicida', grupo:'als',           orden:5, formulacion:'WG' },
+  { id:'als_metsulfuron',nombre:'Metsulfurón 60%',         tipo:'herbicida', grupo:'als',           orden:5, formulacion:'WG' },
   { id:'als_imazetapir',nombre:'Imazetapir 10%',           tipo:'herbicida', grupo:'als',           orden:5, formulacion:'SL' },
   { id:'atrazina',      nombre:'Atrazina 50% SC',          tipo:'herbicida', grupo:'preemergente',  orden:4, formulacion:'SC' },
   { id:'cletodim',      nombre:'Cletodim 24%',             tipo:'herbicida', grupo:'graminicida',   orden:4, formulacion:'EC' },
@@ -3215,7 +3344,7 @@ const PRODUCTOS_MEZCLA = [
   { id:'antideriva',    nombre:'Reductor de deriva',       tipo:'coadyuvante',grupo:'coadyuvante',  orden:2, formulacion:'SL' },
   { id:'antievaporante',nombre:'Antievaporante',           tipo:'coadyuvante',grupo:'coadyuvante',  orden:2, formulacion:'SL' },
   { id:'urea_foliar',   nombre:'Urea foliar 20%',          tipo:'foliar',    grupo:'foliar',        orden:5, formulacion:'SL' },
-  { id:'boro',          nombre:'Boro lÃ­quido',             tipo:'foliar',    grupo:'foliar',        orden:5, formulacion:'SL' },
+  { id:'boro',          nombre:'Boro líquido',             tipo:'foliar',    grupo:'foliar',        orden:5, formulacion:'SL' },
 ];
 
 let mezclaSeleccion = [null, null]; // hasta 4 slots
@@ -3236,10 +3365,10 @@ function renderMezclaSlots() {
             Producto ${i+1}
           </span>
         </div>
-        ${sel ? `<button class="mezcla-remove" onclick="quitarMezcla(${i})">âœ•</button>` : ''}
+        ${sel ? `<button class="mezcla-remove" onclick="quitarMezcla(${i})">✕</button>` : ''}
       </div>
       <select class="form-select" onchange="setMezcla(${i}, this.value)">
-        <option value="">â€” Seleccionar producto â€”</option>
+        <option value="">— Seleccionar producto —</option>
         ${PRODUCTOS_MEZCLA.map(p => `<option value="${p.id}" ${sel===p.id?'selected':''}>${p.nombre} (${p.tipo})</option>`).join('')}
       </select>
     </div>`).join('');
@@ -3264,7 +3393,7 @@ function agregarSlot() {
 function analizarMezcla() {
   const seleccionados = mezclaSeleccion.filter(Boolean).map(id => PRODUCTOS_MEZCLA.find(p => p.id === id));
   if (seleccionados.length < 2) {
-    document.getElementById('mezcla-resultado').innerHTML = '<div class="rec-item alerta"><div class="rec-icon">âš ï¸</div><div class="rec-content"><div class="rec-titulo alerta">SeleccionÃ¡ al menos 2 productos</div></div></div>';
+    document.getElementById('mezcla-resultado').innerHTML = '<div class="rec-item alerta"><div class="rec-icon">⚠️</div><div class="rec-content"><div class="rec-titulo alerta">Seleccioná al menos 2 productos</div></div></div>';
     return;
   }
 
@@ -3285,10 +3414,10 @@ function analizarMezcla() {
         // Reglas generales
         let st = 'compatible', txt = 'Sin incompatibilidades conocidas documentadas. Realizar test de jarrita antes de cargar el equipo.';
         if (a.formulacion === 'EC' && b.formulacion === 'EC') {
-          st = 'precaucion'; txt = 'Dos formulaciones EC (emulsionables): riesgo de rotura de emulsiÃ³n. Test de jarrita obligatorio.';
+          st = 'precaucion'; txt = 'Dos formulaciones EC (emulsionables): riesgo de rotura de emulsión. Test de jarrita obligatorio.';
         }
         if (a.formulacion === 'WP' || b.formulacion === 'WP') {
-          st = 'precaucion'; txt = 'FormulaciÃ³n WP (polvo mojable): dispersar en agua aparte antes de agregar al tanque. Mantener agitaciÃ³n.';
+          st = 'precaucion'; txt = 'Formulación WP (polvo mojable): dispersar en agua aparte antes de agregar al tanque. Mantener agitación.';
         }
         resultados.push({ a: a.nombre, b: b.nombre, st, txt });
       }
@@ -3298,21 +3427,21 @@ function analizarMezcla() {
   // Reglas globales de la mezcla completa
   const grupos = seleccionados.map(p => p.grupo);
   if (grupos.includes('glifosato') && !grupos.includes('sulfatoamonio') && !grupos.includes('acidificante')) {
-    alertasGlobales.push({ ico:'âš ï¸', txt:'La mezcla contiene glifosato pero no incluye sulfato de amonio ni acidificante. Se recomienda agregar ambos para agua dura y/o alcalina.' });
+    alertasGlobales.push({ ico:'⚠️', txt:'La mezcla contiene glifosato pero no incluye sulfato de amonio ni acidificante. Se recomienda agregar ambos para agua dura y/o alcalina.' });
   }
   if (grupos.includes('op') && !grupos.includes('acidificante')) {
-    alertasGlobales.push({ ico:'ðŸš¨', txt:'La mezcla contiene un organofosforado. Es imprescindible un buffer de pH. Agregar acidificante primero.' });
+    alertasGlobales.push({ ico:'🚨', txt:'La mezcla contiene un organofosforado. Es imprescindible un buffer de pH. Agregar acidificante primero.' });
   }
   if (grupos.filter(g => g === 'ec' || g === 'graminicida' || g === 'triazol').length >= 2) {
-    alertasGlobales.push({ ico:'ðŸ§ª', txt:'MÃºltiples formulaciones EC: realizar SIEMPRE test de jarrita antes de cargar el equipo completo.' });
+    alertasGlobales.push({ ico:'🧪', txt:'Múltiples formulaciones EC: realizar SIEMPRE test de jarrita antes de cargar el equipo completo.' });
   }
 
   // Veredicto global
   const hayIncompat = resultados.some(r => r.st === 'incompatible');
   const hayPrecaucion = resultados.some(r => r.st === 'precaucion');
   const verdGlobal = hayIncompat ? 'incompatible' : hayPrecaucion ? 'precaucion' : 'compatible';
-  const verdIcono = hayIncompat ? 'ðŸš«' : hayPrecaucion ? 'âš ï¸' : 'âœ…';
-  const verdTxt = hayIncompat ? 'Mezcla con incompatibilidades â€” revisar antes de aplicar' : hayPrecaucion ? 'Mezcla viable con precauciones' : 'Mezcla compatible';
+  const verdIcono = hayIncompat ? '🚫' : hayPrecaucion ? '⚠️' : '✅';
+  const verdTxt = hayIncompat ? 'Mezcla con incompatibilidades — revisar antes de aplicar' : hayPrecaucion ? 'Mezcla viable con precauciones' : 'Mezcla compatible';
 
   document.getElementById('mezcla-resultado').innerHTML = `
     <div class="compat-result ${verdGlobal}" style="margin-bottom:1rem">
@@ -3329,7 +3458,7 @@ function analizarMezcla() {
     ${resultados.map(r => `
       <div class="compat-result ${r.st}">
         <div class="compat-header">
-          <span style="font-size:1rem">${r.st==='incompatible'?'ðŸš«':r.st==='precaucion'?'âš ï¸':'âœ…'}</span>
+          <span style="font-size:1rem">${r.st==='incompatible'?'🚫':r.st==='precaucion'?'⚠️':'✅'}</span>
           <span class="compat-titulo ${r.st}">${r.a} + ${r.b}</span>
         </div>
         <div class="compat-texto">${r.txt}</div>
@@ -3346,38 +3475,38 @@ function analizarMezcla() {
         <div style="width:26px;height:26px;border-radius:50%;background:rgba(58,122,184,.12);color:var(--spray-blue);font-size:.75rem;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
         <div>
           <div style="font-size:.84rem;font-weight:600;color:var(--earth)">${p.nombre}</div>
-          <div style="font-size:.7rem;color:rgba(28,18,8,.4)">${p.formulacion} Â· ${p.tipo}</div>
+          <div style="font-size:.7rem;color:rgba(28,18,8,.4)">${p.formulacion} · ${p.tipo}</div>
         </div>
       </div>`).join('')}
     <div style="font-size:.72rem;color:rgba(28,18,8,.4);margin-top:.7rem;line-height:1.5">
-      âš  Siempre con el tanque a mitad de agua. Agitar entre cada producto. Completar con agua al final.
+      ⚠ Siempre con el tanque a mitad de agua. Agitar entre cada producto. Completar con agua al final.
     </div>`;
 }
 
-// â•â•â• CARENCIA Y REINGRESO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ CARENCIA Y REINGRESO ═════════════════════════════════
 const CARENCIA_DB = [
   // Herbicidas
-  { id:1, nombre:'Glifosato 48%', pa:'Glifosato', tipo:'herbicida', cultivos:['Soja','MaÃ­z','Girasol','Trigo','Barbecho'], carencia_dias:0, reingreso_hs:4, ica:'Clase IV â€” Ligeramente peligroso', notas:'Sin perÃ­odo de carencia para barbecho. En cultivos verificar marbete por variedad.' },
-  { id:2, nombre:'2,4-D amina 72%', pa:'2,4-D amina', tipo:'herbicida', cultivos:['Trigo','MaÃ­z','Pasturas','Barbecho'], carencia_dias:21, reingreso_hs:24, ica:'Clase II â€” Moderadamente peligroso', notas:'No aplicar en floraciÃ³n. Distancia mÃ­nima de cultivos sensibles: 500 m.' },
-  { id:3, nombre:'Dicamba 48%', pa:'Dicamba', tipo:'herbicida', cultivos:['MaÃ­z','Soja XtendFlex','Barbecho'], carencia_dias:30, reingreso_hs:24, ica:'Clase III â€” Levemente peligroso', notas:'Solo en variedades tolerantes. Alta volatilizaciÃ³n > 27Â°C.' },
-  { id:4, nombre:'Atrazina 50%', pa:'Atrazina', tipo:'herbicida', cultivos:['MaÃ­z','Sorgo'], carencia_dias:45, reingreso_hs:12, ica:'Clase III', notas:'Residualidad alta en suelo. RestricciÃ³n de 45 dÃ­as antes de cosecha.' },
-  { id:5, nombre:'MetsulfurÃ³n 60%', pa:'MetsulfurÃ³n metil', tipo:'herbicida', cultivos:['Trigo','Cebada'], carencia_dias:60, reingreso_hs:4, ica:'Clase IV', notas:'Alta residualidad. RestricciÃ³n estricta para cultivos de verano en rotaciÃ³n.' },
-  { id:6, nombre:'Cletodim 24%', pa:'Cletodim', tipo:'herbicida', cultivos:['Soja','Girasol','Colza'], carencia_dias:45, reingreso_hs:12, ica:'Clase III', notas:'No aplicar en gramÃ­neas cultivadas. Respetar carencia estrictamente.' },
-  { id:7, nombre:'Haloxifop 12%', pa:'Haloxifop-metil', tipo:'herbicida', cultivos:['Soja','Girasol'], carencia_dias:60, reingreso_hs:24, ica:'Clase II', notas:'Alta carencia. Verificar restricciones para exportaciÃ³n.' },
-  { id:8, nombre:'Saflufenacil 70%', pa:'Saflufenacil', tipo:'herbicida', cultivos:['Barbecho','MaÃ­z'], carencia_dias:0, reingreso_hs:12, ica:'Clase III', notas:'Principalmente para barbecho. En maÃ­z verificar tolerancia varietal.' },
+  { id:1, nombre:'Glifosato 48%', pa:'Glifosato', tipo:'herbicida', cultivos:['Soja','Maíz','Girasol','Trigo','Barbecho'], carencia_dias:0, reingreso_hs:4, ica:'Clase IV — Ligeramente peligroso', notas:'Sin período de carencia para barbecho. En cultivos verificar marbete por variedad.' },
+  { id:2, nombre:'2,4-D amina 72%', pa:'2,4-D amina', tipo:'herbicida', cultivos:['Trigo','Maíz','Pasturas','Barbecho'], carencia_dias:21, reingreso_hs:24, ica:'Clase II — Moderadamente peligroso', notas:'No aplicar en floración. Distancia mínima de cultivos sensibles: 500 m.' },
+  { id:3, nombre:'Dicamba 48%', pa:'Dicamba', tipo:'herbicida', cultivos:['Maíz','Soja XtendFlex','Barbecho'], carencia_dias:30, reingreso_hs:24, ica:'Clase III — Levemente peligroso', notas:'Solo en variedades tolerantes. Alta volatilización > 27°C.' },
+  { id:4, nombre:'Atrazina 50%', pa:'Atrazina', tipo:'herbicida', cultivos:['Maíz','Sorgo'], carencia_dias:45, reingreso_hs:12, ica:'Clase III', notas:'Residualidad alta en suelo. Restricción de 45 días antes de cosecha.' },
+  { id:5, nombre:'Metsulfurón 60%', pa:'Metsulfurón metil', tipo:'herbicida', cultivos:['Trigo','Cebada'], carencia_dias:60, reingreso_hs:4, ica:'Clase IV', notas:'Alta residualidad. Restricción estricta para cultivos de verano en rotación.' },
+  { id:6, nombre:'Cletodim 24%', pa:'Cletodim', tipo:'herbicida', cultivos:['Soja','Girasol','Colza'], carencia_dias:45, reingreso_hs:12, ica:'Clase III', notas:'No aplicar en gramíneas cultivadas. Respetar carencia estrictamente.' },
+  { id:7, nombre:'Haloxifop 12%', pa:'Haloxifop-metil', tipo:'herbicida', cultivos:['Soja','Girasol'], carencia_dias:60, reingreso_hs:24, ica:'Clase II', notas:'Alta carencia. Verificar restricciones para exportación.' },
+  { id:8, nombre:'Saflufenacil 70%', pa:'Saflufenacil', tipo:'herbicida', cultivos:['Barbecho','Maíz'], carencia_dias:0, reingreso_hs:12, ica:'Clase III', notas:'Principalmente para barbecho. En maíz verificar tolerancia varietal.' },
   // Fungicidas
-  { id:9, nombre:'Tebuconazole 25%', pa:'Tebuconazole', tipo:'fungicida', cultivos:['Trigo','Soja','Girasol','MaÃ­z'], carencia_dias:21, reingreso_hs:24, ica:'Clase III', notas:'Triazol sistÃ©mico. Respetar carencia en trigo para exportaciÃ³n a UE.' },
-  { id:10, nombre:'Azoxistrobin + Ciproconazole', pa:'Azoxistrobin + Ciproconazole', tipo:'fungicida', cultivos:['Soja','MaÃ­z','Trigo','Girasol'], carencia_dias:14, reingreso_hs:4, ica:'Clase IV', notas:'Estrobilurina + triazol. Amplio espectro. Buena selectividad.' },
-  { id:11, nombre:'Trifloxistrobin + Ciproconazole', pa:'Trifloxistrobin + Ciproconazole', tipo:'fungicida', cultivos:['Soja','MaÃ­z','Trigo'], carencia_dias:21, reingreso_hs:4, ica:'Clase IV', notas:'Respetar lÃ­mites mÃ¡ximos de residuo para destino de exportaciÃ³n.' },
+  { id:9, nombre:'Tebuconazole 25%', pa:'Tebuconazole', tipo:'fungicida', cultivos:['Trigo','Soja','Girasol','Maíz'], carencia_dias:21, reingreso_hs:24, ica:'Clase III', notas:'Triazol sistémico. Respetar carencia en trigo para exportación a UE.' },
+  { id:10, nombre:'Azoxistrobin + Ciproconazole', pa:'Azoxistrobin + Ciproconazole', tipo:'fungicida', cultivos:['Soja','Maíz','Trigo','Girasol'], carencia_dias:14, reingreso_hs:4, ica:'Clase IV', notas:'Estrobilurina + triazol. Amplio espectro. Buena selectividad.' },
+  { id:11, nombre:'Trifloxistrobin + Ciproconazole', pa:'Trifloxistrobin + Ciproconazole', tipo:'fungicida', cultivos:['Soja','Maíz','Trigo'], carencia_dias:21, reingreso_hs:4, ica:'Clase IV', notas:'Respetar límites máximos de residuo para destino de exportación.' },
   { id:12, nombre:'Mancozeb 80%', pa:'Mancozeb', tipo:'fungicida', cultivos:['Soja','Papa','Tomate','Trigo'], carencia_dias:7, reingreso_hs:24, ica:'Clase III', notas:'Fungicida de contacto. Potencial irritante respiratorio. EPP obligatorio.' },
-  { id:13, nombre:'Fluxapiroxad + Epoxiconazole', pa:'Fluxapiroxad + Epoxiconazole', tipo:'fungicida', cultivos:['Trigo','Soja','Cebada'], carencia_dias:30, reingreso_hs:12, ica:'Clase III', notas:'SDHI + triazol. Alta residualidad â€” respetar carencia para exportaciÃ³n.' },
+  { id:13, nombre:'Fluxapiroxad + Epoxiconazole', pa:'Fluxapiroxad + Epoxiconazole', tipo:'fungicida', cultivos:['Trigo','Soja','Cebada'], carencia_dias:30, reingreso_hs:12, ica:'Clase III', notas:'SDHI + triazol. Alta residualidad — respetar carencia para exportación.' },
   // Insecticidas
-  { id:14, nombre:'Clorpirifos 48%', pa:'Clorpirifos', tipo:'insecticida', cultivos:['Soja','MaÃ­z','Girasol','Trigo'], carencia_dias:21, reingreso_hs:48, ica:'Clase II â€” Moderadamente peligroso', notas:'OP de amplio espectro. Altamente tÃ³xico para abejas. Reingreso 48 hs. Restricciones en UE.' },
-  { id:15, nombre:'Lambda-cialotrina 5%', pa:'Lambda-cialotrina', tipo:'insecticida', cultivos:['Soja','MaÃ­z','Trigo','Girasol'], carencia_dias:14, reingreso_hs:24, ica:'Clase II', notas:'Piretroide. TÃ³xico para peces y abejas. Evitar aplicaciÃ³n en floraciÃ³n.' },
-  { id:16, nombre:'Cipermetrina 25%', pa:'Cipermetrina', tipo:'insecticida', cultivos:['Soja','MaÃ­z','Trigo'], carencia_dias:14, reingreso_hs:24, ica:'Clase II', notas:'Piretroide de contacto. No aplicar cerca de cursos de agua.' },
-  { id:17, nombre:'Imidacloprid 35%', pa:'Imidacloprid', tipo:'insecticida', cultivos:['Soja','MaÃ­z','Papa'], carencia_dias:21, reingreso_hs:12, ica:'Clase II', notas:'Neonicotinoide. Prohibido en floraciÃ³n. Restricciones por impacto en polinizadores.' },
-  { id:18, nombre:'Metamidofos 60%', pa:'Metamidofos', tipo:'insecticida', cultivos:['Soja','AlgodÃ³n'], carencia_dias:21, reingreso_hs:48, ica:'Clase Ib â€” Altamente peligroso', notas:'âš  ALTA PELIGROSIDAD. EPP completo obligatorio. Revisar restricciones vigentes de SENASA.' },
-  { id:19, nombre:'Spinosad 12%', pa:'Spinosad', tipo:'insecticida', cultivos:['Soja','MaÃ­z','Hortalizas'], carencia_dias:7, reingreso_hs:4, ica:'Clase IV â€” Ligeramente peligroso', notas:'Selectivo para enemigos naturales. Compatible con manejo integrado.' },
+  { id:14, nombre:'Clorpirifos 48%', pa:'Clorpirifos', tipo:'insecticida', cultivos:['Soja','Maíz','Girasol','Trigo'], carencia_dias:21, reingreso_hs:48, ica:'Clase II — Moderadamente peligroso', notas:'OP de amplio espectro. Altamente tóxico para abejas. Reingreso 48 hs. Restricciones en UE.' },
+  { id:15, nombre:'Lambda-cialotrina 5%', pa:'Lambda-cialotrina', tipo:'insecticida', cultivos:['Soja','Maíz','Trigo','Girasol'], carencia_dias:14, reingreso_hs:24, ica:'Clase II', notas:'Piretroide. Tóxico para peces y abejas. Evitar aplicación en floración.' },
+  { id:16, nombre:'Cipermetrina 25%', pa:'Cipermetrina', tipo:'insecticida', cultivos:['Soja','Maíz','Trigo'], carencia_dias:14, reingreso_hs:24, ica:'Clase II', notas:'Piretroide de contacto. No aplicar cerca de cursos de agua.' },
+  { id:17, nombre:'Imidacloprid 35%', pa:'Imidacloprid', tipo:'insecticida', cultivos:['Soja','Maíz','Papa'], carencia_dias:21, reingreso_hs:12, ica:'Clase II', notas:'Neonicotinoide. Prohibido en floración. Restricciones por impacto en polinizadores.' },
+  { id:18, nombre:'Metamidofos 60%', pa:'Metamidofos', tipo:'insecticida', cultivos:['Soja','Algodón'], carencia_dias:21, reingreso_hs:48, ica:'Clase Ib — Altamente peligroso', notas:'⚠ ALTA PELIGROSIDAD. EPP completo obligatorio. Revisar restricciones vigentes de SENASA.' },
+  { id:19, nombre:'Spinosad 12%', pa:'Spinosad', tipo:'insecticida', cultivos:['Soja','Maíz','Hortalizas'], carencia_dias:7, reingreso_hs:4, ica:'Clase IV — Ligeramente peligroso', notas:'Selectivo para enemigos naturales. Compatible con manejo integrado.' },
 ];
 
 let carenciaFiltro = 'todos';
@@ -3394,9 +3523,9 @@ function renderCarencia() {
 
   const hoy = new Date();
   document.getElementById('carencia-lista').innerHTML = lista.length === 0
-    ? '<p class="txt-muted" style="text-align:center;padding:2rem">Sin resultados para esta bÃºsqueda.</p>'
+    ? '<p class="txt-muted" style="text-align:center;padding:2rem">Sin resultados para esta búsqueda.</p>'
     : lista.map(p => {
-        // SemÃ¡foro de carencia
+        // Semáforo de carencia
         const color = p.carencia_dias === 0 ? 'verde' : p.carencia_dias <= 14 ? 'verde' : p.carencia_dias <= 30 ? 'ambar' : 'roja';
         const reingSemaforo = p.reingreso_hs <= 4 ? 'verde' : p.reingreso_hs <= 24 ? 'ambar' : 'roja';
         return `
@@ -3411,7 +3540,7 @@ function renderCarencia() {
           <div class="carencia-card-body">
             <div class="carencia-dato">
               <div class="carencia-dato-val" style="color:${p.carencia_dias === 0 ? 'var(--ok)' : p.carencia_dias > 30 ? 'var(--red)' : 'var(--caution)'}">${p.carencia_dias}</div>
-              <div class="carencia-dato-unit">dÃ­as</div>
+              <div class="carencia-dato-unit">días</div>
               <div class="carencia-dato-lbl">Carencia</div>
             </div>
             <div class="carencia-dato">
@@ -3421,11 +3550,11 @@ function renderCarencia() {
             </div>
             <div class="carencia-dato">
               <div style="font-size:.72rem;color:rgba(28,18,8,.55);line-height:1.4">${p.ica}</div>
-              <div class="carencia-dato-lbl" style="margin-top:.3rem">ClasificaciÃ³n</div>
+              <div class="carencia-dato-lbl" style="margin-top:.3rem">Clasificación</div>
             </div>
           </div>
           <div class="carencia-alerta ${color}">
-            ðŸ“‹ Cultivos: <strong>${p.cultivos.join(', ')}</strong><br>
+            📋 Cultivos: <strong>${p.cultivos.join(', ')}</strong><br>
             ${p.notas}
           </div>
         </div>`;
@@ -3454,12 +3583,12 @@ function calcFechaSegura() {
   const hoy = new Date();
   const diffDias = Math.ceil((fecha - hoy) / (1000 * 60 * 60 * 24));
   document.getElementById('car-calc-resultado').innerHTML = diffDias > 0
-    ? `âœ… Faltan <strong>${diffDias} dÃ­as</strong> para poder cosechar con seguridad.`
-    : `âš ï¸ La fecha segura de cosecha ya pasÃ³ hace ${Math.abs(diffDias)} dÃ­as.`;
+    ? `✅ Faltan <strong>${diffDias} días</strong> para poder cosechar con seguridad.`
+    : `⚠️ La fecha segura de cosecha ya pasó hace ${Math.abs(diffDias)} días.`;
 }
 
 
-// â•â•â• MAPA DE LOTES â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ MAPA DE LOTES ═════════════════════════════════════
 let mapaObj = null;
 let mapaCapaSatelite = null;
 let mapaCapaOsm = null;
@@ -3474,7 +3603,7 @@ let mapaLayers = {}; // id -> layer leaflet
 
 function initMapa() {
   if (mapaObj) return;
-  // Centro inicial: ubicaciÃ³n GPS o CÃ³rdoba
+  // Centro inicial: ubicación GPS o Córdoba
   const lat = STATE.lat || -31.42;
   const lon = STATE.lon || -64.18;
 
@@ -3482,14 +3611,14 @@ function initMapa() {
 
   // Capa OSM base
   mapaCapaOsm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: 'Â© OpenStreetMap',
+    attribution: '© OpenStreetMap',
     maxZoom: 19
   }).addTo(mapaObj);
 
-  // Capa satÃ©lite (Esri)
+  // Capa satélite (Esri)
   mapaCapaSatelite = L.tileLayer(
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    { attribution: 'Â© Esri', maxZoom: 19 }
+    { attribution: '© Esri', maxZoom: 19 }
   );
 
   // Marcador GPS
@@ -3497,7 +3626,7 @@ function initMapa() {
     L.circleMarker([STATE.lat, STATE.lon], {
       radius: 8, fillColor: '#3A7AB8', color: 'white',
       weight: 2, fillOpacity: 0.9
-    }).addTo(mapaObj).bindTooltip('Tu ubicaciÃ³n', { permanent: false });
+    }).addTo(mapaObj).bindTooltip('Tu ubicación', { permanent: false });
   }
 
   // Click handler para dibujo
@@ -3508,7 +3637,7 @@ function initMapa() {
   lotesGuardados.forEach(l => renderLoteEnMapa(l));
   renderListaLotes();
 
-  document.getElementById('mapa-estado').textContent = 'âœ… Mapa listo â€” GPS activo';
+  document.getElementById('mapa-estado').textContent = '✅ Mapa listo — GPS activo';
 }
 
 function mapaClick(e) {
@@ -3523,16 +3652,16 @@ function mapaClick(e) {
     color: '#3A7AB8', weight: 2, dashArray: '6,4', opacity: 0.8
   }).addTo(mapaObj);
 
-  // Actualizar superficie y vÃ©rtices
+  // Actualizar superficie y vértices
   document.getElementById('nuevo-lote-vertices').textContent =
-    `VÃ©rtices: ${puntosPolygono.length} (doble click para cerrar)`;
+    `Vértices: ${puntosPolygono.length} (doble click para cerrar)`;
 
   if (puntosPolygono.length >= 3) {
     const sup = calcSuperficieHa(puntosPolygono);
     document.getElementById('nuevo-lote-sup').textContent =
       `Superficie estimada: ${sup.toFixed(2)} ha`;
 
-    // Preview polÃ­gono cerrado
+    // Preview polígono cerrado
     if (polygonTemp) mapaObj.removeLayer(polygonTemp);
     polygonTemp = L.polygon(puntosPolygono, {
       color: '#3A7AB8', fillColor: '#3A7AB8',
@@ -3544,7 +3673,7 @@ function mapaClick(e) {
 function mapaDblClick(e) {
   if (!modosDibujo || puntosPolygono.length < 3) return;
   L.DomEvent.stop(e);
-  // Cerrar polÃ­gono â€” mostrar formulario
+  // Cerrar polígono — mostrar formulario
   document.getElementById('panel-instrucciones').style.display = 'none';
   document.getElementById('panel-nuevo-lote').style.display = '';
   document.getElementById('nuevo-lote-nombre').focus();
@@ -3557,10 +3686,10 @@ function toggleDibujar() {
     modosDibujo = true;
     puntosPolygono = [];
     document.getElementById('btn-dibujar').classList.add('active');
-    document.getElementById('btn-dibujar').textContent = 'âœ• Cancelar dibujo';
+    document.getElementById('btn-dibujar').textContent = '✕ Cancelar dibujo';
     document.getElementById('panel-instrucciones').style.display = '';
     document.getElementById('mapa-estado').textContent =
-      'âœï¸ Modo dibujo â€” click para marcar vÃ©rtices, doble click para cerrar';
+      '✏️ Modo dibujo — click para marcar vértices, doble click para cerrar';
     mapaObj.getContainer().style.cursor = 'crosshair';
   }
 }
@@ -3571,12 +3700,12 @@ function cancelarDibujo() {
   if (polylineTemp) { mapaObj.removeLayer(polylineTemp); polylineTemp = null; }
   if (polygonTemp) { mapaObj.removeLayer(polygonTemp); polygonTemp = null; }
   document.getElementById('btn-dibujar').classList.remove('active');
-  document.getElementById('btn-dibujar').innerHTML = 'âœï¸ Dibujar lote';
+  document.getElementById('btn-dibujar').innerHTML = '✏️ Dibujar lote';
   document.getElementById('panel-instrucciones').style.display = 'none';
   document.getElementById('panel-nuevo-lote').style.display = 'none';
   document.getElementById('nuevo-lote-nombre').value = '';
   document.getElementById('nuevo-lote-estab').value = '';
-  document.getElementById('mapa-estado').textContent = 'âœ… Mapa listo';
+  document.getElementById('mapa-estado').textContent = '✅ Mapa listo';
   mapaObj.getContainer().style.cursor = '';
 }
 
@@ -3584,7 +3713,7 @@ function guardarLote() {
   const nombre = document.getElementById('nuevo-lote-nombre').value.trim() || 'Lote sin nombre';
   const estab = document.getElementById('nuevo-lote-estab').value.trim();
   if (puntosPolygono.length < 3) {
-    alert('MarcÃ¡ al menos 3 puntos para definir el lote.');
+    alert('Marcá al menos 3 puntos para definir el lote.');
     return;
   }
 
@@ -3607,7 +3736,7 @@ function guardarLote() {
   renderLoteEnMapa(lote);
   renderListaLotes();
   cancelarDibujo();
-  toast('ðŸ—º Lote "' + nombre + '" guardado Â· ' + sup.toFixed(1) + ' ha');
+  toast('🗺 Lote "' + nombre + '" guardado · ' + sup.toFixed(1) + ' ha');
 }
 
 function renderLoteEnMapa(lote) {
@@ -3640,7 +3769,7 @@ function mostrarDetalleLote(id) {
 
   document.getElementById('detalle-lote-nombre').textContent = lote.nombre;
   document.getElementById('detalle-lote-meta').textContent =
-    `${lote.estab ? lote.estab + ' Â· ' : ''}${lote.sup} ha Â· Creado: ${lote.fechaCreacion}`;
+    `${lote.estab ? lote.estab + ' · ' : ''}${lote.sup} ha · Creado: ${lote.fechaCreacion}`;
 
   // Historial de aplicaciones del registro
   const apls = historial.filter(a => a.lote && a.lote.toLowerCase().includes(lote.nombre.toLowerCase()));
@@ -3653,12 +3782,12 @@ function mostrarDetalleLote(id) {
       <div class="aplic-mini">
         <div class="aplic-mini-dot" style="background:${a.condicion==='verde'?'var(--ok)':a.condicion==='amarillo'?'var(--caution)':'var(--red)'}"></div>
         <div>
-          <div style="font-weight:600;color:var(--earth)">${a.fecha} â€” ${a.producto || 'Sin producto'}</div>
-          <div style="color:rgba(28,18,8,.45)">${a.ha || 'â€”'} ha Â· ${a.volha || 'â€”'} L/ha</div>
+          <div style="font-weight:600;color:var(--earth)">${a.fecha} — ${a.producto || 'Sin producto'}</div>
+          <div style="color:rgba(28,18,8,.45)">${a.ha || '—'} ha · ${a.volha || '—'} L/ha</div>
         </div>
       </div>`).join('');
     if (apls.length > 5) {
-      histDiv.innerHTML += `<div style="font-size:.7rem;color:rgba(28,18,8,.4);text-align:center;margin-top:.3rem">+${apls.length-5} aplicaciones mÃ¡s en el registro</div>`;
+      histDiv.innerHTML += `<div style="font-size:.7rem;color:rgba(28,18,8,.4);text-align:center;margin-top:.3rem">+${apls.length-5} aplicaciones más en el registro</div>`;
     }
   }
 
@@ -3681,9 +3810,9 @@ function nuevaAplicacionDesdeLote() {
   if (!lote) return;
   // Navegar al registro y prellenar
   showTabById('registro');
-  document.getElementById('reg-lote').value = lote.nombre + (lote.estab ? ' â€” ' + lote.estab : '');
+  document.getElementById('reg-lote').value = lote.nombre + (lote.estab ? ' — ' + lote.estab : '');
   document.getElementById('reg-ha').value = lote.sup;
-  toast('ðŸ“‹ Registro prellenado con "' + lote.nombre + '"');
+  toast('📋 Registro prellenado con "' + lote.nombre + '"');
 }
 
 function showTabById(id) {
@@ -3700,7 +3829,7 @@ function renderListaLotes() {
   document.getElementById('lotes-count').textContent = lotesGuardados.length + ' lote' + (lotesGuardados.length !== 1 ? 's' : '');
 
   if (!lotesGuardados.length) {
-    lista.innerHTML = '<p class="txt-muted" style="font-size:.78rem;text-align:center;padding:1rem">DibujÃ¡ tu primer lote usando el botÃ³n de arriba.</p>';
+    lista.innerHTML = '<p class="txt-muted" style="font-size:.78rem;text-align:center;padding:1rem">Dibujá tu primer lote usando el botón de arriba.</p>';
     return;
   }
 
@@ -3714,13 +3843,13 @@ function renderListaLotes() {
               <span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${l.color};margin-right:.3rem;vertical-align:middle"></span>
               ${l.nombre}
             </div>
-            <div class="lote-meta">${l.estab ? l.estab + ' Â· ' : ''}${l.sup} ha Â· ${apls.length} aplicacion${apls.length !== 1 ? 'es' : ''}</div>
+            <div class="lote-meta">${l.estab ? l.estab + ' · ' : ''}${l.sup} ha · ${apls.length} aplicacion${apls.length !== 1 ? 'es' : ''}</div>
           </div>
         </div>
         <div class="lote-acciones">
-          <button class="lote-btn-sm" onclick="event.stopPropagation();mostrarDetalleLote(${l.id})">ðŸ“‹ Historial</button>
-          <button class="lote-btn-sm" onclick="event.stopPropagation();irALote(${l.id})">ðŸ—º Ver</button>
-          <button class="lote-btn-sm danger" onclick="event.stopPropagation();eliminarLote(${l.id})">ðŸ—‘</button>
+          <button class="lote-btn-sm" onclick="event.stopPropagation();mostrarDetalleLote(${l.id})">📋 Historial</button>
+          <button class="lote-btn-sm" onclick="event.stopPropagation();irALote(${l.id})">🗺 Ver</button>
+          <button class="lote-btn-sm danger" onclick="event.stopPropagation();eliminarLote(${l.id})">🗑</button>
         </div>
       </div>`;
   }).join('');
@@ -3735,7 +3864,7 @@ function irALote(id) {
 
 function eliminarLote(id) {
   const lote = lotesGuardados.find(l => l.id === id);
-  if (!lote || !confirm('Â¿Eliminar el lote "' + lote.nombre + '"?')) return;
+  if (!lote || !confirm('¿Eliminar el lote "' + lote.nombre + '"?')) return;
   if (mapaLayers[id]) { mapaObj.removeLayer(mapaLayers[id]); delete mapaLayers[id]; }
   lotesGuardados = lotesGuardados.filter(l => l.id !== id);
   localStorage.setItem('lotes-mapa', JSON.stringify(lotesGuardados));
@@ -3764,10 +3893,10 @@ function toggleSatelite() {
   }
 }
 
-// â”€â”€ Utilidades geomÃ©tricas â”€â”€
+// ── Utilidades geométricas ──
 function calcSuperficieHa(puntos) {
-  // FÃ³rmula de Gauss (Shoelace) en coordenadas lat/lon â†’ mÂ² â†’ ha
-  // AproximaciÃ³n local con factor de conversiÃ³n
+  // Fórmula de Gauss (Shoelace) en coordenadas lat/lon → m² → ha
+  // Aproximación local con factor de conversión
   let area = 0;
   const n = puntos.length;
   for (let i = 0; i < n; i++) {
@@ -3776,12 +3905,12 @@ function calcSuperficieHa(puntos) {
     area -= puntos[j][1] * puntos[i][0];
   }
   area = Math.abs(area) / 2;
-  // ConversiÃ³n: 1 grado lat â‰ˆ 111320 m, 1 grado lon â‰ˆ 111320 * cos(lat) m
+  // Conversión: 1 grado lat ≈ 111320 m, 1 grado lon ≈ 111320 * cos(lat) m
   const latMedia = puntos.reduce((s, p) => s + p[0], 0) / n;
   const factorLat = 111320;
   const factorLon = 111320 * Math.cos(latMedia * Math.PI / 180);
   const areaM2 = area * factorLat * factorLon;
-  return areaM2 / 10000; // â†’ hectÃ¡reas
+  return areaM2 / 10000; // → hectáreas
 }
 
 function calcCentroide(puntos) {
@@ -3796,19 +3925,19 @@ function colorLote() { return COLORES_LOTE[colorIdx++ % COLORES_LOTE.length]; }
 
 // Inicializar mapa cuando se activa el tab
 
-// â•â•â• EVALUACIÃ“N DE COBERTURA EN CANOPEO â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══ EVALUACIÓN DE COBERTURA EN CANOPEO ══════════════════
 
-// Estado global del mÃ³dulo
+// Estado global del módulo
 const CANOPEO = {
   modo: 'barbecho',
-  // Cada posiciÃ³n: array de 3 repeticiones { base64, mime, resultado }
+  // Cada posición: array de 3 repeticiones { base64, mime, resultado }
   barbecho: [ null, null, null ],
   superior: [ null, null, null ],
   medio:    [ null, null, null ],
   inferior: [ null, null, null ],
 };
 
-// â”€â”€ Sub-navegaciÃ³n â”€â”€
+// ── Sub-navegación ──
 function setCanopeoModo(modo) {
   CANOPEO.modo = modo;
   ['barbecho','canopeo','sintesis'].forEach(m => {
@@ -3818,7 +3947,7 @@ function setCanopeoModo(modo) {
   if (modo === 'sintesis') generarSintesis();
 }
 
-// â”€â”€ Renderizar celdas de repeticiÃ³n â”€â”€
+// ── Renderizar celdas de repetición ──
 function renderReps(posicion) {
   const container = document.getElementById('reps-' + posicion);
   if (!container) return;
@@ -3832,10 +3961,10 @@ function renderReps(posicion) {
       '<div class="rep-label">Rep ' + (i+1) + '</div>' +
       (rep && rep.resultado ?
         '<div class="rep-result" style="color:' + (rep.resultado.cumple_objetivo ? 'var(--ok)' : 'var(--caution)') + '">' +
-          rep.resultado.impactos_cm2 + ' g/cmÂ²</div>' : '') +
+          rep.resultado.impactos_cm2 + ' g/cm²</div>' : '') +
       (rep && !rep.resultado && rep.base64 ?
-        '<div class="rep-spinner">â³</div>' : '') +
-      (!rep ? '<div style="font-size:1.3rem">ðŸ“·</div>' : '') +
+        '<div class="rep-spinner">⏳</div>' : '') +
+      (!rep ? '<div style="font-size:1.3rem">📷</div>' : '') +
     '</div>';
   }).join('');
 }
@@ -3844,7 +3973,7 @@ function initReps() {
   ['barbecho','superior','medio','inferior'].forEach(pos => renderReps(pos));
 }
 
-// â”€â”€ Cargar foto en una repeticiÃ³n â”€â”€
+// ── Cargar foto en una repetición ──
 function cargarRepFoto(event, posicion, idx) {
   const file = event.target.files[0];
   if (!file) return;
@@ -3862,7 +3991,7 @@ function cargarRepFoto(event, posicion, idx) {
   reader.readAsDataURL(file);
 }
 
-// â”€â”€ Analizar una repeticiÃ³n individual via Claude Vision â”€â”€
+// ── Analizar una repetición individual via Claude Vision ──
 async function analizarRep(posicion, idx, tipoAplic) {
   const rep = CANOPEO[posicion][idx];
   if (!rep || !rep.base64) return null;
@@ -3872,15 +4001,15 @@ async function analizarRep(posicion, idx, tipoAplic) {
                      medio:'1/3 medio del canopeo', inferior:'1/3 inferior del canopeo' }[posicion];
 
   const condMeteo = STATE.meteo
-    ? 'Condiciones: T=' + STATE.meteo.temperature_2m + 'Â°C, HR=' +
+    ? 'Condiciones: T=' + STATE.meteo.temperature_2m + '°C, HR=' +
       STATE.meteo.relative_humidity_2m + '%, viento=' + STATE.meteo.wind_speed_10m + ' km/h. '
     : '';
 
-  const prompt = 'Sos experto en anÃ¡lisis de tarjetas hidrosensibles. Esta tarjeta fue colocada en la posiciÃ³n ' +
-    posLabel + ' para evaluar cobertura de pulverizaciÃ³n agrÃ­cola. ' +
-    'AplicaciÃ³n: ' + obj.label + ' (objetivo FAO: ' + obj.min + 'â€“' + obj.max + ' gotas/cmÂ²). ' +
+  const prompt = 'Sos experto en análisis de tarjetas hidrosensibles. Esta tarjeta fue colocada en la posición ' +
+    posLabel + ' para evaluar cobertura de pulverización agrícola. ' +
+    'Aplicación: ' + obj.label + ' (objetivo FAO: ' + obj.min + '–' + obj.max + ' gotas/cm²). ' +
     condMeteo +
-    'RespondÃ© ÃšNICAMENTE con JSON sin texto adicional ni backticks: ' +
+    'Respondé ÚNICAMENTE con JSON sin texto adicional ni backticks: ' +
     '{"impactos_cm2":<int>,"vmd_estimado":<int>,"cobertura_pct":<float>,' +
     '"distribucion":"<uniforme|irregular|muy_irregular>",' +
     '"confianza":"<alta|media|baja>","cumple_objetivo":<bool>,' +
@@ -3903,7 +4032,7 @@ async function analizarRep(posicion, idx, tipoAplic) {
     const clean = txt.replace(/```json|```/g,'').trim();
     const resultado = JSON.parse(clean);
 
-    // Calcular L/ha desde fÃ³rmula Leiva si no viene en la respuesta
+    // Calcular L/ha desde fórmula Leiva si no viene en la respuesta
     if (!resultado.lha_estimado && resultado.impactos_cm2 && resultado.vmd_estimado) {
       resultado.lha_estimado = parseFloat(
         ((Math.pow(resultado.vmd_estimado,3) * resultado.impactos_cm2 * Math.PI) / 6e7).toFixed(1)
@@ -3919,7 +4048,7 @@ async function analizarRep(posicion, idx, tipoAplic) {
   }
 }
 
-// â”€â”€ Promediar resultados de una posiciÃ³n â”€â”€
+// ── Promediar resultados de una posición ──
 function promediarPosicion(posicion) {
   const reps = CANOPEO[posicion].filter(r => r && r.resultado);
   if (!reps.length) return null;
@@ -3949,7 +4078,7 @@ function promediarPosicion(posicion) {
   };
 }
 
-// â”€â”€ Mostrar stats en slot â”€â”€
+// ── Mostrar stats en slot ──
 function mostrarStatsSlot(posicion, stats) {
   if (!stats) return;
   const bar = document.getElementById('resultado-' + posicion);
@@ -3959,8 +4088,8 @@ function mostrarStatsSlot(posicion, stats) {
 
   const colorImp = stats.cumple ? 'var(--ok)' : stats.impactos_avg > 0 ? 'var(--caution)' : 'var(--red)';
   statsEl.innerHTML =
-    '<div class="slot-stat"><div class="slot-stat-val" style="color:' + colorImp + '">' + stats.impactos_avg + '</div><div class="slot-stat-lbl">g/cmÂ²</div></div>' +
-    '<div class="slot-stat"><div class="slot-stat-val">' + stats.vmd_avg + '</div><div class="slot-stat-lbl">VMD Âµm</div></div>' +
+    '<div class="slot-stat"><div class="slot-stat-val" style="color:' + colorImp + '">' + stats.impactos_avg + '</div><div class="slot-stat-lbl">g/cm²</div></div>' +
+    '<div class="slot-stat"><div class="slot-stat-val">' + stats.vmd_avg + '</div><div class="slot-stat-lbl">VMD µm</div></div>' +
     '<div class="slot-stat"><div class="slot-stat-val">' + stats.cobertura_avg + '%</div><div class="slot-stat-lbl">Cobertura</div></div>' +
     '<div class="slot-stat"><div class="slot-stat-val">' + stats.lha_avg + '</div><div class="slot-stat-lbl">L/ha</div></div>';
 
@@ -3968,7 +4097,7 @@ function mostrarStatsSlot(posicion, stats) {
   if (slot) { slot.classList.remove('cargada'); slot.classList.add('analizada'); }
 }
 
-// â”€â”€ Analizar todas â€” Barbecho â”€â”€
+// ── Analizar todas — Barbecho ──
 async function analizarTodosBarbecho() {
   const tipo = document.getElementById('barb-tipo-aplic').value;
   const obj = IMPACTOS_OBJETIVO[tipo];
@@ -3986,7 +4115,7 @@ async function analizarTodosBarbecho() {
   mostrarStatsSlot('barbecho', stats);
 
   if (stats) {
-    // Cotejo con teÃ³rico
+    // Cotejo con teórico
     const teorico = {
       lha: parseFloat(document.getElementById('res-lha')?.textContent) || null,
       impactos: parseInt(document.getElementById('cob-impactos-slider')?.value) || null,
@@ -3997,12 +4126,12 @@ async function analizarTodosBarbecho() {
     document.getElementById('resultado-barbecho-panel').style.display = '';
 
     document.getElementById('barb-stats-resultado').innerHTML =
-      '<div class="ia-stat"><div class="ia-stat-val" style="color:' + (stats.cumple?'#6DBF82':'var(--amber)') + '">' + stats.impactos_avg + '</div><div class="ia-stat-lbl">Gotas/cmÂ² prom.</div></div>' +
+      '<div class="ia-stat"><div class="ia-stat-val" style="color:' + (stats.cumple?'#6DBF82':'var(--amber)') + '">' + stats.impactos_avg + '</div><div class="ia-stat-lbl">Gotas/cm² prom.</div></div>' +
       '<div class="ia-stat"><div class="ia-stat-val">' + stats.lha_avg + '</div><div class="ia-stat-lbl">L/ha reales</div></div>' +
-      '<div class="ia-stat"><div class="ia-stat-val">' + stats.vmd_avg + ' Âµm</div><div class="ia-stat-lbl">VMD real</div></div>' +
+      '<div class="ia-stat"><div class="ia-stat-val">' + stats.vmd_avg + ' µm</div><div class="ia-stat-lbl">VMD real</div></div>' +
       '<div class="ia-stat"><div class="ia-stat-val" style="color:' + (stats.impactos_cv <= 30?'#6DBF82':stats.impactos_cv<=50?'var(--amber)':'#E8604A') + '">' + stats.impactos_cv + '%</div><div class="ia-stat-lbl">CV% reps</div></div>';
 
-    // Cotejo teÃ³rico vs real
+    // Cotejo teórico vs real
     if (teorico.lha) {
       const deltaLha = parseFloat(((stats.lha_avg - teorico.lha) / teorico.lha * 100).toFixed(1));
       const deltaImp = teorico.impactos ? parseFloat(((stats.impactos_avg - teorico.impactos) / teorico.impactos * 100).toFixed(1)) : null;
@@ -4010,9 +4139,9 @@ async function analizarTodosBarbecho() {
 
       document.getElementById('barb-cotejo-teorico').innerHTML =
         '<div class="cotejo-card">' +
-        '<div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.6rem">Cotejo teÃ³rico vs real</div>' +
-        '<div class="cotejo-row"><span class="cotejo-label">L/ha</span><div class="cotejo-vals"><span class="cotejo-teorico">TeÃ³r: ' + teorico.lha + '</span><span class="cotejo-real">Real: ' + stats.lha_avg + '</span><span class="cotejo-delta ' + clsDelta(deltaLha) + '">' + (deltaLha > 0 ? '+' : '') + deltaLha + '%</span></div></div>' +
-        (deltaImp !== null ? '<div class="cotejo-row"><span class="cotejo-label">Gotas/cmÂ²</span><div class="cotejo-vals"><span class="cotejo-teorico">TeÃ³r: ' + teorico.impactos + '</span><span class="cotejo-real">Real: ' + stats.impactos_avg + '</span><span class="cotejo-delta ' + clsDelta(deltaImp) + '">' + (deltaImp > 0 ? '+' : '') + deltaImp + '%</span></div></div>' : '') +
+        '<div style="font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.6rem">Cotejo teórico vs real</div>' +
+        '<div class="cotejo-row"><span class="cotejo-label">L/ha</span><div class="cotejo-vals"><span class="cotejo-teorico">Teór: ' + teorico.lha + '</span><span class="cotejo-real">Real: ' + stats.lha_avg + '</span><span class="cotejo-delta ' + clsDelta(deltaLha) + '">' + (deltaLha > 0 ? '+' : '') + deltaLha + '%</span></div></div>' +
+        (deltaImp !== null ? '<div class="cotejo-row"><span class="cotejo-label">Gotas/cm²</span><div class="cotejo-vals"><span class="cotejo-teorico">Teór: ' + teorico.impactos + '</span><span class="cotejo-real">Real: ' + stats.impactos_avg + '</span><span class="cotejo-delta ' + clsDelta(deltaImp) + '">' + (deltaImp > 0 ? '+' : '') + deltaImp + '%</span></div></div>' : '') +
         '</div>';
 
       // Ajustes sugeridos
@@ -4022,29 +4151,29 @@ async function analizarTodosBarbecho() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = 'ðŸ”„ Volver a analizar';
+  btn.innerHTML = '🔄 Volver a analizar';
 }
 
 function generarAjustesBarbecho(stats, teorico, deltaLha, deltaImp, obj) {
   const sugs = [];
 
   if (deltaLha < -15) {
-    sugs.push({ ico:'ðŸ’§', tipo:'Aumentar caudal', txt:'El caudal real (' + stats.lha_avg + ' L/ha) estÃ¡ ' + Math.abs(deltaLha) + '% por debajo del teÃ³rico. Opciones: reducir velocidad de avance, aumentar presiÃ³n de trabajo, o usar una boquilla de mayor ISO.' });
+    sugs.push({ ico:'💧', tipo:'Aumentar caudal', txt:'El caudal real (' + stats.lha_avg + ' L/ha) está ' + Math.abs(deltaLha) + '% por debajo del teórico. Opciones: reducir velocidad de avance, aumentar presión de trabajo, o usar una boquilla de mayor ISO.' });
   } else if (deltaLha > 15) {
-    sugs.push({ ico:'ðŸ’§', tipo:'Reducir caudal', txt:'El caudal real supera el teÃ³rico en ' + deltaLha + '%. Opciones: aumentar velocidad de avance o reducir presiÃ³n.' });
+    sugs.push({ ico:'💧', tipo:'Reducir caudal', txt:'El caudal real supera el teórico en ' + deltaLha + '%. Opciones: aumentar velocidad de avance o reducir presión.' });
   }
 
   if (stats.impactos_avg < obj.min) {
     const lhaNecesario = ((Math.pow(stats.vmd_avg,3) * obj.min * Math.PI) / 6e7).toFixed(1);
-    sugs.push({ ico:'ðŸŽ¯', tipo:'Cobertura insuficiente', txt:'Se necesitan ' + obj.min + ' gotas/cmÂ² mÃ­nimo. Con VMD actual de ' + stats.vmd_avg + ' Âµm necesitÃ¡s ' + lhaNecesario + ' L/ha. O reducir VMD para lograr mÃ¡s impactos con igual caudal.' });
+    sugs.push({ ico:'🎯', tipo:'Cobertura insuficiente', txt:'Se necesitan ' + obj.min + ' gotas/cm² mínimo. Con VMD actual de ' + stats.vmd_avg + ' µm necesitás ' + lhaNecesario + ' L/ha. O reducir VMD para lograr más impactos con igual caudal.' });
   }
 
   if (stats.impactos_cv > 30) {
-    sugs.push({ ico:'ðŸ“Š', tipo:'DistribuciÃ³n irregular', txt:'CV% de ' + stats.impactos_cv + '% entre repeticiones indica distribuciÃ³n no uniforme. Verificar boquillas tapadas, presiÃ³n inestable o velocidad variable.' });
+    sugs.push({ ico:'📊', tipo:'Distribución irregular', txt:'CV% de ' + stats.impactos_cv + '% entre repeticiones indica distribución no uniforme. Verificar boquillas tapadas, presión inestable o velocidad variable.' });
   }
 
   if (!sugs.length) {
-    return '<div class="ajuste-sugerido"><span style="font-size:1.1rem">âœ…</span><div><div class="ajuste-tipo" style="color:#6DBF82">Sin ajustes requeridos</div><div class="ajuste-texto">Los parÃ¡metros reales estÃ¡n dentro del rango aceptable respecto al teÃ³rico.</div></div></div>';
+    return '<div class="ajuste-sugerido"><span style="font-size:1.1rem">✅</span><div><div class="ajuste-tipo" style="color:#6DBF82">Sin ajustes requeridos</div><div class="ajuste-texto">Los parámetros reales están dentro del rango aceptable respecto al teórico.</div></div></div>';
   }
 
   return sugs.map(s =>
@@ -4054,7 +4183,7 @@ function generarAjustesBarbecho(stats, teorico, deltaLha, deltaImp, obj) {
   ).join('');
 }
 
-// â”€â”€ Analizar todos los estratos del canopeo â”€â”€
+// ── Analizar todos los estratos del canopeo ──
 async function analizarTodosCanopeo() {
   const tipo = document.getElementById('can-tipo-aplic').value;
   const btn = document.querySelector('[onclick="analizarTodosCanopeo()"]');
@@ -4072,11 +4201,11 @@ async function analizarTodosCanopeo() {
   }
 
   btn.disabled = false;
-  btn.innerHTML = 'âœ… Analizados â€” ver SÃ­ntesis';
-  toast('âœ… AnÃ¡lisis de canopeo completado â€” ir a SÃ­ntesis para ver resultados');
+  btn.innerHTML = '✅ Analizados — ver Síntesis';
+  toast('✅ Análisis de canopeo completado — ir a Síntesis para ver resultados');
 }
 
-// â”€â”€ SÃ­ntesis general â”€â”€
+// ── Síntesis general ──
 function generarSintesis() {
   const statsBarbecho  = promediarPosicion('barbecho');
   const statsSuperior  = promediarPosicion('superior');
@@ -4097,21 +4226,21 @@ function generarSintesis() {
 
   let html = '';
 
-  // â”€â”€ Barbecho â”€â”€
+  // ── Barbecho ──
   if (tieneBarbecho) {
     const tipo = document.getElementById('barb-tipo-aplic')?.value || 'herb_sistemico';
     const obj = IMPACTOS_OBJETIVO[tipo];
     html += '<div style="margin-bottom:1.5rem">' +
       '<div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.8rem">Barbecho / Suelo</div>' +
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem">' +
-      statCard(statsBarbecho.impactos_avg, 'Gotas/cmÂ²', statsBarbecho.cumple ? '#6DBF82' : 'var(--amber)') +
+      statCard(statsBarbecho.impactos_avg, 'Gotas/cm²', statsBarbecho.cumple ? '#6DBF82' : 'var(--amber)') +
       statCard(statsBarbecho.lha_avg, 'L/ha reales', 'rgba(255,253,248,.8)') +
-      statCard(statsBarbecho.vmd_avg + ' Âµm', 'VMD real', 'rgba(255,253,248,.8)') +
+      statCard(statsBarbecho.vmd_avg + ' µm', 'VMD real', 'rgba(255,253,248,.8)') +
       statCard(statsBarbecho.impactos_cv + '%', 'CV%', statsBarbecho.impactos_cv<=30?'#6DBF82':statsBarbecho.impactos_cv<=50?'var(--amber)':'#E8604A') +
       '</div></div>';
   }
 
-  // â”€â”€ Canopeo â”€â”€
+  // ── Canopeo ──
   if (tieneCanopeo) {
     const posiciones = [
       { key:'superior', label:'Superior', stats:statsSuperior, color:'#7ABAEE' },
@@ -4125,9 +4254,9 @@ function generarSintesis() {
     html += '<div style="background:rgba(255,255,255,.04);border-radius:12px;overflow:hidden;margin-bottom:1.2rem">' +
       '<div style="display:grid;grid-template-columns:auto repeat(4,1fr);gap:0">' +
       '<div style="padding:.6rem .8rem;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">Estrato</div>' +
-      '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">Gotas/cmÂ²</div>' +
+      '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">Gotas/cm²</div>' +
       '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">L/ha</div>' +
-      '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">VMD Âµm</div>' +
+      '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">VMD µm</div>' +
       '<div style="padding:.6rem;text-align:center;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,253,248,.25);border-bottom:1px solid rgba(255,255,255,.06)">CV%</div>' +
       posiciones.map(p =>
         '<div style="padding:.6rem .8rem;font-size:.78rem;font-weight:700;color:' + p.color + ';border-bottom:1px solid rgba(255,255,255,.04)">' + p.label + '</div>' +
@@ -4138,7 +4267,7 @@ function generarSintesis() {
       ).join('') +
       '</div></div>';
 
-    // Barra de penetraciÃ³n
+    // Barra de penetración
     if (statsSuperior && statsSuperior.lha_avg > 0) {
       const lhaSup = statsSuperior.lha_avg;
       const lhaMed = statsMedio ? statsMedio.lha_avg : 0;
@@ -4152,19 +4281,19 @@ function generarSintesis() {
       const efInf = lhaSup > 0 ? Math.round(lhaInf/lhaSup*100) : 0;
 
       html += '<div style="margin-bottom:1.2rem">' +
-        '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.6rem">DistribuciÃ³n de L/ha por estrato</div>' +
+        '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.6rem">Distribución de L/ha por estrato</div>' +
         '<div class="penetracion-track">' +
         '<div class="pen-seg pen-sup" style="flex:' + pSup + '">' + lhaSup + ' L/ha</div>' +
         (lhaMed > 0 ? '<div class="pen-seg pen-medio" style="flex:' + pMed + '">' + lhaMed + ' L/ha</div>' : '') +
         (lhaInf > 0 ? '<div class="pen-seg pen-inf" style="flex:' + pInf + '">' + lhaInf + ' L/ha</div>' : '') +
         '</div>' +
         '<div style="display:flex;gap:1.5rem;margin-top:.5rem;font-size:.7rem;color:rgba(255,253,248,.4)">' +
-        '<span style="color:#7ABAEE">â–  Superior ' + pSup + '%</span>' +
-        (lhaMed > 0 ? '<span style="color:#2ECC71">â–  Medio ' + pMed + '% (ef: ' + efMed + '% del sup)</span>' : '') +
-        (lhaInf > 0 ? '<span style="color:#E8604A">â–  Inferior ' + pInf + '% (ef: ' + efInf + '% del sup)</span>' : '') +
+        '<span style="color:#7ABAEE">■ Superior ' + pSup + '%</span>' +
+        (lhaMed > 0 ? '<span style="color:#2ECC71">■ Medio ' + pMed + '% (ef: ' + efMed + '% del sup)</span>' : '') +
+        (lhaInf > 0 ? '<span style="color:#E8604A">■ Inferior ' + pInf + '% (ef: ' + efInf + '% del sup)</span>' : '') +
         '</div></div>';
 
-      // InterpretaciÃ³n agronÃ³mica
+      // Interpretación agronómica
       const interpHtml = interpretarPenetracion(efMed, efInf,
         document.getElementById('can-tipo-aplic')?.value || 'fung_sistemico',
         document.getElementById('can-cultivo-estadio')?.value || 'soja_v6');
@@ -4185,31 +4314,31 @@ function statCard(val, lbl, color) {
 function interpretarPenetracion(efMed, efInf, tipoAplic, cultivo) {
   const msgs = [];
 
-  // Umbrales por tipo de aplicaciÃ³n
+  // Umbrales por tipo de aplicación
   const esContacto = tipoAplic.includes('contacto');
   const esFungicida = tipoAplic.includes('fung');
 
   if (esFungicida) {
     if (efInf < 20) {
-      msgs.push({ ico:'ðŸš¨', cls:'bad', txt:'PenetraciÃ³n inferior muy baja (' + efInf + '% del estrato superior). Para fungicidas el 1/3 inferior es crÃ­tico â€” allÃ­ estÃ¡ el inÃ³culo. Aumentar volumen de caldo, reducir VMD o usar boquillas orientadas hacia abajo.' });
+      msgs.push({ ico:'🚨', cls:'bad', txt:'Penetración inferior muy baja (' + efInf + '% del estrato superior). Para fungicidas el 1/3 inferior es crítico — allí está el inóculo. Aumentar volumen de caldo, reducir VMD o usar boquillas orientadas hacia abajo.' });
     } else if (efInf < 40) {
-      msgs.push({ ico:'âš ï¸', cls:'warn', txt:'PenetraciÃ³n al estrato inferior moderada (' + efInf + '%). Considerar aumentar L/ha o evaluar uso de coadyuvante penetrante para mejorar cobertura en zona de mayor presiÃ³n de enfermedad.' });
+      msgs.push({ ico:'⚠️', cls:'warn', txt:'Penetración al estrato inferior moderada (' + efInf + '%). Considerar aumentar L/ha o evaluar uso de coadyuvante penetrante para mejorar cobertura en zona de mayor presión de enfermedad.' });
     } else {
-      msgs.push({ ico:'âœ…', cls:'ok', txt:'Buena penetraciÃ³n al estrato inferior (' + efInf + '% del superior). DistribuciÃ³n adecuada para fungicida.' });
+      msgs.push({ ico:'✅', cls:'ok', txt:'Buena penetración al estrato inferior (' + efInf + '% del superior). Distribución adecuada para fungicida.' });
     }
   }
 
   if (esContacto && efInf < 25) {
-    msgs.push({ ico:'âš ï¸', cls:'warn', txt:'Para productos de contacto la cobertura del estrato inferior es clave. Con ' + efInf + '% de eficiencia inferior hay riesgo de escape de plagas/enfermedades en esa zona.' });
+    msgs.push({ ico:'⚠️', cls:'warn', txt:'Para productos de contacto la cobertura del estrato inferior es clave. Con ' + efInf + '% de eficiencia inferior hay riesgo de escape de plagas/enfermedades en esa zona.' });
   }
 
   if (efMed < 30) {
-    msgs.push({ ico:'ðŸ’§', cls:'warn', txt:'El estrato medio recibe solo ' + efMed + '% del caldo aplicado al superior. El canopeo intercepta mÃ¡s del 70% del producto antes de llegar al medio. Verificar Ã­ndice de Ã¡rea foliar y ajustar horario de aplicaciÃ³n.' });
+    msgs.push({ ico:'💧', cls:'warn', txt:'El estrato medio recibe solo ' + efMed + '% del caldo aplicado al superior. El canopeo intercepta más del 70% del producto antes de llegar al medio. Verificar índice de área foliar y ajustar horario de aplicación.' });
   }
 
   const colores = { ok:'#6DBF82', warn:'var(--amber)', bad:'#E8604A' };
   return '<div style="border-top:1px solid rgba(255,255,255,.07);padding-top:1rem;margin-top:.5rem">' +
-    '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.7rem">InterpretaciÃ³n agronÃ³mica</div>' +
+    '<div style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,253,248,.3);margin-bottom:.7rem">Interpretación agronómica</div>' +
     msgs.map(m =>
       '<div style="display:flex;gap:.6rem;align-items:flex-start;margin-bottom:.6rem;padding:.65rem .8rem;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid rgba(255,255,255,.06)">' +
       '<span style="font-size:1rem;flex-shrink:0">' + m.ico + '</span>' +
@@ -4219,7 +4348,8 @@ function interpretarPenetracion(efMed, efInf, tipoAplic, cultivo) {
     '</div>';
 }
 
-// â”€â”€â”€ INIT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── INIT ─────────────────────────────────────────────────
+pulvPrepararAutoLote();
 renderHistorial();
 initGPS();
 calcularAgua();
@@ -4239,6 +4369,7 @@ if (document.getElementById('posiciones-grid')) {
 
 
 function pulvInit() {
+  if(typeof pulvPrepararAutoLote === 'function') pulvPrepararAutoLote();
   if(typeof renderHistorial === 'function') renderHistorial();
   if(typeof initGPS === 'function') initGPS();
   if(typeof calcularAgua === 'function') calcularAgua();
@@ -4252,10 +4383,10 @@ function pulvInit() {
   if(document.getElementById('posiciones-grid') && typeof setEscenario === 'function') setEscenario('barbecho');
 }
 
-// Iniciar de forma diferida si es importado o de inmediato si ya estÃ¡bamos.
+// Iniciar de forma diferida si es importado o de inmediato si ya estábamos.
 setTimeout(() => { if(typeof pulvInit === 'function') pulvInit(); }, 100);
 
-// â”€â”€ ALIASES GLOBALES â€” index.html usa estos nombres â”€â”€â”€â”€â”€â”€â”€â”€
+// ── ALIASES GLOBALES — index.html usa estos nombres ────────
 window.pulvTab = function(id, btn) {
   document.querySelectorAll('.pulv-panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.pulv-tab').forEach(t => t.classList.remove('active'));
@@ -4276,6 +4407,7 @@ window.pulvSetProdAgua     = (el, prod) => setProductoAgua(el, prod);
 window.pulvActualizarPH    = (val) => actualizarPHManual(val);
 window.pulvSincronizarCE   = () => sincronizarCE();
 window.pulvRenderHistorial = () => renderHistorial();
+window.pulvPrepararAutoLote = () => pulvPrepararAutoLote();
 if(typeof renderHRAC === 'function') window.pulvRenderHRAC      = () => renderHRAC();
 window.pulvFiltrarHRAC = () => filtrarHRAC();
 window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);

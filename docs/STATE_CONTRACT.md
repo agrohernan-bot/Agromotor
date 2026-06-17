@@ -206,6 +206,46 @@ Las alertas solo son alarmas cuando coinciden:
 - ventana estacional,
 - etapa fenologica vulnerable.
 
+## Pulverizacion
+
+### `lote.data.pulverizacion`
+
+Dueno de escritura: `js/pulverizacion.js`.
+
+Forma:
+
+```json
+{
+  "aplicaciones": [
+    {
+      "id": 1710000000000,
+      "loteId": "lote-a",
+      "fecha": "2026-06-16",
+      "hora": "09:30",
+      "lote": "Lote Principal",
+      "ha": 120,
+      "cultivo": "Soja",
+      "producto": "Glifosato 48%",
+      "dosis": "2",
+      "volha": "80",
+      "temp": "22.5",
+      "viento": "9.4",
+      "hr": "68",
+      "condicion": "verde",
+      "obs": ""
+    }
+  ],
+  "ultimaAplicacion": {}
+}
+```
+
+Reglas:
+
+- Leer lote activo con `amGetLoteActivo()` y null-chequear.
+- Heredar nombre, cultivo, superficie y coordenadas desde el lote activo cuando existan.
+- Mantener `pulv-historial` solo como compatibilidad legacy; la fuente primaria por lote es `lote.data.pulverizacion.aplicaciones`.
+- Persistir cambios con `amGuardarLotesEstado()` despues de modificar el historial del lote.
+
 ## Mapas satelitales
 
 ### `lote.data.satMonitor`

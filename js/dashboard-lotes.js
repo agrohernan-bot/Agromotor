@@ -1174,6 +1174,15 @@
     html +=   "<button type=\"button\" class=\"dlw-san-btn\" onclick=\"window.dlAbrirModulo('alerta-sanitaria','" + loteId + "')\">Ver enfermedades</button>";
     html += '</div>';
 
+    html += '<div class="dlw-san-card dlw-san-' + (climaHumedo || climaCalido ? 'medio' : 'bajo') + '">';
+    html +=   '<div class="dlw-san-card-top"><span class="dlw-san-ico">💦</span><div><div class="dlw-san-title">Pulverización</div><div class="dlw-san-risk" style="color:' + (climaHumedo || climaCalido ? '#D6A84A' : '#6DBF82') + '">' + (climaHumedo || climaCalido ? 'Revisar ventana' : 'Sin alerta fuerte') + '</div></div></div>';
+    html +=   '<div class="dlw-san-body">';
+    html +=     '<div class="dlw-san-focus">Ventana climática, deriva, agua y registro del lote</div>';
+    html +=     '<div class="dlw-san-note">Abrir antes de decidir una aplicación por plagas, enfermedades o malezas.</div>';
+    html +=   '</div>';
+    html +=   "<button type=\"button\" class=\"dlw-san-btn\" onclick=\"window.dlAbrirModulo('pulverizacion','" + loteId + "')\">Ver pulverización</button>";
+    html += '</div>';
+
     html += '</div>';
     html += '<div class="dlw-san-foot">Orientativo: prioriza que revisar; la decision requiere monitoreo a campo.</div>';
     html += '</div>';
@@ -1753,6 +1762,12 @@
     }
     _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod };
     if (typeof switchMod === 'function') switchMod(mod);
+    if (mod === 'pulverizacion') {
+      setTimeout(function() {
+        if (typeof window.pulvPrepararAutoLote === 'function') window.pulvPrepararAutoLote();
+        if (typeof window.pulvRenderHistorial === 'function') window.pulvRenderHistorial();
+      }, 450);
+    }
   };
 
   window.dlAbrirFenologiaDetalle = function(loteId) {
