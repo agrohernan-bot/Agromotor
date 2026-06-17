@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=87">
+  <link rel="stylesheet" href="css/agromotor.css?v=88">
   <link rel="stylesheet" href="css/cosecha.css?v=85">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=86">
@@ -2071,7 +2071,7 @@
               <option value="">— Seleccionar —</option>
               <option>Soja</option><option>Maíz</option><option>Trigo / Cebada</option><option>Girasol</option><option>Barbecho</option><option>Pasturas</option>
             </select>
-            <button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-cultivo')" style="margin-top:.45rem">Ajustar manualmente</button>
+            <button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-cultivo')">Ajustar manualmente</button>
           </div>
           <div class="form-fld"><label class="form-lbl">Tipo de aplicación</label>
             <select class="form-sel" id="pc-tipo" onchange="pulvActualizarProductos()">
@@ -2101,7 +2101,7 @@
                 <div class="form-fld"><label class="form-lbl">Nombre comercial</label><input class="form-inp" id="pc-new-nombre" placeholder="Ej: Heat"></div>
                 <div class="form-fld"><label class="form-lbl">Principio activo</label><input class="form-inp" id="pc-new-activo" placeholder="Saflufenacil 70% WG"></div>
                 <div class="form-fld"><label class="form-lbl">Tipo</label><select class="form-sel" id="pc-new-tipo"><option value="herbicida">Herbicida</option><option value="fungicida">Fungicida</option><option value="insecticida">Insecticida</option><option value="fertilizante_foliar">Fertilizante foliar</option><option value="coadyuvante">Coadyuvante</option></select></div>
-                <div class="form-fld"><label class="form-lbl">Formulación</label><input class="form-inp" id="pc-new-form" placeholder="SL, EC, SC, WG..."></div>
+                <div class="form-fld"><label class="form-lbl">Sigla / formulación</label><input class="form-inp" id="pc-new-form" placeholder="SL, EC, SC, WG..."></div>
                 <div class="form-fld"><label class="form-lbl">Dosis</label><input class="form-inp" type="number" step="0.001" id="pc-new-dosis" placeholder="Ej: 0.035"></div>
                 <div class="form-fld"><label class="form-lbl">Unidad</label><select class="form-sel" id="pc-new-unidad"><option>L/ha</option><option>kg/ha</option><option>g/ha</option><option>mL/ha</option><option>cc/100L</option></select></div>
               </div>
@@ -2113,7 +2113,7 @@
             <div class="form-fld"><label class="form-lbl">Volumen caldo (L/ha)</label><input class="form-inp" type="number" id="pc-volha" value="80" min="20" max="300" oninput="pulvCalcCaldo()"></div>
             <div class="form-fld"><label class="form-lbl">Capacidad tanque (L)</label><input class="form-inp" type="number" id="pc-tanque" value="3000" min="200" oninput="pulvCalcCaldo()"></div>
           </div>
-          <div class="form-fld"><label class="form-lbl">Superficie del lote (ha)</label><input class="form-inp" type="number" id="pc-ha" min="1" oninput="pulvCalcCaldo()" placeholder="Ej: 150" readonly><button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-ha')" style="margin-top:.45rem">Ajustar manualmente</button></div>
+          <div class="form-fld"><label class="form-lbl">Superficie del lote (ha)</label><input class="form-inp" type="number" id="pc-ha" min="1" oninput="pulvCalcCaldo()" placeholder="Ej: 150" readonly><button type="button" class="mini-btn" onclick="pulvToggleAutoCampo('pc-ha')">Ajustar manualmente</button></div>
           <div class="sec-div"><span>Operativa</span></div>
           <div class="grid-2">
             <div class="form-fld"><label class="form-lbl">Ancho de trabajo (m)</label><input class="form-inp" type="number" id="pc-ancho" value="24" step="0.5" min="1" oninput="pulvCalcCaldo()"></div>
@@ -2142,6 +2142,10 @@
         <div class="panel-card gap-top" id="pc-orden-card">
           <div class="card-hdr"><div><div class="card-ttl">Orden de Agregado al Tanque</div><div class="card-sub">Buenas prácticas de mezcla</div></div></div>
           <div class="card-bdy" id="pc-orden-body"><p class="txt-muted">Seleccioná un producto para ver las instrucciones.</p></div>
+        </div>
+        <div class="panel-card gap-top" id="pc-detalle-card">
+          <div class="card-hdr"><div><div class="card-ttl">Productos Necesarios</div><div class="card-sub">Cantidad individual para la superficie del lote</div></div></div>
+          <div class="card-bdy" id="pc-detalle-body"><p class="txt-muted">Seleccioná productos para calcular cantidades.</p></div>
         </div>
         <div class="panel-card gap-top">
           <div class="card-hdr"><div><div class="card-ttl">Pautas Agronómicas</div><div class="card-sub">Condiciones óptimas para este producto</div></div></div>
@@ -4655,7 +4659,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=143"></script>
+<script src="js/config.js?v=144"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=100"></script>
 

@@ -189,6 +189,16 @@ function pulvLeerPulverizadoraGuardada() {
   return null;
 }
 
+function pulvContextoLoteTexto(auto) {
+  auto = auto || pulvPrepararAutoLote();
+  if (!auto || !auto.lote) return '';
+  var nombre = auto.lote.nombre || (auto.lote.data && auto.lote.data.nombre) || 'Lote activo';
+  var partes = [nombre];
+  if (auto.cultivo) partes.push(auto.cultivo);
+  if (auto.superficie) partes.push(auto.superficie + ' ha');
+  return partes.join(' - ');
+}
+
 async function pulvClaude(payload) {
   if (typeof AM_SB === 'undefined' || typeof AM_CONFIG === 'undefined') {
     throw new Error('Config IA no disponible');
@@ -243,6 +253,7 @@ function initGPS() {
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
     var ctx = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
+    ctx = pulvContextoLoteTexto(auto) || 'Lote activo';
     setGPSState('ok', '<strong>' + ctx + '</strong>');
     // btn-refresh always visible in HTML
     fetchMeteo();
@@ -258,7 +269,12 @@ function initGPS() {
     pos => {
       STATE.lat = pos.coords.latitude;
       STATE.lon = pos.coords.longitude;
-      setGPSState('ok', `Ubicación: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong> — Precisión: ±${Math.round(pos.coords.accuracy)} m`);
+      var ctxGps = pulvContextoLoteTexto(auto);
+      if (ctxGps) {
+        setGPSState('ok', '<strong>' + ctxGps + '</strong><span class="pulv-gps-source"> - clima por GPS</span>');
+      } else {
+        setGPSState('ok', `Ubicación: <strong>${STATE.lat.toFixed(4)}°, ${STATE.lon.toFixed(4)}°</strong> — Precisión: ±${Math.round(pos.coords.accuracy)} m`);
+      }
       // btn-refresh always visible in HTML
       fetchMeteo();
     },
@@ -276,6 +292,7 @@ function usarUbicacionDefault() {
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
     var ctxDefault = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
+    ctxDefault = pulvContextoLoteTexto(auto) || 'Lote activo';
     setGPSState('ok', '<strong>' + ctxDefault + '</strong>');
   } else {
     STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
@@ -696,42 +713,143 @@ function pulvProductoCaldoPorKey(key) {
   return prod ? Object.assign({ key: key, tipo: parts[0], source: 'base' }, prod) : null;
 }
 
+function pulvInferirSiglaProducto(p) {
+  var texto = String((p && (p.formulacion || p.sigla || p.activo || p.nombre || p.mezcla || p.grupo)) || '').toUpperCase();
+  var match = texto.match(/\b(WP|WG|WDG|DF|SG|OD|SC|ZC|CS|SE|EW|EC|SL|GR)\b/);
+  if (match) return match[1] === 'WDG' || match[1] === 'DF' ? 'WG' : match[1];
+  var nombre = String((p && p.nombre) || '').toLowerCase();
+  var mezcla = String((p && (p.mezcla || p.grupo || p.tipo)) || '').toLowerCase();
+  if (/metribuzin|metsulfur|saflufenacil|diclosulam|atrazina 90/.test(nombre)) return 'WG';
+  if (/mancozeb|azufre/.test(nombre)) return 'WP';
+  if (/atrazina|clorotalonil|carbendazim|suspension|sc/.test(nombre + ' ' + mezcla)) return 'SC';
+  if (/graminicida|piretroide|organofosforado|aceite|ester|ec/.test(nombre + ' ' + mezcla)) return 'EC';
+  if (/fertilizante|foliar|glifosato|dicamba|2,4|hormonal|sl|acidificante/.test(nombre + ' ' + mezcla)) return 'SL';
+  if (/sulfato|granulo soluble/.test(nombre + ' ' + mezcla)) return 'SG';
+  return '';
+}
+
 function pulvNormalizarProductoCaldo(p) {
   if (!p) return null;
   var mezcla = p.mezcla || p.grupo || 'custom';
+  var sigla = String(p.sigla || p.formulacion || pulvInferirSiglaProducto(p) || '').toUpperCase();
   return Object.assign({}, p, {
     tipo: p.tipo || pulvGetValue('c-tipo') || 'herbicida',
     dosis: parseFloat(p.dosis) || 0,
     unidad: p.unidad || 'L/ha',
-    formulacion: String(p.formulacion || '').toUpperCase(),
+    formulacion: sigla,
+    sigla: sigla,
     grupo: p.grupo || mezcla,
     mezcla: mezcla
   });
 }
 
+function pulvInfoOrdenProducto(p) {
+  var f = String(p && (p.sigla || p.formulacion) || '').toUpperCase();
+  var grupo = String(p && (p.grupo || p.mezcla || p.tipo) || '').toLowerCase();
+  if (/corrector|acidificante|secuestrante|regulador/.test(grupo)) return { orden: 2, etiqueta: 'corrector' };
+  if (/bolsa|hidrosoluble|wsp/.test(grupo + ' ' + f)) return { orden: 3, etiqueta: 'bolsa hidrosoluble' };
+  var mapa = {
+    WP: [4, 'polvo mojable'],
+    WG: [5, 'granulo dispersable'],
+    SG: [6, 'granulo soluble'],
+    OD: [8, 'dispersion oleosa'],
+    SC: [9, 'suspension concentrada'],
+    ZC: [10, 'mezcla ZC'],
+    CS: [11, 'capsulas en suspension'],
+    SE: [12, 'suspo-emulsion'],
+    EW: [13, 'emulsion aceite en agua'],
+    EC: [14, 'concentrado emulsionable'],
+    SL: [15, 'concentrado soluble']
+  };
+  if (mapa[f]) return { orden: mapa[f][0], etiqueta: f + ' - ' + mapa[f][1] };
+  if (/aceite|surfactante|coadyuvante|adyuvante/.test(grupo)) return { orden: 16, etiqueta: 'aceite / surfactante' };
+  if (/foliar|micronutriente|fertilizante/.test(grupo)) return { orden: 17, etiqueta: 'fertilizante foliar' };
+  return { orden: 15, etiqueta: f || grupo || 'producto' };
+}
+
 function pulvOrdenProductoCaldo(p) {
-  var f = String(p.formulacion || '').toUpperCase();
-  if (/WG|WP|SG|GR/.test(f)) return 1;
-  if (/SC|SE|OD/.test(f)) return 2;
-  if (/SL/.test(f)) return 3;
-  if (/EC|EW/.test(f)) return 4;
-  if (/aceite|coadyuvante/i.test(p.grupo || '')) return 5;
-  var orden = { acidificante: 0, sulfatoamonio: 1, aceite: 5, coadyuvante: 5 };
-  return orden[p.mezcla] != null ? orden[p.mezcla] : 3;
+  return pulvInfoOrdenProducto(p).orden;
+}
+
+function pulvBaseUnidad(unidad) {
+  unidad = String(unidad || 'L/ha');
+  return unidad.replace(/\/ha|\/100L|\/100l/g, '').trim() || unidad;
+}
+
+function pulvFmtNumero(n) {
+  n = parseFloat(n);
+  if (!isFinite(n)) return '-';
+  if (n >= 100) return n.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  if (n >= 10) return n.toLocaleString('es-AR', { maximumFractionDigits: 1 });
+  return n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+}
+
+function pulvCantidadProductoCaldo(p, ha, volha, autonomia) {
+  var dosis = parseFloat(p.dosis) || 0;
+  var unidad = String(p.unidad || 'L/ha');
+  var base = pulvBaseUnidad(unidad);
+  if (!ha || !dosis) return { total: null, tanque: null, unidad: base };
+  if (/100L/i.test(unidad)) {
+    var aguaTotal = (parseFloat(volha) || 0) * ha;
+    return {
+      total: dosis * aguaTotal / 100,
+      tanque: dosis * (parseFloat(volha) || 0) * (parseFloat(autonomia) || 0) / 100,
+      unidad: base
+    };
+  }
+  return {
+    total: dosis * ha,
+    tanque: dosis * (parseFloat(autonomia) || 0),
+    unidad: base
+  };
+}
+
+function pulvDosisConcentracionLHa(p, volha) {
+  var dosis = parseFloat(p && p.dosis) || 0;
+  var unidad = String((p && p.unidad) || '').toLowerCase();
+  if (!dosis) return 0;
+  if (unidad === 'l/ha') return dosis;
+  if (unidad === 'ml/ha' || unidad === 'cc/ha') return dosis / 1000;
+  if (/cc\/100l|ml\/100l/.test(unidad)) return (dosis * (parseFloat(volha) || 0) / 100) / 1000;
+  return 0;
+}
+
+function pulvRenderDetalleProductos(productos, ha, volha, autonomia) {
+  var body = pulvEl('pc-detalle-body') || document.getElementById('pc-detalle-body');
+  if (!body) return;
+  if (!productos.length) {
+    body.innerHTML = '<p class="txt-muted">Selecciona productos para calcular cantidades.</p>';
+    return;
+  }
+  if (!ha) {
+    body.innerHTML = '<p class="txt-muted">Falta superficie del lote para calcular cantidad total.</p>';
+    return;
+  }
+  body.innerHTML = '<div class="caldo-detail-list">' + productos.map(function(p) {
+    var c = pulvCantidadProductoCaldo(p, ha, volha, autonomia);
+    var sigla = p.sigla || p.formulacion || 's/sigla';
+    var tanqueTxt = c.tanque ? 'Por tanque: ' + pulvFmtNumero(c.tanque) + ' ' + c.unidad : 'Por tanque: -';
+    return '<div class="caldo-detail-row">' +
+      '<div><div class="caldo-detail-name">' + p.nombre + '</div>' +
+      '<div class="caldo-detail-meta">' + (p.activo || p.grupo || p.tipo || 'producto') + ' - <span class="caldo-chip">' + sigla + '</span> - ' + p.dosis + ' ' + p.unidad + '</div></div>' +
+      '<div class="caldo-qty"><strong>' + pulvFmtNumero(c.total) + ' ' + c.unidad + '</strong><span>' + tanqueTxt + '</span></div>' +
+    '</div>';
+  }).join('') + '</div>';
 }
 
 function pulvRenderMezclaCaldo() {
   var cont = document.getElementById('pc-mix-list');
   if (!cont) return;
   if (!caldoMezclaSeleccionada.length) {
-    cont.innerHTML = '<div style="font-size:.75rem;color:rgba(74,46,26,.45);padding:.55rem .7rem;background:#fbf6ec;border-radius:8px">Seleccioná uno o más productos. La mezcla se ordena automáticamente por formulación.</div>';
+    cont.innerHTML = '<div class="pulv-mix-empty">Selecciona uno o mas productos. La mezcla se ordena automaticamente por sigla/formulacion.</div>';
     return;
   }
   cont.innerHTML = caldoMezclaSeleccionada.map(function(p, idx) {
-    return '<div style="display:flex;align-items:flex-start;gap:.65rem;justify-content:space-between;padding:.65rem .75rem;border:1px solid var(--border);border-radius:10px;background:#fcf9f2;margin-bottom:.45rem">' +
-      '<div><div style="font-weight:700;color:var(--earth);font-size:.84rem">' + (idx + 1) + '. ' + p.nombre + '</div>' +
-      '<div style="font-size:.7rem;color:rgba(74,46,26,.55)">' + (p.activo || p.grupo || p.tipo || 'producto') + ' · ' + p.dosis + ' ' + p.unidad + (p.formulacion ? ' · ' + p.formulacion : '') + '</div></div>' +
-      '<button type="button" class="mini-btn" onclick="pulvQuitarProductoCaldo(' + idx + ')">Quitar</button>' +
+    var sigla = p.sigla || p.formulacion || 's/sigla';
+    return '<div class="pulv-mix-item">' +
+      '<div class="pulv-mix-main"><div class="pulv-mix-name">' + (idx + 1) + '. ' + p.nombre + '</div>' +
+      '<div class="pulv-mix-meta">' + (p.activo || p.grupo || p.tipo || 'producto') + ' - <span>' + sigla + '</span> - ' + p.dosis + ' ' + p.unidad + '</div></div>' +
+      '<button type="button" class="mini-btn mini-btn-danger" onclick="pulvQuitarProductoCaldo(' + idx + ')">Quitar</button>' +
     '</div>';
   }).join('');
 }
@@ -771,6 +889,7 @@ function pulvGuardarProductoManual() {
     activo: (document.getElementById('pc-new-activo') || {}).value || '',
     tipo: (document.getElementById('pc-new-tipo') || {}).value || 'herbicida',
     formulacion: (document.getElementById('pc-new-form') || {}).value || '',
+    sigla: (document.getElementById('pc-new-form') || {}).value || '',
     dosis: dosis,
     unidad: (document.getElementById('pc-new-unidad') || {}).value || 'L/ha',
     mezcla: 'custom',
@@ -816,7 +935,7 @@ async function pulvLeerMarbete(input) {
       max_tokens: 600,
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: file.type || 'image/jpeg', data: base64 } },
-        { type: 'text', text: 'Extraé de este marbete un JSON válido con nombre, activo, tipo, dosis, unidad, formulacion, empresa, banda_toxicologica, carencia_dias y observaciones. Si no se lee, devuelve {"error":"no_leible"}.' }
+        { type: 'text', text: 'Extrae de este marbete un JSON valido con nombre, activo, tipo, dosis, unidad, formulacion, sigla, empresa, banda_toxicologica, carencia_dias y observaciones. La sigla debe ser WP, WG, SG, OD, SC, ZC, CS, SE, EW, EC o SL cuando figure. Si no se lee, devuelve {"error":"no_leible"}.' }
       ]}]
     });
     if (!res.ok) { status('No pude leer el marbete ahora. Podés cargarlo manualmente.'); return; }
@@ -829,7 +948,7 @@ async function pulvLeerMarbete(input) {
     if (document.getElementById('pc-new-nombre')) document.getElementById('pc-new-nombre').value = parsed.nombre || parsed.nombre_comercial || '';
     if (document.getElementById('pc-new-activo')) document.getElementById('pc-new-activo').value = parsed.activo || parsed.principio_activo || '';
     if (document.getElementById('pc-new-tipo')) document.getElementById('pc-new-tipo').value = parsed.tipo || 'herbicida';
-    if (document.getElementById('pc-new-form')) document.getElementById('pc-new-form').value = parsed.formulacion || '';
+    if (document.getElementById('pc-new-form')) document.getElementById('pc-new-form').value = parsed.sigla || parsed.sigla_formulacion || parsed.formulacion || '';
     if (document.getElementById('pc-new-dosis')) document.getElementById('pc-new-dosis').value = parseFloat(parsed.dosis) || '';
     if (document.getElementById('pc-new-unidad') && parsed.unidad) document.getElementById('pc-new-unidad').value = parsed.unidad;
     status('Marbete interpretado. Revisá los datos y guardá el producto.');
@@ -842,7 +961,9 @@ function actualizarProductos() {
   if (!sel) return;
   sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
   pulvTodosProductosCaldo(tipo).forEach((p) => {
-    sel.innerHTML += `<option value="${p.key}">${p.nombre} (${p.dosis} ${p.unidad})</option>`;
+    var prod = pulvNormalizarProductoCaldo(p);
+    var sigla = prod.sigla ? ' - ' + prod.sigla : '';
+    sel.innerHTML += `<option value="${prod.key}">${prod.nombre} (${prod.dosis} ${prod.unidad}${sigla})</option>`;
   });
   // Mostrar pautas
   const pauta = pulvEl('pauta-body');
@@ -879,6 +1000,7 @@ function calcCaldo() {
       const el = pulvEl(id);
       if (el) el.textContent = '—';
     });
+    pulvRenderDetalleProductos([], ha, volha, 0);
     const alReset = pulvEl('caldo-alerta-box');
     if (alReset) {
       alReset.style.display = 'none';
@@ -888,20 +1010,25 @@ function calcCaldo() {
   }
 
   const autonomia = Math.round(tanque / volha);
-  const dosisTotal = productosCalc.reduce(function(sum, p) { return sum + (parseFloat(p.dosis) || 0); }, 0);
+  const dosisTotal = productosCalc.reduce(function(sum, p) { return sum + pulvDosisConcentracionLHa(p, volha); }, 0);
   const concPct = ((dosisTotal / volha) * 100).toFixed(2);
 
   pulvEl('r-dosis').textContent = productosCalc.length === 1 ? productosCalc[0].dosis : productosCalc.length;
   pulvEl('r-dosis-unit').textContent = productosCalc.length === 1 ? productosCalc[0].unidad : 'productos';
   pulvEl('r-autonomia').textContent = autonomia;
-  pulvEl('r-conc').textContent = concPct;
+  pulvEl('r-conc').textContent = dosisTotal ? concPct : '—';
 
   if (ha) {
-    const prodTotal = productosCalc.reduce(function(sum, p) { return sum + ((parseFloat(p.dosis) || 0) * ha); }, 0).toFixed(1);
     const tanquesTotal = Math.ceil(ha / autonomia);
     const aguaTotal = Math.round(volha * ha);
-    pulvEl('r-prod-total').textContent = prodTotal;
-    pulvEl('r-prod-unit').textContent = productosCalc.length === 1 ? productosCalc[0].unidad.replace('/ha','') : 'total mezcla';
+    if (productosCalc.length === 1) {
+      var cantUnica = pulvCantidadProductoCaldo(productosCalc[0], ha, volha, autonomia);
+      pulvEl('r-prod-total').textContent = pulvFmtNumero(cantUnica.total);
+      pulvEl('r-prod-unit').textContent = cantUnica.unidad;
+    } else {
+      pulvEl('r-prod-total').textContent = '—';
+      pulvEl('r-prod-unit').textContent = 'ver detalle';
+    }
     pulvEl('r-tanques').textContent = tanquesTotal;
     pulvEl('r-agua').textContent = aguaTotal.toLocaleString('es-AR');
   } else {
@@ -910,11 +1037,16 @@ function calcCaldo() {
     pulvEl('r-agua').textContent = '—';
   }
 
+  pulvRenderDetalleProductos(productosCalc, ha, volha, autonomia);
+
   // Alertas de concentración
   const alBox = pulvEl('caldo-alerta-box');
   if (!alBox) return;
   alBox.classList.remove('hidden');
-  if (parseFloat(concPct) < 0.5) {
+  if (!dosisTotal) {
+    alBox.style.display = 'none';
+    alBox.classList.add('hidden');
+  } else if (parseFloat(concPct) < 0.5) {
     alBox.style.display = 'flex';
     alBox.textContent = `Concentración muy baja (${concPct}%). Verificar que el volumen de caldo sea adecuado para lograr buena cobertura.`;
   } else if (parseFloat(concPct) > 5) {
@@ -929,11 +1061,12 @@ function calcCaldo() {
   const ordenBody = pulvEl('orden-body');
   if (productosCalc.length > 1) {
     var ordenados = productosCalc.slice().sort(function(a, b) { return pulvOrdenProductoCaldo(a) - pulvOrdenProductoCaldo(b); });
-    ordenBody.innerHTML = '<ol style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:2;list-style:none">' +
+    ordenBody.innerHTML = '<div class="caldo-order-note">Criterio de carga: medio tanque con agua y agitacion; correctores; solidos WP/WG/SG; liquidos OD/SC/ZC/CS/SE/EW/EC/SL; coadyuvantes; foliares; completar con agua.</div><ol class="caldo-order-list">' +
       ordenados.map(function(p, i) {
-        return '<li style="padding:.25rem 0;border-bottom:1px solid rgba(60,34,16,.06)"><strong>' + (i + 1) + '. ' + p.nombre + '</strong> <span style="color:rgba(74,46,26,.45)">(' + (p.formulacion || p.grupo || p.tipo || 'producto') + ')</span></li>';
+        var info = pulvInfoOrdenProducto(p);
+        return '<li class="caldo-order-step"><strong>' + (i + 1) + '. ' + p.nombre + '</strong><span>' + info.etiqueta + '</span></li>';
       }).join('') +
-      '<li style="padding:.25rem 0">Completar con agua y mantener agitación. Hacer test de jarrita si hay dudas.</li></ol>';
+      '<li class="caldo-order-step"><strong>Final</strong><span>Completar con agua, mantener agitacion y hacer test de jarrita si hay dudas.</span></li></ol>';
   } else {
     const prod = productosCalc[0];
     const orden = ORDENES_MEZCLA[prod.mezcla];
@@ -941,6 +1074,9 @@ function calcCaldo() {
     ordenBody.innerHTML = `<ol style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:2;list-style:none">`
       + orden.map(s => `<li style="padding:.2rem 0;border-bottom:1px solid rgba(60,34,16,.06)">${s}</li>`).join('')
       + `</ol>`;
+    } else {
+      var infoSingle = pulvInfoOrdenProducto(prod);
+      ordenBody.innerHTML = '<div class="caldo-order-note">Cargar con medio tanque de agua y agitacion. Ubicacion sugerida por sigla: ' + infoSingle.etiqueta + '.</div>';
     }
   }
 }
