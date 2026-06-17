@@ -12,7 +12,40 @@ let STATE = {
 };
 
 function pulvEl(id) {
+  var aliases = {
+    'c-tipo': 'pc-tipo',
+    'c-producto': 'pc-producto',
+    'c-volha': 'pc-volha',
+    'c-tanque': 'pc-tanque',
+    'c-ha': 'pc-ha',
+    'r-dosis': 'pr-dosis',
+    'r-dosis-unit': 'pr-dosis-u',
+    'r-prod-total': 'pr-total',
+    'r-prod-unit': 'pr-total-u',
+    'r-autonomia': 'pr-aut',
+    'r-tanques': 'pr-tanques',
+    'r-agua': 'pr-agua',
+    'r-conc': 'pr-conc',
+    'caldo-alerta-box': 'pr-alerta',
+    'caldo-alerta-txt': 'pr-alerta',
+    'orden-body': 'pc-orden-body',
+    'pauta-body': 'pc-pauta-body',
+    'deriva-needle': 'pulv-derive-needle',
+    'deriva-val': 'pulv-deriva-val',
+    'deriva-label': 'pulv-deriva-lbl',
+    'deriva-factores': 'pulv-deriva-fctrs',
+    'd-lindero': 'pd-lindero',
+    'd-boquilla': 'pd-boquilla',
+    'buffer-lindero': 'pd-lindero',
+    'buffer-boquilla': 'pd-boquilla',
+    'buffer-val': 'pd-buffer-val',
+    'buffer-nota': 'pd-buffer-nota',
+    'buffer-resultado': 'pd-buffer-res',
+    'hrac-search': 'pulv-hrac-search',
+    'hrac-grid': 'pulv-hrac-grid'
+  };
   return document.getElementById(id) ||
+    (aliases[id] ? document.getElementById(aliases[id]) : null) ||
     (id.indexOf('reg-') === 0 ? document.getElementById('preg-' + id.slice(4)) : null) ||
     (id === 'historial-body' ? document.getElementById('preg-historial') : null);
 }
@@ -446,23 +479,23 @@ function renderDeriva(c) {
 
   // Aguja: -90 = izq (bajo), 0 = centro (medio), 90 = der (alto)
   const deg = (idx / 100 * 180) - 90;
-  document.getElementById('deriva-needle').style.setProperty('--needle-deg', deg + 'deg');
-  document.getElementById('deriva-val').textContent = idx + '%';
+  pulvEl('deriva-needle').style.setProperty('--needle-deg', deg + 'deg');
+  pulvEl('deriva-val').textContent = idx + '%';
 
   let label, cls;
   if (idx < 35) { label = 'Riesgo BAJO de deriva'; cls = 'bajo'; }
   else if (idx < 65) { label = 'Riesgo MEDIO de deriva'; cls = 'medio'; }
   else { label = 'Riesgo ALTO de deriva'; cls = 'alto'; }
-  document.getElementById('deriva-label').textContent = label;
+  pulvEl('deriva-label').textContent = label;
 
   ['bajo','medio','alto'].forEach(c => {
     const el = document.getElementById('dc-' + c);
-    el.classList.remove('active', 'bajo', 'medio', 'alto');
+    if (el) el.classList.remove('active', 'bajo', 'medio', 'alto');
   });
-  document.getElementById('dc-' + cls).classList.add('active', cls);
+  if (document.getElementById('dc-' + cls)) document.getElementById('dc-' + cls).classList.add('active', cls);
 
   // Factores detallados
-  const factores = document.getElementById('deriva-factores');
+  const factores = pulvEl('deriva-factores');
   factores.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem">
       ${[
@@ -484,8 +517,8 @@ function renderDeriva(c) {
 
 // ─── BUFFER ───────────────────────────────────────────────
 function calcBuffer() {
-  const lindero = document.getElementById('d-lindero').value;
-  const boquilla = document.getElementById('d-boquilla').value;
+  const lindero = pulvGetValue('buffer-lindero') || pulvGetValue('d-lindero');
+  const boquilla = pulvGetValue('buffer-boquilla') || pulvGetValue('d-boquilla');
   if (!lindero || !boquilla) return;
 
   const bufferBase = {
@@ -510,9 +543,9 @@ function calcBuffer() {
   const factorViento = 1 + (viento / 25);
   const buffer = Math.round(bufferBase[lindero] * factorBoquilla[boquilla] * factorViento);
 
-  document.getElementById('buffer-val').textContent = buffer;
-  document.getElementById('buffer-nota').textContent = '⚠ ' + notas[lindero];
-  document.getElementById('buffer-resultado').style.display = 'block';
+  if (pulvEl('buffer-val')) pulvEl('buffer-val').textContent = buffer;
+  if (pulvEl('buffer-nota')) pulvEl('buffer-nota').textContent = '⚠ ' + notas[lindero];
+  if (pulvEl('buffer-resultado')) pulvEl('buffer-resultado').style.display = 'block';
 }
 
 // ─── CALCULADORA CALDO ────────────────────────────────────
@@ -605,8 +638,9 @@ const PAUTAS = {
 };
 
 function actualizarProductos() {
-  const tipo = document.getElementById('c-tipo').value;
-  const sel = document.getElementById('c-producto');
+  const tipo = pulvGetValue('c-tipo');
+  const sel = pulvEl('c-producto');
+  if (!sel) return;
   sel.innerHTML = '<option value="">— Seleccionar producto —</option>';
   if (PRODUCTOS[tipo]) {
     PRODUCTOS[tipo].forEach((p, i) => {
@@ -614,62 +648,75 @@ function actualizarProductos() {
     });
   }
   // Mostrar pautas
-  const pauta = document.getElementById('pauta-body');
+  const pauta = pulvEl('pauta-body');
   if (PAUTAS[tipo]) { pauta.innerHTML = PAUTAS[tipo]; }
   else { pauta.innerHTML = '<p class="txt-muted">Seleccioná un tipo de aplicación.</p>'; }
   calcCaldo();
 }
 
 function calcCaldo() {
-  const tipo = document.getElementById('c-tipo').value;
-  const prodIdx = document.getElementById('c-producto').value;
-  const volha = parseFloat(document.getElementById('c-volha').value) || 80;
-  const tanque = parseFloat(document.getElementById('c-tanque').value) || 3000;
-  const ha = parseFloat(document.getElementById('c-ha').value) || null;
+  const tipo = pulvGetValue('c-tipo');
+  const prodIdx = pulvGetValue('c-producto');
+  const volha = parseFloat(pulvGetValue('c-volha')) || 80;
+  const tanque = parseFloat(pulvGetValue('c-tanque')) || 3000;
+  const ha = parseFloat(pulvGetValue('c-ha')) || null;
 
   if (!tipo || prodIdx === '') {
     // Resetear resultados
     ['r-dosis','r-prod-total','r-autonomia','r-tanques','r-agua','r-conc'].forEach(id => {
-      document.getElementById(id).textContent = '—';
+      const el = pulvEl(id);
+      if (el) el.textContent = '—';
     });
+    const alReset = pulvEl('caldo-alerta-box');
+    if (alReset) {
+      alReset.style.display = 'none';
+      alReset.classList.add('hidden');
+    }
     return;
   }
 
+  if (!PRODUCTOS[tipo]) return;
   const prod = PRODUCTOS[tipo][parseInt(prodIdx)];
+  if (!prod) return;
   const autonomia = Math.round(tanque / volha);
   const concPct = ((prod.dosis / volha) * 100).toFixed(2);
 
-  document.getElementById('r-dosis').textContent = prod.dosis;
-  document.getElementById('r-dosis-unit').textContent = prod.unidad;
-  document.getElementById('r-autonomia').textContent = autonomia;
-  document.getElementById('r-conc').textContent = concPct;
+  pulvEl('r-dosis').textContent = prod.dosis;
+  pulvEl('r-dosis-unit').textContent = prod.unidad;
+  pulvEl('r-autonomia').textContent = autonomia;
+  pulvEl('r-conc').textContent = concPct;
 
   if (ha) {
     const prodTotal = (prod.dosis * ha).toFixed(1);
     const tanquesTotal = Math.ceil(ha / autonomia);
     const aguaTotal = Math.round(volha * ha);
-    document.getElementById('r-prod-total').textContent = prodTotal;
-    document.getElementById('r-prod-unit').textContent = prod.unidad.replace('/ha','');
-    document.getElementById('r-tanques').textContent = tanquesTotal;
-    document.getElementById('r-agua').textContent = aguaTotal.toLocaleString('es-AR');
+    pulvEl('r-prod-total').textContent = prodTotal;
+    pulvEl('r-prod-unit').textContent = prod.unidad.replace('/ha','');
+    pulvEl('r-tanques').textContent = tanquesTotal;
+    pulvEl('r-agua').textContent = aguaTotal.toLocaleString('es-AR');
   } else {
-    document.getElementById('r-prod-total').textContent = '—';
-    document.getElementById('r-tanques').textContent = '—';
-    document.getElementById('r-agua').textContent = '—';
+    pulvEl('r-prod-total').textContent = '—';
+    pulvEl('r-tanques').textContent = '—';
+    pulvEl('r-agua').textContent = '—';
   }
 
   // Alertas de concentración
-  const alBox = document.getElementById('caldo-alerta-box');
+  const alBox = pulvEl('caldo-alerta-box');
+  if (!alBox) return;
+  alBox.classList.remove('hidden');
   if (parseFloat(concPct) < 0.5) {
     alBox.style.display = 'flex';
-    document.getElementById('caldo-alerta-txt').textContent = `Concentración muy baja (${concPct}%). Verificar que el volumen de caldo sea adecuado para lograr buena cobertura.`;
+    alBox.textContent = `Concentración muy baja (${concPct}%). Verificar que el volumen de caldo sea adecuado para lograr buena cobertura.`;
   } else if (parseFloat(concPct) > 5) {
     alBox.style.display = 'flex';
-    document.getElementById('caldo-alerta-txt').textContent = `Concentración alta (${concPct}%). Riesgo de fitotoxicidad. Verificar dosis y compatibilidad.`;
-  } else { alBox.style.display = 'none'; }
+    alBox.textContent = `Concentración alta (${concPct}%). Riesgo de fitotoxicidad. Verificar dosis y compatibilidad.`;
+  } else {
+    alBox.style.display = 'none';
+    alBox.classList.add('hidden');
+  }
 
   // Orden de agregado
-  const ordenBody = document.getElementById('orden-body');
+  const ordenBody = pulvEl('orden-body');
   const orden = ORDENES_MEZCLA[prod.mezcla];
   if (orden) {
     ordenBody.innerHTML = `<ol style="font-size:.83rem;color:rgba(28,18,8,.7);line-height:2;list-style:none">`
@@ -4349,6 +4396,12 @@ function interpretarPenetracion(efMed, efInf, tipoAplic, cultivo) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────
+window.pulvCalcCaldo = () => calcCaldo();
+window.pulvActualizarProductos = () => actualizarProductos();
+window.pulvCalcBuffer = () => calcBuffer();
+window.pulvCalcAgua = () => calcularAgua();
+window.pulvFiltrarHRAC = () => filtrarHRAC();
+window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);
 pulvPrepararAutoLote();
 renderHistorial();
 initGPS();
