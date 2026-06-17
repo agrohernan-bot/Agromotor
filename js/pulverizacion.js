@@ -252,8 +252,7 @@ function initGPS() {
   var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    var ctx = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
-    ctx = pulvContextoLoteTexto(auto) || 'Lote activo';
+    var ctx = pulvContextoLoteTexto(auto) || 'Lote activo';
     setGPSState('ok', '<strong>' + ctx + '</strong>');
     // btn-refresh always visible in HTML
     fetchMeteo();
@@ -291,8 +290,7 @@ function usarUbicacionDefault() {
   var dashCoord = auto && auto.coord ? auto.coord : _parsCoordDashboard();
   if (dashCoord) {
     STATE.lat = dashCoord.lat; STATE.lon = dashCoord.lon;
-    var ctxDefault = (auto && auto.lote ? (auto.lote.nombre || 'Lote activo') : 'Lote activo') + (auto && auto.cultivo ? ' · ' + auto.cultivo : '') + (auto && auto.superficie ? ' · ' + auto.superficie + ' ha' : '');
-    ctxDefault = pulvContextoLoteTexto(auto) || 'Lote activo';
+    var ctxDefault = pulvContextoLoteTexto(auto) || 'Lote activo';
     setGPSState('ok', '<strong>' + ctxDefault + '</strong>');
   } else {
     STATE.lat = -31.42; STATE.lon = -64.18; // Córdoba fallback
