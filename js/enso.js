@@ -62,6 +62,140 @@ function mapCropToDb(cultivo, fechaSiembraStr) {
   return ''; // Sorgo, Colza, etc.
 }
 
+function escapeHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function faseDbToLabel(faseDb) {
+  if (faseDb === 'ElNino') return 'El Nino';
+  if (faseDb === 'LaNina') return 'La Nina';
+  return 'Neutro';
+}
+
+function faseLocalToDb(fase) {
+  if (fase === 'nino') return 'ElNino';
+  if (fase === 'nina') return 'LaNina';
+  return 'Neutral';
+}
+
+function getCropCriticalWindow(cultivo) {
+  const clean = String(cultivo || '').toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (clean.includes('maiz')) return 'VT-R2';
+  if (clean.includes('soja')) return 'R3-R6';
+  if (clean.includes('trigo') || clean.includes('cebada')) return 'floracion y llenado';
+  if (clean.includes('girasol')) return 'R4-R6';
+  return 'periodo critico';
+}
+
+function buildGenericAdvisory(infoText) {
+  const d = window.ENSO_DATA || { fase:'neutro', label:'Neutro' };
+  const status = infoText ? 'AgroENSO departamental pendiente' : 'ENSO general activo';
+  const faseTxt = d.label || 'Neutro';
+  const faseNote = d.fase === 'nina'
+    ? 'Priorizar lectura de reserva util y riesgo de deficit en floracion.'
+    : d.fase === 'nino'
+      ? 'Vigilar excesos, anegamiento y ventanas operativas luego de lluvias.'
+      : 'Usar la reserva del perfil y el pronostico corto como senal principal.';
+
+  return {
+    status,
+    tone: infoText ? 'warn' : 'neutral',
+    title: `Lectura climatica: ${faseTxt}`,
+    summary: infoText || faseNote,
+    dashboardText: `${status}. ${faseNote}`,
+    bullets: [
+      'Interpretacion regional, no reemplaza el balance hidrico del lote.',
+      faseNote,
+      'Completar ubicacion y cultivo permite activar la lectura historica por departamento.'
+    ]
+  };
+}
+
+function buildDetailedAdvisory(activeLote, impactosOrdenados, currentFaseDb, cultivo) {
+  const current = impactosOrdenados.find(i => i.fase_enso === currentFaseDb) || impactosOrdenados[0];
+  const dev = current ? parseFloat(current.rend_vs_promedio_pct) : 0;
+  const devStr = (dev >= 0 ? '+' : '') + dev.toFixed(1) + '%';
+  const faseTxt = faseDbToLabel(currentFaseDb);
+  const critico = getCropCriticalWindow(cultivo);
+  const depto = activeLote?.data?.depto_nombre || 'la zona';
+  const significativo = !!current?.significativo;
+
+  let tone = 'neutral';
+  let summary = `En ${depto}, ${cultivo} se comporto cerca del promedio historico bajo fase ${faseTxt} (${devStr}).`;
+  let manejo = `Mantener el rendimiento objetivo atado a reserva util, pronostico corto y avance del cultivo.`;
+  let hidrico = `Monitorear especialmente ${critico}, donde el cultivo expresa mejor el impacto hidrico.`;
+
+  if (dev <= -10) {
+    tone = 'risk';
+    summary = `Senal de riesgo: en ${depto}, ${cultivo} rindio ${devStr} frente al promedio bajo fase ${faseTxt}.`;
+    manejo = 'Bajar agresividad del rendimiento objetivo si el perfil no esta cargado; priorizar ambientes con mejor reserva.';
+    hidrico = `Seguir de cerca deficit y dias de estres en ${critico}.`;
+  } else if (dev <= -5) {
+    tone = 'warn';
+    summary = `Senal moderadamente penalizante: ${cultivo} muestra ${devStr} historico bajo fase ${faseTxt} en ${depto}.`;
+    manejo = 'Ajustar expectativas por ambiente y evitar decisiones que dependan de lluvias oportunas.';
+    hidrico = `Revisar cobertura hidrica antes de atravesar ${critico}.`;
+  } else if (dev >= 10) {
+    tone = 'opportunity';
+    summary = `Senal favorable: ${cultivo} rindio ${devStr} frente al promedio bajo fase ${faseTxt} en ${depto}.`;
+    manejo = 'Si el perfil acompana, sostener planteos de mayor potencial y revisar nutricion para no limitar respuesta.';
+    hidrico = `Aprovechar la mejor oferta hidrica sin descuidar excesos o perdidas operativas.`;
+  } else if (dev >= 5) {
+    tone = 'opportunity';
+    summary = `Senal levemente favorable: ${cultivo} muestra ${devStr} historico bajo fase ${faseTxt} en ${depto}.`;
+    manejo = 'Mantener objetivo, pero validarlo con agua util y pronostico de corto plazo.';
+    hidrico = `Cuidar ventanas de labor y seguimiento en ${critico}.`;
+  }
+
+  const sigNote = significativo
+    ? 'El efecto aparece como estadisticamente significativo en la base AgroENSO.'
+    : 'La senal historica no figura como estadisticamente significativa; usarla como contexto.';
+
+  return {
+    status: 'AgroENSO departamental activo',
+    tone,
+    title: `Lectura agronomica para ${cultivo}`,
+    summary,
+    dashboardText: `${faseTxt}: ${cultivo} ${devStr} historico en ${depto}. ${manejo}`,
+    bullets: [hidrico, manejo, sigNote]
+  };
+}
+
+function renderAdvisoryBox(advisory) {
+  const toneCfg = {
+    risk:        { color:'#C62828', bg:'rgba(201,74,42,.08)', border:'rgba(201,74,42,.25)' },
+    warn:        { color:'#B87A20', bg:'rgba(184,122,32,.08)', border:'rgba(184,122,32,.25)' },
+    opportunity: { color:'#1565C0', bg:'rgba(21,101,192,.08)', border:'rgba(21,101,192,.25)' },
+    neutral:     { color:'#2A5A8C', bg:'rgba(42,90,140,.08)', border:'rgba(42,90,140,.25)' }
+  };
+  const cfg = toneCfg[advisory?.tone] || toneCfg.neutral;
+  const bullets = (advisory?.bullets || []).map(b => `
+    <div style="display:flex;gap:.45rem;align-items:flex-start">
+      <span style="color:${cfg.color};font-weight:700">-</span>
+      <span>${escapeHtml(b)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div style="margin-top:.8rem;padding:.75rem;border-radius:8px;border:1px solid ${cfg.border};background:${cfg.bg}">
+      <div style="display:flex;justify-content:space-between;gap:.6rem;align-items:center;margin-bottom:.45rem">
+        <div style="font-size:.78rem;font-weight:800;color:${cfg.color}">${escapeHtml(advisory?.title || 'Lectura agronomica')}</div>
+        <div style="font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:${cfg.color};white-space:nowrap">${escapeHtml(advisory?.status || 'ENSO')}</div>
+      </div>
+      <div style="font-size:.75rem;line-height:1.45;color:rgba(74,46,26,.78);margin-bottom:.5rem">${escapeHtml(advisory?.summary || '')}</div>
+      <div style="display:flex;flex-direction:column;gap:.28rem;font-size:.72rem;line-height:1.35;color:rgba(74,46,26,.66)">
+        ${bullets}
+      </div>
+    </div>
+  `;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PARSING DEL ARCHIVO ONI
 // ─────────────────────────────────────────────────────────────────────────────
@@ -373,6 +507,8 @@ function renderStandardProbabilities(container, infoText) {
   const colors = { nino:'#2A7A4A', neutro:'#2A5A8C', nina:'#C94A2A' };
   const icons  = { nino:'🌧️', neutro:'⚖️', nina:'☀️' };
   const col    = colors[d.fase] || colors.neutro;
+  const advisory = buildGenericAdvisory(infoText);
+  window.AM_ENSO_ADVISORY = advisory;
 
   const barra = (label, pct, color) => `
     <div style="margin-bottom:.5rem">
@@ -411,7 +547,11 @@ function renderStandardProbabilities(container, infoText) {
     `;
   }
 
+  html += renderAdvisoryBox(advisory);
   container.innerHTML = html;
+  if (typeof amEnsoUpdateMacroCard === 'function') {
+    amEnsoUpdateMacroCard();
+  }
 }
 
 async function amEnsoRenderDetailedPanel() {
@@ -517,9 +657,11 @@ async function amEnsoRenderDetailedPanel() {
   const order = ['ElNino', 'Neutral', 'LaNina'];
   const sorted = order.map(fase => impactos.find(i => i.fase_enso === fase)).filter(Boolean);
 
-  const currentFaseDb = window.ENSO_DATA?.fase === 'nino' ? 'ElNino' : window.ENSO_DATA?.fase === 'nina' ? 'LaNina' : 'Neutral';
+  const currentFaseDb = faseLocalToDb(window.ENSO_DATA?.fase);
   const deptoNombre = activeLote.data.depto_nombre || 'zona';
   const provNombre = activeLote.data.provincia_nombre || '';
+  const advisory = buildDetailedAdvisory(activeLote, sorted, currentFaseDb, cultivo);
+  window.AM_ENSO_ADVISORY = advisory;
 
   let html = `
     <div style="font-size: .83rem; font-weight: 600; color: var(--earth); margin-bottom: .6rem; text-align: center">
@@ -566,6 +708,8 @@ async function amEnsoRenderDetailedPanel() {
     `;
   });
 
+  html += renderAdvisoryBox(advisory);
+
   html += `
     </div>
     <div style="font-size: .68rem; color: rgba(74,46,26,.5); line-height: 1.4; text-align: center; font-style: italic; border-top: 1px dashed rgba(60,34,16,.1); padding-top: .5rem">
@@ -575,6 +719,9 @@ async function amEnsoRenderDetailedPanel() {
   `;
 
   container.innerHTML = html;
+  if (typeof amEnsoUpdateMacroCard === 'function') {
+    amEnsoUpdateMacroCard();
+  }
 }
 
 function amEnsoUpdateMacroCard() {
@@ -599,7 +746,11 @@ function amEnsoUpdateMacroCard() {
   badge.textContent = `${icons[d.fase]} ${d.label}`;
   
   const oniStr = d.oni_valor != null && !isNaN(d.oni_valor) ? `${d.oni_valor.toFixed(2)} °C` : 'N/D';
-  text.innerHTML = `Anomalía ONI: <b>${oniStr}</b> (${d.trimestre || '—'})`;
+  const advisory = window.AM_ENSO_ADVISORY || buildGenericAdvisory();
+  text.innerHTML = `
+    <div>Anomalía ONI: <b>${oniStr}</b> (${d.trimestre || '—'}). <b>${escapeHtml(advisory.status)}</b></div>
+    <div style="margin-top:.18rem;line-height:1.35;color:#4b5563">${escapeHtml(advisory.dashboardText || advisory.summary || '')}</div>
+  `;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -622,6 +773,8 @@ if (typeof module !== "undefined" && module.exports) {
     ONI_UMBRAL_NINA,
     mapCropToDb,
     mapDbFaseToLocal,
+    _buildDetailedAdvisory: buildDetailedAdvisory,
+    _faseLocalToDb: faseLocalToDb,
     _parsearONI:     parsearONI,
     _clasificarFase: clasificarFase,
     _periodoAFecha:  periodoAFecha,
