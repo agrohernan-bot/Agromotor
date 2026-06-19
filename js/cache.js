@@ -684,6 +684,8 @@ function cacheGuardar() {
       siembraRealizada: lote.data?.siembraRealizada || null,
       maquinaria: lote.data?.maquinaria || null,
       rendimientoProyectado: lote.data?.rendimientoProyectado || null,
+      seguimientoResumen: lote.data?.seguimientoResumen || null,
+      ndviSeguimiento: lote.data?.ndviSeguimiento || null,
     };
     
     lote.data = {
@@ -706,6 +708,8 @@ function cacheGuardar() {
       siembraRealizada: workflowData.siembraRealizada,
       maquinaria: workflowData.maquinaria,
       rendimientoProyectado: workflowData.rendimientoProyectado,
+      seguimientoResumen: workflowData.seguimientoResumen,
+      ndviSeguimiento: workflowData.ndviSeguimiento,
       t6:     document.getElementById('sv-t6')?.textContent,
       t18:    document.getElementById('sv-t18')?.textContent,
       h1:     document.getElementById('sv-h1')?.textContent,

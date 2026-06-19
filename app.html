@@ -4375,7 +4375,7 @@ function _fsRenderAguaEtapas(res, diasTranscurridos) {
     + '<span style="font-size:.72rem;color:var(--c2);background:rgba(255,255,255,.05);border-radius:20px;padding:.25rem .55rem">Lluvia acumulada: <b style="color:var(--accent)">' + Math.round(lluviaHoy) + ' mm</b></span>'
     + '<span style="font-size:.72rem;color:var(--c2);background:rgba(255,255,255,.05);border-radius:20px;padding:.25rem .55rem">ET0 ref usada: ' + et0Ref.toFixed(1) + ' mm/d</span>'
     + '</div>'
-    + '<table style="width:100%;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:rgba(255,255,255,.05)">'
+    + '<table style="width:100%;min-width:560px;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:rgba(255,255,255,.05)">'
     + '<th style="padding:10px;text-align:left">Estadio</th><th>Dias</th><th>Lluvia</th><th>Demanda</th><th>Balance</th><th>Cob.</th>'
     + '</tr></thead><tbody>' + rows + '</tbody></table>'
     + '<p style="font-size:.7rem;color:var(--c2);margin:.65rem 0 0">Demanda estimada como Kc diario × ET0 de referencia. Usar como semaforo operativo; el balance hidrico del modulo dedicado sigue siendo la fuente para decision final.</p>'
@@ -4447,6 +4447,17 @@ function _fsGuardarRendimiento(datos) {
       if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
     }
     if (typeof window.dashRendimientoRefresh === 'function') window.dashRendimientoRefresh();
+  } catch(e) {}
+}
+
+function _fsGuardarSeguimientoResumen(datos) {
+  try {
+    var lote = _fsLoteActivo();
+    if (lote) {
+      lote.data = lote.data || {};
+      lote.data.seguimientoResumen = datos;
+      if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+    }
   } catch(e) {}
 }
 
@@ -4560,6 +4571,152 @@ function _fsRenderRendimiento(res, diasTranscurridos) {
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem">'
     + '<table style="width:100%;border-collapse:collapse;font-size:.78rem">' + factores + '</table>'
     + '<div style="font-size:.72rem;color:var(--c2);line-height:1.45;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.8rem">El valor queda guardado en el lote activo como <strong>rendimientoProyectado</strong> y alimenta el resumen del Dashboard. Es una estimacion operativa; ajustar con recorrida, sanidad, densidad lograda y ambiente real.</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function _fsNdviProxy(res, diasTranscurridos) {
+  var lluvia = res.lluviaPorDia || [];
+  var kc = res.kcPorDia || [];
+  var totalDias = Math.max(1, lluvia.length || kc.length || diasTranscurridos || 1);
+  var diaHoy = Math.max(0, Math.min(diasTranscurridos, totalDias - 1));
+  var pctCiclo = Math.max(0, Math.min(1, (diaHoy + 1) / totalDias));
+  var et0Ref = _fsEt0Ref(res.cultivo);
+  var prec = _fsSum(lluvia, 0, diaHoy);
+  var dem = 0;
+  for (var i = 0; i <= diaHoy && i < totalDias; i++) dem += (parseFloat(kc[i]) || 0.8) * et0Ref;
+  var ratioHid = dem > 0 ? Math.max(0.2, Math.min(1.25, (prec + _fsAguaPerfilMm() * 0.35) / dem)) : 1;
+  var ndviBase = pctCiclo < 0.55 ? 0.18 + 0.58 * (pctCiclo / 0.55) : 0.76 - 0.42 * ((pctCiclo - 0.55) / 0.45);
+  var ndvi = Math.max(0.08, Math.min(0.88, ndviBase * Math.min(1.08, ratioHid)));
+  var datos = {
+    valor: +ndvi.toFixed(3),
+    tipo: 'proxy',
+    fecha: new Date().toISOString(),
+    pctCiclo: Math.round(pctCiclo * 100),
+    ratioHidrico: +ratioHid.toFixed(2),
+    fuente: 'Proxy fenologico-hidrico'
+  };
+  try {
+    localStorage.setItem('am_ndvi_proxy', String(datos.valor));
+    var lote = _fsLoteActivo();
+    if (lote) {
+      lote.data = lote.data || {};
+      lote.data.ndviSeguimiento = datos;
+    }
+  } catch(e) {}
+  return datos;
+}
+
+function _fsLeerBitacoraLote() {
+  try {
+    var lote = _fsLoteActivo();
+    var loteId = lote && lote.id ? String(lote.id) : '';
+    var raw = localStorage.getItem('am_bitacora_v2');
+    var lista = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(lista)) return [];
+    return lista.filter(function(e) { return !loteId || String(e.loteId || '') === loteId; })
+      .sort(function(a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || '')); });
+  } catch(e) { return []; }
+}
+
+function fsRegistrarBitacora(tipo, nota) {
+  try {
+    var lote = _fsLoteActivo();
+    var d = (lote && lote.data) || {};
+    var ahora = new Date();
+    var entrada = {
+      id: 'fs-' + ahora.getTime(),
+      fecha: ahora.toISOString().slice(0, 10),
+      hora: ahora.toTimeString().slice(0, 5),
+      tipo: tipo || 'visita',
+      nota: nota || 'Scouting recomendado desde seguimiento fenologico.',
+      loteId: lote ? lote.id : '',
+      loteNombre: lote ? lote.nombre : 'Lote',
+      cultivo: d.cultivo || (document.getElementById('fs-cultivo') || {}).value || '',
+      etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
+      origen: 'fen-seg'
+    };
+    var raw = localStorage.getItem('am_bitacora_v2');
+    var lista = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(lista)) lista = [];
+    lista.push(entrada);
+    localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
+    if (typeof amToast === 'function') amToast('Entrada agregada a Bitacora', 'ok');
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    if (typeof fsCalcular === 'function') setTimeout(fsCalcular, 150);
+  } catch(e) {
+    if (typeof amToast === 'function') amToast('No se pudo registrar en Bitacora', 'err');
+  }
+}
+
+function _fsAccionesSeguimiento(res, etapaActual, diasTranscurridos, ndvi, rend, bitacora) {
+  var acciones = [];
+  var lluvia7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
+  var lluviaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
+  if (!bitacora.length) acciones.push({ p: 'alta', t: 'Registrar primer scouting del lote', d: 'Deja trazabilidad de estado, malezas, sanidad y stand.', b: 'Registrar scouting', js: "fsRegistrarBitacora('visita','Primer scouting sugerido desde seguimiento fenologico.')" });
+  if (lluviaProx < 8 && lluvia7 < 15) acciones.push({ p: 'alta', t: 'Actualizar balance hidrico', d: 'Hay poca reposicion reciente y sin lluvia cercana.', b: 'Abrir Hidrico', js: "switchMod('hidrico')" });
+  if (ndvi.valor < 0.45 && diasTranscurridos > 20) acciones.push({ p: 'alta', t: 'Validar vigor a campo', d: 'El proxy NDVI marca canopeo bajo o estres visible probable.', b: 'Registrar visita', js: "fsRegistrarBitacora('visita','Verificar vigor/NDVI bajo a campo.')" });
+  if (rend && rend.pctLogro < 80) acciones.push({ p: 'media', t: 'Revisar objetivo de rendimiento', d: 'La proyeccion actual queda por debajo del objetivo cargado.', b: 'Abrir Nutricion', js: "switchMod('nutricion')" });
+  if (etapaActual && etapaActual.esCritica) acciones.push({ p: 'alta', t: 'Etapa critica activa', d: 'Priorizar recorrida, agua y sanidad durante esta ventana.', b: 'Registrar monitoreo', js: "fsRegistrarBitacora('visita','Monitoreo en etapa critica.')" });
+  if (acciones.length < 3) acciones.push({ p: 'baja', t: 'Mantener seguimiento semanal', d: 'Actualizar fenologia, agua y bitacora para sostener el pronostico.', b: 'Agregar nota', js: "fsRegistrarBitacora('otro','Actualizacion semanal de seguimiento.')" });
+  return acciones.slice(0, 5);
+}
+
+function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
+  var ndvi = _fsNdviProxy(res, diasTranscurridos);
+  var rend = _fsCalcularRendimiento(res, diasTranscurridos);
+  var bit = _fsLeerBitacoraLote();
+  var agua7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
+  var aguaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
+  var ndviColor = ndvi.valor >= 0.62 ? '#6DBF82' : ndvi.valor >= 0.45 ? '#C8A255' : '#D4522A';
+  var aguaColor = aguaProx >= 15 || agua7 >= 25 ? '#6DBF82' : aguaProx >= 5 || agua7 >= 10 ? '#C8A255' : '#D4522A';
+  var rendColor = !rend ? '#C8A255' : rend.pctLogro >= 90 ? '#6DBF82' : rend.pctLogro >= 75 ? '#C8A255' : '#D4522A';
+  var acciones = _fsAccionesSeguimiento(res, etapaActual, diasTranscurridos, ndvi, rend, bit);
+  var resumen = {
+    fecha: new Date().toISOString(),
+    cultivo: res.cultivo,
+    etapa: etapaActual ? etapaActual.nombre : '',
+    diasDesdeSiembra: diasTranscurridos,
+    ndvi: ndvi,
+    rendimiento: rend,
+    bitacoraCount: bit.length,
+    lluvia7: Math.round(agua7),
+    lluviaProx7: Math.round(aguaProx),
+    acciones: acciones.map(function(a) { return { prioridad: a.p, titulo: a.t, detalle: a.d }; })
+  };
+  _fsGuardarSeguimientoResumen(resumen);
+  var cards = [
+    ['Fenologia', etapaActual ? etapaActual.nombre : '-', diasTranscurridos + ' dias', etapaActual && etapaActual.esCritica ? '#C8A255' : '#6DBF82'],
+    ['Agua', Math.round(aguaProx) + ' mm', 'proximos 7 dias', aguaColor],
+    ['Vigor NDVI', ndvi.valor.toFixed(2), ndvi.tipo === 'proxy' ? 'estimado' : 'satelital', ndviColor],
+    ['Rendimiento', rend ? rend.rendProyectado.toFixed(2) : '-', rend ? rend.pctLogro + '% objetivo' : 'sin datos', rendColor],
+    ['Bitacora', String(bit.length), 'eventos del lote', bit.length ? '#6DBF82' : '#C8A255']
+  ].map(function(c) {
+    return '<div style="background:rgba(255,255,255,.04);border:1px solid ' + c[3] + '55;border-radius:8px;padding:.75rem">'
+      + '<div style="font-size:.64rem;color:var(--c2);text-transform:uppercase;letter-spacing:.06em">' + c[0] + '</div>'
+      + '<div style="font-size:1.3rem;font-weight:800;color:' + c[3] + ';margin:.15rem 0">' + c[1] + '</div>'
+      + '<div style="font-size:.68rem;color:var(--c2)">' + c[2] + '</div>'
+      + '</div>';
+  }).join('');
+  var acts = acciones.map(function(a) {
+    var c = a.p === 'alta' ? '#D4522A' : a.p === 'media' ? '#C8A255' : '#6DBF82';
+    return '<div style="border:1px solid ' + c + '44;background:' + c + '10;border-radius:8px;padding:.75rem;display:flex;gap:.75rem;justify-content:space-between;align-items:flex-start;flex-wrap:wrap">'
+      + '<div style="min-width:0;flex:1"><div style="font-weight:800;color:' + c + ';font-size:.82rem">' + a.t + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.35;margin-top:.2rem">' + a.d + '</div></div>'
+      + '<button type="button" onclick="' + a.js + '" style="border:1px solid ' + c + '66;background:' + c + '18;color:' + c + ';border-radius:7px;padding:.38rem .62rem;font-size:.7rem;font-weight:800;cursor:pointer">' + a.b + '</button>'
+      + '</div>';
+  }).join('');
+  var ult = bit.slice(0, 3).map(function(b) {
+    return '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0"><strong style="color:var(--fg)">' + (b.fecha || '') + '</strong> · ' + (b.nota || b.tipo || 'Entrada') + '</div>';
+  }).join('') || '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0">Sin eventos registrados para este lote.</div>';
+  return '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(79,195,247,.18)">'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem">'
+    + '<div><div style="font-size:.86rem;font-weight:800;color:var(--c2);margin-bottom:.2rem">Resumen ejecutivo de seguimiento</div><div style="font-size:.72rem;color:var(--c2)">Semaforos, vigor, rendimiento, bitacora y acciones sugeridas</div></div>'
+    + '<button type="button" onclick="if(window.amExportarPDFModulo)amExportarPDFModulo()" style="border:1px solid rgba(79,195,247,.45);background:rgba(79,195,247,.10);color:#4fc3f7;border-radius:8px;padding:.45rem .75rem;font-size:.75rem;font-weight:800;cursor:pointer">PDF seguimiento</button>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:.55rem;margin-bottom:.85rem">' + cards + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem">'
+    + '<div style="display:flex;flex-direction:column;gap:.5rem">' + acts + '</div>'
+    + '<div style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.75rem"><div style="font-size:.74rem;font-weight:800;color:var(--c2);margin-bottom:.35rem">Ultima bitacora</div>' + ult + '</div>'
     + '</div>'
     + '</div>';
 }
@@ -4683,6 +4840,7 @@ function _fsRender(res, diasTranscurridos) {
     + '<div><div style="font-size:.76rem;color:var(--c2)">Días desde siembra</div><div style="font-size:1.7rem;font-weight:700">' + diasTranscurridos + '</div></div>'
     + '<div><div style="font-size:.76rem;color:var(--c2)">GDD acumulado</div><div style="font-size:1.7rem;font-weight:700">' + gddHoy + '</div></div>'
     + '</div></div>'
+    + _fsRenderEjecutivo(res, etapaActual, diasTranscurridos)
     + _fsRenderAlertasOperativas(res, etapaActual, diasTranscurridos)
     + _fsRenderAguaEtapas(res, diasTranscurridos)
     + _fsRenderRendimiento(res, diasTranscurridos)
@@ -4875,9 +5033,9 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=149"></script>
+<script src="js/config.js?v=150"></script>
 <script src="js/login.js?v=90"></script>
-<script src="js/cache.js?v=101"></script>
+<script src="js/cache.js?v=102"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
@@ -4889,7 +5047,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=105"></script>
+<script src="js/nav.js?v=106"></script>
 
 
 
@@ -4901,7 +5059,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/maquinaria.js?v=88"></script>
 <script src="js/asistente.js?v=85"></script>
 <script src="js/pdf.js?v=85"></script>
-<script src="js/pdf-modulo.js?v=85"></script>
+<script src="js/pdf-modulo.js?v=86"></script>
 <script src="js/onboarding.js?v=85"></script>
 <script src="js/alerta-sanitaria.js?v=89"></script>
 <script src="js/dashboard-ux.js?v=85"></script>

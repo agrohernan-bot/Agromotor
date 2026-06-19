@@ -1221,6 +1221,116 @@
 
   // ── Botón flotante context-aware ─────────────────────
   // Detecta el módulo activo y dispara el generador correspondiente.
+  window.pdfFenSeguimiento = function() {
+    try {
+      var lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+      var d = (lote && lote.data) || {};
+      var seg = d.seguimientoResumen || {};
+      var rend = seg.rendimiento || d.rendimientoProyectado || {};
+      var ndvi = seg.ndvi || d.ndviSeguimiento || {};
+      var ctx = crearPDFBase('Seguimiento fenologico del lote', 'Fenologia · agua · vigor · rendimiento · acciones');
+      var doc = ctx.doc;
+
+      seccionDatosLote(ctx, {
+        'Lote': lote ? lote.nombre : 'Lote activo',
+        'Cultivo': d.cultivo || seg.cultivo || '',
+        'Fecha de siembra': d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '',
+        'Coordenadas': d.coord || '',
+        'Etapa actual': seg.etapa || localStorage.getItem('am_fen_etapa_hoy') || '',
+        'Dias desde siembra': seg.diasDesdeSiembra != null ? seg.diasDesdeSiembra : ''
+      });
+
+      seccion(ctx, 'RESUMEN EJECUTIVO', ctx.COL.VERDE);
+      [
+        ['Rendimiento proyectado', rend.rendProyectado ? (rend.rendProyectado + ' t/ha') : 'Sin calcular'],
+        ['Logro del objetivo', rend.pctLogro ? (rend.pctLogro + '%') : ''],
+        ['NDVI / vigor', ndvi.valor ? (Number(ndvi.valor).toFixed(2) + ' (' + (ndvi.tipo || 'proxy') + ')') : ''],
+        ['Lluvia ultima semana', seg.lluvia7 != null ? (seg.lluvia7 + ' mm') : ''],
+        ['Pronostico 7 dias', seg.lluviaProx7 != null ? (seg.lluviaProx7 + ' mm') : ''],
+        ['Eventos en bitacora', seg.bitacoraCount != null ? seg.bitacoraCount : '']
+      ].forEach(function(f, i) {
+        if (!f[1] && f[1] !== 0) return;
+        checkPage(ctx, 8);
+        doc.setFillColor(...(i % 2 ? [255,255,255] : ctx.COL.CLARO));
+        doc.rect(ctx.ML, ctx.y, ctx.W, 6, 'F');
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(8.3);
+        doc.text(f[0], ctx.ML + 3, ctx.y + 4);
+        doc.setTextColor(...ctx.COL.NEGRO);
+        doc.setFont('helvetica','bold');
+        doc.text(String(f[1]), ctx.ML + ctx.W - 3, ctx.y + 4, { align: 'right' });
+        ctx.y += 6;
+      });
+      ctx.y += 4;
+
+      if (rend.escenarios) {
+        seccion(ctx, 'ESCENARIOS DE RENDIMIENTO', ctx.COL.AZUL);
+        [['Seco', rend.escenarios.seco], ['Normal', rend.escenarios.normal], ['Favorable', rend.escenarios.favorable]].forEach(function(e) {
+          checkPage(ctx, 8);
+          doc.setTextColor(...ctx.COL.NEGRO);
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(8.4);
+          doc.text(e[0], ctx.ML + 3, ctx.y + 4);
+          doc.setFont('helvetica','normal');
+          doc.text((e[1] != null ? Number(e[1]).toFixed(2) : '-') + ' t/ha', ctx.ML + 65, ctx.y + 4);
+          ctx.y += 6;
+        });
+        ctx.y += 3;
+      }
+
+      seccion(ctx, 'ACCIONES RECOMENDADAS', ctx.COL.DORADO);
+      var acciones = Array.isArray(seg.acciones) ? seg.acciones : [];
+      if (!acciones.length) acciones = [{ prioridad: 'baja', titulo: 'Actualizar seguimiento', detalle: 'Recalcular Fenologia · Seguimiento para generar acciones del lote.' }];
+      acciones.slice(0, 8).forEach(function(a) {
+        checkPage(ctx, 15);
+        doc.setFillColor(...ctx.COL.CLARO);
+        doc.roundedRect(ctx.ML, ctx.y, ctx.W, 12, 2, 2, 'F');
+        doc.setTextColor(...(a.prioridad === 'alta' ? ctx.COL.DANGER : a.prioridad === 'media' ? ctx.COL.WARN : ctx.COL.OK));
+        doc.setFont('helvetica','bold');
+        doc.setFontSize(8.2);
+        doc.text(String(a.titulo || 'Accion'), ctx.ML + 3, ctx.y + 4.5);
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(7.2);
+        doc.text(doc.splitTextToSize(String(a.detalle || ''), ctx.W - 6), ctx.ML + 3, ctx.y + 8.5);
+        ctx.y += 14;
+      });
+
+      seccion(ctx, 'BITACORA Y TRAZABILIDAD', ctx.COL.VERDE2);
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var bit = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(bit)) bit = [];
+      var loteId = lote && lote.id ? String(lote.id) : '';
+      bit = bit.filter(function(e) { return !loteId || String(e.loteId || '') === loteId; }).slice(-10).reverse();
+      if (!bit.length) {
+        doc.setTextColor(...ctx.COL.GRIS);
+        doc.setFontSize(8);
+        doc.text('Sin eventos de bitacora registrados para este lote.', ctx.ML + 3, ctx.y + 4);
+        ctx.y += 8;
+      } else {
+        bit.forEach(function(b) {
+          checkPage(ctx, 9);
+          doc.setFontSize(7.6);
+          doc.setTextColor(...ctx.COL.NEGRO);
+          doc.setFont('helvetica','bold');
+          doc.text((b.fecha || '') + ' · ' + (b.tipo || ''), ctx.ML + 3, ctx.y + 4);
+          doc.setFont('helvetica','normal');
+          doc.setTextColor(...ctx.COL.GRIS);
+          doc.text(doc.splitTextToSize(String(b.nota || ''), ctx.W - 70), ctx.ML + 55, ctx.y + 4);
+          ctx.y += 8;
+        });
+      }
+
+      cerrarPDF(ctx);
+      doc.save(nombreArchivo('Seguimiento'));
+      amToast('âœ… Seguimiento exportado a PDF', 'ok');
+    } catch(e) {
+      console.error('pdfFenSeguimiento error:', e);
+      amToast('Error generando PDF: ' + e.message, 'err');
+    }
+  };
+
   window.amExportarPDFModulo = function() {
     if (!window.AM_SESION) {
       amToast('Iniciá sesión primero — el PDF se firma con tu matrícula profesional.', 'err');
@@ -1239,6 +1349,7 @@
       'pulverizacion':  window.pdfPulverizacion,
       'cultivares':     window.pdfCultivares,
       'economia':       window.pdfEconomia,
+      'fen-seg':        window.pdfFenSeguimiento,
     };
     var fn = fns[modId];
     if (typeof fn === 'function') fn();
