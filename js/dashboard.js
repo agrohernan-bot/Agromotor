@@ -1071,7 +1071,7 @@ window.dashGanttRefresh = render;
     };
     var html = '<div class="dop-alerts" style="margin-bottom:.75rem;border-color:rgba(109,191,130,.18)">';
     html += '<div class="dop-alerts-head"><span>Resumen ejecutivo del lote</span><span>' + esc(estado.label) + '</span></div>';
-    html += '<div style="display:grid;grid-template-columns:1.25fr .85fr;gap:.7rem;align-items:stretch">';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.7rem;align-items:stretch">';
     html += '<div class="dop-alert dop-alert-' + (estado.state === 'alta' ? 'alta' : estado.state === 'media' ? 'media' : 'baja') + '" style="margin:0">';
     html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(a.title) + '</div><div class="dop-alert-desc">' + esc(a.desc) + '</div><div class="dop-alert-desc" style="margin-top:.18rem;opacity:.75">' + esc(estado.desc) + '</div></div>';
     html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\',\'' + esc(a.action || a.mod) + '\')">' + esc(a.btn) + '</button>';
