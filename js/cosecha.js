@@ -496,6 +496,17 @@ async function fetchMarketJson(type, timeoutMs) {
   }
 }
 
+function cosFuenteHtml(tipo, titulo, detalle) {
+  const label = {
+    ok: 'Actualizado',
+    cache: 'Ultimo dato guardado',
+    manual: 'Completar manualmente',
+    estimado: 'Estimado'
+  }[tipo] || 'Fuente';
+  const cls = 'am-source-note am-source-' + tipo;
+  return '<span class="' + cls + '"><strong>' + label + ':</strong> ' + titulo + (detalle ? ' - ' + detalle : '') + '</span>';
+}
+
 function aplicarTipoCambioCache(motivo) {
   const cache = cacheGet('usd_oficial');
   if (cache && cache.data && cache.data.tc) {
@@ -503,13 +514,13 @@ function aplicarTipoCambioCache(motivo) {
     S.usdData = cache.data.tc;
     setDot('dot-usd', 'ok');
     sv('val-usd', '$ ' + fmt(cache.data.tc, 0) + ' guardado');
-    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ ${motivo} Usando ultimo USD guardado (${cacheFecha(cache)}).`;
+    if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('cache', 'USD oficial', motivo + ' Fecha guardada: ' + cacheFecha(cache));
     calcLive();
     return true;
   }
   setDot('dot-usd', 'error');
   sv('val-usd', 'manual');
-  if ($('tc-source')) $('tc-source').innerHTML = `⚠️ ${motivo} Ingresar TC manualmente.`;
+  if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('manual', 'USD oficial', motivo);
   return false;
 }
 
@@ -533,12 +544,12 @@ function aplicarPlazoFijoCache(motivo) {
     sv('val-pf', fmt(cache.data.pfVal, 1) + '% TNA guardado');
     setDot('dot-pf', 'ok');
     if ($('tasa-ref')) $('tasa-ref').value = (cache.data.pfVal / 12).toFixed(1);
-    if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ ${motivo} Usando ultima tasa guardada (${cacheFecha(cache)}).`;
+    if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('cache', 'Tasa de referencia', motivo + ' Fecha guardada: ' + cacheFecha(cache));
     return true;
   }
   setDot('dot-pf', 'error');
   sv('val-pf', 'sin dato');
-  if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ ${motivo} Sin tasa guardada.`;
+  if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('manual', 'Tasa de referencia', motivo);
   return false;
 }
 
@@ -561,7 +572,7 @@ async function fetchPrecioGranoProxy(cultivo) {
   if (item && item.precio_usd) {
     const precio = parseFloat(String(item.precio_usd).replace(',', '.'));
     $('precio-usd').value = precio;
-    $('precio-source').innerHTML = `✅ FOB oficial MAGYP (proxy) - ${item.fecha || payload.fecha || 'hoy'}`;
+    $('precio-source').innerHTML = cosFuenteHtml('ok', 'FOB oficial MAGYP via AgroMotor', item.fecha || payload.fecha || 'hoy');
     setDot('dot-fob', 'ok');
     sv('val-fob', `${nombre}: USD ${fmt(precio,0)}`);
     cacheSet('fob_' + cultivo, { precio, nombre, fecha: item.fecha || payload.fecha || null });
@@ -590,7 +601,7 @@ async function fetchTipoCambioProxy() {
     return true;
   }
   $('tipo-cambio').value = tc;
-  if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA - proxy - ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
+  if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('ok', 'USD oficial via AgroMotor', d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy');
   setDot('dot-usd', 'ok');
   sv('val-usd', '$ ' + fmt(tc, 0));
   S.usdData = tc;
@@ -628,7 +639,7 @@ async function fetchTasasBCRAProxy() {
     sv('val-pf', fmt(pfVal, 1) + '% TNA');
     setDot('dot-pf', 'ok');
     if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
-    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d - proxy datos.gob.ar - ${pfFecha || 'ultimo dato'}`;
+    if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('ok', 'Plazo fijo 30d via AgroMotor/datos.gob.ar', pfFecha || 'ultimo dato');
   } else {
     aplicarPlazoFijoCache((payload && payload.error) || 'datos.gob.ar no disponible.');
   }
@@ -674,7 +685,7 @@ async function fetchPrecioGrano() {
     if (item && item.precio_usd) {
       const precio = parseFloat(item.precio_usd);
       $('precio-usd').value = precio;
-      $('precio-source').innerHTML = `✅ FOB oficial MAGYP — ${item.fecha || 'hoy'}`;
+      $('precio-source').innerHTML = cosFuenteHtml('ok', 'FOB oficial MAGYP', item.fecha || 'hoy');
       setDot('dot-fob', 'ok');
       // Mostrar en ribbon
       sv('val-fob', `${nombre}: USD ${fmt(precio,0)}`);
@@ -685,13 +696,13 @@ async function fetchPrecioGrano() {
       // Si no encontramos el cultivo, mostrar lo que llegó
       setDot('dot-fob', 'ok');
       sv('val-fob', 'OK (manual)');
-      $('precio-source').innerHTML = `⚠� Datos FOB disponibles. Ingresá precio manualmente.`;
+      $('precio-source').innerHTML = cosFuenteHtml('manual', 'FOB disponible sin coincidencia para el cultivo', 'Ajustar precio manual');
     }
   } catch(e) {
     return aplicarPrecioGranoCache(cultivo, 'API FOB no disponible.');
     setDot('dot-fob', 'error');
     sv('val-fob', 'manual');
-    $('precio-source').innerHTML = `⚠� API FOB no disponible — ingresá precio manualmente`;
+    $('precio-source').innerHTML = cosFuenteHtml('manual', 'FOB no disponible', 'Ajustar precio manual');
   }
 }
 
@@ -702,13 +713,13 @@ function aplicarPrecioGranoCache(cultivo, motivo) {
     $('precio-usd').value = cache.data.precio;
     setDot('dot-fob', 'ok');
     sv('val-fob', `${cache.data.nombre || CULTIVOS[cultivo].nombre}: USD ${fmt(cache.data.precio,0)} guardado`);
-    $('precio-source').innerHTML = `⚠️ ${motivo} Usando ultimo FOB guardado (${cacheFecha(cache)}).`;
+    $('precio-source').innerHTML = cosFuenteHtml('cache', 'FOB del cultivo', motivo + ' Fecha guardada: ' + cacheFecha(cache));
     calcLive();
     return true;
   }
   setDot('dot-fob', 'error');
   sv('val-fob', 'manual');
-  $('precio-source').innerHTML = `⚠️ ${motivo} Sin dato guardado; podes ajustar el precio manualmente.`;
+  $('precio-source').innerHTML = cosFuenteHtml('manual', 'FOB del cultivo', motivo + ' Ajustar precio manual');
   return false;
 }
 
@@ -724,7 +735,7 @@ async function fetchTipoCambio() {
     const tc = d.venta ?? d.compra;
     if (!tc) throw new Error('sin valor');
     $('tipo-cambio').value = tc;
-    if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA � DolarAPI � ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
+    if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('ok', 'USD oficial', d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy');
     setDot('dot-usd', 'ok');
     sv('val-usd', '$ ' + fmt(tc, 0));
     S.usdData = tc;
@@ -737,13 +748,13 @@ async function fetchTipoCambio() {
       S.usdData = cache.data.tc;
       setDot('dot-usd', 'ok');
       sv('val-usd', '$ ' + fmt(cache.data.tc, 0) + ' guardado');
-      if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible. Usando ultimo USD guardado (${cacheFecha(cache)}).`;
+      if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('cache', 'USD oficial', 'Fecha guardada: ' + cacheFecha(cache));
       calcLive();
       return;
     }
     setDot('dot-usd', 'error');
     sv('val-usd', 'manual');
-    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ DolarAPI no disponible � ingres� TC manualmente`;
+    if ($('tc-source')) $('tc-source').innerHTML = cosFuenteHtml('manual', 'USD oficial no disponible', 'Ingresar TC manual');
   }
 }
 
@@ -807,7 +818,7 @@ async function fetchTasasBCRA() {
     sv('val-pf', fmt(pfVal, 1) + '% TNA');
     setDot('dot-pf', 'ok');
     if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
-    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d � datos.gob.ar � ${pfFecha}`;
+    if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('ok', 'Plazo fijo 30d via datos.gob.ar', pfFecha);
   } catch(e) {
     const cache = cacheGet('plazo_fijo');
     if (cache && cache.data && cache.data.pfVal) {
@@ -815,11 +826,11 @@ async function fetchTasasBCRA() {
       sv('val-pf', fmt(cache.data.pfVal, 1) + '% TNA guardado');
       setDot('dot-pf', 'ok');
       if ($('tasa-ref')) $('tasa-ref').value = (cache.data.pfVal / 12).toFixed(1);
-      if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ datos.gob.ar no disponible. Usando ultima tasa guardada (${cacheFecha(cache)}).`;
+      if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('cache', 'Tasa de referencia', 'Fecha guardada: ' + cacheFecha(cache));
     } else {
       setDot('dot-pf', 'error');
       sv('val-pf', 'sin dato');
-      if ($('tasa-source')) $('tasa-source').innerHTML = '⚠️ datos.gob.ar no disponible. Sin tasa guardada.';
+      if ($('tasa-source')) $('tasa-source').innerHTML = cosFuenteHtml('manual', 'Tasa de referencia no disponible', 'Sin tasa guardada');
     }
   }
 }
@@ -846,7 +857,7 @@ function saveBcraToken() {
 function usarTasaBCRA() {
   if (S.pfData) {
     $('tasa-ref').value = (S.pfData / 12).toFixed(1);
-    $('tasa-source').innerHTML = `✅ Tasa BCRA plazo fijo — ${fmt(S.pfData,1)}% TNA`;
+    $('tasa-source').innerHTML = cosFuenteHtml('ok', 'Tasa BCRA plazo fijo', fmt(S.pfData,1) + '% TNA');
     calcLive();
   } else {
     fetchTasasBCRA();
@@ -1349,7 +1360,10 @@ window.cosInit = function() {
   window.onCultivoChange = onCultivoChange;
   window.onTarifaChange = onTarifaChange;
   window.calcSecado = calcSecado;
-  window.usarTasaBCRA = usarTasaBCRA;
+  window.cosFetchPrecioGrano = fetchPrecioGrano;
+  window.cosFetchTipoCambio = fetchTipoCambio;
+  window.cosFetchTasasBCRA = fetchTasasBCRA;
+  window.cosUsarTasaBCRA = usarTasaBCRA;
   window.saveBcraToken = saveBcraToken;
   window.runIA = runIA;
   window.cosExportPDF = exportPDF;

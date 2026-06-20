@@ -1447,14 +1447,14 @@ async function consultarSuelo() {
     if (stEl)  stEl.classList.remove('hidden');
     if (spEl)  spEl.style.animation = 'none';
     if (btnEl) btnEl.textContent = '🔄 Actualizar';
-    if (msgEl) msgEl.textContent = 'SoilGrids (caché) · hace ' + _sgDiasAtras(loteId) + ' días · 250 m ISRIC';
+    if (msgEl) msgEl.textContent = 'Ultimo dato guardado: SoilGrids - hace ' + _sgDiasAtras(loteId) + ' dias - 250 m ISRIC';
     return;
   }
 
   if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⟳ Consultando...'; }
   if (stEl)  stEl.classList.remove('hidden');
   if (spEl)  spEl.style.animation = 'spin 1s linear infinite';
-  if (msgEl) msgEl.textContent = 'Consultando SoilGrids ISRIC...';
+  if (msgEl) msgEl.textContent = 'Consultando fuente de suelo - SoilGrids ISRIC...';
 
   try {
     // Paso 1: SoilGrids (textura, pH, MO, N, DA, CEC)
@@ -1463,10 +1463,10 @@ async function consultarSuelo() {
 
     // Paso 2: P, K, Zn — cascada OpenLandMap → IDECOR → DB
     if (msgEl) msgEl.textContent = datos.esFallback
-      ? 'Estimando suelo regional · Consultando P/K/Zn...'
-      : 'SoilGrids OK · Consultando P/K/Zn (OLM)...';
+      ? 'Estimado: base regional pampeana - consultando P/K/Zn...'
+      : 'Actualizado: SoilGrids - consultando P/K/Zn (OLM)...';
 
-    if (msgEl && datos.fuente_proxy) msgEl.textContent = 'Suelo cargado via proxy AgroMotor...';
+    if (msgEl && datos.fuente_proxy) msgEl.textContent = 'Actualizado: suelo via proxy AgroMotor...';
 
     var loteProvPKZ = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
     var provPKZ     = loteProvPKZ && loteProvPKZ.data ? loteProvPKZ.data.provincia_nombre : null;
@@ -1515,11 +1515,11 @@ async function consultarSuelo() {
                    : '';
     const labLabel = Object.keys(window._labDatos || {}).length > 0 ? ' · Lab 🔬' : '';
     if (msgEl) msgEl.textContent = datos.esFallback
-      ? 'Base regional pampeana (SoilGrids no disponible)' + pkzLabel + labLabel
-      : 'SoilGrids cargado' + pkzLabel + labLabel;
+      ? 'Estimado: base regional pampeana (SoilGrids no disponible)' + pkzLabel + labLabel
+      : 'Actualizado: SoilGrids' + pkzLabel + labLabel;
     if (spEl) spEl.style.animation = 'none';
   } catch(e) {
-    if (msgEl) msgEl.textContent = 'Error al consultar: ' + e.message;
+    if (msgEl) msgEl.textContent = 'Completar manualmente: no se pudo consultar suelo (' + e.message + ')';
     if (spEl)  spEl.style.animation = 'none';
   } finally {
     if (btnEl) { btnEl.disabled = false; btnEl.textContent = '🔄 Actualizar'; }

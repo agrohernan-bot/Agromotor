@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=90">
+  <link rel="stylesheet" href="css/agromotor.css?v=91">
   <link rel="stylesheet" href="css/cosecha.css?v=86">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=86">
@@ -1202,7 +1202,7 @@
 
 <!-- NOTA METODOLÓGICA -->
           <div style="margin-top:.8rem;padding:.55rem .8rem;background:#fbf6ec;border-radius:8px;font-size:.7rem;color:rgba(74,46,26,.45)">
-            📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: DolarAPI · Tarifas flete: referencia FADEEAC · 
+            📊 <strong>Fuente precios:</strong> BCR Rosario (ingreso manual) · Dólar: proxy AgroMotor/DolarAPI · Tarifas flete: referencia FADEEAC ·
             <strong>Etapa 2:</strong> precios en tiempo real desde API Matba-Rofex.
           </div>
         </div>
@@ -2767,7 +2767,7 @@
               <label class="fl">Precio disponible <span id="lbl-mercado">Soja — USD/ton</span></label>
               <div style="display:flex;gap:.6rem">
                 <input type="number" id="precio-usd" style="flex:1" placeholder="USD/ton" oninput="calcLive()">
-                <button class="btn btn-s" onclick="fetchPrecioGrano()" title="Obtener precio FOB desde MAGYP">🔄 API</button>
+                <button class="btn btn-s" onclick="window.cosFetchPrecioGrano&&window.cosFetchPrecioGrano()" title="Obtener precio FOB">🔄 API</button>
               </div>
               <div id="precio-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.3rem"></div>
             </div>
@@ -2776,7 +2776,7 @@
               <label class="fl">Tipo de cambio USD/ARS</label>
               <div style="display:flex;gap:.6rem">
                 <input type="number" id="tipo-cambio" placeholder="$/USD" oninput="calcLive()" style="flex:1">
-                <button class="btn btn-s" onclick="fetchTipoCambio()" title="Obtener TC oficial">🔄 API</button>
+                <button class="btn btn-s" onclick="window.cosFetchTipoCambio&&window.cosFetchTipoCambio()" title="Obtener TC oficial">🔄 API</button>
               </div>
               <div id="tc-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.3rem"></div>
             </div>
@@ -2991,7 +2991,7 @@
               <label class="fl">Tasa de referencia financiera (% mensual)</label>
               <div style="display:flex;gap:.6rem;align-items:center">
                 <input type="number" id="tasa-ref" value="3.5" step="0.1" oninput="calcLive()" style="flex:1">
-                <button class="btn btn-s" onclick="usarTasaBCRA()" title="Usar tasa BCRA">🔄 API</button>
+                <button class="btn btn-s" onclick="window.cosUsarTasaBCRA&&window.cosUsarTasaBCRA()" title="Usar tasa BCRA">🔄 API</button>
               </div>
               <div id="tasa-source" style="font-size:.7rem;color:rgba(74,46,26,.4);margin-top:.2rem">Plazo fijo 30 días promedio sistema</div>
             </div>
@@ -5036,7 +5036,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=157"></script>
+<script src="js/config.js?v=158"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=102"></script>
 
@@ -5055,10 +5055,10 @@ function _fsRender(res, diasTranscurridos) {
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=94"></script>
-<script src="js/siembra-apis.js?v=88"></script>
+<script src="js/siembra.js?v=95"></script>
+<script src="js/siembra-apis.js?v=89"></script>
 <script src="js/nutricion.js?v=121"></script>
-<script src="js/economia.js?v=86"></script>
+<script src="js/economia.js?v=87"></script>
 <script src="js/maquinaria.js?v=88"></script>
 <script src="js/asistente.js?v=87"></script>
 <script src="js/pdf.js?v=85"></script>

@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════
 // AGROMOTOR — economia.js
-// Economía de campaña · DolarAPI tiempo real
+// Economía de campaña · dólar vía proxy AgroMotor
 // Márgenes HOY vs COSECHA · Punto de equilibrio
 // Fertilización NPK · Maquinaria productividad
 // ════════════════════════════════════════════════════════
@@ -36,7 +36,7 @@ async function ecActualizarDolar() {
   const badge = $('ec-dolar-badge');
   if (badge) badge.textContent = '⟳ actualizando...';
   try {
-    // DolarAPI — gratis, sin key, CORS ok
+    // Proxy AgroMotor para evitar problemas de CORS y normalizar fallbacks.
     const res = await Promise.race([
       fetch(((window.AM_CONFIG && window.AM_CONFIG.marketProxy) || '/api/market') + '?type=usd', { headers: { 'Accept': 'application/json' } }),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
@@ -59,17 +59,17 @@ async function ecActualizarDolar() {
       else if (c === 'contadoconliqui' || c === 'ccl') EC_DOLAR.ccl = v;
     });
     EC_DOLAR.ts = new Date();
-    EC_DOLAR.fuente = 'DolarAPI';
+    EC_DOLAR.fuente = 'Actualizado via AgroMotor';
     window.EC_DOLAR = EC_DOLAR; // exponer para asistente.js y otros módulos
     ecGuardarDolarCache();
 
     // Mostrar panel
     ecRenderDolar();
-    if (badge) badge.textContent = `✅ Dólar actualizado ${EC_DOLAR.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`;
+    if (badge) badge.textContent = `Actualizado - dolar via AgroMotor - ${EC_DOLAR.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`;
     ecCalc();
 
   } catch(e) {
-    console.warn('DolarAPI:', e.message);
+    console.warn('Dolar proxy:', e.message);
     const cache = ecLeerDolarCache();
     if (cache && cache.dolar) {
       EC_DOLAR = {
@@ -79,12 +79,12 @@ async function ecActualizarDolar() {
         fuente: 'Ultimo dato guardado'
       };
       window.EC_DOLAR = EC_DOLAR;
-      if (badge) badge.textContent = '⚠️ DolarAPI no disponible - usando ultimo dato guardado';
+      if (badge) badge.textContent = 'Ultimo dato guardado - dolar';
       ecRenderDolar();
       ecCalc();
       return;
     }
-    if (badge) badge.textContent = '⚠️ Dólar no disponible — usando referencia';
+    if (badge) badge.textContent = 'Completar/validar manualmente - usando referencia';
     ecRenderDolar();
     ecCalc();
   }
@@ -96,7 +96,15 @@ function ecRenderDolar() {
   const ts = EC_DOLAR.ts
     ? EC_DOLAR.ts.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
     : 'Referencia';
-  const fuente = EC_DOLAR.fuente || 'DolarAPI';
+  const fuente = EC_DOLAR.fuente || 'Actualizado via AgroMotor';
+  const fuenteLower = fuente.toLowerCase();
+  const fuenteTipo = fuenteLower.includes('guardado') ? 'cache' : (fuenteLower.includes('referencia') ? 'manual' : 'ok');
+  const fuenteLabel = fuenteTipo === 'cache'
+    ? 'Ultimo dato guardado'
+    : (fuenteTipo === 'manual' ? 'Completar/validar manualmente' : 'Actualizado');
+  const fuenteDetalle = fuenteTipo === 'manual'
+    ? 'dolar de referencia'
+    : 'dolar via AgroMotor';
 
   panel.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.5rem">
@@ -117,8 +125,8 @@ function ecRenderDolar() {
         <div style="font-size:1.2rem;font-weight:700;color:#2A5A8C">$${EC_DOLAR.ccl.toLocaleString('es-AR')}</div>
       </div>
     </div>
-    <div style="font-size:.68rem;color:rgba(74,46,26,.4);text-align:center">
-      Fuente: ${fuente} · Actualizado: ${ts}
+    <div style="font-size:.68rem;text-align:center">
+      <span class="am-source-note am-source-${fuenteTipo}"><strong>${fuenteLabel}:</strong> ${fuenteDetalle} - ${ts}</span>
     </div>`;
 }
 

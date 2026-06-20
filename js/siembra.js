@@ -89,7 +89,7 @@
       if(sa){$('s-suelo').value=sa;$('i-suelo').textContent=sa+' (auto)';$('s-sbadge').textContent='← auto'}
       else{$('i-suelo').textContent='No detectado — elegir manualmente'}
 
-      setStatus('Descargando datos meteorológicos y de suelo — Open-Meteo...');
+      setStatus('Consultando fuente meteorologica y de suelo - Open-Meteo...');
 
       // 3. Open-Meteo — llamada única con TODAS las variables
       const hoy=new Date();
@@ -192,7 +192,7 @@
       renderPron(dias,fselStr);
       try{ renderGestionSiembra(); }catch(_){}
       const avisoFechaApi=fechaFueraRango?' con fecha actual (la fecha elegida queda fuera del pronóstico disponible)':'';
-      setStatus('✅ Open-Meteo cargado'+avisoFechaApi+' — consultando NASA POWER (histórico 30 años)...',true);
+      setStatus('Actualizado: Open-Meteo'+avisoFechaApi+' - consultando NASA POWER (historico 30 anos)...',true);
       // Actualizar banner del asistente IA
       setTimeout(iaActualizarContextoBanner, 500);
 
@@ -211,11 +211,11 @@
       if (typeof buscarNasa === 'function' && typeof renderNasa === 'function') buscarNasa(lat, lon, mesSimb)
         .then(props => {
           renderNasa(props, mesSimb, lat, lon);
-          setStatus('✅ Open-Meteo'+avisoFechaApi+' + NASA POWER cargados correctamente', false);
+          setStatus('Actualizado: Open-Meteo'+avisoFechaApi+' + NASA POWER', false);
         })
         .catch(e => {
           // Falla silenciosa — Open-Meteo ya funcionó
-          setStatus('✅ Open-Meteo cargado'+avisoFechaApi+' · NASA POWER no disponible (se puede usar igualmente)', false);
+          setStatus('Actualizado: Open-Meteo'+avisoFechaApi+'. NASA POWER no disponible; se mantiene estimacion operativa.', false);
           console.warn('NASA POWER:', e.message);
         });
       else console.warn('NASA POWER: modulo no cargado');
@@ -259,7 +259,7 @@
       if (typeof cacheGuardar === 'function') setTimeout(cacheGuardar, 1000);
     }catch(e){
       const detalle = e && e.message ? e.message : 'error desconocido';
-      setStatus('⚠️ Error al consultar la API: ' + detalle + '. Podés ingresar los datos manualmente.',false);
+      setStatus('Completar manualmente: no se pudo consultar la fuente (' + detalle + '). Podes ingresar los datos manualmente.',false);
       console.error('[Siembra] Error al consultar APIs', e);
     }finally{btn.disabled=false;btn.textContent='🌡️ Obtener datos'}
   }
