@@ -461,30 +461,57 @@ function mapaInicializar(lat, lon) {
   MAPA_INIT = true;
 }
 
+function mapaCoordLoteActivo() {
+  try {
+    var lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    var d = (lote && lote.data) || {};
+    var coordTxt = d.coord || d.coordenadas || d.centroide || (lote && (lote.coord || lote.coordenadas)) || $('s-coord')?.value || $('suelo-coord')?.value || '';
+    if (!coordTxt && Array.isArray(lote && lote.polygon) && lote.polygon.length) {
+      var sum = lote.polygon.reduce(function(acc, p) {
+        return { lat: acc.lat + parseFloat(p.lat), lon: acc.lon + parseFloat(p.lng || p.lon) };
+      }, { lat: 0, lon: 0 });
+      var n = lote.polygon.length;
+      return { lat: sum.lat / n, lon: sum.lon / n, label: (lote.nombre || 'Lote activo') + ' - centroide' };
+    }
+    if (!coordTxt) return null;
+    var parsed = (typeof parsCoord === 'function') ? parsCoord(coordTxt) : String(coordTxt).replace(/\s/g, '').split(',').map(parseFloat);
+    if (!parsed || parsed.length < 2 || isNaN(parsed[0]) || isNaN(parsed[1])) return null;
+    return { lat: parsed[0], lon: parsed[1], label: (lote && lote.nombre ? lote.nombre + ' - ' : '') + String(coordTxt).slice(0, 30) };
+  } catch(e) {
+    return null;
+  }
+}
+
 // Renderizar lista lateral y markers en el mapa
 function mapaFiltrar() {
   const especie   = gv('mp-especie')    || '';
   const empresa   = gv('mp-empresa')    || '';
   const tipo      = gv('mp-tipo')       || '';
-  const radio     = parseInt(gv('mp-radio') || '100');
+  const radio     = parseInt(gv('mp-radio') || '200');
   const soloDest  = $('mp-solo-dest')?.checked;
   const soloVer   = $('mp-solo-ver')?.checked;
 
   // Obtener coordenadas del lote si están disponibles
-  let latLote = null, lonLote = null;
-  const coordTxt = $('s-coord')?.value || $('suelo-coord')?.value;
-  if (coordTxt) {
-    const parsed = parsCoord(coordTxt);
-    latLote = parsed[0]; lonLote = parsed[1];
+  let latLote = null, lonLote = null, coordTxt = '';
+  const coordLote = mapaCoordLoteActivo();
+  if (coordLote) {
+    latLote = coordLote.lat;
+    lonLote = coordLote.lon;
+    coordTxt = coordLote.label;
   }
 
-  // Filtrar DB
-  let lista = DC_DB.filter(d => {
+  const filtrosBase = d => {
     if (especie  && !d.especies.includes(especie))   return false;
     if (empresa  && !d.empresas.includes(empresa))   return false;
     if (tipo     && d.tipo !== tipo)                  return false;
     if (soloDest && !d.dest)                          return false;
     if (soloVer  && !d.ver)                           return false;
+    return true;
+  };
+
+  // Filtrar DB
+  let lista = DC_DB.filter(d => {
+    if (!filtrosBase(d)) return false;
     if (latLote !== null) {
       const km = dcDistancia(latLote, lonLote, d.lat, d.lon);
       if (km > radio) return false;
@@ -494,6 +521,15 @@ function mapaFiltrar() {
     }
     return true;
   });
+
+  let radioAuto = false;
+  if (latLote !== null && lista.length === 0) {
+    lista = DC_DB.filter(filtrosBase)
+      .map(d => ({ ...d, _km: dcDistancia(latLote, lonLote, d.lat, d.lon) }))
+      .sort((a, b) => a._km - b._km)
+      .slice(0, 5);
+    radioAuto = lista.length > 0;
+  }
 
   // Ordenar: destacados primero, luego por distancia
   lista.sort((a, b) => {
@@ -519,7 +555,7 @@ function mapaFiltrar() {
       .addTo(MAPA_L)
       .bindPopup('<strong>📍 Tu lote</strong>');
     $('mp-lote-banner').classList.remove('hidden');
-    $('mp-lote-coord').textContent = coordTxt?.slice(0,30);
+    $('mp-lote-coord').textContent = coordTxt;
   }
 
   // Agregar markers de distribuidores
@@ -557,7 +593,10 @@ function mapaFiltrar() {
   }
 
   // Actualizar lista lateral
-  $('mp-count').textContent = `${lista.length} distribuidor${lista.length!==1?'es':''} encontrado${lista.length!==1?'s':''}${latLote?` en radio de ${radio} km`:''}`;
+  const radioTexto = radioAuto && lista.length
+    ? ` · sin resultados en ${radio} km; mostrando los mas cercanos hasta ${Math.ceil(Math.max.apply(null, lista.map(d => d._km || 0)))} km`
+    : (latLote ? ` en radio de ${radio} km` : '');
+  $('mp-count').textContent = `${lista.length} distribuidor${lista.length!==1?'es':''} encontrado${lista.length!==1?'s':''}${radioTexto}`;
 
   $('mp-lista').innerHTML = lista.length === 0
     ? `<div class="alert info"><span class="ai">🔍</span><div class="ac">No hay distribuidores con esos filtros. Ampliá el radio o quitá algún filtro.</div></div>`

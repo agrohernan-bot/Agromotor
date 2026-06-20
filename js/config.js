@@ -9,7 +9,7 @@ window.AM_CONFIG = {
     url:     'https://xsbaqlqztppdpdcjgazz.supabase.co',
     anonKey: 'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK'
   },
-  assetVersion: '154',
+  assetVersion: '155',
   claudeProxy: 'https://xsbaqlqztppdpdcjgazz.supabase.co/functions/v1/claude-proxy',
   ensoProxy: '/api/enso',
   soilProxy: '/api/soil',
