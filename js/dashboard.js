@@ -791,10 +791,59 @@ window.dashGanttRefresh = render;
       malezasMedia: malezasMedia
     };
   }
+  function resoluciones(data) {
+    data = data || {};
+    return {
+      sanitaria: data.ultimaResolucionSanitaria || null,
+      hidrica: data.ultimaResolucionHidrica || null,
+      nutricion: data.ultimaResolucionNutricion || null
+    };
+  }
+  function labelResolucion(e, key) {
+    if (!e) return '';
+    var r = e[key] || e.resolucion || {};
+    return r.label || e.nota || '';
+  }
+  function buildPendientes(m) {
+    var items = [];
+    var res = m.res || {};
+    if (!m.lote) {
+      items.push({ state:'alta', title:'Lote activo', desc:'Seleccionar o crear lote para ordenar decisiones.', mod:'lotes', btn:'Mis Lotes' });
+      return items;
+    }
+    if (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) && !res.sanitaria) {
+      items.push({ state:m.campo.sanidadAlta ? 'alta' : 'media', title:'Sanidad pendiente', desc:'Recorrida: ' + m.campo.quick.sanidad, mod:'alerta-sanitaria', btn:'Resolver' });
+    }
+    if (m.campo && (m.campo.aguaAlta || m.campo.aguaMedia) && !res.hidrica) {
+      items.push({ state:m.campo.aguaAlta ? 'alta' : 'media', title:'Agua pendiente', desc:'Recorrida: ' + m.campo.quick.agua, mod:'hidrico', btn:'Resolver' });
+    }
+    if (m.nutricionPlan && !res.nutricion) {
+      items.push({ state:'media', title:'Nutricion pendiente', desc:'Plan calculado sin decision registrada.', mod:'nutricion', btn:'Cerrar' });
+    }
+    if (!m.nutricionPlan) {
+      items.push({ state:'baja', title:'Plan nutricional', desc:'Sin plan calculado para el lote.', mod:'nutricion', btn:'Calcular' });
+    }
+    if (!m.bit.length) {
+      items.push({ state:'media', title:'Recorrida inicial', desc:'Falta una lectura rapida de campo.', mod:'bitacora', btn:'Registrar' });
+    }
+    if (res.sanitaria) {
+      items.push({ state:'ok', title:'Sanidad resuelta', desc:labelResolucion(res.sanitaria, 'resolucionSanitaria'), mod:'alerta-sanitaria', btn:'Ver' });
+    }
+    if (res.hidrica) {
+      items.push({ state:'ok', title:'Agua resuelta', desc:labelResolucion(res.hidrica, 'resolucionHidrica'), mod:'hidrico', btn:'Ver' });
+    }
+    if (res.nutricion) {
+      items.push({ state:'ok', title:'Nutricion resuelta', desc:labelResolucion(res.nutricion, 'resolucionNutricion'), mod:'nutricion', btn:'Ver' });
+    }
+    var order = { alta: 0, media: 1, baja: 2, ok: 3 };
+    items.sort(function(a,b) { return order[a.state] - order[b.state]; });
+    return items.slice(0, 6);
+  }
   function buildAlertasOperativas(m) {
     var list = [];
     var mercado = m.mercado || {};
     var campo = m.campo || null;
+    var res = m.res || {};
 
     if (!m.lote) {
       list.push(alerta('alta', 'lotes', 'Lote activo pendiente', 'Seleccionar o crear un lote para que las alertas hereden cultivo, fecha y coordenadas.', 'Mis Lotes'));
@@ -813,11 +862,16 @@ window.dashGanttRefresh = render;
     if (m.alerts.length > 0) {
       list.push(alerta('alta', 'alerta-sanitaria', 'Alertas sanitarias activas', 'Hay ' + m.alerts.length + ' alerta(s) guardadas para revisar con monitoreo a campo.', 'Ver alertas'));
     }
-    if (campo && (campo.sanidadAlta || campo.sanidadMedia)) {
+    if (campo && (campo.sanidadAlta || campo.sanidadMedia) && !res.sanitaria) {
       list.push(alerta(campo.sanidadAlta ? 'alta' : 'media', 'alerta-sanitaria', 'Sanidad marcada en recorrida', 'Ultima recorrida: ' + campo.quick.sanidad + '. Contrastar con alertas y umbrales antes de aplicar.', 'Sanidad'));
     }
-    if (campo && (campo.aguaAlta || campo.aguaMedia)) {
+    if (campo && (campo.aguaAlta || campo.aguaMedia) && !res.hidrica) {
       list.push(alerta(campo.aguaAlta ? 'alta' : 'media', 'hidrico', 'Agua visual condicionante', 'La recorrida marco "' + campo.quick.agua + '". Recalcular balance hidrico con dato actualizado.', 'Agua'));
+    }
+    if (m.nutricionPlan && !res.nutricion) {
+      list.push(alerta('media', 'nutricion', 'Plan nutricional sin cierre', 'Registrar si se aplica, posterga, ajusta dosis o se pide analisis.', 'Cerrar'));
+    } else if (!m.nutricionPlan) {
+      list.push(alerta('baja', 'nutricion', 'Plan nutricional pendiente', 'Calcular el plan para completar el resumen ejecutivo del lote.', 'Nutricion'));
     }
     if (campo && campo.standProblema) {
       list.push(alerta(campo.quick.stand === 'Bajo' ? 'alta' : 'media', 'fen-seg', 'Stand a validar', 'Ultima recorrida: stand ' + campo.quick.stand + '. Revisar impacto sobre rendimiento y ambiente.', 'Seguimiento'));
@@ -864,6 +918,8 @@ window.dashGanttRefresh = render;
     var campo = lecturaCampo(ultimaBit);
     var pulv = ultPulv(data);
     var mercado = estadoMercado(cultivo);
+    var res = resoluciones(data);
+    var nutricionPlan = data.nutricionPlan || data.planNutricion || null;
     var actions = [];
 
     if (!lote) actions.push({ p:'alta', mod:'lotes', title:'Seleccionar o crear un lote', desc:'El tablero operativo necesita un lote activo.', btn:'Ir a Mis Lotes' });
@@ -871,18 +927,21 @@ window.dashGanttRefresh = render;
     if (agua.nivel === 'alta') actions.push({ p:'alta', mod:'hidrico', title:'Actualizar balance hidrico', desc:'El perfil esta bajo o el deficit acumulado es relevante.', btn:'Abrir Hidrico' });
     else if (agua.nivel === 'media') actions.push({ p:'media', mod:'hidrico', title:'Revisar agua disponible', desc:'El perfil esta en zona intermedia; conviene seguirlo de cerca.', btn:'Ver agua' });
     if (alerts.length > 0) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Revisar alertas sanitarias', desc:'Hay ' + alerts.length + ' alerta(s) activas para el lote.', btn:'Ver enfermedades' });
-    if (campo && campo.sanidadAlta) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Validar sanidad de la recorrida', desc:'La ultima recorrida marco intervenir/consultar. Revisar enfermedad, umbral y clima.', btn:'Ver Sanidad' });
-    if (campo && campo.aguaAlta) actions.push({ p:'alta', mod:'hidrico', title:'Recalcular agua por deficit visual', desc:'La recorrida marco deficit visible aunque el balance puede estar desactualizado.', btn:'Abrir Hidrico' });
+    if (campo && campo.sanidadAlta && !res.sanitaria) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Validar sanidad de la recorrida', desc:'La ultima recorrida marco intervenir/consultar. Revisar enfermedad, umbral y clima.', btn:'Ver Sanidad' });
+    if (campo && campo.aguaAlta && !res.hidrica) actions.push({ p:'alta', mod:'hidrico', title:'Recalcular agua por deficit visual', desc:'La recorrida marco deficit visible aunque el balance puede estar desactualizado.', btn:'Abrir Hidrico' });
     if (campo && campo.standProblema && campo.quick.stand === 'Bajo') actions.push({ p:'alta', mod:'fen-seg', title:'Revisar stand bajo', desc:'Ajustar lectura de rendimiento y causa probable desde seguimiento.', btn:'Ver seguimiento' });
     if (!bit.length) actions.push({ p:'media', mod:'bitacora', title:'Registrar recorrida inicial', desc:'Deja trazabilidad de stand, malezas, sanidad y observaciones.', btn:'Abrir Bitacora' });
     if (rend && rend.pct != null && rend.pct < 80) actions.push({ p:'media', mod:'nutricion', title:'Revisar objetivo y nutricion', desc:'El rendimiento proyectado queda por debajo del objetivo cargado.', btn:'Abrir Nutricion' });
+    if (nutricionPlan && !res.nutricion) actions.push({ p:'media', mod:'nutricion', title:'Cerrar decision nutricional', desc:'Hay plan calculado, falta registrar aplicar/postergar/ajustar/analisis.', btn:'Cerrar Nutricion' });
+    if (!nutricionPlan) actions.push({ p:'baja', mod:'nutricion', title:'Calcular plan nutricional', desc:'Completa el resumen ejecutivo y agenda de fertilizacion.', btn:'Abrir Nutricion' });
     if (!pulv && fen.dias != null && fen.dias >= 20) actions.push({ p:'baja', mod:'pulverizacion', title:'Preparar ventana de aplicacion', desc:'Validar clima, viento y calidad de agua antes de una intervencion.', btn:'Ver Pulverizacion' });
     if (!actions.length) actions.push({ p:'baja', mod:'fen-seg', title:'Mantener seguimiento semanal', desc:'Actualizar fenologia, agua y bitacora para sostener el diagnostico.', btn:'Ver seguimiento' });
 
     var order = { alta: 0, media: 1, baja: 2 };
     actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
-    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, campo: campo, pulv: pulv, mercado: mercado, actions: actions };
+    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, campo: campo, pulv: pulv, mercado: mercado, res: res, nutricionPlan: nutricionPlan, actions: actions };
     model.alertasOperativas = buildAlertasOperativas(model);
+    model.pendientes = buildPendientes(model);
     return model;
   }
   function prioLabel(p) {
@@ -900,6 +959,20 @@ window.dashGanttRefresh = render;
       html += '<div class="dop-alert dop-alert-' + pr.cls + '">';
       html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc) + '</div></div>';
       html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn) + '</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+  function renderPendientes(list) {
+    if (!list || !list.length) return '';
+    var html = '<div class="dop-alerts" style="margin-top:.75rem"><div class="dop-alerts-head"><span>Pendientes y cierres</span><span>' + list.length + '</span></div>';
+    list.forEach(function(x) {
+      var pr = x.state === 'ok' ? { cls:'baja', txt:'Resuelto' } : prioLabel(x.state);
+      var cls = x.state === 'ok' ? 'dop-alert-baja' : 'dop-alert-' + pr.cls;
+      html += '<div class="dop-alert ' + cls + '" style="' + (x.state === 'ok' ? 'border-color:rgba(74,140,92,.25);background:rgba(74,140,92,.08)' : '') + '">';
+      html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc || '') + '</div></div>';
+      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn || 'Abrir') + '</button>';
       html += '</div>';
     });
     html += '</div>';
@@ -927,6 +1000,9 @@ window.dashGanttRefresh = render;
     var mercadoVal = !m.mercado.fob ? 'Sin FOB' : (m.mercado.fobDias != null && m.mercado.fobDias > 7 ? 'FOB antiguo' : 'FOB OK');
     var mercadoSub = m.mercado.usd ? 'USD guardado' + (m.mercado.usdDias != null ? ' hace ' + m.mercado.usdDias + ' d' : '') : 'Sin USD guardado';
     var mercadoState = (!m.mercado.fob || !m.mercado.usd) ? 'media' : ((m.mercado.fobDias != null && m.mercado.fobDias > 7) || (m.mercado.usdDias != null && m.mercado.usdDias > 2) ? 'media' : 'ok');
+    var nutVal = m.nutricionPlan ? (m.res.nutricion ? 'Cerrada' : 'Plan abierto') : 'Sin plan';
+    var nutSub = m.res.nutricion ? labelResolucion(m.res.nutricion, 'resolucionNutricion') : (m.nutricionPlan ? 'Registrar decision' : 'Calcular plan');
+    var nutState = m.res.nutricion ? 'ok' : (m.nutricionPlan ? 'media' : 'media');
 
     var html = '<div class="dop-card dop-prio-' + pr.cls + '">';
     html += '<div class="dop-main"><div class="dop-kicker">Que hago hoy</div><div class="dop-title">' + esc(a.title) + '</div><div class="dop-desc">' + esc(a.desc) + '</div>';
@@ -936,10 +1012,11 @@ window.dashGanttRefresh = render;
     html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
     html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
     html += signal('Sanidad', sanVal, (m.alerts.length || (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia))) ? (m.campo && m.campo.sanidadAlta ? 'alta' : 'media') : 'ok', m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) ? 'Recorrida: ' + m.campo.quick.sanidad : (m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas'));
+    html += signal('Nutricion', nutVal, nutState, nutSub);
     html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
     html += signal('Mercado', mercadoVal, mercadoState, mercadoSub);
     html += signal('Bitacora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
-    html += '</div>' + renderAlertas(m.alertasOperativas) + '</div></div>';
+    html += '</div>' + renderAlertas(m.alertasOperativas) + renderPendientes(m.pendientes) + '</div></div>';
     el.innerHTML = html;
   }
   function init() {

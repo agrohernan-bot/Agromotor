@@ -485,6 +485,134 @@ function ncLoteActivo() {
     ? AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; }) : null;
 }
 
+function ncEsc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch) {
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+  });
+}
+
+function ncPlanVigente() {
+  var lote = ncLoteActivo();
+  if (window._ncPlanResultados) {
+    return {
+      resultados: window._ncPlanResultados,
+      cultivo: ncCultStr(),
+      rendimiento: parseFloat(ncGv('nc-rend-obj')) || null,
+      superficie: parseFloat(ncGv('nc-sup')) || null,
+      costoTotal: null
+    };
+  }
+  if (lote && lote.data && lote.data.nutricionPlan) return lote.data.nutricionPlan;
+  return null;
+}
+
+function ncResumenPlan(plan) {
+  var res = (plan && plan.resultados) || {};
+  var keys = ['N', 'P', 'S', 'K'].filter(function(k) { return res[k]; });
+  var deficit = keys.filter(function(k) { return (res[k].dosisRec || 0) > 0; });
+  var costo = plan && plan.costoTotal != null ? 'USD ' + Math.round(plan.costoTotal) + '/ha' : '';
+  return {
+    keys: keys,
+    deficit: deficit,
+    texto: deficit.length ? deficit.join(', ') + ' con recomendacion activa' : 'Sin deficit operativo relevante',
+    costo: costo
+  };
+}
+
+function ncGuardarBitacora(entrada) {
+  try {
+    var raw = localStorage.getItem('am_bitacora_v2');
+    var lista = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(lista)) lista = [];
+    lista.push(entrada);
+    localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
+  } catch(_) {}
+  var lote = ncLoteActivo();
+  if (lote) {
+    lote.data = lote.data || {};
+    var lb = Array.isArray(lote.data.bitacora) ? lote.data.bitacora.slice() : [];
+    lb.push(entrada);
+    lote.data.bitacora = lb.slice(-200);
+    lote.data.ultimaResolucionNutricion = entrada;
+    if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+  }
+}
+
+function ncRenderResolucionNutricion() {
+  var box = document.getElementById('nc-resolucion-panel');
+  if (!box) return;
+  var plan = ncPlanVigente();
+  var lote = ncLoteActivo();
+  var ultima = lote && lote.data ? lote.data.ultimaResolucionNutricion : null;
+  if (!plan) {
+    box.innerHTML = '<div class="card" style="margin-bottom:1rem;border:1px solid rgba(200,162,85,.24);background:rgba(200,162,85,.07)">'
+      + '<div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7A5A10;margin-bottom:.25rem">Decision nutricional pendiente</div>'
+      + '<div style="font-size:.86rem;color:rgba(237,224,196,.78);line-height:1.45">Calcula el plan para registrar si se aplica, posterga, ajusta dosis o se pide analisis.</div>'
+      + '</div>';
+    return;
+  }
+  var resumen = ncResumenPlan(plan);
+  var ultTxt = ultima && ultima.resolucionNutricion
+    ? 'Ultima resolucion: ' + ultima.resolucionNutricion.label + (ultima.fecha ? ' - ' + ultima.fecha : '')
+    : 'Sin resolucion registrada para este plan.';
+  box.innerHTML = '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(109,191,130,.22);background:rgba(109,191,130,.08)">'
+    + '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">'
+    + '<div><div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6DBF82;margin-bottom:.2rem">Cierre operativo de nutricion</div>'
+    + '<div style="font-size:1rem;font-weight:800;color:rgba(237,224,196,.92)">' + ncEsc(resumen.texto) + '</div>'
+    + '<div style="font-size:.74rem;color:rgba(237,224,196,.58);margin-top:.25rem">' + ncEsc(ultTxt) + (resumen.costo ? ' · ' + ncEsc(resumen.costo) : '') + '</div></div>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.5rem;margin-top:.9rem">'
+    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'aplicar\')">Aplicar plan</button>'
+    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'postergar\')">Postergar</button>'
+    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'ajustar\')">Ajustar dosis</button>'
+    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'analisis\')">Pedir analisis</button>'
+    + '</div></div>';
+}
+
+window.ncRegistrarResolucion = function(decision) {
+  var lote = ncLoteActivo();
+  var plan = ncPlanVigente();
+  var labels = {
+    aplicar: 'Aplicar plan nutricional',
+    postergar: 'Postergar decision nutricional',
+    ajustar: 'Ajustar dosis del plan',
+    analisis: 'Pedir analisis de suelo/foliar'
+  };
+  var ahora = new Date();
+  var fecha = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+  var resumen = ncResumenPlan(plan);
+  var entrada = {
+    id: 'nc-res-' + ahora.getTime(),
+    fecha: fecha,
+    hora: ahora.toTimeString().slice(0,5),
+    tipo: decision === 'aplicar' ? 'fertilizacion' : 'otro',
+    loteId: lote ? lote.id : '',
+    loteNombre: lote ? lote.nombre : 'Lote',
+    cultivo: (plan && plan.cultivo) || ncCultStr(),
+    etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
+    nota: 'Resolucion nutricional: ' + (labels[decision] || decision) + '. ' + resumen.texto,
+    resolucionNutricion: {
+      decision: decision,
+      label: labels[decision] || decision,
+      nutrientes: resumen.deficit,
+      planTs: plan && plan.ts ? plan.ts : null
+    }
+  };
+  ncGuardarBitacora(entrada);
+  if (decision === 'ajustar') {
+    var rend = document.getElementById('nc-rend-obj');
+    if (rend) {
+      rend.focus();
+      if (typeof rend.select === 'function') rend.select();
+    }
+  }
+  if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+  if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
+  ncRenderResolucionNutricion();
+  if (typeof window.amToast === 'function') window.amToast('Resolucion nutricional guardada en Bitacora', 'ok');
+  else alert('Resolucion nutricional guardada en Bitacora');
+};
+
 window.ncActualizar = function() {
   ncRestaurarSgDatos();
   // Si _sueloDatos está vacío pero _sgDatos tiene datos (restaurado del caché), re-fusionar
@@ -522,6 +650,7 @@ window.ncActualizar = function() {
   }
 
   ncRenderSueloPanel();
+  ncRenderResolucionNutricion();
 
   // Auto-completar desde módulos ya cargados (primera vez)
   var ncRend    = document.getElementById('nc-rend-obj');
@@ -957,6 +1086,7 @@ function ncRenderPlan(res, ctx) {
 
   out.innerHTML = html;
   out.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  ncRenderResolucionNutricion();
 
   // Auto-actualizar el balance con los datos del plan recién calculado
   if (typeof window.ncBalanceCalcular === 'function') window.ncBalanceCalcular();
