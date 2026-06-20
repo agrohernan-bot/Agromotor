@@ -1814,6 +1814,11 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: .6rem;
 }
+.dop-right {
+  display: grid;
+  gap: .7rem;
+  min-width: 0;
+}
 .dop-signal {
   border: 1px solid rgba(60,34,16,.08);
   border-radius: 11px;
@@ -1850,6 +1855,74 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
 .dop-signal.dop-alta .dop-signal-value { color: #B33A1B; }
 .dop-signal.dop-media .dop-signal-value { color: #8A5A12; }
 .dop-signal.dop-ok .dop-signal-value { color: #1E6B3A; }
+.dop-alerts {
+  border: 1px solid rgba(60,34,16,.08);
+  border-radius: 11px;
+  background: rgba(255,253,248,.7);
+  overflow: hidden;
+}
+.dop-alerts-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .6rem;
+  padding: .62rem .78rem;
+  border-bottom: 1px solid rgba(60,34,16,.07);
+  font-size: .68rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: rgba(28,18,8,.48);
+}
+.dop-alerts-head span:last-child {
+  min-width: 1.35rem;
+  height: 1.35rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(42,90,140,.1);
+  color: #2A5A8C;
+  letter-spacing: 0;
+  font-family: 'DM Mono', monospace;
+}
+.dop-alert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .65rem;
+  align-items: center;
+  padding: .7rem .78rem;
+  border-left: 4px solid rgba(42,90,140,.35);
+  border-bottom: 1px solid rgba(60,34,16,.06);
+}
+.dop-alert:last-child { border-bottom: 0; }
+.dop-alert-alta { border-left-color: #D4522A; background: rgba(212,82,42,.045); }
+.dop-alert-media { border-left-color: #B87A20; background: rgba(184,122,32,.045); }
+.dop-alert-baja { border-left-color: #2A7A4A; background: rgba(42,122,74,.04); }
+.dop-alert-title {
+  font-size: .82rem;
+  font-weight: 850;
+  color: var(--field, #0F1F14);
+  line-height: 1.2;
+}
+.dop-alert-desc {
+  font-size: .72rem;
+  color: rgba(28,18,8,.56);
+  line-height: 1.35;
+  margin-top: .18rem;
+}
+.dop-alert-btn {
+  border: 1px solid rgba(42,90,140,.22);
+  border-radius: 9px;
+  background: #fffdf8;
+  color: #1f4d7a;
+  padding: .42rem .62rem;
+  font-family: inherit;
+  font-size: .68rem;
+  font-weight: 850;
+  cursor: pointer;
+  white-space: nowrap;
+}
 
 @media (max-width: 720px) {
   .dop-card {
@@ -1864,5 +1937,12 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   }
   .dop-title {
     font-size: 1.18rem;
+  }
+  .dop-alert {
+    grid-template-columns: 1fr;
+    gap: .45rem;
+  }
+  .dop-alert-btn {
+    justify-self: flex-start;
   }
 }

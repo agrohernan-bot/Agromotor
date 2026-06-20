@@ -671,6 +671,30 @@ window.dashGanttRefresh = render;
     var n = parseFloat(v);
     return isNaN(n) ? null : n;
   }
+  function diasCache(ts) {
+    if (!ts) return null;
+    var d = new Date(ts);
+    if (isNaN(d.getTime())) return null;
+    var h = new Date(); h.setHours(12,0,0,0);
+    d.setHours(12,0,0,0);
+    return Math.max(0, Math.round((h - d) / 86400000));
+  }
+  function cacheApi(name) {
+    try {
+      var raw = localStorage.getItem('am_cosecha_api_cache_' + name);
+      return raw ? JSON.parse(raw) : null;
+    } catch(_) {
+      return null;
+    }
+  }
+  function cultivoKey(cultivo) {
+    var c = String(cultivo || '').toLowerCase();
+    if (c.indexOf('ma') === 0) return 'maiz';
+    if (c.indexOf('trigo') >= 0) return 'trigo';
+    if (c.indexOf('girasol') >= 0) return 'girasol';
+    if (c.indexOf('sorgo') >= 0) return 'sorgo';
+    return 'soja';
+  }
   function bitacoraLote(lote) {
     var lista = lsJSON('am_bitacora_v2', []);
     if (!Array.isArray(lista)) return [];
@@ -703,6 +727,70 @@ window.dashGanttRefresh = render;
     var p = data && data.pulverizacion;
     return p && p.ultimaAplicacion ? p.ultimaAplicacion : null;
   }
+  function estadoMercado(cultivo) {
+    var ck = cultivoKey(cultivo);
+    var fob = cacheApi('fob_' + ck);
+    var usd = cacheApi('usd_oficial');
+    var pf  = cacheApi('plazo_fijo');
+    return {
+      cultivoKey: ck,
+      fob: fob,
+      usd: usd,
+      pf: pf,
+      fobDias: diasCache(fob && fob.ts),
+      usdDias: diasCache(usd && usd.ts),
+      pfDias: diasCache(pf && pf.ts)
+    };
+  }
+  function alerta(p, mod, title, desc, btn) {
+    return { p: p, mod: mod, title: title, desc: desc, btn: btn || 'Abrir' };
+  }
+  function buildAlertasOperativas(m) {
+    var list = [];
+    var mercado = m.mercado || {};
+
+    if (!m.lote) {
+      list.push(alerta('alta', 'lotes', 'Lote activo pendiente', 'Seleccionar o crear un lote para que las alertas hereden cultivo, fecha y coordenadas.', 'Mis Lotes'));
+      return list;
+    }
+    if (!m.fen.fecha) {
+      list.push(alerta('alta', 'fen-plan', 'Fecha de siembra pendiente', 'Sin fecha no hay fenologia confiable, balance hidrico ordenado ni ventanas criticas.', 'Completar'));
+    }
+    if (m.agua.nivel === 'alta') {
+      list.push(alerta('alta', 'hidrico', 'Agua en zona critica', 'Perfil bajo o deficit acumulado relevante. Actualizar balance antes de decidir fertilizacion o aplicacion.', 'Ver agua'));
+    } else if (m.agua.nivel === 'media') {
+      list.push(alerta('media', 'hidrico', 'Agua en seguimiento', 'El perfil esta intermedio. Conviene revisar reposicion y demanda de la etapa actual.', 'Revisar'));
+    } else if (m.agua.nivel === 'sin-dato') {
+      list.push(alerta('media', 'hidrico', 'Balance hidrico sin dato', 'Cargar o recalcular agua disponible para que el Dashboard priorice mejor.', 'Calcular'));
+    }
+    if (m.alerts.length > 0) {
+      list.push(alerta('alta', 'alerta-sanitaria', 'Alertas sanitarias activas', 'Hay ' + m.alerts.length + ' alerta(s) guardadas para revisar con monitoreo a campo.', 'Ver alertas'));
+    }
+    if (m.rend && m.rend.pct != null && m.rend.pct < 80) {
+      list.push(alerta('media', 'fen-seg', 'Rendimiento proyectado bajo objetivo', 'La proyeccion queda en ' + Math.round(m.rend.pct) + '% del objetivo. Revisar agua, sanidad y nutricion.', 'Analizar'));
+    } else if (!m.rend) {
+      list.push(alerta('baja', 'fen-seg', 'Rendimiento sin proyeccion', 'Generar seguimiento fenologico para alimentar el Dashboard con estimacion de rendimiento.', 'Proyectar'));
+    }
+    if (!mercado.fob) {
+      list.push(alerta('media', 'cosecha', 'FOB sin dato guardado', 'Cargar precio disponible o reintentar API en Cosecha para evaluar decisiones comerciales.', 'Cosecha'));
+    } else if (mercado.fobDias != null && mercado.fobDias > 7) {
+      list.push(alerta('media', 'cosecha', 'FOB guardado desactualizado', 'El ultimo FOB del cultivo tiene ' + mercado.fobDias + ' dias. Revalidar antes de cerrar numeros.', 'Actualizar'));
+    }
+    if (!mercado.usd) {
+      list.push(alerta('media', 'economia', 'Dolar sin dato guardado', 'Actualizar dolar desde Economia o Cosecha para evitar calculos con referencia.', 'Actualizar'));
+    } else if (mercado.usdDias != null && mercado.usdDias > 2) {
+      list.push(alerta('media', 'economia', 'Dolar guardado antiguo', 'El ultimo USD oficial guardado tiene ' + mercado.usdDias + ' dias.', 'Revalidar'));
+    }
+    if (!m.bit.length) {
+      list.push(alerta('baja', 'bitacora', 'Primera recorrida pendiente', 'Registrar stand, malezas, sanidad y observaciones deja trazabilidad para decisiones futuras.', 'Registrar'));
+    }
+    if (!list.length) {
+      list.push(alerta('baja', 'fen-seg', 'Seguimiento al dia', 'Mantener actualizacion semanal de fenologia, agua, mercado y bitacora.', 'Ver seguimiento'));
+    }
+    var order = { alta: 0, media: 1, baja: 2 };
+    list.sort(function(a,b) { return order[a.p] - order[b.p]; });
+    return list.slice(0, 5);
+  }
   function buildModel() {
     var lote = loteActivo();
     var data = (lote && lote.data) || {};
@@ -714,6 +802,7 @@ window.dashGanttRefresh = render;
     var alerts = alertasActivas();
     var bit = bitacoraLote(lote);
     var pulv = ultPulv(data);
+    var mercado = estadoMercado(cultivo);
     var actions = [];
 
     if (!lote) actions.push({ p:'alta', mod:'lotes', title:'Seleccionar o crear un lote', desc:'El tablero operativo necesita un lote activo.', btn:'Ir a Mis Lotes' });
@@ -728,7 +817,9 @@ window.dashGanttRefresh = render;
 
     var order = { alta: 0, media: 1, baja: 2 };
     actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
-    return { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, pulv: pulv, actions: actions };
+    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, pulv: pulv, mercado: mercado, actions: actions };
+    model.alertasOperativas = buildAlertasOperativas(model);
+    return model;
   }
   function prioLabel(p) {
     if (p === 'alta') return { cls:'alta', txt:'Prioridad alta' };
@@ -737,6 +828,18 @@ window.dashGanttRefresh = render;
   }
   function signal(label, value, state, sub) {
     return '<div class="dop-signal dop-' + state + '"><div class="dop-signal-label">' + esc(label) + '</div><div class="dop-signal-value">' + esc(value) + '</div>' + (sub ? '<div class="dop-signal-sub">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+  function renderAlertas(list) {
+    var html = '<div class="dop-alerts"><div class="dop-alerts-head"><span>Alertas operativas</span><span>' + list.length + '</span></div>';
+    list.forEach(function(x) {
+      var pr = prioLabel(x.p);
+      html += '<div class="dop-alert dop-alert-' + pr.cls + '">';
+      html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc) + '</div></div>';
+      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn) + '</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
   }
   function render() {
     var el = $('dash-operativo-panel');
@@ -753,19 +856,22 @@ window.dashGanttRefresh = render;
     var sanVal = m.alerts.length ? m.alerts.length + ' alerta(s)' : 'Sin alertas';
     var bitVal = m.bit.length ? m.bit.length + ' registro(s)' : 'Sin recorridas';
     var bitSub = m.bit.length ? 'Ultima actividad cargada' : 'Registrar primer scouting';
+    var mercadoVal = !m.mercado.fob ? 'Sin FOB' : (m.mercado.fobDias != null && m.mercado.fobDias > 7 ? 'FOB antiguo' : 'FOB OK');
+    var mercadoSub = m.mercado.usd ? 'USD guardado' + (m.mercado.usdDias != null ? ' hace ' + m.mercado.usdDias + ' d' : '') : 'Sin USD guardado';
+    var mercadoState = (!m.mercado.fob || !m.mercado.usd) ? 'media' : ((m.mercado.fobDias != null && m.mercado.fobDias > 7) || (m.mercado.usdDias != null && m.mercado.usdDias > 2) ? 'media' : 'ok');
 
     var html = '<div class="dop-card dop-prio-' + pr.cls + '">';
     html += '<div class="dop-main"><div class="dop-kicker">Que hago hoy</div><div class="dop-title">' + esc(a.title) + '</div><div class="dop-desc">' + esc(a.desc) + '</div>';
     html += '<div class="dop-meta"><span class="dop-pill dop-pill-' + pr.cls + '">' + pr.txt + '</span><span class="dop-pill">' + esc((m.lote && m.lote.nombre) || 'Sin lote') + '</span><span class="dop-pill">' + esc(m.cultivo) + '</span></div>';
-    html += '<button type="button" class="dop-action" onclick="if(typeof switchMod===\'function\')switchMod(\'' + esc(a.mod) + '\')">' + esc(a.btn) + '</button></div>';
-    html += '<div class="dop-grid">';
+    html += '<button type="button" class="dop-action" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\')">' + esc(a.btn) + '</button></div>';
+    html += '<div class="dop-right"><div class="dop-grid">';
     html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
     html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
     html += signal('Sanidad', sanVal, m.alerts.length ? 'alta' : 'ok', m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas');
     html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
+    html += signal('Mercado', mercadoVal, mercadoState, mercadoSub);
     html += signal('Bitacora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
-    html += signal('Aplicacion', m.pulv ? 'Con registro' : 'Sin registro', m.pulv ? 'ok' : 'baja', m.pulv ? 'Pulverizacion cargada' : 'Validar ventana si corresponde');
-    html += '</div></div>';
+    html += '</div>' + renderAlertas(m.alertasOperativas) + '</div></div>';
     el.innerHTML = html;
   }
   function init() {
@@ -776,5 +882,17 @@ window.dashGanttRefresh = render;
     window._dashOperativoInterval = setInterval(render, 30000);
   }
   document.addEventListener('DOMContentLoaded', init);
+  window.dopAbrirModulo = function(mod) {
+    var lote = loteActivo();
+    if (typeof window.dlAbrirModulo === 'function' && lote && lote.id && mod !== 'lotes') {
+      window.dlAbrirModulo(mod, lote.id);
+      return;
+    }
+    if (mod === 'lotes' && typeof window.dlVolverNueva === 'function') {
+      window.dlVolverNueva();
+      return;
+    }
+    if (typeof window.switchMod === 'function') window.switchMod(mod);
+  };
   window.dashOperativoRefresh = render;
 })();
