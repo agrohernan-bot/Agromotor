@@ -185,6 +185,68 @@ header::after {
 
 @media(min-width:640px) { .header-inta { display: block; } }
 
+header .header-inner {
+  min-width: 0;
+}
+
+header .logo {
+  flex: 0 0 auto;
+}
+
+header .header-right {
+  min-width: 0;
+  flex: 1 1 auto;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  row-gap: .45rem;
+}
+
+header .header-right > * {
+  flex: 0 0 auto;
+}
+
+header .header-inta {
+  max-width: 150px;
+  white-space: normal;
+  line-height: 1.15;
+}
+
+header #am-user-info {
+  max-width: 120px;
+  line-height: 1.15;
+}
+
+header .header-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+@media (max-width: 1180px) {
+  header .header-inta,
+  header .header-badge {
+    display: none !important;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1440px) {
+  header .header-inner {
+    max-width: calc(100vw - 3rem);
+  }
+
+  header .header-right {
+    gap: .45rem;
+  }
+
+  header .btn-hdr,
+  header #dl-btn-nueva-vista,
+  header #am-modo-badge {
+    transform: scale(.92);
+    transform-origin: center right;
+  }
+}
+
 /* ── NAVIGATION ── */
 .module-nav {
   position: sticky;
@@ -290,6 +352,11 @@ main {
 .module-title em {
   color: var(--sprout);
   font-style: italic;
+}
+
+.module-panel .module-title {
+  color: #FFFDF8;
+  text-shadow: 0 2px 14px rgba(0,0,0,.34);
 }
 
 .module-subtitle {
@@ -1200,6 +1267,37 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
 .nav-inner::-webkit-scrollbar { height: 6px; }
 .nav-inner::-webkit-scrollbar-track { background: transparent; }
 .nav-inner::-webkit-scrollbar-thumb { background: var(--leaf); border-radius: 4px; }
+
+.mod-tabs,
+.pulv-nav {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(200,162,85,.55) transparent;
+}
+
+.mod-tabs::after,
+.pulv-nav::after,
+.nav-inner::after {
+  content: '';
+  flex: 0 0 18px;
+  width: 18px;
+}
+
+.mod-tabs::-webkit-scrollbar,
+.pulv-nav::-webkit-scrollbar {
+  height: 5px;
+}
+
+.mod-tabs::-webkit-scrollbar-track,
+.pulv-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mod-tabs::-webkit-scrollbar-thumb,
+.pulv-nav::-webkit-scrollbar-thumb {
+  background: rgba(200,162,85,.55);
+  border-radius: 99px;
+}
 
 /* ── MÓDULO PLAGAS ── */
 

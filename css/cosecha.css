@@ -47,6 +47,24 @@ body::before {
   pointer-events: none;
 }
 
+#mod-cosecha .module-title,
+#mod-cosecha .cos-module-title {
+  color: var(--white);
+  text-shadow: 0 2px 14px rgba(0,0,0,.38);
+}
+
+#mod-cosecha .cos-module-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.08;
+}
+
+#mod-cosecha .cos-module-title em {
+  color: var(--sprout);
+  font-style: italic;
+}
+
 /* ── HEADER ── */
 header {
   position: relative; z-index: 100;

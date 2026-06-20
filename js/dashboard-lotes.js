@@ -2064,7 +2064,7 @@
     var _orig = window.switchMod;
     if (typeof _orig !== 'function') return;
     window.switchMod = function (mod) {
-      if (mod === 'lotes' || mod === 'dashboard') {
+      if (mod === 'lotes') {
         window.dlVolverNueva();
         return;
       } else {
