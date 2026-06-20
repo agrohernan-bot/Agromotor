@@ -609,3 +609,172 @@ document.addEventListener('DOMContentLoaded', function() {
 window.dashGanttRefresh = render;
 
 })();
+
+// Dashboard operativo: accion prioritaria del lote activo.
+(function () {
+  'use strict';
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
+  function lsJSON(k, fallback) {
+    try {
+      var raw = localStorage.getItem(k);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch(_) { return fallback; }
+  }
+  function loteActivo() {
+    try { return (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null; }
+    catch(_) { return null; }
+  }
+  function val(data, keys) {
+    data = data || {};
+    for (var i = 0; i < keys.length; i++) {
+      var v = data[keys[i]];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return '';
+  }
+  function planFecha(data) {
+    var plan = data && data.planificacionSiembra;
+    if (!plan || typeof plan !== 'object') return '';
+    var prefer = ['invierno','verano'];
+    for (var p = 0; p < prefer.length; p++) {
+      var pp = plan[prefer[p]];
+      if (pp && (pp.fechaSiembraConf || pp.fechaSiembraPlan || pp.fechaSiembra || pp.fecha)) {
+        return pp.fechaSiembraConf || pp.fechaSiembraPlan || pp.fechaSiembra || pp.fecha;
+      }
+    }
+    for (var k in plan) {
+      if (!Object.prototype.hasOwnProperty.call(plan, k)) continue;
+      var v = plan[k];
+      if (v && typeof v === 'object') return v.fechaSiembraConf || v.fechaSiembraPlan || v.fechaSiembra || v.fecha || '';
+      if (typeof v === 'string') return v;
+    }
+    return '';
+  }
+  function diasDesde(iso) {
+    if (!iso) return null;
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return null;
+    var h = new Date(); h.setHours(12,0,0,0);
+    return Math.round((h - d) / 86400000);
+  }
+  function fechaCorta(iso) {
+    if (!iso) return '';
+    var p = String(iso).split('-');
+    return p.length === 3 ? p[2] + '/' + p[1] : iso;
+  }
+  function num(v) {
+    var n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+  function bitacoraLote(lote) {
+    var lista = lsJSON('am_bitacora_v2', []);
+    if (!Array.isArray(lista)) return [];
+    var id = lote && lote.id;
+    return lista.filter(function(x) { return !id || !x.loteId || String(x.loteId) === String(id); });
+  }
+  function rendimiento(data) {
+    var r = data && data.rendimientoProyectado;
+    if (!r) return null;
+    return { qq: num(r.rendProyectadoQq), t: num(r.rendProyectado), pct: num(r.pctLogro) };
+  }
+  function alertasActivas() {
+    var a = lsJSON('am_alertas_activas', []);
+    return Array.isArray(a) ? a : [];
+  }
+  function estadoAgua(ck) {
+    var agua = num(ck.am_hidrico_agua_actual_mm || ls('am_hidrico_agua_actual_mm'));
+    var cap = num(ck.am_hidrico_cap_max_mm || ls('am_hidrico_cap_max_mm')) || 180;
+    var deficit = num(ck.am_hidrico_deficit_acum_mm || ls('am_hidrico_deficit_acum_mm')) || 0;
+    var pct = agua != null && cap > 0 ? Math.max(0, Math.min(100, Math.round(agua / cap * 100))) : null;
+    var nivel = pct == null ? 'sin-dato' : (pct < 35 || deficit > 45 ? 'alta' : pct < 60 || deficit > 20 ? 'media' : 'ok');
+    return { agua: agua, cap: cap, deficit: deficit, pct: pct, nivel: nivel };
+  }
+  function etapaFen(data) {
+    var etapa = ls('am_fen_etapa_hoy') || val(data, ['etapaFenologica','fenEtapaHoy']);
+    var fecha = val(data, ['fechaSiembraReal','fechaSiembra']) || planFecha(data) || ls('am_siembra_fecha');
+    return { etapa: etapa, fecha: fecha, dias: diasDesde(fecha) };
+  }
+  function ultPulv(data) {
+    var p = data && data.pulverizacion;
+    return p && p.ultimaAplicacion ? p.ultimaAplicacion : null;
+  }
+  function buildModel() {
+    var lote = loteActivo();
+    var data = (lote && lote.data) || {};
+    var ck = data.calcKeys || {};
+    var cultivo = val(data, ['cultivo','cultivoActual']) || ls('am_siembra_cultivo') || 'Cultivo';
+    var fen = etapaFen(data);
+    var agua = estadoAgua(ck);
+    var rend = rendimiento(data);
+    var alerts = alertasActivas();
+    var bit = bitacoraLote(lote);
+    var pulv = ultPulv(data);
+    var actions = [];
+
+    if (!lote) actions.push({ p:'alta', mod:'lotes', title:'Seleccionar o crear un lote', desc:'El tablero operativo necesita un lote activo.', btn:'Ir a Mis Lotes' });
+    if (!fen.fecha) actions.push({ p:'alta', mod:'fen-plan', title:'Completar fecha de siembra', desc:'Sin fecha no se puede ordenar fenologia, agua ni riesgos.', btn:'Abrir fenologia' });
+    if (agua.nivel === 'alta') actions.push({ p:'alta', mod:'hidrico', title:'Actualizar balance hidrico', desc:'El perfil esta bajo o el deficit acumulado es relevante.', btn:'Abrir Hidrico' });
+    else if (agua.nivel === 'media') actions.push({ p:'media', mod:'hidrico', title:'Revisar agua disponible', desc:'El perfil esta en zona intermedia; conviene seguirlo de cerca.', btn:'Ver agua' });
+    if (alerts.length > 0) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Revisar alertas sanitarias', desc:'Hay ' + alerts.length + ' alerta(s) activas para el lote.', btn:'Ver enfermedades' });
+    if (!bit.length) actions.push({ p:'media', mod:'bitacora', title:'Registrar recorrida inicial', desc:'Deja trazabilidad de stand, malezas, sanidad y observaciones.', btn:'Abrir Bitacora' });
+    if (rend && rend.pct != null && rend.pct < 80) actions.push({ p:'media', mod:'nutricion', title:'Revisar objetivo y nutricion', desc:'El rendimiento proyectado queda por debajo del objetivo cargado.', btn:'Abrir Nutricion' });
+    if (!pulv && fen.dias != null && fen.dias >= 20) actions.push({ p:'baja', mod:'pulverizacion', title:'Preparar ventana de aplicacion', desc:'Validar clima, viento y calidad de agua antes de una intervencion.', btn:'Ver Pulverizacion' });
+    if (!actions.length) actions.push({ p:'baja', mod:'fen-seg', title:'Mantener seguimiento semanal', desc:'Actualizar fenologia, agua y bitacora para sostener el diagnostico.', btn:'Ver seguimiento' });
+
+    var order = { alta: 0, media: 1, baja: 2 };
+    actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
+    return { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, pulv: pulv, actions: actions };
+  }
+  function prioLabel(p) {
+    if (p === 'alta') return { cls:'alta', txt:'Prioridad alta' };
+    if (p === 'media') return { cls:'media', txt:'Atencion' };
+    return { cls:'baja', txt:'Seguimiento' };
+  }
+  function signal(label, value, state, sub) {
+    return '<div class="dop-signal dop-' + state + '"><div class="dop-signal-label">' + esc(label) + '</div><div class="dop-signal-value">' + esc(value) + '</div>' + (sub ? '<div class="dop-signal-sub">' + esc(sub) + '</div>' : '') + '</div>';
+  }
+  function render() {
+    var el = $('dash-operativo-panel');
+    if (!el) return;
+    var m = buildModel();
+    var a = m.actions[0];
+    var pr = prioLabel(a.p);
+    var aguaVal = m.agua.pct == null ? 'Sin dato' : m.agua.pct + '%';
+    var aguaSub = m.agua.agua == null ? 'Abrir Hidrico' : Math.round(m.agua.agua) + ' mm en perfil';
+    var fenVal = m.fen.etapa || (m.fen.fecha ? 'En seguimiento' : 'Sin fecha');
+    var fenSub = m.fen.dias != null && m.fen.dias >= 0 ? 'Dia ' + m.fen.dias + ' desde siembra' : (m.fen.fecha ? 'Siembra ' + fechaCorta(m.fen.fecha) : 'Completar plan');
+    var rendVal = m.rend && m.rend.qq != null ? m.rend.qq.toFixed(0) + ' qq/ha' : 'Sin proyeccion';
+    var rendSub = m.rend && m.rend.pct != null ? Math.round(m.rend.pct) + '% del objetivo' : 'Abrir Fen. Seguimiento';
+    var sanVal = m.alerts.length ? m.alerts.length + ' alerta(s)' : 'Sin alertas';
+    var bitVal = m.bit.length ? m.bit.length + ' registro(s)' : 'Sin recorridas';
+    var bitSub = m.bit.length ? 'Ultima actividad cargada' : 'Registrar primer scouting';
+
+    var html = '<div class="dop-card dop-prio-' + pr.cls + '">';
+    html += '<div class="dop-main"><div class="dop-kicker">Que hago hoy</div><div class="dop-title">' + esc(a.title) + '</div><div class="dop-desc">' + esc(a.desc) + '</div>';
+    html += '<div class="dop-meta"><span class="dop-pill dop-pill-' + pr.cls + '">' + pr.txt + '</span><span class="dop-pill">' + esc((m.lote && m.lote.nombre) || 'Sin lote') + '</span><span class="dop-pill">' + esc(m.cultivo) + '</span></div>';
+    html += '<button type="button" class="dop-action" onclick="if(typeof switchMod===\'function\')switchMod(\'' + esc(a.mod) + '\')">' + esc(a.btn) + '</button></div>';
+    html += '<div class="dop-grid">';
+    html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
+    html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
+    html += signal('Sanidad', sanVal, m.alerts.length ? 'alta' : 'ok', m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas');
+    html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
+    html += signal('Bitacora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
+    html += signal('Aplicacion', m.pulv ? 'Con registro' : 'Sin registro', m.pulv ? 'ok' : 'baja', m.pulv ? 'Pulverizacion cargada' : 'Validar ventana si corresponde');
+    html += '</div></div>';
+    el.innerHTML = html;
+  }
+  function init() {
+    render();
+    document.addEventListener('am:dashboard-activado', render);
+    window.addEventListener('storage', render);
+    if (window._dashOperativoInterval) clearInterval(window._dashOperativoInterval);
+    window._dashOperativoInterval = setInterval(render, 30000);
+  }
+  document.addEventListener('DOMContentLoaded', init);
+  window.dashOperativoRefresh = render;
+})();
