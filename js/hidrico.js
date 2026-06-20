@@ -37,6 +37,114 @@
                mmPorTon:100, nPorTon:20, pPorTon:3.5 },
   };
 
+  function bhEl(id) {
+    return document.getElementById(id);
+  }
+
+  function bhEsc(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch) {
+      return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+    });
+  }
+
+  function bhLoteActivo() {
+    try {
+      return typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+    } catch(_) {
+      return null;
+    }
+  }
+
+  function bhLeerBitacora(lote) {
+    try {
+      var loteId = lote && lote.id ? String(lote.id) : '';
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var global = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(global)) global = [];
+      var delLote = lote && lote.data && Array.isArray(lote.data.bitacora) ? lote.data.bitacora : [];
+      var map = {};
+      global.concat(delLote).forEach(function(e) {
+        if (!e) return;
+        if (loteId && e.loteId && String(e.loteId) !== loteId) return;
+        map[e.id || ((e.fecha || '') + '_' + (e.hora || '') + '_' + (e.tipo || ''))] = e;
+      });
+      return Object.keys(map).map(function(k) { return map[k]; }).sort(function(a,b) {
+        return String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || ''));
+      });
+    } catch(_) {
+      return [];
+    }
+  }
+
+  function bhLecturaHidrica(lote) {
+    var bit = bhLeerBitacora(lote);
+    for (var i = 0; i < bit.length; i++) {
+      var q = bit[i] && bit[i].quick;
+      if (q && q.agua && q.agua !== 'Adecuada') return { entrada: bit[i], quick: q };
+    }
+    return bit.length && bit[0].quick ? { entrada: bit[0], quick: bit[0].quick } : null;
+  }
+
+  function bhRenderContextoRecorrida() {
+    var box = bhEl('bh-contexto-recorrida');
+    if (!box) return;
+    var lote = bhLoteActivo();
+    var lectura = bhLecturaHidrica(lote);
+    if (!lectura) {
+      box.innerHTML = '';
+      return;
+    }
+    var q = lectura.quick;
+    var agua = q.agua || 'Sin lectura';
+    var alta = agua === 'Deficit visible';
+    var media = agua === 'Justa';
+    var border = alta ? '#C94A2A' : media ? '#B87A20' : '#2A7A4A';
+    var bg = alta ? 'rgba(201,74,42,.08)' : media ? 'rgba(184,122,32,.09)' : 'rgba(42,122,74,.08)';
+    var rec = alta
+      ? 'Recalcular balance y validar agua util antes de fertilizar o aplicar.'
+      : media
+        ? 'Seguir perfil y programar nueva recorrida si no hay reposicion.'
+        : 'Mantener seguimiento semanal.';
+    box.innerHTML = ''
+      + '<div class="card" style="margin:1rem 0;border:1.5px solid ' + border + ';background:' + bg + '">'
+      + '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;margin-bottom:.75rem">'
+      + '<div><div style="font-size:.68rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:rgba(74,46,26,.55)">Ultima recorrida hidrica</div>'
+      + '<div style="font-size:1.25rem;font-weight:800;color:' + border + ';margin-top:.15rem">' + bhEsc(agua) + '</div></div>'
+      + '<span style="font-size:.75rem;color:rgba(74,46,26,.55);white-space:nowrap">' + bhEsc(lectura.entrada.fecha || '') + '</span></div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.45rem .8rem;font-size:.8rem;color:rgba(31,23,18,.72)">'
+      + '<span>Estado: <strong>' + bhEsc(q.estado || '-') + '</strong></span>'
+      + '<span>Stand: <strong>' + bhEsc(q.stand || '-') + '</strong></span>'
+      + '<span>Sanidad: <strong>' + bhEsc(q.sanidad || '-') + '</strong></span>'
+      + '<span>Malezas: <strong>' + bhEsc(q.malezas || '-') + '</strong></span>'
+      + '</div>'
+      + '<div style="margin-top:.8rem;font-size:.84rem;line-height:1.45;color:rgba(31,23,18,.82)">' + bhEsc(rec) + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:.5rem;margin-top:.9rem">'
+      + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.bhRegistrarResolucion&&window.bhRegistrarResolucion(\'recalcular\')">Recalcular balance</button>'
+      + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.bhRegistrarResolucion&&window.bhRegistrarResolucion(\'recorrida\')">Programar recorrida</button>'
+      + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.bhRegistrarResolucion&&window.bhRegistrarResolucion(\'ajustar_agua\')">Ajustar agua util</button>'
+      + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.bhRegistrarResolucion&&window.bhRegistrarResolucion(\'riego\')">Derivar a riego</button>'
+      + '</div></div>';
+  }
+
+  function bhGuardarBitacora(entrada) {
+    try {
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var lista = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(lista)) lista = [];
+      lista.push(entrada);
+      localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
+    } catch(_) {}
+    var lote = bhLoteActivo();
+    if (lote) {
+      lote.data = lote.data || {};
+      var lb = Array.isArray(lote.data.bitacora) ? lote.data.bitacora.slice() : [];
+      lb.push(entrada);
+      lote.data.bitacora = lb.slice(-200);
+      lote.data.ultimaResolucionHidrica = entrada;
+      if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+    }
+  }
+
   // Ajuste ENSO para precipitaciones pampa argentina
   // Fuente: análisis histórico INTA/ORA sobre 1970-2020
   // Zona núcleo pampeana. Ajuste en % vs. media histórica
@@ -235,6 +343,7 @@
 
   function bhActualizar() {
     bhActualizarEnsoSelector();
+    bhRenderContextoRecorrida();
 
     const cult      = gv('s-cultivo') || 'Soja';
     if ($('bh-lbl-cult')) $('bh-lbl-cult').textContent = cult;
@@ -466,5 +575,60 @@
   window.bhToggleRiego = bhToggleRiego;
   window.bhActualizarEnsoSelector = bhActualizarEnsoSelector;
   window.bhActualizar = bhActualizar;
+  window.bhRenderContextoRecorrida = bhRenderContextoRecorrida;
+  window.bhRegistrarResolucion = function(decision) {
+    var lote = bhLoteActivo();
+    var lectura = bhLecturaHidrica(lote);
+    var labels = {
+      recalcular: 'Recalcular balance hidrico',
+      recorrida: 'Programar nueva recorrida',
+      ajustar_agua: 'Ajustar agua util manual',
+      riego: 'Derivar a riego / decision de manejo'
+    };
+    var ahora = new Date();
+    var fecha = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+    var d = (lote && lote.data) || {};
+    var entrada = {
+      id: 'bh-res-' + ahora.getTime(),
+      fecha: fecha,
+      hora: ahora.toTimeString().slice(0,5),
+      tipo: decision === 'riego' ? 'riego' : 'visita',
+      loteId: lote ? lote.id : '',
+      loteNombre: lote ? lote.nombre : 'Lote',
+      cultivo: d.cultivo || gv('s-cultivo') || '',
+      etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
+      nota: 'Resolucion hidrica: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.agua : ''),
+      resolucionHidrica: {
+        decision: decision,
+        label: labels[decision] || decision,
+        lectura: lectura ? lectura.quick : null
+      }
+    };
+    bhGuardarBitacora(entrada);
+
+    if (decision === 'riego') {
+      var chk = bhEl('bh-riego-check');
+      var panel = bhEl('bh-riego-panel');
+      if (chk) chk.checked = true;
+      if (panel) panel.classList.remove('hidden');
+      bhActualizar();
+    } else if (decision === 'ajustar_agua') {
+      var agua = bhEl('bh-agua-perfil');
+      if (agua) {
+        agua.focus();
+        if (typeof agua.select === 'function') agua.select();
+      }
+    } else if (decision === 'recalcular') {
+      bhActualizar();
+    }
+
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
+    bhRenderContextoRecorrida();
+    if (typeof window.amToast === 'function') window.amToast('Resolucion hidrica guardada en Bitacora', 'ok');
+    else alert('Resolucion hidrica guardada en Bitacora');
+  };
+
+  setTimeout(bhRenderContextoRecorrida, 0);
 
 })();
