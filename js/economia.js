@@ -38,11 +38,15 @@ async function ecActualizarDolar() {
   try {
     // DolarAPI — gratis, sin key, CORS ok
     const res = await Promise.race([
-      fetch('https://dolarapi.com/v1/dolares'),
+      fetch(((window.AM_CONFIG && window.AM_CONFIG.marketProxy) || '/api/market') + '?type=usd', { headers: { 'Accept': 'application/json' } }),
       new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),8000))
     ]);
     if (!res.ok) throw new Error('HTTP '+res.status);
-    const datos = await res.json();
+    const payload = await res.json();
+    if (!payload || !payload.ok || !Array.isArray(payload.data)) {
+      throw new Error((payload && payload.error) || 'sin datos');
+    }
+    const datos = payload.data;
 
     // Parsear respuesta
     datos.forEach(d => {

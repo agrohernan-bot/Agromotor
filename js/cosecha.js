@@ -476,10 +476,171 @@ async function loadAllAPIs() {
   ]);
 }
 
+function marketProxyUrl(type) {
+  const base = (window.AM_CONFIG && window.AM_CONFIG.marketProxy) || '/api/market';
+  return base + '?type=' + encodeURIComponent(type);
+}
+
+async function fetchMarketJson(type, timeoutMs) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const resp = await fetch(marketProxyUrl(type), {
+      signal: ctrl.signal,
+      headers: { 'Accept': 'application/json' }
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return await resp.json();
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
+function aplicarTipoCambioCache(motivo) {
+  const cache = cacheGet('usd_oficial');
+  if (cache && cache.data && cache.data.tc) {
+    $('tipo-cambio').value = cache.data.tc;
+    S.usdData = cache.data.tc;
+    setDot('dot-usd', 'ok');
+    sv('val-usd', '$ ' + fmt(cache.data.tc, 0) + ' guardado');
+    if ($('tc-source')) $('tc-source').innerHTML = `⚠️ ${motivo} Usando ultimo USD guardado (${cacheFecha(cache)}).`;
+    calcLive();
+    return true;
+  }
+  setDot('dot-usd', 'error');
+  sv('val-usd', 'manual');
+  if ($('tc-source')) $('tc-source').innerHTML = `⚠️ ${motivo} Ingresar TC manualmente.`;
+  return false;
+}
+
+function aplicarBadlarCache() {
+  const cache = cacheGet('badlar');
+  if (cache && cache.data && cache.data.badlar) {
+    S.badlarData = cache.data.badlar;
+    sv('val-badlar', fmt(cache.data.badlar, 1) + '% TNA guardado');
+    setDot('dot-badlar', 'ok');
+    return true;
+  }
+  setDot('dot-badlar', 'error');
+  sv('val-badlar', 'sin dato');
+  return false;
+}
+
+function aplicarPlazoFijoCache(motivo) {
+  const cache = cacheGet('plazo_fijo');
+  if (cache && cache.data && cache.data.pfVal) {
+    S.pfData = cache.data.pfVal;
+    sv('val-pf', fmt(cache.data.pfVal, 1) + '% TNA guardado');
+    setDot('dot-pf', 'ok');
+    if ($('tasa-ref')) $('tasa-ref').value = (cache.data.pfVal / 12).toFixed(1);
+    if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ ${motivo} Usando ultima tasa guardada (${cacheFecha(cache)}).`;
+    return true;
+  }
+  setDot('dot-pf', 'error');
+  sv('val-pf', 'sin dato');
+  if ($('tasa-source')) $('tasa-source').innerHTML = `⚠️ ${motivo} Sin tasa guardada.`;
+  return false;
+}
+
+async function fetchPrecioGranoProxy(cultivo) {
+  let payload;
+  try {
+    payload = await fetchMarketJson('fob', 9000);
+  } catch (e) {
+    return false;
+  }
+  const data = payload && payload.ok && Array.isArray(payload.data) ? payload.data : null;
+  if (!data) {
+    aplicarPrecioGranoCache(cultivo, (payload && payload.error) || 'API FOB no disponible.');
+    return true;
+  }
+  S.fobData = data;
+  const mapa = { soja:'Soja', maiz:'Maiz', trigo:'Trigo', girasol:'Girasol', sorgo:'Sorgo' };
+  const nombre = mapa[cultivo] || 'Soja';
+  const item = data.find(d => d.producto && String(d.producto).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(nombre.toLowerCase()));
+  if (item && item.precio_usd) {
+    const precio = parseFloat(String(item.precio_usd).replace(',', '.'));
+    $('precio-usd').value = precio;
+    $('precio-source').innerHTML = `✅ FOB oficial MAGYP (proxy) - ${item.fecha || payload.fecha || 'hoy'}`;
+    setDot('dot-fob', 'ok');
+    sv('val-fob', `${nombre}: USD ${fmt(precio,0)}`);
+    cacheSet('fob_' + cultivo, { precio, nombre, fecha: item.fecha || payload.fecha || null });
+    calcLive();
+    return true;
+  }
+  aplicarPrecioGranoCache(cultivo, 'Datos FOB disponibles, pero no para este cultivo.');
+  return true;
+}
+
+async function fetchTipoCambioProxy() {
+  let payload;
+  try {
+    payload = await fetchMarketJson('usd', 9000);
+  } catch (e) {
+    return false;
+  }
+  if (!payload || !payload.ok || !Array.isArray(payload.data)) {
+    aplicarTipoCambioCache((payload && payload.error) || 'DolarAPI no disponible.');
+    return true;
+  }
+  const d = payload.data.find(x => String(x.casa || '').toLowerCase() === 'oficial') || payload.data[0] || {};
+  const tc = d.venta ?? d.compra;
+  if (!tc) {
+    aplicarTipoCambioCache('DolarAPI sin valor oficial.');
+    return true;
+  }
+  $('tipo-cambio').value = tc;
+  if ($('tc-source')) $('tc-source').innerHTML = `✅ USD Oficial BNA - proxy - ${d.fechaActualizacion ? new Date(d.fechaActualizacion).toLocaleDateString('es-AR') : 'hoy'}`;
+  setDot('dot-usd', 'ok');
+  sv('val-usd', '$ ' + fmt(tc, 0));
+  S.usdData = tc;
+  cacheSet('usd_oficial', { tc, fechaActualizacion: d.fechaActualizacion || null });
+  calcLive();
+  return true;
+}
+
+async function fetchTasasBCRAProxy() {
+  let payload;
+  try {
+    payload = await fetchMarketJson('tasas', 12000);
+  } catch (e) {
+    return false;
+  }
+
+  setDot('dot-badlar', 'loading');
+  setDot('dot-pf', 'loading');
+
+  if (payload && Number.isFinite(Number(payload.badlar))) {
+    const badlar = Number(payload.badlar);
+    S.badlarData = badlar;
+    cacheSet('badlar', { badlar });
+    sv('val-badlar', fmt(badlar, 1) + '% TNA');
+    setDot('dot-badlar', 'ok');
+  } else {
+    aplicarBadlarCache();
+  }
+
+  if (payload && Number.isFinite(Number(payload.pfVal))) {
+    const pfVal = Number(payload.pfVal);
+    const pfFecha = payload.pfFecha || '';
+    S.pfData = pfVal;
+    cacheSet('plazo_fijo', { pfVal, pfFecha });
+    sv('val-pf', fmt(pfVal, 1) + '% TNA');
+    setDot('dot-pf', 'ok');
+    if ($('tasa-ref')) $('tasa-ref').value = (pfVal / 12).toFixed(1);
+    if ($('tasa-source')) $('tasa-source').innerHTML = `✅ Plazo fijo 30d - proxy datos.gob.ar - ${pfFecha || 'ultimo dato'}`;
+  } else {
+    aplicarPlazoFijoCache((payload && payload.error) || 'datos.gob.ar no disponible.');
+  }
+
+  return true;
+}
+
 async function fetchPrecioGrano() {
   const cultivo = $('cultivo').value;
   setDot('dot-fob', 'loading'); sv('val-fob', 'buscando…');
   try {
+    if (await fetchPrecioGranoProxy(cultivo)) return;
     const hoy = new Date();
     let intentos = 0;
     let data = null;
@@ -554,6 +715,7 @@ function aplicarPrecioGranoCache(cultivo, motivo) {
 async function fetchTipoCambio() {
   setDot('dot-usd', 'loading');
   try {
+    if (await fetchTipoCambioProxy()) return;
     const ctrl = new AbortController();
     setTimeout(() => ctrl.abort(), 8000);
     const resp = await fetch('https://dolarapi.com/v1/dolares/oficial', { signal: ctrl.signal });
@@ -587,6 +749,7 @@ async function fetchTipoCambio() {
 
 // TASAS � datos.gob.ar/SSPM (gratuito, sin token, CORS ok)
 async function fetchTasasBCRA() {
+  if (await fetchTasasBCRAProxy()) return;
   // BADLAR � CSV diario: indice_tiempo, tasas_interes_call, tasas_interes_badlar, ...
   try {
     setDot('dot-badlar', 'loading');

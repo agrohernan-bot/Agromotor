@@ -9,10 +9,11 @@ window.AM_CONFIG = {
     url:     'https://xsbaqlqztppdpdcjgazz.supabase.co',
     anonKey: 'sb_publishable_v37KGDs2Z4CPbF4I5RHUXA_Rlz8RrRK'
   },
-  assetVersion: '155',
+  assetVersion: '156',
   claudeProxy: 'https://xsbaqlqztppdpdcjgazz.supabase.co/functions/v1/claude-proxy',
   ensoProxy: '/api/enso',
   soilProxy: '/api/soil',
+  marketProxy: '/api/market',
   agromonitoringKey: 'b0fc7778f1bef4d4b5e2076f0c75845f'
 };
 
