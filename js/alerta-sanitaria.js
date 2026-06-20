@@ -346,7 +346,7 @@
     var bit = leerBitacoraAS(lote);
     for (var i = 0; i < bit.length; i++) {
       var q = bit[i] && bit[i].quick;
-      if (q && q.sanidad && q.sanidad !== 'Sin sintomas') return { entrada: bit[i], quick: q };
+      if (q && q.sanidad && q.sanidad !== 'Sin sintomas' && q.sanidad !== 'Sin síntomas') return { entrada: bit[i], quick: q };
     }
     return bit.length && bit[0].quick ? { entrada: bit[0], quick: bit[0].quick } : null;
   }
@@ -359,12 +359,12 @@
     var media = q.sanidad === 'Monitorear';
     var cls = alta ? 'as-field-high' : media ? 'as-field-med' : 'as-field-low';
     var recomendacion = alta
-      ? 'Validar sintomas, umbral y clima. No aplicar sin diagnostico, pero priorizar monitoreo inmediato.'
+      ? 'Validar síntomas, umbral y clima. No aplicar sin diagnóstico, pero priorizar monitoreo inmediato.'
       : media
-        ? 'Programar nueva lectura y contrastar con pronostico sanitario.'
+        ? 'Programar nueva lectura y contrastar con pronóstico sanitario.'
         : 'Mantener seguimiento semanal.';
     return '<div class="as-field-context ' + cls + '">'
-      + '<div class="as-field-head"><div><div class="as-field-kicker">Ultima recorrida sanitaria</div><div class="as-field-title">' + escAS(q.sanidad || 'Sin lectura sanitaria') + '</div></div><span>' + escAS(lectura.entrada.fecha || '') + '</span></div>'
+      + '<div class="as-field-head"><div><div class="as-field-kicker">Última recorrida sanitaria</div><div class="as-field-title">' + escAS(q.sanidad || 'Sin lectura sanitaria') + '</div></div><span>' + escAS(lectura.entrada.fecha || '') + '</span></div>'
       + '<div class="as-field-grid">'
       + '<span>Estado: <strong>' + escAS(q.estado || '-') + '</strong></span>'
       + '<span>Stand: <strong>' + escAS(q.stand || '-') + '</strong></span>'
@@ -374,7 +374,7 @@
       + '<div class="as-field-rec">' + escAS(recomendacion) + '</div>'
       + '<div class="as-field-actions">'
       + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'sin_intervenir\')">No intervenir</button>'
-      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'monitorear\')">Monitorear en 3-5 dias</button>'
+      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'monitorear\')">Monitorear en 3-5 días</button>'
       + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'aplicar\')">Aplicar/derivar receta</button>'
       + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'consulta\')">Consultar/muestra</button>'
       + '</div>'
@@ -405,7 +405,7 @@
     var lectura = lecturaSanitariaAS(lote);
     var labels = {
       sin_intervenir: 'No intervenir por ahora',
-      monitorear: 'Monitorear en 3-5 dias',
+      monitorear: 'Monitorear en 3-5 días',
       aplicar: 'Aplicar/derivar receta',
       consulta: 'Consultar asesor o enviar muestra'
     };
@@ -421,7 +421,7 @@
       loteNombre: lote ? lote.nombre : 'Lote',
       cultivo: normCultivoAM(d.cultivo || ''),
       etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
-      nota: 'Resolucion sanitaria: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.sanidad : ''),
+      nota: 'Resolución sanitaria: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.sanidad : ''),
       resolucionSanitaria: {
         decision: decision,
         label: labels[decision] || decision,
@@ -431,8 +431,8 @@
     guardarBitacoraAS(entrada);
     if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
     if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
-    if (typeof window.amToast === 'function') window.amToast('Resolucion sanitaria guardada en Bitacora', 'ok');
-    else alert('Resolucion sanitaria guardada en Bitacora');
+    if (typeof window.amToast === 'function') window.amToast('Resolución sanitaria guardada en Bitácora', 'ok');
+    else alert('Resolución sanitaria guardada en Bitácora');
     if (typeof window.asPrepararAutoLote === 'function') window.asPrepararAutoLote();
   };
   window.asPrepararAutoLote = function() {

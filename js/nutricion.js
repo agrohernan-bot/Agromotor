@@ -514,7 +514,7 @@ function ncResumenPlan(plan) {
   return {
     keys: keys,
     deficit: deficit,
-    texto: deficit.length ? deficit.join(', ') + ' con recomendacion activa' : 'Sin deficit operativo relevante',
+    texto: deficit.length ? deficit.join(', ') + ' con recomendación activa' : 'Sin déficit operativo relevante',
     costo: costo
   };
 }
@@ -546,18 +546,18 @@ function ncRenderResolucionNutricion() {
   var ultima = lote && lote.data ? lote.data.ultimaResolucionNutricion : null;
   if (!plan) {
     box.innerHTML = '<div class="card" style="margin-bottom:1rem;border:1px solid rgba(200,162,85,.24);background:rgba(200,162,85,.07)">'
-      + '<div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7A5A10;margin-bottom:.25rem">Decision nutricional pendiente</div>'
-      + '<div style="font-size:.86rem;color:rgba(237,224,196,.78);line-height:1.45">Calcula el plan para registrar si se aplica, posterga, ajusta dosis o se pide analisis.</div>'
+      + '<div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7A5A10;margin-bottom:.25rem">Decisión nutricional pendiente</div>'
+      + '<div style="font-size:.86rem;color:rgba(237,224,196,.78);line-height:1.45">Calculá el plan para registrar si se aplica, posterga, ajusta dosis o se pide análisis.</div>'
       + '</div>';
     return;
   }
   var resumen = ncResumenPlan(plan);
   var ultTxt = ultima && ultima.resolucionNutricion
-    ? 'Ultima resolucion: ' + ultima.resolucionNutricion.label + (ultima.fecha ? ' - ' + ultima.fecha : '')
-    : 'Sin resolucion registrada para este plan.';
+    ? 'Última resolución: ' + ultima.resolucionNutricion.label + (ultima.fecha ? ' - ' + ultima.fecha : '')
+    : 'Sin resolución registrada para este plan.';
   box.innerHTML = '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(109,191,130,.22);background:rgba(109,191,130,.08)">'
     + '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap">'
-    + '<div><div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6DBF82;margin-bottom:.2rem">Cierre operativo de nutricion</div>'
+    + '<div><div style="font-size:.72rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#6DBF82;margin-bottom:.2rem">Cierre operativo de nutrición</div>'
     + '<div style="font-size:1rem;font-weight:800;color:rgba(237,224,196,.92)">' + ncEsc(resumen.texto) + '</div>'
     + '<div style="font-size:.74rem;color:rgba(237,224,196,.58);margin-top:.25rem">' + ncEsc(ultTxt) + (resumen.costo ? ' · ' + ncEsc(resumen.costo) : '') + '</div></div>'
     + '</div>'
@@ -565,7 +565,7 @@ function ncRenderResolucionNutricion() {
     + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'aplicar\')">Aplicar plan</button>'
     + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'postergar\')">Postergar</button>'
     + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'ajustar\')">Ajustar dosis</button>'
-    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'analisis\')">Pedir analisis</button>'
+    + '<button type="button" class="btn" style="padding:.55rem .7rem" onclick="window.ncRegistrarResolucion&&window.ncRegistrarResolucion(\'analisis\')">Pedir análisis</button>'
     + '</div></div>';
 }
 
@@ -574,9 +574,9 @@ window.ncRegistrarResolucion = function(decision) {
   var plan = ncPlanVigente();
   var labels = {
     aplicar: 'Aplicar plan nutricional',
-    postergar: 'Postergar decision nutricional',
+    postergar: 'Postergar decisión nutricional',
     ajustar: 'Ajustar dosis del plan',
-    analisis: 'Pedir analisis de suelo/foliar'
+    analisis: 'Pedir análisis de suelo/foliar'
   };
   var ahora = new Date();
   var fecha = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
@@ -590,7 +590,7 @@ window.ncRegistrarResolucion = function(decision) {
     loteNombre: lote ? lote.nombre : 'Lote',
     cultivo: (plan && plan.cultivo) || ncCultStr(),
     etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
-    nota: 'Resolucion nutricional: ' + (labels[decision] || decision) + '. ' + resumen.texto,
+    nota: 'Resolución nutricional: ' + (labels[decision] || decision) + '. ' + resumen.texto,
     resolucionNutricion: {
       decision: decision,
       label: labels[decision] || decision,
@@ -609,8 +609,8 @@ window.ncRegistrarResolucion = function(decision) {
   if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
   if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
   ncRenderResolucionNutricion();
-  if (typeof window.amToast === 'function') window.amToast('Resolucion nutricional guardada en Bitacora', 'ok');
-  else alert('Resolucion nutricional guardada en Bitacora');
+  if (typeof window.amToast === 'function') window.amToast('Resolución nutricional guardada en Bitácora', 'ok');
+  else alert('Resolución nutricional guardada en Bitácora');
 };
 
 window.ncActualizar = function() {

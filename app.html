@@ -4242,7 +4242,7 @@ function fsPrepararDetalleLote() {
       + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + cultivo + '</span>'
       + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">Siembra ' + fecha + '</span>'
       + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + lat + ', ' + lon + '</span>'
-      + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.4;margin-top:.7rem">La fenologia se genera automaticamente con datos del lote y de la planificacion. Para cambiar cultivo, coordenadas o fecha, editar la planificacion del lote.</div>'
+      + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.4;margin-top:.7rem">La fenología se genera automáticamente con datos del lote y de la planificación. Para cambiar cultivo, coordenadas o fecha, editar la planificación del lote.</div>'
       + '</div>';
   }
 }
@@ -4298,7 +4298,7 @@ async function fsCalcular() {
   if (!window.Fenologia) { alert('Módulo de fenología no disponible'); return; }
   var cultivo = document.getElementById('fs-cultivo').value;
   if (['soja','maiz','trigo','girasol'].indexOf(cultivo) < 0) {
-    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #C8A255;padding:1.2rem"><p style="color:#C8A255;margin:0"><strong>Modelo fenologico no calibrado para este cultivo.</strong><br>El tablero mantiene el seguimiento resumido, pero el detalle avanzado hoy esta disponible para soja, maiz, trigo y girasol.</p></div>';
+    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #C8A255;padding:1.2rem"><p style="color:#C8A255;margin:0"><strong>Modelo fenológico no calibrado para este cultivo.</strong><br>El tablero mantiene el seguimiento resumido, pero el detalle avanzado hoy está disponible para soja, maíz, trigo y girasol.</p></div>';
     return;
   }
   var lat = parseFloat(document.getElementById('fs-lat').value);
@@ -4313,7 +4313,7 @@ async function fsCalcular() {
 
   var btn = document.getElementById('fs-btn');
   btn.disabled = true; btn.textContent = '⏳ Calculando…';
-  document.getElementById('fs-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">Generando fenologia del lote desde datos heredados y clima disponible...</p>';
+  document.getElementById('fs-resultado').innerHTML = '<p style="color:var(--c2);text-align:center;padding:2.5rem 1rem">Generando fenología del lote desde datos heredados y clima disponible...</p>';
 
   try {
     var loteCalc = _fsLoteActivo();
@@ -4381,9 +4381,9 @@ function _fsRenderAguaEtapas(res, diasTranscurridos) {
     + '<span style="font-size:.72rem;color:var(--c2);background:rgba(255,255,255,.05);border-radius:20px;padding:.25rem .55rem">ET0 ref usada: ' + et0Ref.toFixed(1) + ' mm/d</span>'
     + '</div>'
     + '<table style="width:100%;min-width:560px;border-collapse:collapse;font-size:.82rem"><thead><tr style="background:rgba(255,255,255,.05)">'
-    + '<th style="padding:10px;text-align:left">Estadio</th><th>Dias</th><th>Lluvia</th><th>Demanda</th><th>Balance</th><th>Cob.</th>'
+    + '<th style="padding:10px;text-align:left">Estadio</th><th>Días</th><th>Lluvia</th><th>Demanda</th><th>Balance</th><th>Cob.</th>'
     + '</tr></thead><tbody>' + rows + '</tbody></table>'
-    + '<p style="font-size:.7rem;color:var(--c2);margin:.65rem 0 0">Demanda estimada como Kc diario × ET0 de referencia. Usar como semaforo operativo; el balance hidrico del modulo dedicado sigue siendo la fuente para decision final.</p>'
+    + '<p style="font-size:.7rem;color:var(--c2);margin:.65rem 0 0">Demanda estimada como Kc diario × ET0 de referencia. Usar como semáforo operativo; el balance hídrico del módulo dedicado sigue siendo la fuente para decisión final.</p>'
     + '</div>';
 }
 
@@ -4526,7 +4526,7 @@ function _fsCalcularRendimiento(res, diasTranscurridos) {
       normal: +cierre(1.0).toFixed(2),
       favorable: +cierre(1.25).toFixed(2)
     },
-    fuente: 'Fenologia seguimiento + FAO Ky'
+    fuente: 'Fenología seguimiento + FAO Ky'
   };
   _fsGuardarRendimiento(datos);
   return datos;
@@ -4561,7 +4561,7 @@ function _fsRenderRendimiento(res, diasTranscurridos) {
   }).join('');
   return '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(109,191,130,.22)">'
     + '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:.85rem">'
-    + '<div><div style="font-size:.82rem;font-weight:800;color:var(--c2);margin-bottom:.25rem">Rendimiento proyectado</div><div style="font-size:.72rem;color:var(--c2)">Estimacion dinamica desde agua, avance fenologico y respuesta FAO Ky</div></div>'
+    + '<div><div style="font-size:.82rem;font-weight:800;color:var(--c2);margin-bottom:.25rem">Rendimiento proyectado</div><div style="font-size:.72rem;color:var(--c2)">Estimación dinámica desde agua, avance fenológico y respuesta FAO Ky</div></div>'
     + '<span style="font-size:.68rem;color:' + color + ';border:1px solid ' + color + '66;background:' + color + '16;border-radius:999px;padding:.25rem .6rem;font-weight:800">' + estado + '</span>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;align-items:stretch">'
@@ -4599,7 +4599,7 @@ function _fsNdviProxy(res, diasTranscurridos) {
     fecha: new Date().toISOString(),
     pctCiclo: Math.round(pctCiclo * 100),
     ratioHidrico: +ratioHid.toFixed(2),
-    fuente: 'Proxy fenologico-hidrico'
+    fuente: 'Proxy fenológico-hídrico'
   };
   try {
     localStorage.setItem('am_ndvi_proxy', String(datos.valor));
@@ -4644,7 +4644,7 @@ function _fsLecturaCampo(bit) {
     resumen: partes.join(' - '),
     sanidadAlta: q.sanidad === 'Intervenir/consultar',
     sanidadMedia: q.sanidad === 'Monitorear',
-    aguaAlta: q.agua === 'Deficit visible',
+    aguaAlta: q.agua === 'Deficit visible' || q.agua === 'Déficit visible',
     standProblema: q.stand === 'Bajo' || q.stand === 'Manchoneado'
   };
 }
@@ -4659,7 +4659,7 @@ function fsRegistrarBitacora(tipo, nota) {
       fecha: ahora.toISOString().slice(0, 10),
       hora: ahora.toTimeString().slice(0, 5),
       tipo: tipo || 'visita',
-      nota: nota || 'Scouting recomendado desde seguimiento fenologico.',
+      nota: nota || 'Scouting recomendado desde seguimiento fenológico.',
       loteId: lote ? lote.id : '',
       loteNombre: lote ? lote.nombre : 'Lote',
       cultivo: d.cultivo || (document.getElementById('fs-cultivo') || {}).value || '',
@@ -4671,11 +4671,11 @@ function fsRegistrarBitacora(tipo, nota) {
     if (!Array.isArray(lista)) lista = [];
     lista.push(entrada);
     localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
-    if (typeof amToast === 'function') amToast('Entrada agregada a Bitacora', 'ok');
+    if (typeof amToast === 'function') amToast('Entrada agregada a Bitácora', 'ok');
     if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
     if (typeof fsCalcular === 'function') setTimeout(fsCalcular, 150);
   } catch(e) {
-    if (typeof amToast === 'function') amToast('No se pudo registrar en Bitacora', 'err');
+    if (typeof amToast === 'function') amToast('No se pudo registrar en Bitácora', 'err');
   }
 }
 
@@ -4684,16 +4684,16 @@ function _fsAccionesSeguimiento(res, etapaActual, diasTranscurridos, ndvi, rend,
   var campo = bitacora.length ? _fsLecturaCampo(bitacora[0]) : null;
   var lluvia7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
   var lluviaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
-  if (!bitacora.length) acciones.push({ p: 'alta', t: 'Registrar primer scouting del lote', d: 'Deja trazabilidad de estado, malezas, sanidad y stand.', b: 'Registrar scouting', js: "fsRegistrarBitacora('visita','Primer scouting sugerido desde seguimiento fenologico.')" });
-  if (campo && campo.sanidadAlta) acciones.push({ p: 'alta', t: 'Validar sanidad registrada', d: 'La ultima recorrida marco intervenir/consultar. Cruzar con clima, umbral y monitoreo.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
-  else if (campo && campo.sanidadMedia) acciones.push({ p: 'media', t: 'Monitorear sanidad', d: 'La recorrida marco sanidad en seguimiento. Programar nueva lectura si el clima acompana.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
-  if (campo && campo.aguaAlta) acciones.push({ p: 'alta', t: 'Deficit visual en recorrida', d: 'La lectura de campo marca deficit visible. Recalcular balance hidrico antes de decidir.', b: 'Abrir Hidrico', js: "switchMod('hidrico')" });
-  if (campo && campo.standProblema) acciones.push({ p: 'media', t: 'Stand a validar', d: 'La recorrida marco stand ' + campo.quick.stand + '. Ajustar expectativa de rendimiento si corresponde.', b: 'Ver seguimiento', js: "switchMod('fen-seg')" });
-  if (lluviaProx < 8 && lluvia7 < 15) acciones.push({ p: 'alta', t: 'Actualizar balance hidrico', d: 'Hay poca reposicion reciente y sin lluvia cercana.', b: 'Abrir Hidrico', js: "switchMod('hidrico')" });
-  if (ndvi.valor < 0.45 && diasTranscurridos > 20) acciones.push({ p: 'alta', t: 'Validar vigor a campo', d: 'El proxy NDVI marca canopeo bajo o estres visible probable.', b: 'Registrar visita', js: "fsRegistrarBitacora('visita','Verificar vigor/NDVI bajo a campo.')" });
-  if (rend && rend.pctLogro < 80) acciones.push({ p: 'media', t: 'Revisar objetivo de rendimiento', d: 'La proyeccion actual queda por debajo del objetivo cargado.', b: 'Abrir Nutricion', js: "switchMod('nutricion')" });
-  if (etapaActual && etapaActual.esCritica) acciones.push({ p: 'alta', t: 'Etapa critica activa', d: 'Priorizar recorrida, agua y sanidad durante esta ventana.', b: 'Registrar monitoreo', js: "fsRegistrarBitacora('visita','Monitoreo en etapa critica.')" });
-  if (acciones.length < 3) acciones.push({ p: 'baja', t: 'Mantener seguimiento semanal', d: 'Actualizar fenologia, agua y bitacora para sostener el pronostico.', b: 'Agregar nota', js: "fsRegistrarBitacora('otro','Actualizacion semanal de seguimiento.')" });
+  if (!bitacora.length) acciones.push({ p: 'alta', t: 'Registrar primer scouting del lote', d: 'Deja trazabilidad de estado, malezas, sanidad y stand.', b: 'Registrar scouting', js: "fsRegistrarBitacora('visita','Primer scouting sugerido desde seguimiento fenológico.')" });
+  if (campo && campo.sanidadAlta) acciones.push({ p: 'alta', t: 'Validar sanidad registrada', d: 'La última recorrida marcó intervenir/consultar. Cruzar con clima, umbral y monitoreo.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
+  else if (campo && campo.sanidadMedia) acciones.push({ p: 'media', t: 'Monitorear sanidad', d: 'La recorrida marcó sanidad en seguimiento. Programar nueva lectura si el clima acompaña.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
+  if (campo && campo.aguaAlta) acciones.push({ p: 'alta', t: 'Déficit visual en recorrida', d: 'La lectura de campo marca déficit visible. Recalcular balance hídrico antes de decidir.', b: 'Abrir Hídrico', js: "switchMod('hidrico')" });
+  if (campo && campo.standProblema) acciones.push({ p: 'media', t: 'Stand a validar', d: 'La recorrida marcó stand ' + campo.quick.stand + '. Ajustar expectativa de rendimiento si corresponde.', b: 'Ver seguimiento', js: "switchMod('fen-seg')" });
+  if (lluviaProx < 8 && lluvia7 < 15) acciones.push({ p: 'alta', t: 'Actualizar balance hídrico', d: 'Hay poca reposición reciente y sin lluvia cercana.', b: 'Abrir Hídrico', js: "switchMod('hidrico')" });
+  if (ndvi.valor < 0.45 && diasTranscurridos > 20) acciones.push({ p: 'alta', t: 'Validar vigor a campo', d: 'El proxy NDVI marca canopeo bajo o estrés visible probable.', b: 'Registrar visita', js: "fsRegistrarBitacora('visita','Verificar vigor/NDVI bajo a campo.')" });
+  if (rend && rend.pctLogro < 80) acciones.push({ p: 'media', t: 'Revisar objetivo de rendimiento', d: 'La proyección actual queda por debajo del objetivo cargado.', b: 'Abrir Nutrición', js: "switchMod('nutricion')" });
+  if (etapaActual && etapaActual.esCritica) acciones.push({ p: 'alta', t: 'Etapa crítica activa', d: 'Priorizar recorrida, agua y sanidad durante esta ventana.', b: 'Registrar monitoreo', js: "fsRegistrarBitacora('visita','Monitoreo en etapa crítica.')" });
+  if (acciones.length < 3) acciones.push({ p: 'baja', t: 'Mantener seguimiento semanal', d: 'Actualizar fenología, agua y bitácora para sostener el pronóstico.', b: 'Agregar nota', js: "fsRegistrarBitacora('otro','Actualización semanal de seguimiento.')" });
   return acciones.slice(0, 5);
 }
 
@@ -4722,11 +4722,11 @@ function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
   };
   _fsGuardarSeguimientoResumen(resumen);
   var cards = [
-    ['Fenologia', etapaActual ? etapaActual.nombre : '-', diasTranscurridos + ' dias', etapaActual && etapaActual.esCritica ? '#C8A255' : '#6DBF82'],
-    ['Agua', Math.round(aguaProx) + ' mm', 'proximos 7 dias', aguaColor],
+    ['Fenología', etapaActual ? etapaActual.nombre : '-', diasTranscurridos + ' días', etapaActual && etapaActual.esCritica ? '#C8A255' : '#6DBF82'],
+    ['Agua', Math.round(aguaProx) + ' mm', 'próximos 7 días', aguaColor],
     ['Vigor NDVI', ndvi.valor.toFixed(2), ndvi.tipo === 'proxy' ? 'estimado' : 'satelital', ndviColor],
     ['Rendimiento', rend ? rend.rendProyectado.toFixed(2) : '-', rend ? rend.pctLogro + '% objetivo' : 'sin datos', rendColor],
-    ['Bitacora', String(bit.length), campo ? campo.resumen : 'eventos del lote', bit.length ? (campo && (campo.sanidadAlta || campo.aguaAlta) ? '#D4522A' : '#6DBF82') : '#C8A255']
+    ['Bitácora', String(bit.length), campo ? campo.resumen : 'eventos del lote', bit.length ? (campo && (campo.sanidadAlta || campo.aguaAlta) ? '#D4522A' : '#6DBF82') : '#C8A255']
   ].map(function(c) {
     return '<div style="background:rgba(255,255,255,.04);border:1px solid ' + c[3] + '55;border-radius:8px;padding:.75rem">'
       + '<div style="font-size:.64rem;color:var(--c2);text-transform:uppercase;letter-spacing:.06em">' + c[0] + '</div>'
@@ -4748,13 +4748,13 @@ function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
   }).join('') || '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0">Sin eventos registrados para este lote.</div>';
   return '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(79,195,247,.18)">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem">'
-    + '<div><div style="font-size:.86rem;font-weight:800;color:var(--c2);margin-bottom:.2rem">Resumen ejecutivo de seguimiento</div><div style="font-size:.72rem;color:var(--c2)">Semaforos, vigor, rendimiento, bitacora y acciones sugeridas</div></div>'
+    + '<div><div style="font-size:.86rem;font-weight:800;color:var(--c2);margin-bottom:.2rem">Resumen ejecutivo de seguimiento</div><div style="font-size:.72rem;color:var(--c2)">Semáforos, vigor, rendimiento, bitácora y acciones sugeridas</div></div>'
     + '<button type="button" onclick="if(window.amExportarPDFModulo)amExportarPDFModulo()" style="border:1px solid rgba(79,195,247,.45);background:rgba(79,195,247,.10);color:#4fc3f7;border-radius:8px;padding:.45rem .75rem;font-size:.75rem;font-weight:800;cursor:pointer">PDF seguimiento</button>'
     + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:.55rem;margin-bottom:.85rem">' + cards + '</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem">'
     + '<div style="display:flex;flex-direction:column;gap:.5rem">' + acts + '</div>'
-    + '<div style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.75rem"><div style="font-size:.74rem;font-weight:800;color:var(--c2);margin-bottom:.35rem">Ultima bitacora</div>' + ult + '</div>'
+    + '<div style="background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:.75rem"><div style="font-size:.74rem;font-weight:800;color:var(--c2);margin-bottom:.35rem">Última bitácora</div>' + ult + '</div>'
     + '</div>'
     + '</div>';
 }
@@ -4769,36 +4769,36 @@ function _fsRenderAgendaNutricion(res, etapaActual) {
   var cultivo = res.cultivo || '';
   var items = [];
   function dosis(nut) {
-    if (!plan || !plan.resultados || !plan.resultados[nut]) return 'segun plan Nutricion';
+    if (!plan || !plan.resultados || !plan.resultados[nut]) return 'según plan Nutrición';
     var r = plan.resultados[nut];
-    return (r.kgFert || r.dosisRec || 0) > 0 ? ((r.kgFert || r.dosisRec) + ' kg/ha ' + (r.fertNombre || nut)) : 'sin reposicion indicada';
+    return (r.kgFert || r.dosisRec || 0) > 0 ? ((r.kgFert || r.dosisRec) + ' kg/ha ' + (r.fertNombre || nut)) : 'sin reposición indicada';
   }
   if (cultivo === 'trigo') {
     items = [
-      ['Siembra-emergencia', 'P + arranque', dosis('P') + ' · revisar S si hay deficiencia', 'Aplicacion base incorporada o al costado de linea.'],
-      ['Macollaje', 'N macollaje', dosis('N'), 'Primer refuerzo nitrogenado si humedad y pronostico acompanan.'],
-      ['Encaniado', 'N calidad/rendimiento', dosis('N'), 'Segunda lectura: ajustar por NDVI, agua disponible y objetivo.'],
-      ['Espigazon-antesis', 'No fertilizar salvo foliar especifico', 'solo correcciones justificadas', 'Prioridad: sanidad, agua y riesgo de helada/enfermedades.']
+      ['Siembra-emergencia', 'P + arranque', dosis('P') + ' · revisar S si hay deficiencia', 'Aplicación base incorporada o al costado de línea.'],
+      ['Macollaje', 'N macollaje', dosis('N'), 'Primer refuerzo nitrogenado si humedad y pronóstico acompañan.'],
+      ['Encañado', 'N calidad/rendimiento', dosis('N'), 'Segunda lectura: ajustar por NDVI, agua disponible y objetivo.'],
+      ['Espigazón-antesis', 'No fertilizar salvo foliar específico', 'solo correcciones justificadas', 'Prioridad: sanidad, agua y riesgo de helada/enfermedades.']
     ];
   } else if (cultivo === 'maiz') {
     items = [
-      ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque, separar de semilla segun fuente.'],
+      ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque, separar de semilla según fuente.'],
       ['V4-V6', 'N principal', dosis('N'), 'Momento clave para definir potencial; aplicar con humedad o lluvia cercana.'],
       ['V8-V10', 'N ajuste', dosis('N'), 'Ajuste por NDVI, ambiente y lluvia acumulada.'],
-      ['VT-R1', 'No entrar salvo rescate', 'solo correccion foliar puntual', 'Prioridad: estres hidrico y sanidad.']
+      ['VT-R1', 'No entrar salvo rescate', 'solo corrección foliar puntual', 'Prioridad: estrés hídrico y sanidad.']
     ];
   } else if (cultivo === 'soja') {
     items = [
-      ['Siembra', 'Inoculacion + P/S', dosis('P') + ' · ' + dosis('S'), 'La FBN cubre la mayor parte del N; cuidar arranque.'],
-      ['V4-R1', 'Chequeo nutricional', 'analisis foliar si hay sintomas', 'Corregir solo deficiencias diagnosticadas.'],
-      ['R1-R5', 'Ventana critica', 'foliar solo con diagnostico', 'Prioridad: agua y sanidad en floracion/llenado.']
+      ['Siembra', 'Inoculación + P/S', dosis('P') + ' · ' + dosis('S'), 'La FBN cubre la mayor parte del N; cuidar arranque.'],
+      ['V4-R1', 'Chequeo nutricional', 'análisis foliar si hay síntomas', 'Corregir solo deficiencias diagnosticadas.'],
+      ['R1-R5', 'Ventana crítica', 'foliar solo con diagnóstico', 'Prioridad: agua y sanidad en floración/llenado.']
     ];
   } else if (cultivo === 'girasol') {
     items = [
       ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque.'],
-      ['Vegetativo-boton floral', 'N principal', dosis('N'), 'Aplicar antes de maxima demanda si el perfil lo permite.'],
-      ['Boton-floracion', 'Boro / ajuste puntual', 'segun analisis', 'No aplicar sin diagnostico; cuidar estres hidrico.'],
-      ['Llenado', 'Sin fertilizacion de base', 'monitoreo', 'Prioridad: agua, sanidad y cosecha.']
+      ['Vegetativo-botón floral', 'N principal', dosis('N'), 'Aplicar antes de máxima demanda si el perfil lo permite.'],
+      ['Botón-floración', 'Boro / ajuste puntual', 'según análisis', 'No aplicar sin diagnóstico; cuidar estrés hídrico.'],
+      ['Llenado', 'Sin fertilización de base', 'monitoreo', 'Prioridad: agua, sanidad y cosecha.']
     ];
   }
   if (!items.length) return '';
@@ -4811,9 +4811,9 @@ function _fsRenderAgendaNutricion(res, etapaActual) {
       + '<div style="font-size:.72rem;color:var(--c2);line-height:1.35;margin-top:.25rem">' + it[3] + '</div>'
       + '</div>';
   }).join('');
-  var nota = plan ? 'Dosis heredadas del ultimo calculo de Nutricion del lote.' : 'Para completar kg/ha exactos, recalcular Nutricion en este lote; la agenda muestra el momento operativo.';
+  var nota = plan ? 'Dosis heredadas del último cálculo de Nutrición del lote.' : 'Para completar kg/ha exactos, recalcular Nutrición en este lote; la agenda muestra el momento operativo.';
   return '<div class="card" style="margin-bottom:1rem">'
-    + '<div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Agenda fenologica de fertilizacion</div>'
+    + '<div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Agenda fenológica de fertilización</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.65rem">' + rows + '</div>'
     + '<p style="font-size:.7rem;color:var(--c2);margin:.7rem 0 0">' + nota + '</p>'
     + '</div>';
@@ -4824,9 +4824,9 @@ function _fsRenderAlertasOperativas(res, etapaActual, diasTranscurridos) {
   var lluviaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
   var crit = etapaActual && etapaActual.esCritica;
   var cards = [
-    ['Agua ultima semana', Math.round(lluvia7) + ' mm', lluvia7 < 10 ? 'Baja reposicion reciente.' : 'Reposicion reciente favorable.'],
-    ['Pronostico 7 dias', Math.round(lluviaProx) + ' mm', lluviaProx < 10 ? 'No depender de lluvia cercana.' : 'Hay ventana probable de recarga.'],
-    ['Etapa actual', etapaActual ? etapaActual.nombre : '-', crit ? 'Etapa critica: priorizar monitoreo frecuente.' : 'Etapa no critica, mantener seguimiento.']
+    ['Agua última semana', Math.round(lluvia7) + ' mm', lluvia7 < 10 ? 'Baja reposición reciente.' : 'Reposición reciente favorable.'],
+    ['Pronóstico 7 días', Math.round(lluviaProx) + ' mm', lluviaProx < 10 ? 'No depender de lluvia cercana.' : 'Hay ventana probable de recarga.'],
+    ['Etapa actual', etapaActual ? etapaActual.nombre : '-', crit ? 'Etapa crítica: priorizar monitoreo frecuente.' : 'Etapa no crítica, mantener seguimiento.']
   ];
   return '<div class="card" style="margin-bottom:1rem"><div style="font-size:.82rem;font-weight:700;color:var(--c2);margin-bottom:.8rem">Lectura operativa</div>'
     + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:.55rem">'
@@ -4933,7 +4933,7 @@ function _fsRender(res, diasTranscurridos) {
 
   <div id="am-disclaimer-bar">
     <span>⚖</span>
-    <span>AgroMotor entrega informacion tecnica orientativa basada en modelos y fuentes externas. No reemplaza el criterio profesional, el monitoreo a campo ni analisis de laboratorio cuando correspondan.</span>
+    <span>AgroMotor entrega información técnica orientativa basada en modelos y fuentes externas. No reemplaza el criterio profesional, el monitoreo a campo ni análisis de laboratorio cuando correspondan.</span>
     <button type="button" onclick="amAbrirDisclaimerLegal()">Ver aviso</button>
   </div>
 
@@ -5026,9 +5026,9 @@ function _fsRender(res, diasTranscurridos) {
   var LEGAL_KEY = 'am_legal_accepted_' + LEGAL_VERSION;
   var TEXTO_LEGAL = '<div style="font-size:1rem;font-weight:700;color:#1A3A6C;margin-bottom:.75rem">Aviso legal AgroMotor</div>' +
     '<div style="font-size:.86rem;line-height:1.65;color:#3d2210">' +
-    '<p>AgroMotor es una herramienta de apoyo tecnico para ingenieros agronomos. Sus resultados se basan en datos satelitales, meteorologicos, edaficos, historicos y modelos agronomicos que pueden tener errores, retrasos, resolucion limitada o incertidumbre.</p>' +
-    '<p>Las recomendaciones y alertas son orientativas. No sustituyen el criterio profesional, el monitoreo a campo, los analisis de laboratorio, las recetas oficiales ni las obligaciones regulatorias aplicables.</p>' +
-    '<p>El usuario es responsable de validar la informacion antes de tomar decisiones productivas, comerciales, ambientales o legales.</p>' +
+    '<p>AgroMotor es una herramienta de apoyo técnico para ingenieros agrónomos. Sus resultados se basan en datos satelitales, meteorológicos, edáficos, históricos y modelos agronómicos que pueden tener errores, retrasos, resolución limitada o incertidumbre.</p>' +
+    '<p>Las recomendaciones y alertas son orientativas. No sustituyen el criterio profesional, el monitoreo a campo, los análisis de laboratorio, las recetas oficiales ni las obligaciones regulatorias aplicables.</p>' +
+    '<p>El usuario es responsable de validar la información antes de tomar decisiones productivas, comerciales, ambientales o legales.</p>' +
     '</div>';
 
   function abrir(obligatorio) {
@@ -5071,7 +5071,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=169"></script>
+<script src="js/config.js?v=170"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=102"></script>
 
@@ -5092,16 +5092,16 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
 <script src="js/siembra.js?v=95"></script>
 <script src="js/siembra-apis.js?v=89"></script>
-<script src="js/nutricion.js?v=122"></script>
+<script src="js/nutricion.js?v=123"></script>
 <script src="js/economia.js?v=87"></script>
 <script src="js/maquinaria.js?v=88"></script>
 <script src="js/asistente.js?v=87"></script>
 <script src="js/pdf.js?v=85"></script>
 <script src="js/pdf-modulo.js?v=86"></script>
 <script src="js/onboarding.js?v=85"></script>
-<script src="js/alerta-sanitaria.js?v=90"></script>
+<script src="js/alerta-sanitaria.js?v=91"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
-<script src="js/dashboard.js?v=96"></script>
+<script src="js/dashboard.js?v=97"></script>
 <script src="js/dashboard-lotes.js?v=142"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
@@ -5113,7 +5113,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/comparador-campana.js?v=85"></script>
 <script src="js/rotacion.js?v=85"></script>
 <script src="js/graficos-hidrico.js?v=85"></script>
-<script src="js/bitacora.js?v=86"></script>
+<script src="js/bitacora.js?v=87"></script>
 <script src="js/rendimiento-predictor.js?v=85"></script>
 <script src="js/notificaciones.js?v=85"></script>
 <script src="js/malezas.js?v=86"></script>

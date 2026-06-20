@@ -269,15 +269,15 @@ function _htmlForm() {
 function _htmlRecorridaRapida(ctx) {
   return `
     <div id="bt-quick-card" class="card bt-quick-card" style="border:1.5px solid rgba(42,90,140,.24);background:#f8fbff;margin-bottom:1rem">
-      <div class="card-title" style="color:#1f4d7a;margin-bottom:.35rem">Recorrida rapida</div>
-      <div style="font-size:.74rem;color:#51606f;line-height:1.45;margin-bottom:.85rem">Registro corto para dejar trazabilidad operativa del lote activo. Se guarda tambien dentro del lote.</div>
+      <div class="card-title" style="color:#1f4d7a;margin-bottom:.35rem">Recorrida rápida</div>
+      <div style="font-size:.74rem;color:#51606f;line-height:1.45;margin-bottom:.85rem">Registro corto para dejar trazabilidad operativa del lote activo. Se guarda también dentro del lote.</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-bottom:.75rem">
         ${_quickSelect('btq-estado','Estado general',['Bueno','Regular','Comprometido'])}
         ${_quickSelect('btq-stand','Stand',['Uniforme','Manchoneado','Bajo'])}
         ${_quickSelect('btq-malezas','Malezas',['Sin novedad','Presencia baja','Presencia media/alta'])}
-        ${_quickSelect('btq-sanidad','Sanidad',['Sin sintomas','Monitorear','Intervenir/consultar'])}
-        ${_quickSelect('btq-agua','Agua visual',['Adecuada','Justa','Deficit visible'])}
-        ${_quickSelect('btq-prioridad','Prioridad',['Seguimiento','Atencion','Alta'])}
+        ${_quickSelect('btq-sanidad','Sanidad',['Sin síntomas','Monitorear','Intervenir/consultar'])}
+        ${_quickSelect('btq-agua','Agua visual',['Adecuada','Justa','Déficit visible'])}
+        ${_quickSelect('btq-prioridad','Prioridad',['Seguimiento','Atención','Alta'])}
       </div>
       <textarea id="btq-nota" maxlength="220" rows="2" placeholder="Nota breve de campo..."
         style="width:100%;box-sizing:border-box;border:1.5px solid #cbd5e1;border-radius:8px;padding:.55rem .75rem;font-size:.82rem;color:#1f2937;background:#fff;font-family:inherit;resize:vertical;line-height:1.45;margin-bottom:.75rem"></textarea>
