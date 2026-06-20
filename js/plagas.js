@@ -451,8 +451,14 @@ function fetchClimateForecast(lat,lon) {
 // ═══════════════════════════════════════════════════════════════
 // SUPABASE QUERIES
 // ═══════════════════════════════════════════════════════════════
+function supabaseTableEnabled(name) {
+  var flags = (window.AM_CONFIG && window.AM_CONFIG.supabaseTables) || {};
+  return flags[name] === true;
+}
+
 function fetchCommunityReports(lat,lon,cultivo) {
   if(!supabaseActivo||!sb) return Promise.resolve([]);
+  if(!supabaseTableEnabled('pest_reports')) return Promise.resolve([]);
   var since=new Date(Date.now()-30*24*60*60*1000).toISOString();
   return sb.from('pest_reports').select('*')
     .gte('created_at',since).eq('cultivo',cultivo)
@@ -469,6 +475,7 @@ function fetchCommunityReports(lat,lon,cultivo) {
 function fetchIntaAlerts(lat,lon,cultivo) {
   var zona=nearestIntaZona(lat,lon);
   if(!supabaseActivo||!sb) return Promise.resolve({alerts:[],zona:zona});
+  if(!supabaseTableEnabled('inta_alerts')) return Promise.resolve({alerts:[],zona:zona});
   var since=new Date(Date.now()-45*24*60*60*1000).toISOString().slice(0,10);
   return sb.from('inta_alerts').select('*')
     .eq('zona',zona.zona.nombre).gte('fecha_boletin',since)
@@ -481,6 +488,7 @@ function fetchIntaAlerts(lat,lon,cultivo) {
 
 function submitReport(data) {
   if(!supabaseActivo||!sb) return Promise.reject(new Error('Supabase no configurado'));
+  if(!supabaseTableEnabled('pest_reports')) return Promise.reject(new Error('Reportes comunitarios no habilitados'));
   return sb.from('pest_reports').insert(data).then(function(res){
     if(res.error) throw new Error(res.error.message);
     return res;

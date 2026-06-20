@@ -338,10 +338,13 @@ function iaRenderQuickQuestions() {
 
 // ── ACTUALIZAR BANNER DE CONTEXTO ─────────────────────
 function iaActualizarContextoBanner() {
-  const coord = $('s-coord')?.value;
-  const cult  = gv('s-cultivo');
+  const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+  const data = (lote && lote.data) || {};
+  const coord = data.coord || $('s-coord')?.value;
+  const cult  = data.cultivo || gv('s-cultivo');
   const banner = $('ia-contexto-banner');
   const resumen = $('ia-contexto-resumen');
+  const welcome = $('ia-welcome-text');
   if (!banner || !resumen) return;
 
   if (coord) {
@@ -351,6 +354,7 @@ function iaActualizarContextoBanner() {
     const ph  = $('sg-ph')?.textContent  || '—';
 
     resumen.innerHTML = [
+      lote && lote.nombre ? 'Lote: ' + lote.nombre : null,
       `📍 ${coord.slice(0,25)}`,
       `🌾 ${cult || '—'}`,
       `🌡️ T°suelo: ${t6}`,
@@ -362,6 +366,14 @@ function iaActualizarContextoBanner() {
       `<span style="font-size:.75rem;background:rgba(74,140,92,.1);padding:.2rem .5rem;border-radius:6px">${d}</span>`
     ).join('');
     banner.classList.remove('hidden');
+    if (welcome) {
+      welcome.innerHTML = 'Hola! Soy el asistente agronomico de AgroMotor. Ya estoy tomando el lote activo como contexto: cultivo, coordenadas, clima y datos disponibles del motor.<br><br>Preguntame por decisiones de siembra, suelo, sanidad, nutricion, economia o seguimiento de campana.';
+    }
+  } else {
+    banner.classList.add('hidden');
+    if (welcome) {
+      welcome.innerHTML = 'Hola! Soy el asistente agronomico de AgroMotor. Puedo ayudarte a interpretar datos de lote o responder preguntas generales sobre siembra, suelo, clima, cultivares y economia de campana.<br><br>Cuando selecciones un lote con coordenadas, voy a usarlo automaticamente como contexto.';
+    }
   }
 }
 

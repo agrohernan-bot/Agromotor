@@ -406,6 +406,9 @@ function satGenerarHistorial(lote, meses) {
 async function satFetchRealNDVI(geo, meses, gridInfo) {
   var key = (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.agromonitoringKey) ? AM_CONFIG.agromonitoringKey : '';
   if (!key || !geo) throw new Error('Sin API key o poligono');
+  if (!(typeof AM_CONFIG !== 'undefined' && AM_CONFIG.allowDirectAgromonitoring === true)) {
+    throw new Error('Agromonitoring directo deshabilitado; usando NDVI proxy');
+  }
   var now = Math.floor(Date.now() / 1000), from = now - meses * 30 * 86400;
   var pr = await fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },

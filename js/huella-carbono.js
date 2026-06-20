@@ -77,6 +77,23 @@ function gi(id) { return document.getElementById(id); }
 function gv(id) { return parseFloat((gi(id) || {}).value) || 0; }
 function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
 
+function _loteActivo() {
+  try {
+    return (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+  } catch(_) {
+    return null;
+  }
+}
+
+function _loteVal(data, keys) {
+  data = data || {};
+  for (var i = 0; i < keys.length; i++) {
+    var v = data[keys[i]];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
 function _normCultivo(c) {
   var s = (c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (s.includes('maiz') || s.includes('maíz')) return 'maiz';
@@ -130,11 +147,14 @@ function renderModulo() {
   var el = gi('mod-huella-carbono');
   if (!el) return;
 
-  var cultivo = _ls('am_siembra_cultivo') || (gi('s-cultivo') ? gi('s-cultivo').value : '') || 'Soja';
+  var loteObj = _loteActivo();
+  var data    = (loteObj && loteObj.data) || {};
+  var cultivo = _loteVal(data, ['cultivo','cultivoActual']) || _ls('am_siembra_cultivo') || (gi('s-cultivo') ? gi('s-cultivo').value : '') || 'Soja';
   var cultKey = _normCultivo(cultivo) || 'soja';
   var def     = DEFAULTS[cultKey] || DEFAULTS.soja;
-  var lote    = _ls('am_lote_nombre') || 'Lote Principal';
-  var rend    = parseFloat(_ls('hc_rend_guardado')) || def.rend_t;
+  var lote    = (loteObj && loteObj.nombre) || _ls('am_lote_nombre') || 'Lote Principal';
+  var rendLote = _loteVal(data, ['rendimientoProyectado','rendimientoObjetivo','rendimientoEsperado']);
+  var rend    = parseFloat(_ls('hc_rend_guardado')) || parseFloat(rendLote) || def.rend_t;
 
   // Pre-fill con datos del módulo nutrición si están disponibles
   var ncN = parseFloat((gi('nc-rend-obj') || {}).value) || 0;

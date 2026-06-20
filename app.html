@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=88">
+  <link rel="stylesheet" href="css/agromotor.css?v=89">
   <link rel="stylesheet" href="css/cosecha.css?v=85">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=86">
@@ -1808,9 +1808,9 @@
         <div style="display:flex;gap:.7rem;align-items:flex-start">
           <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--canopy),#2A5A8C);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">🤖</div>
           <div style="background:white;border-radius:0 12px 12px 12px;padding:.8rem 1rem;max-width:85%;box-shadow:0 1px 4px rgba(74,46,26,.08);border:1px solid var(--border)">
-            <div style="font-size:.85rem;line-height:1.6;color:var(--ink)">
+            <div id="ia-welcome-text" style="font-size:.85rem;line-height:1.6;color:var(--ink)">
               Hola! Soy el asistente agronómico de AgroMotor. Puedo ayudarte a interpretar los datos de tu lote y responder preguntas sobre siembra, suelo, clima, cultivares y economía de campaña.<br><br>
-              <strong>Ingresá las coordenadas en el módulo de Siembra</strong> para que tenga datos reales de tu lote, o preguntame algo general sobre agronomía pampeana.
+              Si hay un lote activo, voy a usar su cultivo, coordenadas y planificación como contexto. También podés preguntarme algo general sobre agronomía pampeana.
             </div>
             <div style="font-size:.68rem;color:rgba(74,46,26,.4);margin-top:.4rem">AgroMotor IA · powered by Claude</div>
           </div>
@@ -5033,7 +5033,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=151"></script>
+<script src="js/config.js?v=152"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=102"></script>
 
@@ -5057,13 +5057,13 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/nutricion.js?v=121"></script>
 <script src="js/economia.js?v=85"></script>
 <script src="js/maquinaria.js?v=88"></script>
-<script src="js/asistente.js?v=85"></script>
+<script src="js/asistente.js?v=86"></script>
 <script src="js/pdf.js?v=85"></script>
 <script src="js/pdf-modulo.js?v=86"></script>
 <script src="js/onboarding.js?v=85"></script>
 <script src="js/alerta-sanitaria.js?v=89"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
-<script src="js/dashboard.js?v=85"></script>
+<script src="js/dashboard.js?v=86"></script>
 <script src="js/dashboard-lotes.js?v=141"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
@@ -5078,8 +5078,8 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/bitacora.js?v=85"></script>
 <script src="js/rendimiento-predictor.js?v=85"></script>
 <script src="js/notificaciones.js?v=85"></script>
-<script src="js/malezas.js?v=85"></script>
-<script src="js/huella-carbono.js?v=85"></script>
+<script src="js/malezas.js?v=86"></script>
+<script src="js/huella-carbono.js?v=86"></script>
 <script src="js/historial-campanas.js?v=85"></script>
 
 <!-- ══ CAPA 4: MÓDULOS LAZY — se cargan al tocar la pestaña ══

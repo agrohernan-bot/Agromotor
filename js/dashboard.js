@@ -44,6 +44,39 @@
   }
   function $(id) { return document.getElementById(id); }
 
+  function loteActivo() {
+    try {
+      return (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    } catch(e) {
+      return null;
+    }
+  }
+
+  function valLote(data, keys) {
+    data = data || {};
+    for (var i = 0; i < keys.length; i++) {
+      var v = data[keys[i]];
+      if (v !== undefined && v !== null && v !== '') return v;
+    }
+    return '';
+  }
+
+  function fechaPlanificada(data) {
+    var plan = data && data.planificacionSiembra;
+    if (!plan || typeof plan !== 'object') return '';
+    for (var k in plan) {
+      if (!Object.prototype.hasOwnProperty.call(plan, k)) continue;
+      var v = plan[k];
+      if (typeof v === 'string' && v) return v;
+      if (v && typeof v === 'object') {
+        if (v.fechaSiembraConf) return v.fechaSiembraConf;
+        if (v.fechaSiembra) return v.fechaSiembra;
+        if (v.fecha) return v.fecha;
+      }
+    }
+    return '';
+  }
+
   function fechaDias(isoStr) {
     if (!isoStr) return null;
     var d = new Date(isoStr + 'T12:00:00');
@@ -88,10 +121,12 @@
     var wrap = $('dash-campana-panel');
     if (!wrap) return;
 
-    // Leer datos
-    var loteNombre    = ls(LS.loteNombre);
-    var cultivo       = ls(LS.cultivo) || ls('s-cultivo-val');
-    var fechaSiembra  = ls(LS.fechaSiembra);
+    // Leer datos: lote activo primero, claves legacy solo como fallback.
+    var loteActivoObj = loteActivo();
+    var loteData      = (loteActivoObj && loteActivoObj.data) || {};
+    var loteNombre    = (loteActivoObj && loteActivoObj.nombre) || ls(LS.loteNombre);
+    var cultivo       = valLote(loteData, ['cultivo','cultivoActual']) || ls(LS.cultivo) || ls('s-cultivo-val');
+    var fechaSiembra  = valLote(loteData, ['fechaSiembraReal','fechaSiembra']) || fechaPlanificada(loteData) || ls(LS.fechaSiembra);
     var fenEtapa      = ls(LS.fenEtapaHoy);
     var fenFinEtapa   = ls(LS.fenFechaFinEtapa);
     var fenDurCiclo   = parseInt(ls(LS.fenDurCiclo)) || 0;
@@ -99,7 +134,7 @@
     var hidroDeficit  = ls(LS.hidroDeficitAcum);
     var hidroEstres   = ls(LS.hidroDiasEstres);
     var ensoFase      = ls(LS.ensoFase);
-    var campanaId     = ls(LS.campanaId);
+    var campanaId     = valLote(loteData, ['campanaId','campanaActivaId']) || ls(LS.campanaId);
     var capMax        = ls(LS.hidroCapMax);
 
     // Si no hay ningún dato relevante → panel colapsado
@@ -379,6 +414,40 @@ var CICLO_DEFAULT = {
 
 function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
 
+function _loteActivoData() {
+  try {
+    var lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    return (lote && lote.data) || {};
+  } catch(_) {
+    return {};
+  }
+}
+
+function _valLote(data, keys) {
+  data = data || {};
+  for (var i = 0; i < keys.length; i++) {
+    var v = data[keys[i]];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
+function _fechaPlanificada(data) {
+  var plan = data && data.planificacionSiembra;
+  if (!plan || typeof plan !== 'object') return '';
+  for (var k in plan) {
+    if (!Object.prototype.hasOwnProperty.call(plan, k)) continue;
+    var v = plan[k];
+    if (typeof v === 'string' && v) return v;
+    if (v && typeof v === 'object') {
+      if (v.fechaSiembraConf) return v.fechaSiembraConf;
+      if (v.fechaSiembra) return v.fechaSiembra;
+      if (v.fecha) return v.fecha;
+    }
+  }
+  return '';
+}
+
 function _normCultivo(c) {
   var s = (c || '').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -419,8 +488,9 @@ function render() {
   var el = document.getElementById('dash-gantt-panel');
   if (!el) return;
 
-  var cultivo  = _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
-  var fecha    = _ls('am_siembra_fecha')   || (document.getElementById('s-fecha')   ? document.getElementById('s-fecha').value   : '');
+  var loteData = _loteActivoData();
+  var cultivo  = _valLote(loteData, ['cultivo','cultivoActual']) || _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
+  var fecha    = _valLote(loteData, ['fechaSiembraReal','fechaSiembra']) || _fechaPlanificada(loteData) || _ls('am_siembra_fecha') || (document.getElementById('s-fecha') ? document.getElementById('s-fecha').value : '');
   var cultKey  = _normCultivo(cultivo);
   var etapas   = cultKey ? ETAPAS[cultKey] : null;
   var ciclo    = parseInt(_ls('am_fen_duracion_ciclo')) || (cultKey ? CICLO_DEFAULT[cultKey] : 0);

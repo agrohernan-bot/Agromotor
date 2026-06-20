@@ -139,6 +139,39 @@ var HRAC_LABELS = {
 
 function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
 
+function _loteActivo() {
+  try {
+    return (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+  } catch(_) {
+    return null;
+  }
+}
+
+function _loteVal(data, keys) {
+  data = data || {};
+  for (var i = 0; i < keys.length; i++) {
+    var v = data[keys[i]];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
+function _fechaPlanificada(data) {
+  var plan = data && data.planificacionSiembra;
+  if (!plan || typeof plan !== 'object') return '';
+  for (var k in plan) {
+    if (!Object.prototype.hasOwnProperty.call(plan, k)) continue;
+    var v = plan[k];
+    if (typeof v === 'string' && v) return v;
+    if (v && typeof v === 'object') {
+      if (v.fechaSiembraConf) return v.fechaSiembraConf;
+      if (v.fechaSiembra) return v.fechaSiembra;
+      if (v.fecha) return v.fecha;
+    }
+  }
+  return '';
+}
+
 function _normCultivo(c) {
   var s = (c || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (s.includes('maiz') || s.includes('maíz')) return 'maiz';
@@ -169,11 +202,13 @@ function renderModulo() {
   var el = document.getElementById('mod-malezas');
   if (!el) return;
 
-  var cultivo   = _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
+  var lote      = _loteActivo();
+  var data      = (lote && lote.data) || {};
+  var cultivo   = _loteVal(data, ['cultivo','cultivoActual']) || _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
   var cultKey   = _normCultivo(cultivo);
-  var etapa     = _ls('am_fen_etapa_hoy') || '';
+  var etapa     = _loteVal(data, ['fenologiaEtapa','etapaFenologica','etapaActual']) || _ls('am_fen_etapa_hoy') || '';
   var diasSiem  = null;
-  var fechaSiem = _ls('am_siembra_fecha');
+  var fechaSiem = _loteVal(data, ['fechaSiembraReal','fechaSiembra']) || _fechaPlanificada(data) || _ls('am_siembra_fecha');
   if (fechaSiem) {
     var d = new Date(fechaSiem + 'T12:00:00');
     var h = new Date(); h.setHours(12,0,0,0);
@@ -181,7 +216,7 @@ function renderModulo() {
   }
 
   el.innerHTML = '<div class="mz-wrap">' +
-    _htmlHeader(cultivo, etapa, diasSiem) +
+    _htmlHeader(cultivo, etapa, diasSiem, lote && lote.nombre) +
     _htmlFiltros(cultKey) +
     _htmlVentana(cultKey, diasSiem) +
     '<div id="mz-lista">' + _htmlLista(cultKey) + '</div>' +
@@ -191,8 +226,8 @@ function renderModulo() {
   _initFiltros();
 }
 
-function _htmlHeader(cultivo, etapa, diasSiem) {
-  var loteNombre = _ls('am_lote_nombre') || 'Lote Principal';
+function _htmlHeader(cultivo, etapa, diasSiem, loteActivoNombre) {
+  var loteNombre = loteActivoNombre || _ls('am_lote_nombre') || 'Lote Principal';
   return '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;margin-bottom:1rem">' +
     '<div>' +
       '<div class="module-title" style="margin-bottom:.15rem">🌿 Malezas</div>' +

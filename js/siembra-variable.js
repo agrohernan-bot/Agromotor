@@ -430,9 +430,18 @@
   }
 
   // ── API AGROMONITORING ────────────────────────────
+  function agromonitoringDirectoHabilitado() {
+    return typeof AM_CONFIG !== 'undefined' && AM_CONFIG.allowDirectAgromonitoring === true;
+  }
+
   function conectarAPI() {
     var key = el('api-key').value.trim(); if (!key) return;
     var st = el('api-status');
+    if (!agromonitoringDirectoHabilitado()) {
+      st.innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> API directa no disponible; usando modo demo/proxy';
+      svModoDemo = true;
+      return;
+    }
     st.innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> Verificando...';
     fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key)
       .then(function (r) {
@@ -609,6 +618,9 @@
   }
 
   async function analizarConAPI(geo, key, meses, gridInfo) {
+    if (!agromonitoringDirectoHabilitado()) {
+      throw new Error('Agromonitoring directo deshabilitado; usando modo demo/proxy');
+    }
     var now = Math.floor(Date.now() / 1000), from = now - meses * 30 * 86400;
     var pr = await fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
