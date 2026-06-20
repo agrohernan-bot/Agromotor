@@ -277,7 +277,40 @@ function clasificarTextura(clay, sand, silt) {
   return 'Molisol';
 }
 
+async function buscarSueloProxy(lat, lon, provincia) {
+  var proxy = window.AM_CONFIG && window.AM_CONFIG.soilProxy;
+  if (!proxy) return null;
+
+  var url = proxy +
+    '?lat=' + encodeURIComponent(lat.toFixed(4)) +
+    '&lon=' + encodeURIComponent(lon.toFixed(4)) +
+    (provincia ? '&provincia=' + encodeURIComponent(provincia) : '');
+
+  try {
+    var res = await Promise.race([
+      fetch(url, { headers: { 'Accept': 'application/json' } }),
+      new Promise(function(_, r) { setTimeout(function() { r(new Error('timeout')); }, 18000); })
+    ]);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var json = await res.json();
+    if (!json || !json.datos || Object.keys(json.datos).length < 3) throw new Error('Respuesta incompleta');
+    var datos = json.datos;
+    datos.proxyWarnings = json.warnings || [];
+    datos.proxyTs = json.ts || '';
+    datos.fuente_proxy = json.fuente || 'agromotor_soil_proxy';
+    return datos;
+  } catch(e) {
+    console.warn('[Soil proxy] fallo:', e.message, '-> fallback local');
+    return null;
+  }
+}
+
 async function buscarSoilGrids(lat, lon) {
+  var loteParaProxy = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+  var provProxy = loteParaProxy && loteParaProxy.data ? loteParaProxy.data.provincia_nombre : '';
+  var proxyDatos = await buscarSueloProxy(lat, lon, provProxy);
+  if (proxyDatos) return proxyDatos;
+
   // ── INTENTO 1: REST API de SoilGrids ──────────────────
   // Endpoint: rest.isric.org/soilgrids/v2.0/properties/query
   // Propiedades: phh2o, clay, sand, silt, soc, nitrogen, bdod, cec
@@ -465,6 +498,18 @@ async function buscarIDECOR(lat, lon) {
 }
 
 async function buscarPKZ(lat, lon, textura, provincia) {
+  var datosProxy = window._sgDatos || {};
+  if (datosProxy.fuente_proxy && (datosProxy.p != null || datosProxy.k != null || datosProxy.zn != null)) {
+    return {
+      p: datosProxy.p,
+      k: datosProxy.k,
+      zn: datosProxy.zn,
+      fuente_pkz: datosProxy.fuente_pkz,
+      fuente_pkz_id: datosProxy.fuente_pkz_id,
+      fuente_pkz_det: datosProxy.fuente_pkz_det,
+    };
+  }
+
   // 1° OpenLandMap — P+K+Zn, 250m, Argentina completa
   var olm = await buscarOpenLandMap(lat, lon);
   if (olm && (olm.p != null || olm.k != null || olm.zn != null)) {
@@ -1342,9 +1387,19 @@ window.sgAutoFetchLote = async function(lote) {
   if (_sgCacheCheck(loteId, lat, lon)) return; // cache válido
   try {
     var datos = await buscarSoilGrids(lat, lon);
+    window._sgDatos = datos;
     var loteParaProv = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
     var provNombre   = loteParaProv && loteParaProv.data ? loteParaProv.data.provincia_nombre : null;
-    var pkz   = await buscarPKZ(lat, lon, datos.textura || 'Molisol', provNombre);
+    var pkz   = (datos.p != null || datos.k != null || datos.zn != null)
+      ? {
+          p: datos.p,
+          k: datos.k,
+          zn: datos.zn,
+          fuente_pkz: datos.fuente_pkz,
+          fuente_pkz_id: datos.fuente_pkz_id,
+          fuente_pkz_det: datos.fuente_pkz_det,
+        }
+      : await buscarPKZ(lat, lon, datos.textura || 'Molisol', provNombre);
     if (pkz) {
       if (pkz.p  != null) datos.p  = pkz.p;
       if (pkz.k  != null) datos.k  = pkz.k;
@@ -1404,15 +1459,27 @@ async function consultarSuelo() {
   try {
     // Paso 1: SoilGrids (textura, pH, MO, N, DA, CEC)
     const datos = await buscarSoilGrids(lat, lon);
+    window._sgDatos = datos;
 
     // Paso 2: P, K, Zn — cascada OpenLandMap → IDECOR → DB
     if (msgEl) msgEl.textContent = datos.esFallback
       ? 'Estimando suelo regional · Consultando P/K/Zn...'
       : 'SoilGrids OK · Consultando P/K/Zn (OLM)...';
 
+    if (msgEl && datos.fuente_proxy) msgEl.textContent = 'Suelo cargado via proxy AgroMotor...';
+
     var loteProvPKZ = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
     var provPKZ     = loteProvPKZ && loteProvPKZ.data ? loteProvPKZ.data.provincia_nombre : null;
-    const pkz = await buscarPKZ(lat, lon, datos.textura || 'Molisol', provPKZ);
+    const pkz = (datos.p != null || datos.k != null || datos.zn != null)
+      ? {
+          p: datos.p,
+          k: datos.k,
+          zn: datos.zn,
+          fuente_pkz: datos.fuente_pkz,
+          fuente_pkz_id: datos.fuente_pkz_id,
+          fuente_pkz_det: datos.fuente_pkz_det,
+        }
+      : await buscarPKZ(lat, lon, datos.textura || 'Molisol', provPKZ);
     if (pkz) {
       if (pkz.p  != null) datos.p  = pkz.p;
       if (pkz.k  != null) datos.k  = pkz.k;
