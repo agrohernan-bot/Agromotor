@@ -4615,11 +4615,36 @@ function _fsLeerBitacoraLote() {
     var lote = _fsLoteActivo();
     var loteId = lote && lote.id ? String(lote.id) : '';
     var raw = localStorage.getItem('am_bitacora_v2');
-    var lista = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(lista)) return [];
-    return lista.filter(function(e) { return !loteId || String(e.loteId || '') === loteId; })
+    var global = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(global)) global = [];
+    var delLote = lote && lote.data && Array.isArray(lote.data.bitacora) ? lote.data.bitacora : [];
+    var map = {};
+    global.concat(delLote).forEach(function(e) {
+      if (!e) return;
+      if (loteId && e.loteId && String(e.loteId) !== loteId) return;
+      map[e.id || ((e.fecha || '') + '_' + (e.hora || '') + '_' + (e.tipo || ''))] = e;
+    });
+    return Object.keys(map).map(function(k) { return map[k]; })
       .sort(function(a, b) { return String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || '')); });
   } catch(e) { return []; }
+}
+
+function _fsLecturaCampo(bit) {
+  var q = bit && bit.quick;
+  if (!q) return null;
+  var partes = [];
+  if (q.estado) partes.push(q.estado);
+  if (q.stand) partes.push('stand ' + String(q.stand).toLowerCase());
+  if (q.sanidad) partes.push('sanidad ' + String(q.sanidad).toLowerCase());
+  if (q.agua) partes.push('agua ' + String(q.agua).toLowerCase());
+  return {
+    quick: q,
+    resumen: partes.join(' - '),
+    sanidadAlta: q.sanidad === 'Intervenir/consultar',
+    sanidadMedia: q.sanidad === 'Monitorear',
+    aguaAlta: q.agua === 'Deficit visible',
+    standProblema: q.stand === 'Bajo' || q.stand === 'Manchoneado'
+  };
 }
 
 function fsRegistrarBitacora(tipo, nota) {
@@ -4654,9 +4679,14 @@ function fsRegistrarBitacora(tipo, nota) {
 
 function _fsAccionesSeguimiento(res, etapaActual, diasTranscurridos, ndvi, rend, bitacora) {
   var acciones = [];
+  var campo = bitacora.length ? _fsLecturaCampo(bitacora[0]) : null;
   var lluvia7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
   var lluviaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
   if (!bitacora.length) acciones.push({ p: 'alta', t: 'Registrar primer scouting del lote', d: 'Deja trazabilidad de estado, malezas, sanidad y stand.', b: 'Registrar scouting', js: "fsRegistrarBitacora('visita','Primer scouting sugerido desde seguimiento fenologico.')" });
+  if (campo && campo.sanidadAlta) acciones.push({ p: 'alta', t: 'Validar sanidad registrada', d: 'La ultima recorrida marco intervenir/consultar. Cruzar con clima, umbral y monitoreo.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
+  else if (campo && campo.sanidadMedia) acciones.push({ p: 'media', t: 'Monitorear sanidad', d: 'La recorrida marco sanidad en seguimiento. Programar nueva lectura si el clima acompana.', b: 'Ver sanidad', js: "switchMod('alerta-sanitaria')" });
+  if (campo && campo.aguaAlta) acciones.push({ p: 'alta', t: 'Deficit visual en recorrida', d: 'La lectura de campo marca deficit visible. Recalcular balance hidrico antes de decidir.', b: 'Abrir Hidrico', js: "switchMod('hidrico')" });
+  if (campo && campo.standProblema) acciones.push({ p: 'media', t: 'Stand a validar', d: 'La recorrida marco stand ' + campo.quick.stand + '. Ajustar expectativa de rendimiento si corresponde.', b: 'Ver seguimiento', js: "switchMod('fen-seg')" });
   if (lluviaProx < 8 && lluvia7 < 15) acciones.push({ p: 'alta', t: 'Actualizar balance hidrico', d: 'Hay poca reposicion reciente y sin lluvia cercana.', b: 'Abrir Hidrico', js: "switchMod('hidrico')" });
   if (ndvi.valor < 0.45 && diasTranscurridos > 20) acciones.push({ p: 'alta', t: 'Validar vigor a campo', d: 'El proxy NDVI marca canopeo bajo o estres visible probable.', b: 'Registrar visita', js: "fsRegistrarBitacora('visita','Verificar vigor/NDVI bajo a campo.')" });
   if (rend && rend.pctLogro < 80) acciones.push({ p: 'media', t: 'Revisar objetivo de rendimiento', d: 'La proyeccion actual queda por debajo del objetivo cargado.', b: 'Abrir Nutricion', js: "switchMod('nutricion')" });
@@ -4669,6 +4699,7 @@ function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
   var ndvi = _fsNdviProxy(res, diasTranscurridos);
   var rend = _fsCalcularRendimiento(res, diasTranscurridos);
   var bit = _fsLeerBitacoraLote();
+  var campo = bit.length ? _fsLecturaCampo(bit[0]) : null;
   var agua7 = _fsSum(res.lluviaPorDia || [], Math.max(0, diasTranscurridos - 6), diasTranscurridos);
   var aguaProx = _fsSum(res.lluviaPorDia || [], diasTranscurridos + 1, diasTranscurridos + 7);
   var ndviColor = ndvi.valor >= 0.62 ? '#6DBF82' : ndvi.valor >= 0.45 ? '#C8A255' : '#D4522A';
@@ -4693,7 +4724,7 @@ function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
     ['Agua', Math.round(aguaProx) + ' mm', 'proximos 7 dias', aguaColor],
     ['Vigor NDVI', ndvi.valor.toFixed(2), ndvi.tipo === 'proxy' ? 'estimado' : 'satelital', ndviColor],
     ['Rendimiento', rend ? rend.rendProyectado.toFixed(2) : '-', rend ? rend.pctLogro + '% objetivo' : 'sin datos', rendColor],
-    ['Bitacora', String(bit.length), 'eventos del lote', bit.length ? '#6DBF82' : '#C8A255']
+    ['Bitacora', String(bit.length), campo ? campo.resumen : 'eventos del lote', bit.length ? (campo && (campo.sanidadAlta || campo.aguaAlta) ? '#D4522A' : '#6DBF82') : '#C8A255']
   ].map(function(c) {
     return '<div style="background:rgba(255,255,255,.04);border:1px solid ' + c[3] + '55;border-radius:8px;padding:.75rem">'
       + '<div style="font-size:.64rem;color:var(--c2);text-transform:uppercase;letter-spacing:.06em">' + c[0] + '</div>'
@@ -4709,7 +4740,9 @@ function _fsRenderEjecutivo(res, etapaActual, diasTranscurridos) {
       + '</div>';
   }).join('');
   var ult = bit.slice(0, 3).map(function(b) {
-    return '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0"><strong style="color:var(--fg)">' + (b.fecha || '') + '</strong> · ' + (b.nota || b.tipo || 'Entrada') + '</div>';
+    var cpo = _fsLecturaCampo(b);
+    var linea = cpo ? cpo.resumen + (b.nota ? ' · ' + b.nota : '') : (b.nota || b.tipo || 'Entrada');
+    return '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0"><strong style="color:var(--fg)">' + (b.fecha || '') + '</strong> · ' + linea + '</div>';
   }).join('') || '<div style="font-size:.72rem;color:var(--c2);border-top:1px solid rgba(255,255,255,.06);padding:.45rem 0">Sin eventos registrados para este lote.</div>';
   return '<div class="card" style="margin-bottom:1rem;border:1.5px solid rgba(79,195,247,.18)">'
     + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;margin-bottom:.85rem">'
@@ -5036,7 +5069,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=160"></script>
+<script src="js/config.js?v=161"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=102"></script>
 
@@ -5066,7 +5099,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/onboarding.js?v=85"></script>
 <script src="js/alerta-sanitaria.js?v=89"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
-<script src="js/dashboard.js?v=89"></script>
+<script src="js/dashboard.js?v=90"></script>
 <script src="js/dashboard-lotes.js?v=142"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>

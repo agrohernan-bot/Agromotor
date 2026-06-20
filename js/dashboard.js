@@ -760,9 +760,41 @@ window.dashGanttRefresh = render;
   function alerta(p, mod, title, desc, btn) {
     return { p: p, mod: mod, title: title, desc: desc, btn: btn || 'Abrir' };
   }
+  function lecturaCampo(bit) {
+    var q = bit && bit.quick;
+    if (!q) return null;
+    var sanidadAlta = q.sanidad === 'Intervenir/consultar';
+    var sanidadMedia = q.sanidad === 'Monitorear';
+    var aguaAlta = q.agua === 'Deficit visible';
+    var aguaMedia = q.agua === 'Justa';
+    var standProblema = q.stand === 'Bajo' || q.stand === 'Manchoneado';
+    var malezasMedia = q.malezas === 'Presencia media/alta';
+    var prioAlta = q.prioridad === 'Alta';
+    var prioMedia = q.prioridad === 'Atencion';
+    var nivel = (sanidadAlta || aguaAlta || prioAlta || q.estado === 'Comprometido' || q.stand === 'Bajo') ? 'alta'
+      : (sanidadMedia || aguaMedia || standProblema || malezasMedia || prioMedia || q.estado === 'Regular') ? 'media'
+      : 'ok';
+    var partes = [];
+    if (q.estado) partes.push(q.estado);
+    if (q.stand) partes.push('stand ' + q.stand.toLowerCase());
+    if (q.sanidad) partes.push('sanidad ' + q.sanidad.toLowerCase());
+    if (q.agua) partes.push('agua ' + q.agua.toLowerCase());
+    return {
+      quick: q,
+      nivel: nivel,
+      resumen: partes.join(' - '),
+      sanidadAlta: sanidadAlta,
+      sanidadMedia: sanidadMedia,
+      aguaAlta: aguaAlta,
+      aguaMedia: aguaMedia,
+      standProblema: standProblema,
+      malezasMedia: malezasMedia
+    };
+  }
   function buildAlertasOperativas(m) {
     var list = [];
     var mercado = m.mercado || {};
+    var campo = m.campo || null;
 
     if (!m.lote) {
       list.push(alerta('alta', 'lotes', 'Lote activo pendiente', 'Seleccionar o crear un lote para que las alertas hereden cultivo, fecha y coordenadas.', 'Mis Lotes'));
@@ -780,6 +812,18 @@ window.dashGanttRefresh = render;
     }
     if (m.alerts.length > 0) {
       list.push(alerta('alta', 'alerta-sanitaria', 'Alertas sanitarias activas', 'Hay ' + m.alerts.length + ' alerta(s) guardadas para revisar con monitoreo a campo.', 'Ver alertas'));
+    }
+    if (campo && (campo.sanidadAlta || campo.sanidadMedia)) {
+      list.push(alerta(campo.sanidadAlta ? 'alta' : 'media', 'alerta-sanitaria', 'Sanidad marcada en recorrida', 'Ultima recorrida: ' + campo.quick.sanidad + '. Contrastar con alertas y umbrales antes de aplicar.', 'Sanidad'));
+    }
+    if (campo && (campo.aguaAlta || campo.aguaMedia)) {
+      list.push(alerta(campo.aguaAlta ? 'alta' : 'media', 'hidrico', 'Agua visual condicionante', 'La recorrida marco "' + campo.quick.agua + '". Recalcular balance hidrico con dato actualizado.', 'Agua'));
+    }
+    if (campo && campo.standProblema) {
+      list.push(alerta(campo.quick.stand === 'Bajo' ? 'alta' : 'media', 'fen-seg', 'Stand a validar', 'Ultima recorrida: stand ' + campo.quick.stand + '. Revisar impacto sobre rendimiento y ambiente.', 'Seguimiento'));
+    }
+    if (campo && campo.malezasMedia) {
+      list.push(alerta('media', 'pulverizacion', 'Malezas en recorrida', 'Presencia media/alta registrada. Validar ventana de aplicacion y condiciones.', 'Pulverizar'));
     }
     if (m.rend && m.rend.pct != null && m.rend.pct < 80) {
       list.push(alerta('media', 'fen-seg', 'Rendimiento proyectado bajo objetivo', 'La proyeccion queda en ' + Math.round(m.rend.pct) + '% del objetivo. Revisar agua, sanidad y nutricion.', 'Analizar'));
@@ -817,6 +861,7 @@ window.dashGanttRefresh = render;
     var alerts = alertasActivas();
     var bit = bitacoraLote(lote);
     var ultimaBit = bit.length ? bit[bit.length - 1] : null;
+    var campo = lecturaCampo(ultimaBit);
     var pulv = ultPulv(data);
     var mercado = estadoMercado(cultivo);
     var actions = [];
@@ -826,6 +871,9 @@ window.dashGanttRefresh = render;
     if (agua.nivel === 'alta') actions.push({ p:'alta', mod:'hidrico', title:'Actualizar balance hidrico', desc:'El perfil esta bajo o el deficit acumulado es relevante.', btn:'Abrir Hidrico' });
     else if (agua.nivel === 'media') actions.push({ p:'media', mod:'hidrico', title:'Revisar agua disponible', desc:'El perfil esta en zona intermedia; conviene seguirlo de cerca.', btn:'Ver agua' });
     if (alerts.length > 0) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Revisar alertas sanitarias', desc:'Hay ' + alerts.length + ' alerta(s) activas para el lote.', btn:'Ver enfermedades' });
+    if (campo && campo.sanidadAlta) actions.push({ p:'alta', mod:'alerta-sanitaria', title:'Validar sanidad de la recorrida', desc:'La ultima recorrida marco intervenir/consultar. Revisar enfermedad, umbral y clima.', btn:'Ver Sanidad' });
+    if (campo && campo.aguaAlta) actions.push({ p:'alta', mod:'hidrico', title:'Recalcular agua por deficit visual', desc:'La recorrida marco deficit visible aunque el balance puede estar desactualizado.', btn:'Abrir Hidrico' });
+    if (campo && campo.standProblema && campo.quick.stand === 'Bajo') actions.push({ p:'alta', mod:'fen-seg', title:'Revisar stand bajo', desc:'Ajustar lectura de rendimiento y causa probable desde seguimiento.', btn:'Ver seguimiento' });
     if (!bit.length) actions.push({ p:'media', mod:'bitacora', title:'Registrar recorrida inicial', desc:'Deja trazabilidad de stand, malezas, sanidad y observaciones.', btn:'Abrir Bitacora' });
     if (rend && rend.pct != null && rend.pct < 80) actions.push({ p:'media', mod:'nutricion', title:'Revisar objetivo y nutricion', desc:'El rendimiento proyectado queda por debajo del objetivo cargado.', btn:'Abrir Nutricion' });
     if (!pulv && fen.dias != null && fen.dias >= 20) actions.push({ p:'baja', mod:'pulverizacion', title:'Preparar ventana de aplicacion', desc:'Validar clima, viento y calidad de agua antes de una intervencion.', btn:'Ver Pulverizacion' });
@@ -833,7 +881,7 @@ window.dashGanttRefresh = render;
 
     var order = { alta: 0, media: 1, baja: 2 };
     actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
-    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, pulv: pulv, mercado: mercado, actions: actions };
+    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, campo: campo, pulv: pulv, mercado: mercado, actions: actions };
     model.alertasOperativas = buildAlertasOperativas(model);
     return model;
   }
@@ -875,6 +923,7 @@ window.dashGanttRefresh = render;
     var bitSub = m.ultimaBit
       ? (bitDias === 0 ? 'Ultima recorrida hoy' : 'Ultima recorrida hace ' + bitDias + ' d')
       : 'Registrar primer scouting';
+    if (m.campo && m.campo.resumen) bitSub = m.campo.resumen;
     var mercadoVal = !m.mercado.fob ? 'Sin FOB' : (m.mercado.fobDias != null && m.mercado.fobDias > 7 ? 'FOB antiguo' : 'FOB OK');
     var mercadoSub = m.mercado.usd ? 'USD guardado' + (m.mercado.usdDias != null ? ' hace ' + m.mercado.usdDias + ' d' : '') : 'Sin USD guardado';
     var mercadoState = (!m.mercado.fob || !m.mercado.usd) ? 'media' : ((m.mercado.fobDias != null && m.mercado.fobDias > 7) || (m.mercado.usdDias != null && m.mercado.usdDias > 2) ? 'media' : 'ok');
@@ -886,7 +935,7 @@ window.dashGanttRefresh = render;
     html += '<div class="dop-right"><div class="dop-grid">';
     html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
     html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
-    html += signal('Sanidad', sanVal, m.alerts.length ? 'alta' : 'ok', m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas');
+    html += signal('Sanidad', sanVal, (m.alerts.length || (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia))) ? (m.campo && m.campo.sanidadAlta ? 'alta' : 'media') : 'ok', m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) ? 'Recorrida: ' + m.campo.quick.sanidad : (m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas'));
     html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
     html += signal('Mercado', mercadoVal, mercadoState, mercadoSub);
     html += signal('Bitacora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
