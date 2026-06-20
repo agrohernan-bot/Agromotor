@@ -859,32 +859,32 @@ window.dashGanttRefresh = render;
     var items = [];
     var res = m.res || {};
     if (!m.lote) {
-      items.push({ state:'alta', title:'Lote activo', desc:'Seleccionar o crear lote para ordenar decisiones.', age:'sin lote activo', mod:'lotes', btn:'Mis Lotes' });
+      items.push({ state:'alta', title:'Lote activo', desc:'Seleccionar o crear lote para ordenar decisiones.', age:'sin lote activo', mod:'lotes', action:'lotes', btn:'Mis Lotes' });
       return items;
     }
     if (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) && !m.resVigente.sanitaria) {
-      items.push({ state:m.campo.sanidadAlta ? 'alta' : 'media', title:'Sanidad pendiente', desc:'Nueva recorrida: ' + m.campo.quick.sanidad, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'alerta-sanitaria', btn:'Resolver' });
+      items.push({ state:m.campo.sanidadAlta ? 'alta' : 'media', title:'Sanidad pendiente', desc:'Nueva recorrida: ' + m.campo.quick.sanidad, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'alerta-sanitaria', action:'resolver-sanidad', btn:'Resolver' });
     }
     if (m.campo && (m.campo.aguaAlta || m.campo.aguaMedia) && !m.resVigente.hidrica) {
-      items.push({ state:m.campo.aguaAlta ? 'alta' : 'media', title:'Agua pendiente', desc:'Nueva recorrida: ' + m.campo.quick.agua, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'hidrico', btn:'Resolver' });
+      items.push({ state:m.campo.aguaAlta ? 'alta' : 'media', title:'Agua pendiente', desc:'Nueva recorrida: ' + m.campo.quick.agua, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'hidrico', action:'resolver-agua', btn:'Resolver' });
     }
     if (m.nutricionPlan && !m.resVigente.nutricion) {
-      items.push({ state:'media', title:'Nutricion pendiente', desc:'Plan calculado sin decision registrada.', age:edadPlan(m.nutricionPlan, 'plan '), mod:'nutricion', btn:'Cerrar' });
+      items.push({ state:'media', title:'Nutricion pendiente', desc:'Plan calculado sin decision registrada.', age:edadPlan(m.nutricionPlan, 'plan '), mod:'nutricion', action:'cerrar-nutricion', btn:'Cerrar' });
     }
     if (!m.nutricionPlan) {
-      items.push({ state:'baja', title:'Plan nutricional', desc:'Sin plan calculado para el lote.', age:'sin fecha de plan', mod:'nutricion', btn:'Calcular' });
+      items.push({ state:'baja', title:'Plan nutricional', desc:'Sin plan calculado para el lote.', age:'sin fecha de plan', mod:'nutricion', action:'calcular-nutricion', btn:'Calcular' });
     }
     if (!m.bit.length) {
-      items.push({ state:'media', title:'Recorrida inicial', desc:'Falta una lectura rapida de campo.', age:'sin registros', mod:'bitacora', btn:'Registrar' });
+      items.push({ state:'media', title:'Recorrida inicial', desc:'Falta una lectura rapida de campo.', age:'sin registros', mod:'bitacora', action:'registrar-recorrida', btn:'Registrar' });
     }
     if (m.resVigente.sanitaria) {
-      items.push({ state:'ok', title:'Sanidad resuelta', desc:labelResolucion(res.sanitaria, 'resolucionSanitaria'), age:edadEntry(res.sanitaria, 'resuelta '), mod:'alerta-sanitaria', btn:'Ver' });
+      items.push({ state:'ok', title:'Sanidad resuelta', desc:labelResolucion(res.sanitaria, 'resolucionSanitaria'), age:edadEntry(res.sanitaria, 'resuelta '), mod:'alerta-sanitaria', action:'ver-sanidad', btn:'Ver' });
     }
     if (m.resVigente.hidrica) {
-      items.push({ state:'ok', title:'Agua resuelta', desc:labelResolucion(res.hidrica, 'resolucionHidrica'), age:edadEntry(res.hidrica, 'resuelta '), mod:'hidrico', btn:'Ver' });
+      items.push({ state:'ok', title:'Agua resuelta', desc:labelResolucion(res.hidrica, 'resolucionHidrica'), age:edadEntry(res.hidrica, 'resuelta '), mod:'hidrico', action:'ver-agua', btn:'Ver' });
     }
     if (m.resVigente.nutricion) {
-      items.push({ state:'ok', title:'Nutricion resuelta', desc:labelResolucion(res.nutricion, 'resolucionNutricion'), age:edadEntry(res.nutricion, 'resuelta '), mod:'nutricion', btn:'Ver' });
+      items.push({ state:'ok', title:'Nutricion resuelta', desc:labelResolucion(res.nutricion, 'resolucionNutricion'), age:edadEntry(res.nutricion, 'resuelta '), mod:'nutricion', action:'ver-nutricion', btn:'Ver' });
     }
     var order = { alta: 0, media: 1, baja: 2, ok: 3 };
     items.sort(function(a,b) { return order[a.state] - order[b.state]; });
@@ -1015,7 +1015,7 @@ window.dashGanttRefresh = render;
       var pr = prioLabel(x.p);
       html += '<div class="dop-alert dop-alert-' + pr.cls + '">';
       html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc) + '</div></div>';
-      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn) + '</button>';
+      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\',\'' + esc(x.action || x.mod) + '\')">' + esc(x.btn) + '</button>';
       html += '</div>';
     });
     html += '</div>';
@@ -1029,7 +1029,7 @@ window.dashGanttRefresh = render;
       var cls = x.state === 'ok' ? 'dop-alert-baja' : 'dop-alert-' + pr.cls;
       html += '<div class="dop-alert ' + cls + '" style="' + (x.state === 'ok' ? 'border-color:rgba(74,140,92,.25);background:rgba(74,140,92,.08)' : '') + '">';
       html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc || '') + '</div>' + (x.age ? '<div class="dop-alert-desc" style="margin-top:.18rem;opacity:.72">' + esc(x.age) + '</div>' : '') + '</div>';
-      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn || 'Abrir') + '</button>';
+      html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\',\'' + esc(x.action || x.mod) + '\')">' + esc(x.btn || 'Abrir') + '</button>';
       html += '</div>';
     });
     html += '</div>';
@@ -1064,7 +1064,7 @@ window.dashGanttRefresh = render;
     var html = '<div class="dop-card dop-prio-' + pr.cls + '">';
     html += '<div class="dop-main"><div class="dop-kicker">Que hago hoy</div><div class="dop-title">' + esc(a.title) + '</div><div class="dop-desc">' + esc(a.desc) + '</div>';
     html += '<div class="dop-meta"><span class="dop-pill dop-pill-' + pr.cls + '">' + pr.txt + '</span><span class="dop-pill">' + esc((m.lote && m.lote.nombre) || 'Sin lote') + '</span><span class="dop-pill">' + esc(m.cultivo) + '</span></div>';
-    html += '<button type="button" class="dop-action" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\')">' + esc(a.btn) + '</button></div>';
+    html += '<button type="button" class="dop-action" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\',\'' + esc(a.action || a.mod) + '\')">' + esc(a.btn) + '</button></div>';
     html += '<div class="dop-right"><div class="dop-grid">';
     html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
     html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
@@ -1077,6 +1077,12 @@ window.dashGanttRefresh = render;
     el.innerHTML = html;
   }
   function init() {
+    if (!document.getElementById('dop-focus-style')) {
+      var st = document.createElement('style');
+      st.id = 'dop-focus-style';
+      st.textContent = '.dop-focus-ring{outline:3px solid rgba(109,191,130,.75)!important;box-shadow:0 0 0 6px rgba(109,191,130,.18)!important;transition:outline .2s,box-shadow .2s}';
+      document.head.appendChild(st);
+    }
     render();
     document.addEventListener('am:dashboard-activado', render);
     window.addEventListener('storage', render);
@@ -1084,11 +1090,50 @@ window.dashGanttRefresh = render;
     window._dashOperativoInterval = setInterval(render, 30000);
   }
   document.addEventListener('DOMContentLoaded', init);
-  window.dopAbrirModulo = function(mod) {
+  function focoOperativo(action) {
+    var selectors = {
+      'resolver-agua': '#bh-contexto-recorrida',
+      'ver-agua': '#bh-contexto-recorrida',
+      'resolver-sanidad': '.as-field-context',
+      'ver-sanidad': '.as-field-context',
+      'cerrar-nutricion': '#nc-resolucion-panel',
+      'ver-nutricion': '#nc-resolucion-panel',
+      'calcular-nutricion': '#nc-plan-placeholder',
+      'registrar-recorrida': '#bt-quick-card'
+    };
+    var sel = selectors[action];
+    if (!sel) return;
+    var attempts = 0;
+    function tryFocus() {
+      attempts++;
+      if (action === 'resolver-agua' || action === 'ver-agua') {
+        if (typeof window.bhRenderContextoRecorrida === 'function') window.bhRenderContextoRecorrida();
+      }
+      if (action === 'resolver-sanidad' || action === 'ver-sanidad') {
+        if (typeof window.asPrepararAutoLote === 'function') window.asPrepararAutoLote();
+      }
+      if (action === 'cerrar-nutricion' || action === 'ver-nutricion' || action === 'calcular-nutricion') {
+        if (typeof window.ncActualizar === 'function') window.ncActualizar();
+      }
+      var el = document.querySelector(sel);
+      if (el) {
+        el.scrollIntoView({ behavior:'smooth', block:'start' });
+        if (el.classList) {
+          el.classList.add('dop-focus-ring');
+          setTimeout(function() { el.classList.remove('dop-focus-ring'); }, 2200);
+        }
+        return;
+      }
+      if (attempts < 12) setTimeout(tryFocus, 250);
+    }
+    setTimeout(tryFocus, 350);
+  }
+  window.dopAbrirModulo = function(mod, action) {
     var lote = loteActivo();
-    if (mod === 'bitacora') window.BT_QUICK_MODE = true;
+    if (mod === 'bitacora' || action === 'registrar-recorrida') window.BT_QUICK_MODE = true;
     if (typeof window.dlAbrirModulo === 'function' && lote && lote.id && mod !== 'lotes') {
       window.dlAbrirModulo(mod, lote.id);
+      focoOperativo(action || mod);
       return;
     }
     if (mod === 'lotes' && typeof window.dlVolverNueva === 'function') {
@@ -1096,6 +1141,7 @@ window.dashGanttRefresh = render;
       return;
     }
     if (typeof window.switchMod === 'function') window.switchMod(mod);
+    focoOperativo(action || mod);
   };
   window.dashOperativoRefresh = render;
 })();
