@@ -731,6 +731,24 @@ window.dashGanttRefresh = render;
     var id = String(e.id || '').match(/(\d{10,})/);
     return id ? parseInt(id[1], 10) : 0;
   }
+  function edadTextoFromTime(t, prefijo) {
+    if (!t) return '';
+    var d = new Date(t);
+    if (isNaN(d.getTime())) return '';
+    var h = new Date();
+    h.setHours(12,0,0,0);
+    d.setHours(12,0,0,0);
+    var dias = Math.max(0, Math.round((h - d) / 86400000));
+    if (dias === 0) return (prefijo || '') + 'hoy';
+    if (dias === 1) return (prefijo || '') + 'ayer';
+    return (prefijo || '') + 'hace ' + dias + ' dias';
+  }
+  function edadEntry(e, prefijo) {
+    return edadTextoFromTime(entryTime(e), prefijo || '');
+  }
+  function edadPlan(plan, prefijo) {
+    return plan && plan.ts ? edadTextoFromTime(parseFloat(plan.ts), prefijo || '') : '';
+  }
   function ultimaRecorrida(bit) {
     for (var i = bit.length - 1; i >= 0; i--) {
       if (bit[i] && bit[i].quick) return bit[i];
@@ -841,32 +859,32 @@ window.dashGanttRefresh = render;
     var items = [];
     var res = m.res || {};
     if (!m.lote) {
-      items.push({ state:'alta', title:'Lote activo', desc:'Seleccionar o crear lote para ordenar decisiones.', mod:'lotes', btn:'Mis Lotes' });
+      items.push({ state:'alta', title:'Lote activo', desc:'Seleccionar o crear lote para ordenar decisiones.', age:'sin lote activo', mod:'lotes', btn:'Mis Lotes' });
       return items;
     }
     if (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) && !m.resVigente.sanitaria) {
-      items.push({ state:m.campo.sanidadAlta ? 'alta' : 'media', title:'Sanidad pendiente', desc:'Nueva recorrida: ' + m.campo.quick.sanidad, mod:'alerta-sanitaria', btn:'Resolver' });
+      items.push({ state:m.campo.sanidadAlta ? 'alta' : 'media', title:'Sanidad pendiente', desc:'Nueva recorrida: ' + m.campo.quick.sanidad, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'alerta-sanitaria', btn:'Resolver' });
     }
     if (m.campo && (m.campo.aguaAlta || m.campo.aguaMedia) && !m.resVigente.hidrica) {
-      items.push({ state:m.campo.aguaAlta ? 'alta' : 'media', title:'Agua pendiente', desc:'Nueva recorrida: ' + m.campo.quick.agua, mod:'hidrico', btn:'Resolver' });
+      items.push({ state:m.campo.aguaAlta ? 'alta' : 'media', title:'Agua pendiente', desc:'Nueva recorrida: ' + m.campo.quick.agua, age:edadEntry(m.ultimaRec, 'recorrida '), mod:'hidrico', btn:'Resolver' });
     }
     if (m.nutricionPlan && !m.resVigente.nutricion) {
-      items.push({ state:'media', title:'Nutricion pendiente', desc:'Plan calculado sin decision registrada.', mod:'nutricion', btn:'Cerrar' });
+      items.push({ state:'media', title:'Nutricion pendiente', desc:'Plan calculado sin decision registrada.', age:edadPlan(m.nutricionPlan, 'plan '), mod:'nutricion', btn:'Cerrar' });
     }
     if (!m.nutricionPlan) {
-      items.push({ state:'baja', title:'Plan nutricional', desc:'Sin plan calculado para el lote.', mod:'nutricion', btn:'Calcular' });
+      items.push({ state:'baja', title:'Plan nutricional', desc:'Sin plan calculado para el lote.', age:'sin fecha de plan', mod:'nutricion', btn:'Calcular' });
     }
     if (!m.bit.length) {
-      items.push({ state:'media', title:'Recorrida inicial', desc:'Falta una lectura rapida de campo.', mod:'bitacora', btn:'Registrar' });
+      items.push({ state:'media', title:'Recorrida inicial', desc:'Falta una lectura rapida de campo.', age:'sin registros', mod:'bitacora', btn:'Registrar' });
     }
     if (m.resVigente.sanitaria) {
-      items.push({ state:'ok', title:'Sanidad resuelta', desc:labelResolucion(res.sanitaria, 'resolucionSanitaria'), mod:'alerta-sanitaria', btn:'Ver' });
+      items.push({ state:'ok', title:'Sanidad resuelta', desc:labelResolucion(res.sanitaria, 'resolucionSanitaria'), age:edadEntry(res.sanitaria, 'resuelta '), mod:'alerta-sanitaria', btn:'Ver' });
     }
     if (m.resVigente.hidrica) {
-      items.push({ state:'ok', title:'Agua resuelta', desc:labelResolucion(res.hidrica, 'resolucionHidrica'), mod:'hidrico', btn:'Ver' });
+      items.push({ state:'ok', title:'Agua resuelta', desc:labelResolucion(res.hidrica, 'resolucionHidrica'), age:edadEntry(res.hidrica, 'resuelta '), mod:'hidrico', btn:'Ver' });
     }
     if (m.resVigente.nutricion) {
-      items.push({ state:'ok', title:'Nutricion resuelta', desc:labelResolucion(res.nutricion, 'resolucionNutricion'), mod:'nutricion', btn:'Ver' });
+      items.push({ state:'ok', title:'Nutricion resuelta', desc:labelResolucion(res.nutricion, 'resolucionNutricion'), age:edadEntry(res.nutricion, 'resuelta '), mod:'nutricion', btn:'Ver' });
     }
     var order = { alta: 0, media: 1, baja: 2, ok: 3 };
     items.sort(function(a,b) { return order[a.state] - order[b.state]; });
@@ -1010,7 +1028,7 @@ window.dashGanttRefresh = render;
       var pr = x.state === 'ok' ? { cls:'baja', txt:'Resuelto' } : prioLabel(x.state);
       var cls = x.state === 'ok' ? 'dop-alert-baja' : 'dop-alert-' + pr.cls;
       html += '<div class="dop-alert ' + cls + '" style="' + (x.state === 'ok' ? 'border-color:rgba(74,140,92,.25);background:rgba(74,140,92,.08)' : '') + '">';
-      html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc || '') + '</div></div>';
+      html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(x.title) + '</div><div class="dop-alert-desc">' + esc(x.desc || '') + '</div>' + (x.age ? '<div class="dop-alert-desc" style="margin-top:.18rem;opacity:.72">' + esc(x.age) + '</div>' : '') + '</div>';
       html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\')">' + esc(x.btn || 'Abrir') + '</button>';
       html += '</div>';
     });
@@ -1030,9 +1048,9 @@ window.dashGanttRefresh = render;
     var rendVal = m.rend && m.rend.qq != null ? m.rend.qq.toFixed(0) + ' qq/ha' : 'Sin proyeccion';
     var rendSub = m.rend && m.rend.pct != null ? Math.round(m.rend.pct) + '% del objetivo' : 'Abrir Fen. Seguimiento';
     var sanVal = m.alerts.length ? m.alerts.length + ' alerta(s)' : 'Sin alertas';
-    var bitDias = m.ultimaBit ? diasCache(m.ultimaBit.fecha) : null;
+    var bitDias = m.ultimaRec ? diasCache(m.ultimaRec.fecha) : null;
     var bitVal = m.bit.length ? m.bit.length + ' registro(s)' : 'Sin recorridas';
-    var bitSub = m.ultimaBit
+    var bitSub = m.ultimaRec
       ? (bitDias === 0 ? 'Ultima recorrida hoy' : 'Ultima recorrida hace ' + bitDias + ' d')
       : 'Registrar primer scouting';
     if (m.campo && m.campo.resumen) bitSub = m.campo.resumen;
