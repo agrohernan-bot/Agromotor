@@ -855,6 +855,29 @@ window.dashGanttRefresh = render;
     var r = e[key] || e.resolucion || {};
     return r.label || e.nota || '';
   }
+  function ultimaResolucion(m) {
+    var list = [];
+    if (m.res.sanitaria) list.push({ tipo:'Sanidad', item:m.res.sanitaria, key:'resolucionSanitaria' });
+    if (m.res.hidrica) list.push({ tipo:'Agua', item:m.res.hidrica, key:'resolucionHidrica' });
+    if (m.res.nutricion) list.push({ tipo:'Nutricion', item:m.res.nutricion, key:'resolucionNutricion' });
+    if (!list.length) return null;
+    list.sort(function(a,b) { return entryTime(b.item) - entryTime(a.item); });
+    return {
+      tipo: list[0].tipo,
+      label: labelResolucion(list[0].item, list[0].key),
+      edad: edadEntry(list[0].item, '')
+    };
+  }
+  function estadoGeneral(m) {
+    var alta = 0, media = 0;
+    (m.pendientes || []).forEach(function(x) {
+      if (x.state === 'alta') alta++;
+      else if (x.state === 'media') media++;
+    });
+    if (alta) return { state:'alta', label:'Atencion inmediata', desc:alta + ' punto(s) critico(s) abierto(s)' };
+    if (media) return { state:'media', label:'Seguimiento activo', desc:media + ' punto(s) para cerrar' };
+    return { state:'ok', label:'Lote ordenado', desc:'Sin pendientes criticos abiertos' };
+  }
   function buildPendientes(m) {
     var items = [];
     var res = m.res || {};
@@ -1035,6 +1058,36 @@ window.dashGanttRefresh = render;
     html += '</div>';
     return html;
   }
+  function renderResumenEjecutivo(m, a) {
+    var estado = estadoGeneral(m);
+    var ult = ultimaResolucion(m);
+    var recTxt = m.ultimaRec ? (edadEntry(m.ultimaRec, '') || 'con fecha registrada') : 'sin recorridas';
+    var cierreTxt = ult ? (ult.tipo + ': ' + ult.label + (ult.edad ? ' · ' + ult.edad : '')) : 'sin cierres registrados';
+    var aguaTxt = m.resVigente.hidrica ? 'resuelta' : (m.campo && (m.campo.aguaAlta || m.campo.aguaMedia) ? 'pendiente' : (m.agua.nivel === 'sin-dato' ? 'sin dato' : m.agua.nivel));
+    var sanTxt = m.resVigente.sanitaria ? 'resuelta' : (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) ? 'pendiente' : (m.alerts.length ? 'alertas' : 'sin alertas'));
+    var nutTxt = m.nutricionPlan ? (m.resVigente.nutricion ? 'cerrada' : 'plan abierto') : 'sin plan';
+    var badge = function(lbl, val, state) {
+      return '<div class="dop-signal dop-' + state + '" style="min-height:auto;padding:.55rem .65rem"><div class="dop-signal-label">' + esc(lbl) + '</div><div class="dop-signal-value" style="font-size:.88rem">' + esc(val) + '</div></div>';
+    };
+    var html = '<div class="dop-alerts" style="margin-bottom:.75rem;border-color:rgba(109,191,130,.18)">';
+    html += '<div class="dop-alerts-head"><span>Resumen ejecutivo del lote</span><span>' + esc(estado.label) + '</span></div>';
+    html += '<div style="display:grid;grid-template-columns:1.25fr .85fr;gap:.7rem;align-items:stretch">';
+    html += '<div class="dop-alert dop-alert-' + (estado.state === 'alta' ? 'alta' : estado.state === 'media' ? 'media' : 'baja') + '" style="margin:0">';
+    html += '<div class="dop-alert-body"><div class="dop-alert-title">' + esc(a.title) + '</div><div class="dop-alert-desc">' + esc(a.desc) + '</div><div class="dop-alert-desc" style="margin-top:.18rem;opacity:.75">' + esc(estado.desc) + '</div></div>';
+    html += '<button type="button" class="dop-alert-btn" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\',\'' + esc(a.action || a.mod) + '\')">' + esc(a.btn) + '</button>';
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr;gap:.42rem">';
+    html += badge('Ultima recorrida', recTxt, m.ultimaRec ? 'ok' : 'media');
+    html += badge('Ultimo cierre', cierreTxt, ult ? 'ok' : 'media');
+    html += '</div></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.45rem;margin-top:.65rem">';
+    html += badge('Agua', aguaTxt, aguaTxt === 'pendiente' || aguaTxt === 'alta' ? 'alta' : aguaTxt === 'sin dato' || aguaTxt === 'media' ? 'media' : 'ok');
+    html += badge('Sanidad', sanTxt, sanTxt === 'pendiente' || sanTxt === 'alertas' ? 'media' : 'ok');
+    html += badge('Nutricion', nutTxt, nutTxt === 'cerrada' ? 'ok' : 'media');
+    html += badge('Bitacora', m.bit.length ? m.bit.length + ' registro(s)' : 'sin registros', m.bit.length ? 'ok' : 'media');
+    html += '</div></div>';
+    return html;
+  }
   function render() {
     var el = $('dash-operativo-panel');
     if (!el) return;
@@ -1065,7 +1118,7 @@ window.dashGanttRefresh = render;
     html += '<div class="dop-main"><div class="dop-kicker">Que hago hoy</div><div class="dop-title">' + esc(a.title) + '</div><div class="dop-desc">' + esc(a.desc) + '</div>';
     html += '<div class="dop-meta"><span class="dop-pill dop-pill-' + pr.cls + '">' + pr.txt + '</span><span class="dop-pill">' + esc((m.lote && m.lote.nombre) || 'Sin lote') + '</span><span class="dop-pill">' + esc(m.cultivo) + '</span></div>';
     html += '<button type="button" class="dop-action" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(a.mod) + '\',\'' + esc(a.action || a.mod) + '\')">' + esc(a.btn) + '</button></div>';
-    html += '<div class="dop-right"><div class="dop-grid">';
+    html += '<div class="dop-right">' + renderResumenEjecutivo(m, a) + '<div class="dop-grid">';
     html += signal('Fenologia', fenVal, m.fen.fecha ? 'ok' : 'media', fenSub);
     html += signal('Agua', aguaVal, m.agua.nivel, aguaSub);
     html += signal('Sanidad', sanVal, (m.alerts.length || (m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia))) ? (m.campo && m.campo.sanidadAlta ? 'alta' : 'media') : 'ok', m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia) ? 'Recorrida: ' + m.campo.quick.sanidad : (m.alerts.length ? 'Revisar detalle' : 'Sin alarmas guardadas'));
