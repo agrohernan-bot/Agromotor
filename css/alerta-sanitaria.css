@@ -88,6 +88,81 @@
   font-size: .72rem;
   line-height: 1.15;
 }
+.as-field-context {
+  margin-top: .75rem;
+  border: 1.5px solid var(--as-border);
+  border-left-width: 5px;
+  border-radius: 12px;
+  background: #fff;
+  padding: .85rem;
+}
+.as-field-high { border-left-color: var(--as-high); background: linear-gradient(135deg,#fff,#fff7f6); }
+.as-field-med  { border-left-color: var(--as-med);  background: linear-gradient(135deg,#fff,#fffaf0); }
+.as-field-low  { border-left-color: var(--as-low);  background: linear-gradient(135deg,#fff,#f7fff9); }
+.as-field-head {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  align-items: flex-start;
+  margin-bottom: .65rem;
+}
+.as-field-kicker {
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.as-field-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--as-ink);
+  margin-top: .1rem;
+}
+.as-field-head span {
+  font-size: .68rem;
+  font-weight: 800;
+  color: #64748b;
+  white-space: nowrap;
+}
+.as-field-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .45rem;
+  margin-bottom: .65rem;
+}
+.as-field-grid span {
+  border: 1px solid rgba(45,106,79,.12);
+  border-radius: 8px;
+  padding: .42rem .5rem;
+  font-size: .68rem;
+  color: #475569;
+  background: rgba(255,255,255,.65);
+  min-width: 0;
+}
+.as-field-grid strong { color: var(--as-ink); }
+.as-field-rec {
+  font-size: .74rem;
+  color: #334155;
+  line-height: 1.45;
+  margin-bottom: .7rem;
+}
+.as-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+}
+.as-field-actions button {
+  border: 1px solid rgba(45,106,79,.22);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--as-leaf);
+  padding: .42rem .62rem;
+  font-family: inherit;
+  font-size: .7rem;
+  font-weight: 850;
+  cursor: pointer;
+}
 
 .as-results {
   display: grid;
@@ -98,6 +173,7 @@
 @media (max-width: 900px) {
   .as-input-bar { grid-template-columns: 1fr 1fr; }
   .as-results   { grid-template-columns: 1fr; }
+  .as-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* ── Placeholder / loading ───────────────────────────── */

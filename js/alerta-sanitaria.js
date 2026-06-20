@@ -8,6 +8,9 @@
   'use strict';
 
   function asEl(id) { return document.getElementById('as-' + id); }
+  function escAS(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
 
   // ── FENOLOGÍA ─────────────────────────────────────────
   var PHENOLOGY = {
@@ -310,12 +313,128 @@
     if (!ctx) return;
     ctx.innerHTML = '<div class="as-auto-context"><div class="as-auto-title">Contexto heredado del lote</div>'
       + '<div class="as-auto-chips">'
-      + '<span>' + (lote ? lote.nombre : 'Lote activo') + '</span>'
-      + '<span>' + (cultivo || '-') + '</span>'
-      + '<span>Siembra ' + (fecha || '-') + '</span>'
+      + '<span>' + escAS(lote ? lote.nombre : 'Lote activo') + '</span>'
+      + '<span>' + escAS(cultivo || '-') + '</span>'
+      + '<span>Siembra ' + escAS(fecha || '-') + '</span>'
       + '<span>' + (coords ? coords.lat.toFixed(4) + ', ' + coords.lon.toFixed(4) : '-') + '</span>'
-      + '</div></div>';
+      + '</div></div>'
+      + renderRecorridaSanitaria(lote);
   }
+
+  function leerBitacoraAS(lote) {
+    try {
+      var loteId = lote && lote.id ? String(lote.id) : '';
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var global = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(global)) global = [];
+      var delLote = lote && lote.data && Array.isArray(lote.data.bitacora) ? lote.data.bitacora : [];
+      var map = {};
+      global.concat(delLote).forEach(function(e) {
+        if (!e) return;
+        if (loteId && e.loteId && String(e.loteId) !== loteId) return;
+        map[e.id || ((e.fecha || '') + '_' + (e.hora || '') + '_' + (e.tipo || ''))] = e;
+      });
+      return Object.keys(map).map(function(k) { return map[k]; }).sort(function(a,b) {
+        return String(b.fecha || '').localeCompare(String(a.fecha || '')) || String(b.hora || '').localeCompare(String(a.hora || ''));
+      });
+    } catch(_) {
+      return [];
+    }
+  }
+
+  function lecturaSanitariaAS(lote) {
+    var bit = leerBitacoraAS(lote);
+    for (var i = 0; i < bit.length; i++) {
+      var q = bit[i] && bit[i].quick;
+      if (q && q.sanidad && q.sanidad !== 'Sin sintomas') return { entrada: bit[i], quick: q };
+    }
+    return bit.length && bit[0].quick ? { entrada: bit[0], quick: bit[0].quick } : null;
+  }
+
+  function renderRecorridaSanitaria(lote) {
+    var lectura = lecturaSanitariaAS(lote);
+    if (!lectura) return '';
+    var q = lectura.quick;
+    var alta = q.sanidad === 'Intervenir/consultar';
+    var media = q.sanidad === 'Monitorear';
+    var cls = alta ? 'as-field-high' : media ? 'as-field-med' : 'as-field-low';
+    var recomendacion = alta
+      ? 'Validar sintomas, umbral y clima. No aplicar sin diagnostico, pero priorizar monitoreo inmediato.'
+      : media
+        ? 'Programar nueva lectura y contrastar con pronostico sanitario.'
+        : 'Mantener seguimiento semanal.';
+    return '<div class="as-field-context ' + cls + '">'
+      + '<div class="as-field-head"><div><div class="as-field-kicker">Ultima recorrida sanitaria</div><div class="as-field-title">' + escAS(q.sanidad || 'Sin lectura sanitaria') + '</div></div><span>' + escAS(lectura.entrada.fecha || '') + '</span></div>'
+      + '<div class="as-field-grid">'
+      + '<span>Estado: <strong>' + escAS(q.estado || '-') + '</strong></span>'
+      + '<span>Stand: <strong>' + escAS(q.stand || '-') + '</strong></span>'
+      + '<span>Malezas: <strong>' + escAS(q.malezas || '-') + '</strong></span>'
+      + '<span>Agua: <strong>' + escAS(q.agua || '-') + '</strong></span>'
+      + '</div>'
+      + '<div class="as-field-rec">' + escAS(recomendacion) + '</div>'
+      + '<div class="as-field-actions">'
+      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'sin_intervenir\')">No intervenir</button>'
+      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'monitorear\')">Monitorear en 3-5 dias</button>'
+      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'aplicar\')">Aplicar/derivar receta</button>'
+      + '<button type="button" onclick="window.asRegistrarResolucion&&window.asRegistrarResolucion(\'consulta\')">Consultar/muestra</button>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function guardarBitacoraAS(entrada) {
+    try {
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var lista = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(lista)) lista = [];
+      lista.push(entrada);
+      localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
+    } catch(_) {}
+    var lote = loteActivoAM();
+    if (lote) {
+      lote.data = lote.data || {};
+      var lb = Array.isArray(lote.data.bitacora) ? lote.data.bitacora.slice() : [];
+      lb.push(entrada);
+      lote.data.bitacora = lb.slice(-200);
+      lote.data.ultimaResolucionSanitaria = entrada;
+      if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+    }
+  }
+
+  window.asRegistrarResolucion = function(decision) {
+    var lote = loteActivoAM();
+    var lectura = lecturaSanitariaAS(lote);
+    var labels = {
+      sin_intervenir: 'No intervenir por ahora',
+      monitorear: 'Monitorear en 3-5 dias',
+      aplicar: 'Aplicar/derivar receta',
+      consulta: 'Consultar asesor o enviar muestra'
+    };
+    var ahora = new Date();
+    var fecha = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
+    var d = (lote && lote.data) || {};
+    var entrada = {
+      id: 'as-res-' + ahora.getTime(),
+      fecha: fecha,
+      hora: ahora.toTimeString().slice(0,5),
+      tipo: 'incidencia',
+      loteId: lote ? lote.id : '',
+      loteNombre: lote ? lote.nombre : 'Lote',
+      cultivo: normCultivoAM(d.cultivo || ''),
+      etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
+      nota: 'Resolucion sanitaria: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.sanidad : ''),
+      resolucionSanitaria: {
+        decision: decision,
+        label: labels[decision] || decision,
+        lectura: lectura ? lectura.quick : null
+      }
+    };
+    guardarBitacoraAS(entrada);
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
+    if (typeof window.amToast === 'function') window.amToast('Resolucion sanitaria guardada en Bitacora', 'ok');
+    else alert('Resolucion sanitaria guardada en Bitacora');
+    if (typeof window.asPrepararAutoLote === 'function') window.asPrepararAutoLote();
+  };
   window.asPrepararAutoLote = function() {
     var lote = loteActivoAM();
     var d = (lote && lote.data) || {};
