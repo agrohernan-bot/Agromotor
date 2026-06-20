@@ -673,7 +673,13 @@ window.dashGanttRefresh = render;
   }
   function diasCache(ts) {
     if (!ts) return null;
-    var d = new Date(ts);
+    var d;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(ts))) {
+      var p = String(ts).split('-');
+      d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0, 0);
+    } else {
+      d = new Date(ts);
+    }
     if (isNaN(d.getTime())) return null;
     var h = new Date(); h.setHours(12,0,0,0);
     d.setHours(12,0,0,0);
@@ -697,9 +703,18 @@ window.dashGanttRefresh = render;
   }
   function bitacoraLote(lote) {
     var lista = lsJSON('am_bitacora_v2', []);
-    if (!Array.isArray(lista)) return [];
     var id = lote && lote.id;
-    return lista.filter(function(x) { return !id || !x.loteId || String(x.loteId) === String(id); });
+    var global = Array.isArray(lista) ? lista : [];
+    var delLote = lote && lote.data && Array.isArray(lote.data.bitacora) ? lote.data.bitacora : [];
+    var map = {};
+    global.concat(delLote).forEach(function(x) {
+      if (!x) return;
+      if (id && x.loteId && String(x.loteId) !== String(id)) return;
+      map[x.id || (x.fecha + '_' + x.hora + '_' + x.tipo)] = x;
+    });
+    return Object.keys(map).map(function(k) { return map[k]; }).sort(function(a,b) {
+      return String(a.fecha || '').localeCompare(String(b.fecha || '')) || String(a.hora || '').localeCompare(String(b.hora || ''));
+    });
   }
   function rendimiento(data) {
     var r = data && data.rendimientoProyectado;
@@ -801,6 +816,7 @@ window.dashGanttRefresh = render;
     var rend = rendimiento(data);
     var alerts = alertasActivas();
     var bit = bitacoraLote(lote);
+    var ultimaBit = bit.length ? bit[bit.length - 1] : null;
     var pulv = ultPulv(data);
     var mercado = estadoMercado(cultivo);
     var actions = [];
@@ -817,7 +833,7 @@ window.dashGanttRefresh = render;
 
     var order = { alta: 0, media: 1, baja: 2 };
     actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
-    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, pulv: pulv, mercado: mercado, actions: actions };
+    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, pulv: pulv, mercado: mercado, actions: actions };
     model.alertasOperativas = buildAlertasOperativas(model);
     return model;
   }
@@ -854,8 +870,11 @@ window.dashGanttRefresh = render;
     var rendVal = m.rend && m.rend.qq != null ? m.rend.qq.toFixed(0) + ' qq/ha' : 'Sin proyeccion';
     var rendSub = m.rend && m.rend.pct != null ? Math.round(m.rend.pct) + '% del objetivo' : 'Abrir Fen. Seguimiento';
     var sanVal = m.alerts.length ? m.alerts.length + ' alerta(s)' : 'Sin alertas';
+    var bitDias = m.ultimaBit ? diasCache(m.ultimaBit.fecha) : null;
     var bitVal = m.bit.length ? m.bit.length + ' registro(s)' : 'Sin recorridas';
-    var bitSub = m.bit.length ? 'Ultima actividad cargada' : 'Registrar primer scouting';
+    var bitSub = m.ultimaBit
+      ? (bitDias === 0 ? 'Ultima recorrida hoy' : 'Ultima recorrida hace ' + bitDias + ' d')
+      : 'Registrar primer scouting';
     var mercadoVal = !m.mercado.fob ? 'Sin FOB' : (m.mercado.fobDias != null && m.mercado.fobDias > 7 ? 'FOB antiguo' : 'FOB OK');
     var mercadoSub = m.mercado.usd ? 'USD guardado' + (m.mercado.usdDias != null ? ' hace ' + m.mercado.usdDias + ' d' : '') : 'Sin USD guardado';
     var mercadoState = (!m.mercado.fob || !m.mercado.usd) ? 'media' : ((m.mercado.fobDias != null && m.mercado.fobDias > 7) || (m.mercado.usdDias != null && m.mercado.usdDias > 2) ? 'media' : 'ok');
@@ -884,6 +903,7 @@ window.dashGanttRefresh = render;
   document.addEventListener('DOMContentLoaded', init);
   window.dopAbrirModulo = function(mod) {
     var lote = loteActivo();
+    if (mod === 'bitacora') window.BT_QUICK_MODE = true;
     if (typeof window.dlAbrirModulo === 'function' && lote && lote.id && mod !== 'lotes') {
       window.dlAbrirModulo(mod, lote.id);
       return;

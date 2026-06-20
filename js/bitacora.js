@@ -56,12 +56,42 @@ function agregarEntrada(entrada) {
   var lista = leerEntradas();
   lista.push(entrada);
   guardarEntradas(lista);
+  guardarEntradaEnLote(entrada);
 }
 
 function eliminarEntrada(id) {
   var lista = leerEntradas().filter(function(e) { return e.id !== id; });
   guardarEntradas(lista);
+  eliminarEntradaDeLote(id);
   renderLista();
+}
+
+function loteActivoObj() {
+  try {
+    return (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+  } catch(_) {
+    return null;
+  }
+}
+
+function guardarEntradaEnLote(entrada) {
+  var lote = loteActivoObj();
+  if (!lote) return;
+  lote.data = lote.data || {};
+  var lista = Array.isArray(lote.data.bitacora) ? lote.data.bitacora.slice() : [];
+  lista = lista.filter(function(e) { return e && e.id !== entrada.id; });
+  lista.push(entrada);
+  lote.data.bitacora = lista.slice(-MAX_ENTRADAS);
+  lote.data.ultimaRecorrida = entrada.fecha;
+  if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+}
+
+function eliminarEntradaDeLote(id) {
+  var lote = loteActivoObj();
+  if (!lote || !lote.data || !Array.isArray(lote.data.bitacora)) return;
+  lote.data.bitacora = lote.data.bitacora.filter(function(e) { return e && e.id !== id; });
+  lote.data.ultimaRecorrida = lote.data.bitacora.length ? lote.data.bitacora[lote.data.bitacora.length - 1].fecha : '';
+  if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,9 +104,12 @@ function ls(k) {
 
 function capturarContexto() {
   var ahora = new Date();
-  var loteActivo = (typeof window.AM_LOTE_ACTIVO !== 'undefined') ? window.AM_LOTE_ACTIVO : '';
+  var loteObj = loteActivoObj();
+  var loteActivo = loteObj ? loteObj.id : ((typeof window.AM_LOTE_ACTIVO !== 'undefined') ? window.AM_LOTE_ACTIVO : '');
   var loteNombre = '';
-  if (typeof window.AM_LOTES !== 'undefined') {
+  if (loteObj) {
+    loteNombre = loteObj.nombre || '';
+  } else if (typeof window.AM_LOTES !== 'undefined') {
     var lObj = window.AM_LOTES.find(function(l) { return l.id === loteActivo; });
     if (lObj) loteNombre = lObj.nombre;
   }
@@ -99,7 +132,7 @@ function capturarContexto() {
 
   return {
     id:           ahora.getTime().toString(),
-    fecha:        ahora.toISOString().slice(0, 10),
+    fecha:        fechaLocal(ahora),
     hora:         ahora.toTimeString().slice(0, 5),
     loteId:       loteActivo,
     loteNombre:   loteNombre || ls('am_lote_nombre') || 'Lote Principal',
@@ -116,6 +149,13 @@ function capturarContexto() {
     hidroPct:     calcHidroPct(),
     alertas:      alertCount,
   };
+}
+
+function fechaLocal(d) {
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 
 function diasDesde(fechaISO) {
@@ -144,6 +184,11 @@ function renderModulo() {
 
   el.innerHTML = '<div class="bt-wrap">' + _htmlHeader() + _htmlForm() + _htmlLista() + '</div>';
   _initFormListeners();
+  if (window.BT_QUICK_MODE) {
+    window.BT_QUICK_MODE = false;
+    var quick = document.getElementById('bt-quick-card');
+    if (quick) setTimeout(function() { quick.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 150);
+  }
 }
 
 function _htmlHeader() {
@@ -181,6 +226,7 @@ function _htmlForm() {
   }).join('');
 
   return `
+    ${_htmlRecorridaRapida(ctx)}
     <div class="card bt-form-card" style="border:1.5px solid rgba(42,122,74,.25);background:#f4fbf6">
       <div class="card-title" style="color:#1b5e35;margin-bottom:.8rem">
         ✍️ Nueva Entrada
@@ -217,6 +263,41 @@ function _htmlForm() {
         💾 Guardar entrada
       </button>
     </div>
+  `;
+}
+
+function _htmlRecorridaRapida(ctx) {
+  return `
+    <div id="bt-quick-card" class="card bt-quick-card" style="border:1.5px solid rgba(42,90,140,.24);background:#f8fbff;margin-bottom:1rem">
+      <div class="card-title" style="color:#1f4d7a;margin-bottom:.35rem">Recorrida rapida</div>
+      <div style="font-size:.74rem;color:#51606f;line-height:1.45;margin-bottom:.85rem">Registro corto para dejar trazabilidad operativa del lote activo. Se guarda tambien dentro del lote.</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.65rem;margin-bottom:.75rem">
+        ${_quickSelect('btq-estado','Estado general',['Bueno','Regular','Comprometido'])}
+        ${_quickSelect('btq-stand','Stand',['Uniforme','Manchoneado','Bajo'])}
+        ${_quickSelect('btq-malezas','Malezas',['Sin novedad','Presencia baja','Presencia media/alta'])}
+        ${_quickSelect('btq-sanidad','Sanidad',['Sin sintomas','Monitorear','Intervenir/consultar'])}
+        ${_quickSelect('btq-agua','Agua visual',['Adecuada','Justa','Deficit visible'])}
+        ${_quickSelect('btq-prioridad','Prioridad',['Seguimiento','Atencion','Alta'])}
+      </div>
+      <textarea id="btq-nota" maxlength="220" rows="2" placeholder="Nota breve de campo..."
+        style="width:100%;box-sizing:border-box;border:1.5px solid #cbd5e1;border-radius:8px;padding:.55rem .75rem;font-size:.82rem;color:#1f2937;background:#fff;font-family:inherit;resize:vertical;line-height:1.45;margin-bottom:.75rem"></textarea>
+      <button type="button" id="btq-guardar" onclick="window.btGuardarRecorridaRapida()"
+        style="background:#1f4d7a;color:#fff;border:none;border-radius:10px;padding:.62rem 1.1rem;font-size:.84rem;font-weight:800;cursor:pointer;font-family:inherit">
+        Guardar recorrida
+      </button>
+      <span style="font-size:.68rem;color:#64748b;margin-left:.55rem">${_esc(ctx.loteNombre || 'Sin lote activo')} · ${ctx.fecha}</span>
+    </div>
+  `;
+}
+
+function _quickSelect(id, label, opts) {
+  return `
+    <label style="display:flex;flex-direction:column;gap:.28rem;min-width:0">
+      <span style="font-size:.64rem;font-weight:800;color:#475569;text-transform:uppercase;letter-spacing:.06em">${label}</span>
+      <select id="${id}" style="border:1.5px solid #cbd5e1;border-radius:8px;padding:.48rem .55rem;font-size:.78rem;color:#1f2937;background:#fff;font-family:inherit;min-width:0">
+        ${opts.map(function(o) { return '<option value="' + _esc(o) + '">' + _esc(o) + '</option>'; }).join('')}
+      </select>
+    </label>
   `;
 }
 
@@ -360,6 +441,55 @@ window.btGuardar = function() {
   }
 
   renderLista();
+  if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
+};
+
+window.btGuardarRecorridaRapida = function() {
+  var ctx = capturarContexto();
+  var get = function(id) {
+    var el = document.getElementById(id);
+    return el ? el.value : '';
+  };
+  var notaLibre = get('btq-nota').trim();
+  var quick = {
+    estado: get('btq-estado'),
+    stand: get('btq-stand'),
+    malezas: get('btq-malezas'),
+    sanidad: get('btq-sanidad'),
+    agua: get('btq-agua'),
+    prioridad: get('btq-prioridad')
+  };
+  var resumen = [
+    'Estado: ' + quick.estado,
+    'Stand: ' + quick.stand,
+    'Malezas: ' + quick.malezas,
+    'Sanidad: ' + quick.sanidad,
+    'Agua: ' + quick.agua,
+    'Prioridad: ' + quick.prioridad
+  ].join(' · ');
+  var entrada = Object.assign({}, ctx, {
+    tipo: 'visita',
+    nota: notaLibre ? resumen + '. ' + notaLibre : resumen,
+    quick: quick
+  });
+  agregarEntrada(entrada);
+
+  var btn = document.getElementById('btq-guardar');
+  if (btn) {
+    var orig = btn.innerHTML;
+    btn.innerHTML = 'Guardado';
+    btn.style.background = '#2A7A4A';
+    btn.disabled = true;
+    setTimeout(function() {
+      btn.innerHTML = orig;
+      btn.style.background = '#1f4d7a';
+      btn.disabled = false;
+      var nota = document.getElementById('btq-nota');
+      if (nota) nota.value = '';
+    }, 1000);
+  }
+  renderLista();
+  if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
 };
 
 window.btEliminar = function(id) {
