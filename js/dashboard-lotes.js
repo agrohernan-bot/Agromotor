@@ -1696,6 +1696,23 @@
     return (window.AM_LOTES || []).find(function (l) { return l.id === id; }) || null;
   }
 
+  function refrescarDashboardLote() {
+    var refreshers = [
+      'dashCampanaRefresh',
+      'dashOperativoRefresh',
+      'dashRefreshCards',
+      'dashRendimientoRefresh',
+      'dashGanttRefresh',
+      'amEnsoUpdateMacroCard',
+      'amEnsoRenderDetailedPanel'
+    ];
+    refreshers.forEach(function (fn) {
+      if (typeof window[fn] === 'function') {
+        try { window[fn](); } catch (_e) {}
+      }
+    });
+  }
+
   // ══════════════════════════════════════════════════════
   // NAVEGACIÓN PÚBLICA
   // ══════════════════════════════════════════════════════
@@ -1854,6 +1871,7 @@
     if (typeof amRenderSelectLotes === 'function') amRenderSelectLotes();
     if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
     if (typeof amRefrescarMapaDashboard === 'function') amRefrescarMapaDashboard();
+    setTimeout(refrescarDashboardLote, 80);
   }
 
   // Volver a la nueva UX desde cualquier módulo
