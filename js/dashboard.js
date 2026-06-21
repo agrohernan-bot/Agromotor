@@ -1027,7 +1027,7 @@ window.dashGanttRefresh = render;
 
     var order = { alta: 0, media: 1, baja: 2 };
     actions.sort(function(a,b) { return order[a.p] - order[b.p]; });
-    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, ultimaRec: ultimaRec, campo: campo, pulv: pulv, mercado: mercado, res: res, resVigente: resVigente, nutricionPlan: nutricionPlan, actions: actions };
+    var model = { lote: lote, cultivo: cultivo, fen: fen, agua: agua, rend: rend, alerts: alerts, bit: bit, ultimaBit: ultimaBit, ultimaRec: ultimaRec, campo: campo, pulv: pulv, mercado: mercado, res: res, resVigente: resVigente, nutricionPlan: nutricionPlan, revisionSemanal: data.revisionSemanal || null, actions: actions };
     model.alertasOperativas = buildAlertasOperativas(model);
     model.pendientes = buildPendientes(model);
     return model;
@@ -1082,12 +1082,65 @@ window.dashGanttRefresh = render;
     items.push({ state: fenOk && rendOk ? 'ok' : 'media', label: rendOk ? 'Rendimiento actualizado' : 'Seguimiento a generar', desc: rendOk ? Math.round(m.rend.qq) + ' qq/ha · ' + Math.round(m.rend.pct || 0) + '% del objetivo' : 'Actualizar fenología y proyección para cerrar la lectura semanal.', mod: 'fen-seg', action: 'fen-seg', btn: 'Seguimiento' });
     return items;
   }
+  function revisionEstado(items) {
+    var alta = items.some(function(x) { return x.state === 'alta'; });
+    var abiertos = items.filter(function(x) { return x.state !== 'ok'; }).length;
+    if (alta) return { key:'critico', label:'Critico', cls:'alta' };
+    if (abiertos) return { key:'atencion', label:'Atencion', cls:'media' };
+    return { key:'ok', label:'OK', cls:'ok' };
+  }
+  function fechaHoraCorta(ts) {
+    var d = new Date(ts || Date.now());
+    if (isNaN(d.getTime())) return '';
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    return dd + '/' + mm + ' ' + hh + ':' + mi;
+  }
+  function proximosRevision(items) {
+    return items.filter(function(x) { return x.state !== 'ok'; }).slice(0, 3).map(function(x) {
+      return { label: x.label, mod: x.mod, action: x.action || x.mod, state: x.state };
+    });
+  }
+  function renderRevisionCierre(m, items, abiertos) {
+    var cierre = m.revisionSemanal || null;
+    var estado = revisionEstado(items);
+    var html = '<div class="dop-weekly-close dop-weekly-close-' + esc(estado.cls) + '">';
+    html += '<div><span>Estado semanal</span><strong>' + esc(estado.label) + '</strong><em>' + esc(abiertos ? abiertos + ' punto(s) abiertos al momento de la lectura' : 'Sin puntos abiertos al momento de la lectura') + '</em></div>';
+    if (cierre) {
+      html += '<div><span>&Uacute;ltimo cierre</span><strong>' + esc(cierre.estado || cierre.estadoLabel || 'Registrado') + '</strong><em>' + esc(fechaHoraCorta(cierre.ts) + (cierre.abiertos != null ? ' - ' + cierre.abiertos + ' abierto(s)' : '')) + '</em></div>';
+      if (cierre.nota) html += '<div class="dop-weekly-note">' + esc(cierre.nota) + '</div>';
+    } else {
+      html += '<div><span>&Uacute;ltimo cierre</span><strong>Sin cierre</strong><em>Registrar la lectura semanal deja trazabilidad por lote</em></div>';
+    }
+    html += '<button type="button" onclick="window.dopCerrarRevisionSemanal&&window.dopCerrarRevisionSemanal()">' + (cierre ? 'Actualizar cierre' : 'Cerrar semana') + '</button>';
+    html += '</div>';
+    return html;
+  }
   function renderRevisionSemanal(m) {
     var items = buildRevisionSemanal(m);
     var abiertos = items.filter(function(x) { return x.state !== 'ok'; }).length;
     var html = '<div class="dop-weekly">';
     html += '<div class="dop-weekly-head"><div><span>Revisión semanal del lote</span><strong>' + (abiertos ? abiertos + ' punto(s) abiertos' : 'Completa') + '</strong></div>';
     html += '<button type="button" onclick="window.dopIniciarRevisionSemanal&&window.dopIniciarRevisionSemanal()">Iniciar revisión</button></div>';
+    html += '<div class="dop-weekly-grid">';
+    items.forEach(function(x, idx) {
+      html += '<div class="dop-weekly-step dop-weekly-' + esc(x.state) + '">';
+      html += '<div class="dop-weekly-num">' + (idx + 1) + '</div><div class="dop-weekly-body"><div class="dop-weekly-label">' + esc(x.label) + '</div><div class="dop-weekly-desc">' + esc(x.desc) + '</div></div>';
+      html += '<button type="button" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\',\'' + esc(x.action || x.mod) + '\')">' + esc(x.btn) + '</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+  function renderRevisionSemanalV2(m) {
+    var items = buildRevisionSemanal(m);
+    var abiertos = items.filter(function(x) { return x.state !== 'ok'; }).length;
+    var html = '<div class="dop-weekly">';
+    html += '<div class="dop-weekly-head"><div><span>Revisi&oacute;n semanal del lote</span><strong>' + (abiertos ? abiertos + ' punto(s) abiertos' : 'Completa') + '</strong></div>';
+    html += '<div class="dop-weekly-actions"><button type="button" onclick="window.dopIniciarRevisionSemanal&&window.dopIniciarRevisionSemanal()">Iniciar revisi&oacute;n</button><button type="button" onclick="window.dopCerrarRevisionSemanal&&window.dopCerrarRevisionSemanal()">Cerrar semana</button></div></div>';
+    html += renderRevisionCierre(m, items, abiertos);
     html += '<div class="dop-weekly-grid">';
     items.forEach(function(x, idx) {
       html += '<div class="dop-weekly-step dop-weekly-' + esc(x.state) + '">';
@@ -1166,7 +1219,7 @@ window.dashGanttRefresh = render;
     html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
     html += signal('Mercado', mercadoVal, mercadoState, mercadoSub);
     html += signal('Bitácora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
-    html += '</div>' + renderRevisionSemanal(m) + renderAlertas(m.alertasOperativas) + renderPendientes(m.pendientes) + '</div></div>';
+    html += '</div>' + renderRevisionSemanalV2(m) + renderAlertas(m.alertasOperativas) + renderPendientes(m.pendientes) + '</div></div>';
     el.innerHTML = html;
   }
   function init() {
@@ -1241,6 +1294,37 @@ window.dashGanttRefresh = render;
   };
   window.dopIniciarRevisionSemanal = function() {
     window.dopAbrirModulo('bitacora', 'registrar-recorrida');
+  };
+  window.dopCerrarRevisionSemanal = function() {
+    var m = buildModel();
+    if (!m.lote) {
+      if (typeof window.amToast === 'function') window.amToast('Selecciona un lote antes de cerrar la revision.', 'error');
+      return;
+    }
+    var items = buildRevisionSemanal(m);
+    var abiertos = items.filter(function(x) { return x.state !== 'ok'; }).length;
+    var estado = revisionEstado(items);
+    var nota = window.prompt('Nota breve para el cierre semanal del lote:', '');
+    if (nota === null) return;
+    var data = m.lote.data || (m.lote.data = {});
+    var cierre = {
+      ts: Date.now(),
+      fecha: new Date().toISOString().slice(0, 10),
+      estado: estado.label,
+      estadoKey: estado.key,
+      abiertos: abiertos,
+      nota: String(nota || '').trim(),
+      items: items.map(function(x) {
+        return { label: x.label, desc: x.desc, state: x.state, mod: x.mod, action: x.action || x.mod };
+      }),
+      proximos: proximosRevision(items)
+    };
+    var hist = Array.isArray(data.historialRevisionSemanal) ? data.historialRevisionSemanal : [];
+    data.revisionSemanal = cierre;
+    data.historialRevisionSemanal = [cierre].concat(hist).slice(0, 12);
+    if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+    if (typeof window.amToast === 'function') window.amToast('Revision semanal cerrada para ' + (m.lote.nombre || 'el lote'), 'ok');
+    render();
   };
   window.dashOperativoRefresh = render;
 })();

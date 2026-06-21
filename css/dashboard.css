@@ -1951,6 +1951,13 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   font-size: .8rem;
   color: #0F1F14;
 }
+.dop-weekly-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
 .dop-weekly-head button,
 .dop-weekly-step button {
   border: 1px solid rgba(42,90,140,.22);
@@ -1964,6 +1971,63 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   cursor: pointer;
   white-space: nowrap;
 }
+.dop-weekly-close {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: .6rem;
+  align-items: center;
+  padding: .72rem .82rem;
+  border-bottom: 1px solid rgba(60,34,16,.07);
+  background: rgba(255,255,255,.42);
+}
+.dop-weekly-close > div {
+  min-width: 0;
+}
+.dop-weekly-close span {
+  display: block;
+  font-size: .62rem;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(28,18,8,.46);
+}
+.dop-weekly-close strong {
+  display: block;
+  margin-top: .08rem;
+  font-size: .88rem;
+  color: #0F1F14;
+}
+.dop-weekly-close em {
+  display: block;
+  margin-top: .08rem;
+  font-size: .66rem;
+  font-style: normal;
+  line-height: 1.3;
+  color: rgba(28,18,8,.55);
+}
+.dop-weekly-close button {
+  border: 1px solid rgba(42,122,74,.22);
+  border-radius: 9px;
+  background: rgba(42,122,74,.09);
+  color: #1E6B3A;
+  padding: .46rem .7rem;
+  font-family: inherit;
+  font-size: .68rem;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dop-weekly-note {
+  grid-column: 1 / -1;
+  border-left: 3px solid rgba(42,90,140,.24);
+  padding-left: .62rem;
+  font-size: .72rem;
+  color: rgba(28,18,8,.62);
+  line-height: 1.35;
+}
+.dop-weekly-close-ok { background: rgba(42,122,74,.045); }
+.dop-weekly-close-media { background: rgba(184,122,32,.05); }
+.dop-weekly-close-alta { background: rgba(212,82,42,.05); }
 .dop-weekly-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -2036,6 +2100,15 @@ body.dl-modo-clasico #dl-btn-nueva-vista {
   .dop-weekly-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .dop-weekly-actions {
+    justify-content: flex-start;
+  }
+  .dop-weekly-close {
+    grid-template-columns: 1fr;
+  }
+  .dop-weekly-close button {
+    justify-self: flex-start;
   }
   .dop-weekly-step {
     grid-template-columns: auto minmax(0, 1fr);
