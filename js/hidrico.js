@@ -580,10 +580,10 @@
     var lote = bhLoteActivo();
     var lectura = bhLecturaHidrica(lote);
     var labels = {
-      recalcular: 'Recalcular balance hidrico',
+      recalcular: 'Recalcular balance hídrico',
       recorrida: 'Programar nueva recorrida',
-      ajustar_agua: 'Ajustar agua util manual',
-      riego: 'Derivar a riego / decision de manejo'
+      ajustar_agua: 'Ajustar agua útil manual',
+      riego: 'Derivar a riego / decisión de manejo'
     };
     var ahora = new Date();
     var fecha = ahora.getFullYear() + '-' + String(ahora.getMonth() + 1).padStart(2, '0') + '-' + String(ahora.getDate()).padStart(2, '0');
@@ -597,7 +597,7 @@
       loteNombre: lote ? lote.nombre : 'Lote',
       cultivo: d.cultivo || gv('s-cultivo') || '',
       etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
-      nota: 'Resolucion hidrica: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.agua : ''),
+      nota: 'Resolución hídrica: ' + (labels[decision] || decision) + (lectura ? '. Recorrida previa: ' + lectura.quick.agua : ''),
       resolucionHidrica: {
         decision: decision,
         label: labels[decision] || decision,
@@ -625,8 +625,8 @@
     if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
     if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
     bhRenderContextoRecorrida();
-    if (typeof window.amToast === 'function') window.amToast('Resolucion hidrica guardada en Bitacora', 'ok');
-    else alert('Resolucion hidrica guardada en Bitacora');
+    if (typeof window.amToast === 'function') window.amToast('Resolución hídrica guardada en Bitácora', 'ok');
+    else alert('Resolución hídrica guardada en Bitácora');
   };
 
   setTimeout(bhRenderContextoRecorrida, 0);
