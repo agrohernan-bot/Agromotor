@@ -1066,6 +1066,38 @@ window.dashGanttRefresh = render;
     html += '</div>';
     return html;
   }
+  function buildRevisionSemanal(m) {
+    var items = [];
+    var aguaOk = m.agua.nivel !== 'alta' && m.agua.nivel !== 'sin-dato';
+    var sanOk = !m.alerts.length && !(m.campo && (m.campo.sanidadAlta || m.campo.sanidadMedia));
+    var nutOk = !m.nutricionPlan || !!m.resVigente.nutricion;
+    var bitOk = !!m.ultimaRec;
+    var fenOk = !!m.fen.fecha;
+    var rendOk = !!(m.rend && m.rend.qq != null);
+
+    items.push({ state: bitOk ? 'ok' : 'media', label: bitOk ? 'Recorrida cargada' : 'Recorrida pendiente', desc: bitOk ? (m.campo && m.campo.resumen ? m.campo.resumen : edadEntry(m.ultimaRec, 'recorrida ')) : 'Registrar lectura rápida de stand, malezas, sanidad y agua visual.', mod: 'bitacora', action: 'registrar-recorrida', btn: bitOk ? 'Ver' : 'Registrar' });
+    items.push({ state: aguaOk ? 'ok' : 'alta', label: aguaOk ? 'Agua revisada' : 'Agua a revisar', desc: m.agua.pct == null ? 'Sin balance actualizado para priorizar decisiones.' : m.agua.pct + '% de perfil · ' + Math.round(m.agua.agua || 0) + ' mm', mod: 'hidrico', action: 'resolver-agua', btn: 'Abrir' });
+    items.push({ state: sanOk ? 'ok' : 'media', label: sanOk ? 'Sanidad sin alarma' : 'Sanidad a validar', desc: m.alerts.length ? m.alerts.length + ' alerta(s) activas para revisar.' : 'Cruzar recorrida, clima y ventana fenológica.', mod: 'alerta-sanitaria', action: 'resolver-sanidad', btn: 'Ver' });
+    items.push({ state: nutOk ? 'ok' : 'media', label: nutOk ? 'Nutrición ordenada' : 'Decisión nutricional pendiente', desc: m.nutricionPlan ? (m.resVigente.nutricion ? 'Plan con decisión vigente.' : 'Plan calculado sin cierre operativo.') : 'Sin plan calculado para el lote.', mod: 'nutricion', action: m.nutricionPlan ? 'cerrar-nutricion' : 'calcular-nutricion', btn: m.nutricionPlan ? 'Cerrar' : 'Calcular' });
+    items.push({ state: fenOk && rendOk ? 'ok' : 'media', label: rendOk ? 'Rendimiento actualizado' : 'Seguimiento a generar', desc: rendOk ? Math.round(m.rend.qq) + ' qq/ha · ' + Math.round(m.rend.pct || 0) + '% del objetivo' : 'Actualizar fenología y proyección para cerrar la lectura semanal.', mod: 'fen-seg', action: 'fen-seg', btn: 'Seguimiento' });
+    return items;
+  }
+  function renderRevisionSemanal(m) {
+    var items = buildRevisionSemanal(m);
+    var abiertos = items.filter(function(x) { return x.state !== 'ok'; }).length;
+    var html = '<div class="dop-weekly">';
+    html += '<div class="dop-weekly-head"><div><span>Revisión semanal del lote</span><strong>' + (abiertos ? abiertos + ' punto(s) abiertos' : 'Completa') + '</strong></div>';
+    html += '<button type="button" onclick="window.dopIniciarRevisionSemanal&&window.dopIniciarRevisionSemanal()">Iniciar revisión</button></div>';
+    html += '<div class="dop-weekly-grid">';
+    items.forEach(function(x, idx) {
+      html += '<div class="dop-weekly-step dop-weekly-' + esc(x.state) + '">';
+      html += '<div class="dop-weekly-num">' + (idx + 1) + '</div><div class="dop-weekly-body"><div class="dop-weekly-label">' + esc(x.label) + '</div><div class="dop-weekly-desc">' + esc(x.desc) + '</div></div>';
+      html += '<button type="button" onclick="window.dopAbrirModulo&&window.dopAbrirModulo(\'' + esc(x.mod) + '\',\'' + esc(x.action || x.mod) + '\')">' + esc(x.btn) + '</button>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
   function renderResumenEjecutivo(m, a) {
     var estado = estadoGeneral(m);
     var ult = ultimaResolucion(m);
@@ -1134,7 +1166,7 @@ window.dashGanttRefresh = render;
     html += signal('Rendimiento', rendVal, m.rend && m.rend.pct != null && m.rend.pct < 80 ? 'media' : 'ok', rendSub);
     html += signal('Mercado', mercadoVal, mercadoState, mercadoSub);
     html += signal('Bitácora', bitVal, m.bit.length ? 'ok' : 'media', bitSub);
-    html += '</div>' + renderAlertas(m.alertasOperativas) + renderPendientes(m.pendientes) + '</div></div>';
+    html += '</div>' + renderRevisionSemanal(m) + renderAlertas(m.alertasOperativas) + renderPendientes(m.pendientes) + '</div></div>';
     el.innerHTML = html;
   }
   function init() {
@@ -1176,6 +1208,9 @@ window.dashGanttRefresh = render;
       if (action === 'cerrar-nutricion' || action === 'ver-nutricion' || action === 'calcular-nutricion') {
         if (typeof window.ncActualizar === 'function') window.ncActualizar();
       }
+      if (action === 'registrar-recorrida') {
+        if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+      }
       var el = document.querySelector(sel);
       if (el) {
         el.scrollIntoView({ behavior:'smooth', block:'start' });
@@ -1203,6 +1238,9 @@ window.dashGanttRefresh = render;
     }
     if (typeof window.switchMod === 'function') window.switchMod(mod);
     focoOperativo(action || mod);
+  };
+  window.dopIniciarRevisionSemanal = function() {
+    window.dopAbrirModulo('bitacora', 'registrar-recorrida');
   };
   window.dashOperativoRefresh = render;
 })();
