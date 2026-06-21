@@ -43,6 +43,27 @@ var ENSO_FACTOR = {
 
 function _ls(k) { try { return localStorage.getItem(k) || ''; } catch(_) { return ''; } }
 
+function _loteActivo() {
+  try {
+    return typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+  } catch(_) {
+    return null;
+  }
+}
+
+function _num(v) {
+  var n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
+function _first() {
+  for (var i = 0; i < arguments.length; i++) {
+    var v = arguments[i];
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return '';
+}
+
 function _normCultivo(c) {
   var s = (c || '').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -72,17 +93,20 @@ function _diasDesde(fechaISO) {
 }
 
 function calcular() {
-  var cultivo    = _ls('am_siembra_cultivo') || (document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
+  var lote       = _loteActivo();
+  var data       = (lote && lote.data) || {};
+  var ck         = data.calcKeys || {};
+  var cultivo    = _first(data.cultivo, data.cultivoActual, ck.am_siembra_cultivo, _ls('am_siembra_cultivo'), document.getElementById('s-cultivo') ? document.getElementById('s-cultivo').value : '');
   var cultKey    = _normCultivo(cultivo);
   if (!cultKey || !REND_BASE[cultKey]) return null;
 
   var base       = REND_BASE[cultKey];
-  var ensoFase   = _normEnso(_ls('am_enso_fase'));
-  var aguaMm     = parseFloat(_ls('am_hidrico_agua_actual_mm')) || 0;
-  var capMax     = parseFloat(_ls('am_hidrico_cap_max_mm'))     || 0;
-  var diasEstres = parseInt(_ls('am_hidrico_dias_estres'))      || 0;
-  var ciclo      = parseInt(_ls('am_fen_duracion_ciclo'))       || 150;
-  var fechaSiem  = _ls('am_siembra_fecha') || (document.getElementById('s-fecha') ? document.getElementById('s-fecha').value : '');
+  var ensoFase   = _normEnso(_first(data.ensoFase, ck.am_enso_fase, _ls('am_enso_fase')));
+  var aguaMm     = _num(_first(ck.am_hidrico_agua_actual_mm, data.aguaPerfilMm, _ls('am_hidrico_agua_actual_mm'))) || 0;
+  var capMax     = _num(_first(ck.am_hidrico_cap_max_mm, data.capacidadPerfilMm, _ls('am_hidrico_cap_max_mm'))) || 0;
+  var diasEstres = parseInt(_first(ck.am_hidrico_dias_estres, data.diasEstresHidrico, _ls('am_hidrico_dias_estres')), 10) || 0;
+  var ciclo      = parseInt(_first(ck.am_fen_duracion_ciclo, data.duracionCiclo, _ls('am_fen_duracion_ciclo')), 10) || 150;
+  var fechaSiem  = _first(data.fechaSiembraReal, data.fechaSiembra, ck.am_siembra_fecha, _ls('am_siembra_fecha'), document.getElementById('s-fecha') ? document.getElementById('s-fecha').value : '');
   var diasTrans  = _diasDesde(fechaSiem);
   var avancePct  = (diasTrans !== null && ciclo > 0) ? Math.min(1, diasTrans / ciclo) : 0;
 
