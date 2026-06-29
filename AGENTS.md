@@ -4,6 +4,19 @@ Guía rápida de las reglas que más frecuentemente se rompen. Para la arquitect
 
 ---
 
+## Prioridad máxima de producto
+
+AgroMotor debe automatizar al máximo el trabajo cotidiano del ingeniero agrónomo y mejorar continuamente la precisión, consistencia y oportunidad de sus datos.
+
+- Priorizar cálculos automáticos, cruces entre fuentes y actualización continua antes que pedir validaciones manuales.
+- Heredar y reutilizar toda la información ya disponible del lote.
+- Presentar una recomendación integrada y accionable, no datos aislados ni contradictorios.
+- Las limitaciones generales de modelos y APIs pertenecen al aviso legal/metodológico global. No repetir “validar a campo” en cada indicador normal.
+- Mostrar una advertencia puntual solo cuando exista una anomalía concreta: dato faltante, vencido, inconsistente, fuera del dominio del modelo o con calidad insuficiente para calcular.
+- Ante dos fuentes divergentes, resolver o explicar la divergencia dentro del sistema y conservar trazabilidad de fuente, fecha y confianza.
+
+---
+
 ## Arranque real
 
 ```

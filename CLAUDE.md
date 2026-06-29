@@ -5,6 +5,16 @@
 
 ---
 
+## 0. Principio rector de producto
+
+AgroMotor es una plataforma de automatización del trabajo agronómico. Toda evolución debe buscar mayor precisión, integración entre fuentes y capacidad de anticipación con la menor carga manual posible para el profesional.
+
+Las salvedades generales sobre aproximación de modelos, APIs y recomendaciones se concentran en el aviso legal/metodológico global. La interfaz operativa no debe repetir recomendaciones genéricas de “validar a campo” en cada resultado. Solo corresponde una advertencia local cuando el sistema detecta una condición concreta de calidad o confiabilidad que impide entregar el resultado normalmente.
+
+Los módulos deben compartir una misma fuente de verdad y una misma fórmula para cada indicador. Si una métrica combina humedad, suelo, cultivo, fenología y pronóstico, el cruce debe resolverse en una función central reutilizable y actualizarse automáticamente al cambiar cualquiera de esas entradas.
+
+---
+
 ## 1. Cómo arranca la app
 
 La aplicación es una SPA 100% client-side desplegada en Vercel.
