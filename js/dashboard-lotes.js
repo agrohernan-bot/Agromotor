@@ -466,7 +466,11 @@
     }
     var sueloTex = d['sg-textura'] || ck['am_siembra_suelo'] || '';
     var alertas  = 0;
-    try { alertas = (JSON.parse(ck['am_alertas_activas'] || '[]') || []).length; } catch(e) {}
+    try {
+      alertas = (JSON.parse(ck['am_alertas_activas'] || '[]') || []).filter(function(a) {
+        return !_alertaEsHidrica(a);
+      }).length;
+    } catch(e) {}
     var isActivo   = lote.id === window.AM_LOTE_ACTIVO;
     var hasPolygon = (Array.isArray(d.polygon) && d.polygon.length > 2) ||
                      !!(d.geojson && d.geojson.geometry);
@@ -529,6 +533,27 @@
 
   function kv(k, v) {
     return '<div class="dl-kv"><span class="dl-kv-k">' + esc(k) + '</span><span class="dl-kv-v">' + esc(v) + '</span></div>';
+  }
+
+  function _alertaTexto(a) {
+    return String(typeof a === 'string' ? a : (a && (a.titulo || a.msg || a.mensaje || a.texto)) || '');
+  }
+
+  function _alertaEsHidrica(a) {
+    var tipo = String(a && a.tipo || '').toLowerCase();
+    var codigo = String(a && a.codigo || '').toLowerCase();
+    var texto = _alertaTexto(a).toLowerCase();
+    return tipo === 'agua' || codigo.indexOf('agua_') === 0 ||
+      /hídr|hidric|\bawc\b|agua (útil|disponible|en perfil)|perfil casi saturado/.test(texto);
+  }
+
+  function _alertaEsSanitaria(a) {
+    var tipo = String(a && a.tipo || '').toLowerCase();
+    var codigo = String(a && a.codigo || '').toLowerCase();
+    var texto = _alertaTexto(a).toLowerCase();
+    return /sanidad|enfermedad|plaga|roya|fusari|septori|tiz[oó]n|mancha|pulg[oó]n|oruga|chinche/.test(
+      tipo + ' ' + codigo + ' ' + texto
+    );
   }
 
   // ══════════════════════════════════════════════════════
@@ -950,9 +975,10 @@
     if (!Array.isArray(alertas)) alertas = [];
 
     var tieneCoords = !!_coordsFromLote(lote);
+    var alertasVisibles = tieneCoords ? alertas.filter(function(a) { return !_alertaEsHidrica(a); }) : alertas;
 
     // Verificar si hay datos suficientes para mostrar el panel
-    var tieneDatos = tieneCoords || (aguaCC > 0) || ensoFase || alertas.length > 0;
+    var tieneDatos = tieneCoords || (aguaCC > 0) || ensoFase || alertasVisibles.length > 0;
     if (!tieneDatos) return '';
 
     // Calcular % del ciclo
@@ -1026,13 +1052,13 @@
       html += '<div class="dlw-valor" style="color:' + ensoColor + '">' + esc(ensoFase) + '</div>';
       html += '<div class="dlw-meta">Condición climática de la campaña</div>';
     }
-    if (alertas.length > 0) {
+    if (alertasVisibles.length > 0) {
       html += '<div class="dlw-card-titulo" style="margin-top:' + (ensoFase ? '.75rem' : '0') + '">⚠ Alertas activas</div>';
-      alertas.slice(0, 3).forEach(function (a) {
+      alertasVisibles.slice(0, 3).forEach(function (a) {
         var txt = typeof a === 'string' ? a : (a.mensaje || a.texto || JSON.stringify(a));
         html += '<div class="dlw-alerta-item">' + esc(txt.substring(0, 80)) + '</div>';
       });
-      if (alertas.length > 3) html += '<div class="dlw-meta">' + (alertas.length - 3) + ' alertas más →</div>';
+      if (alertasVisibles.length > 3) html += '<div class="dlw-meta">' + (alertasVisibles.length - 3) + ' alertas más →</div>';
     } else if (!ensoFase) {
       html += '<div class="dlw-meta dlw-sin-datos">Sin datos de campaña todavía.<br>Completá la Planificación Fina primero.</div>';
     }
@@ -1170,12 +1196,13 @@
     var alertas = [];
     try { alertas = JSON.parse(ck['am_alertas_activas'] || '[]'); } catch(e) {}
     if (!Array.isArray(alertas)) alertas = [];
+    var alertasSanidad = alertas.filter(_alertaEsSanitaria);
 
     var climaHumedo = (clima.hr >= 85) || (clima.prob3 >= 60) || (clima.lluvia3 >= 5);
     var climaCalido = !isNaN(clima.temp) && clima.temp >= 18;
     var critica = _sanEtapaCritica(cultivo, etapa);
     var nivelPlagas = plagas.length >= 2 && climaCalido ? 'alto' : (plagas.length ? 'medio' : 'bajo');
-    var nivelEnf = alertas.length ? 'alto' : ((climaHumedo && critica) ? 'alto' : (climaHumedo || critica ? 'medio' : 'bajo'));
+    var nivelEnf = alertasSanidad.length ? 'alto' : ((climaHumedo && critica) ? 'alto' : (climaHumedo || critica ? 'medio' : 'bajo'));
     if (!cultivo || !fecha) nivelPlagas = nivelEnf = 'nd';
 
     var pCfg = _sanNivelCfg(nivelPlagas);
@@ -1209,8 +1236,8 @@
     html += '<div class="dlw-san-card dlw-san-' + eCfg.cls + '">';
     html +=   '<div class="dlw-san-card-top"><span class="dlw-san-ico">🦠</span><div><div class="dlw-san-title">Enfermedades</div><div class="dlw-san-risk" style="color:' + eCfg.color + '">' + eCfg.label + '</div></div></div>';
     html +=   '<div class="dlw-san-body">';
-    if (alertas.length) {
-      var alertaTxt = alertas[0] && (alertas[0].titulo || alertas[0].msg || alertas[0].mensaje || alertas[0]);
+    if (alertasSanidad.length) {
+      var alertaTxt = _alertaTexto(alertasSanidad[0]);
       html += '<div class="dlw-san-focus">Alerta activa: ' + esc(String(alertaTxt).substring(0, 72)) + '</div>';
     } else {
       html += '<div class="dlw-san-focus">Mirar: ' + esc(enfBase.slice(0, 3).join(' - ')) + '</div>';
