@@ -949,8 +949,10 @@
     try { alertas = JSON.parse(ck['am_alertas_activas'] || '[]'); } catch(e) {}
     if (!Array.isArray(alertas)) alertas = [];
 
+    var tieneCoords = !!_coordsFromLote(lote);
+
     // Verificar si hay datos suficientes para mostrar el panel
-    var tieneDatos = (aguaCC > 0) || ensoFase || alertas.length > 0;
+    var tieneDatos = tieneCoords || (aguaCC > 0) || ensoFase || alertas.length > 0;
     if (!tieneDatos) return '';
 
     // Calcular % del ciclo
@@ -963,10 +965,9 @@
       pctCiclo = Math.min(100, Math.round(diasTranscurridos / fenDurCiclo * 100));
     }
 
-    // Estado hídrico
+    // Último balance guardado (se reemplaza por el estado actual cuando responde Open-Meteo)
     var pctAgua   = aguaCC > 0 ? Math.min(100, Math.round(aguaMm / aguaCC * 100)) : -1;
     var colorAgua = pctAgua < 30 ? '#D4522A' : pctAgua < 55 ? '#C8A255' : '#6DBF82';
-    var labelAgua = pctAgua < 30 ? 'Déficit severo' : pctAgua < 55 ? 'Bajo estrés' : 'Bien hidratado';
 
     // ENSO
     var ensoColor = ensoFase.includes('Niño') ? '#E87A5A' : ensoFase.includes('Niña') ? '#7AAEF5' : '#C8A255';
@@ -995,17 +996,26 @@
       html += '</div>';
     }
 
-    // Balance hídrico
-    if (pctAgua >= 0) {
-      html += '<div class="dlw-card">';
-      html +=   '<div class="dlw-card-titulo">💧 Balance hídrico</div>';
-      html +=   '<div class="dlw-valor" style="color:' + colorAgua + '">' + labelAgua + '</div>';
+    // Estado actual: primero se identifica claramente el dato guardado y luego
+    // se reemplaza por el perfil actual de Open-Meteo + umbrales del lote.
+    if (tieneCoords || pctAgua >= 0) {
+      html += '<div class="dlw-card" id="dlw-hidrico-' + esc(lote.id) + '">';
+      html +=   '<div class="dlw-card-titulo">💧 Estado hídrico actual</div>';
+      if (pctAgua >= 0) {
+        html += '<div class="dlw-meta">Último balance guardado</div>';
+        html += '<div class="dlw-valor" style="color:' + colorAgua + '">' + aguaMm.toFixed(0) + ' mm · ' + pctAgua + '%</div>';
+      } else {
+        html += '<div class="dlw-valor" style="color:#C8A255">Consultando…</div>';
+      }
+      if (tieneCoords) html += '<div class="dlw-meta">Actualizando con Open-Meteo y los umbrales del lote…</div>';
+      if (!tieneCoords && pctAgua >= 0) {
       html +=   '<div class="dlw-barra-wrap">';
       html +=     '<div class="dlw-barra-label"><span>' + aguaMm.toFixed(0) + ' mm</span><span style="color:' + colorAgua + '">' + pctAgua + '%</span></div>';
       html +=     '<div class="dlw-barra"><div class="dlw-barra-fill" style="width:' + pctAgua + '%;background:' + colorAgua + '"></div></div>';
       html +=   '</div>';
       if (deficitAcum > 0) html += '<div class="dlw-meta">Déficit acumulado: ' + deficitAcum.toFixed(0) + ' mm</div>';
       if (diasEstres > 0)  html += '<div class="dlw-meta" style="color:#D4522A">⚠ ' + diasEstres + ' días de estrés hídrico</div>';
+      }
       html += '</div>';
     }
 
@@ -1031,6 +1041,40 @@
     html += '</div>'; // .dlw-grid
     html += '</div>'; // .dlw-panel
     return html;
+  }
+
+  function _actualizarWidgetHidricoActual(loteId, perfil) {
+    var el = document.getElementById('dlw-hidrico-' + loteId);
+    if (!el || !perfil || perfil.pct == null) return;
+    var pct = Math.max(0, Math.min(100, Math.round(perfil.pct)));
+    var pctCritico = Math.max(0, Math.min(100, Math.round(perfil.pctCritico)));
+    var bajoPmp = perfil.thetaVolumetrica <= perfil.pmp || pct <= 0;
+    var enEstres = !bajoPmp && pct < pctCritico;
+    var color = (bajoPmp || enEstres) ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
+    var estado = bajoPmp ? '≤ PMP estimado'
+      : enEstres ? 'Estrés hídrico'
+      : pct < 60 ? 'Reserva moderada'
+      : 'Bien hidratado';
+    var margen = pct - pctCritico;
+
+    var html = '<div class="dlw-card-titulo">💧 Estado hídrico actual · Open-Meteo</div>';
+    html += '<div class="dlw-valor" style="color:' + color + '">' + estado + '</div>';
+    html += '<div class="dlw-barra-wrap">';
+    html +=   '<div class="dlw-barra-label"><span>' + Math.round(perfil.aguaUtilMm) + ' mm útiles</span><span style="color:' + color + '">' + pct + '%</span></div>';
+    html +=   '<div class="dlw-barra"><div class="dlw-barra-fill" style="width:' + pct + '%;background:' + color + '"></div></div>';
+    html += '</div>';
+    html += '<div class="dlw-meta">θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · agua total modelada ' + Math.round(perfil.aguaTotalMm) + ' mm</div>';
+    if (bajoPmp) {
+      html += '<div class="dlw-meta" style="color:#D4522A">0 mm útiles sobre el PMP estimado; no significa 0 mm de agua total. Validar con calicata, sensor o laboratorio.</div>';
+    } else {
+      html += '<div class="dlw-meta">Inicio de estrés: ' + pctCritico + '% útil · ' +
+        (margen >= 0 ? margen + ' puntos por encima' : Math.abs(margen) + ' puntos por debajo') + '</div>';
+    }
+    html += '<div class="dlw-meta">Modelo Open-Meteo 3–81 cm · umbrales ' +
+      (perfil.fuenteUmbrales === 'laboratorio' ? 'de laboratorio' :
+       perfil.fuenteUmbrales && perfil.fuenteUmbrales.indexOf('soilgrids') === 0 ? 'SoilGrids + PTF' : 'estimados por tipo de suelo') +
+      '</div>';
+    el.innerHTML = html;
   }
 
   // ── Panel de contexto para Planificación Fina ─────────
@@ -1303,15 +1347,19 @@
     }
     var pct = Math.round(perfil.pct);
     var color = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
+    var bajoPmp = perfil.thetaVolumetrica <= perfil.pmp || pct <= 0;
+    var valorPct = bajoPmp ? '≤ PMP' : pct + '%';
+    var detalleAgua = bajoPmp
+      ? 'θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · 0 mm útiles estimados (no es 0 mm totales)'
+      : 'θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · ' + Math.round(perfil.aguaUtilMm) + ' mm útiles';
     var title = 'Open-Meteo ' + perfil.profundidadCm + ' cm · θ ' +
       (perfil.thetaVolumetrica * 100).toFixed(1) + '% vol · PMP ' +
       (perfil.pmp * 100).toFixed(0) + '% · estrés ' +
       (perfil.critica * 100).toFixed(0) + '% · CC ' + (perfil.cc * 100).toFixed(0) + '%';
     el.innerHTML = '<div class="dl-hidrico" title="' + esc(title) + '">' +
-      '<div class="dl-hidrico-top"><span>💧 Agua útil actual</span><strong style="color:' + color + '">' + pct + '%</strong></div>' +
+      '<div class="dl-hidrico-top"><span>💧 Agua útil actual</span><strong style="color:' + color + '">' + valorPct + '</strong></div>' +
       '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
-      '<div style="font-size:.62rem;color:rgba(237,224,196,.48);margin-top:.22rem">θ ' +
-      (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · ' + Math.round(perfil.aguaUtilMm) + ' mm útiles</div>' +
+      '<div style="font-size:.62rem;color:rgba(237,224,196,.48);margin-top:.22rem">' + detalleAgua + '</div>' +
       '</div>';
   }
 
@@ -1357,7 +1405,12 @@
       var ts  = parseInt((lote.data || {})['sg-ts'] || 0, 10);
       var age = Date.now() - ts;
       if (!ts || age > 90 * 24 * 3600 * 1000) {
-        window.sgAutoFetchLote(lote);
+        window.sgAutoFetchLote(lote).then(function() {
+          var coords = _coordsFromLote(lote);
+          if (!coords) return;
+          var cKey = coords.lat.toFixed(2) + ',' + coords.lng.toFixed(2);
+          if (_climaCache[cKey]) _renderHumedadInCard(lote, _climaCache[cKey]);
+        }).catch(function() {});
       }
     });
   }
@@ -1426,6 +1479,7 @@
     var loteHum = getLote(loteId);
     var et0Numero = day.et0_fao_evapotranspiration && day.et0_fao_evapotranspiration[0];
     var perfilHum = _soilProfileForLote(loteHum, cur, et0Numero);
+    _actualizarWidgetHidricoActual(loteId, perfilHum);
     var humSuelo = perfilHum && perfilHum.pct != null
       ? Math.round(perfilHum.pct) + '% útil'
       : (cur.soil_moisture_3_to_9cm != null ? (cur.soil_moisture_3_to_9cm * 100).toFixed(1) + '% vol' : '—');
@@ -1470,7 +1524,10 @@
         html +=   _hdKV('⚖️', 'Humedad gravimétrica' + (daEsLab ? '' : ' estim.'), (perfilHum.humedadGravimetrica*100).toFixed(1) + '% masa');
       }
       html +=     _hdKV('💧', 'Agua total', Math.round(perfilHum.aguaTotalMm) + ' mm');
-      html +=     _hdKV('🌱', 'Agua útil', Math.round(perfilHum.aguaUtilMm) + ' mm · ' + Math.round(perfilHum.pct) + '%');
+      var aguaUtilTexto = perfilHum.thetaVolumetrica <= perfilHum.pmp || perfilHum.pct <= 0
+        ? '0 mm sobre PMP estimado (≤ PMP)'
+        : Math.round(perfilHum.aguaUtilMm) + ' mm · ' + Math.round(perfilHum.pct) + '%';
+      html +=     _hdKV('🌱', 'Agua útil sobre PMP', aguaUtilTexto);
       html +=     _hdKV('📉', 'Agotamiento', Math.round(perfilHum.agotamientoMm) + ' mm');
       html +=     _hdKV('⚠️', 'Inicio de estrés', Math.round(perfilHum.pctCritico) + '% útil · θ ' + (perfilHum.critica*100).toFixed(1) + '%');
       html +=   '</div>';
