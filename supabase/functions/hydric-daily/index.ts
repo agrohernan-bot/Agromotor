@@ -21,6 +21,12 @@ function num(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null
 }
 
+function errorMessage(error: unknown) {
+  if (error instanceof Error) return error.message
+  try { return JSON.stringify(error) }
+  catch { return String(error) }
+}
+
 function coordinates(data: Json): { lat: number; lon: number } | null {
   const raw = data.coord
   if (typeof raw === 'string') {
@@ -105,7 +111,8 @@ function cropStage(data: Json, offsetDays = 0) {
     colza:{ini:.35,mid:1.10,end:.35},
   }
   const c = cfg[crop] || { ini:.30, mid:1.10, end:.40 }
-  const sowing = String(data.fechaSiembra || ck.am_siembra_fecha || '')
+  const sowing = String(data.fechaSiembraConf || data.fechaSiembraPlan ||
+    data.fechaSiembra || data.fecha || ck.am_siembra_fecha || '')
   const sowingMs = Date.parse(sowing + 'T12:00:00Z')
   const elapsed = Number.isFinite(sowingMs)
     ? Math.max(0, Math.round((Date.now()-sowingMs)/86400000)+offsetDays) : offsetDays
@@ -234,9 +241,15 @@ async function fetchOpenMeteo(lat: number, lon: number) {
     'et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum,temperature_2m_max,temperature_2m_min')
   url.searchParams.set('forecast_days', '16')
   url.searchParams.set('timezone', 'auto')
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`Open-Meteo ${response.status}`)
-  return await response.json() as Json
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const response = await fetch(url)
+    if (response.ok) return await response.json() as Json
+    if (response.status !== 429 || attempt === 2) {
+      throw new Error(`Open-Meteo ${response.status}`)
+    }
+    await new Promise(resolve => setTimeout(resolve, 800*(attempt+1)))
+  }
+  throw new Error('Open-Meteo sin respuesta')
 }
 
 Deno.serve(async (req) => {
@@ -369,12 +382,12 @@ Deno.serve(async (req) => {
         if (latestError) throw latestError
         processed++
       } catch (error) {
-        errors.push({ lote_id:String(row.lote_id), error:error instanceof Error ? error.message : String(error) })
+        errors.push({ lote_id:String(row.lote_id), error:errorMessage(error) })
       }
     }
 
-    for (let i = 0; i < lotes.length; i += 8) {
-      await Promise.all(lotes.slice(i, i+8).map(processLote))
+    for (let i = 0; i < lotes.length; i += 3) {
+      await Promise.all(lotes.slice(i, i+3).map(processLote))
     }
     await supabase.from('hydric_forecasts')
       .delete().lt('created_at', new Date(Date.now()-120*86400000).toISOString())
@@ -382,6 +395,6 @@ Deno.serve(async (req) => {
     return json({ success:true, processed, skipped, errors })
   } catch (error) {
     console.error('hydric-daily', error)
-    return json({ success:false, error:error instanceof Error ? error.message : String(error) }, 500)
+    return json({ success:false, error:errorMessage(error) }, 500)
   }
 })
