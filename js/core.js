@@ -351,13 +351,20 @@ function amSoilWaterOutlook(perfilInicial, dias, options) {
     else if (lluviaPuente.dia === diasSeca) puente = 'mismo-dia';
     else puente = 'despues';
   }
+  const candidatosOperativos = [diasPron, diasModelo].filter(function(v) {
+    return v != null && Number.isFinite(Number(v));
+  }).map(Number);
+  const diasOperativos = candidatosOperativos.length
+    ? Math.min.apply(null, candidatosOperativos) : null;
   return {
     horizonte,
     diasSinLluvia:diasSeca,
     diasConPronostico:diasPron,
     diasModelo,
+    diasOperativos,
     fechaEstresSinLluvia:diasSeca > 0 && serie[diasSeca-1] ? serie[diasSeca-1].fecha : '',
     fechaEstresPronostico:diasPron > 0 && serie[diasPron-1] ? serie[diasPron-1].fecha : '',
+    fechaEstresOperativo:diasOperativos > 0 && serie[diasOperativos-1] ? serie[diasOperativos-1].fecha : '',
     lluviaPuente,
     puente,
     confianza,

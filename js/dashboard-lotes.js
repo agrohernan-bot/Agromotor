@@ -1077,10 +1077,10 @@
 
   function _renderAutonomiaHidrica(outlook) {
     if (!outlook) return '';
-    var dias = outlook.diasSinLluvia;
+    var dias = outlook.diasOperativos;
     var conPron = outlook.diasConPronostico;
-    var valor = dias == null ? 'Más de ' + outlook.horizonte + ' días' : dias === 0 ? 'En umbral' : dias + ' días';
-    var hasta = outlook.fechaEstresSinLluvia ? ' · hasta ' + _fmtFechaAutonomia(outlook.fechaEstresSinLluvia) : '';
+    var valor = dias == null ? 'Más de ' + outlook.horizonte + ' días' : dias === 0 ? '0 días · umbral alcanzado' : dias + ' días';
+    var hasta = outlook.fechaEstresOperativo ? ' · hasta ' + _fmtFechaAutonomia(outlook.fechaEstresOperativo) : '';
     var color = dias === 0 ? '#D4522A' : dias != null && dias <= 3 ? '#D4522A' : dias != null && dias <= 7 ? '#C8A255' : '#6DBF82';
     var html = '<div style="margin-top:.7rem;padding-top:.65rem;border-top:1px solid rgba(237,224,196,.10)">';
     html += '<div class="dlw-card-titulo">⏳ Autonomía sin estrés</div>';
@@ -1099,9 +1099,13 @@
     } else {
       html += '<div class="dlw-meta">Sin recarga ≥3 mm con probabilidad alta dentro del horizonte.</div>';
     }
-    var conPronTxt = conPron == null ? 'más de ' + outlook.horizonte + ' días' : conPron === 0 ? 'en umbral' : conPron + ' días';
-    html += '<div class="dlw-meta">Con el pronóstico actual: ' + conPronTxt +
-      ' · confianza ' + outlook.confianza + '.</div>';
+    var fmtDias = function(v) {
+      return v == null ? '>' + outlook.horizonte + ' d' : v === 0 ? '0 d' : v + ' d';
+    };
+    html += '<div class="dlw-meta">Sin recarga: ' + fmtDias(outlook.diasSinLluvia) +
+      ' · balance con pronóstico: ' + fmtDias(conPron) +
+      ' · control Open-Meteo: ' + fmtDias(outlook.diasModelo) + '.</div>';
+    html += '<div class="dlw-meta">Confianza ' + outlook.confianza + ' · se usa el horizonte conservador.</div>';
     if (outlook.raizActualCm != null) {
       html += '<div class="dlw-meta">Raíz efectiva estimada: ' + Math.round(outlook.raizActualCm) +
         ' cm · Kc ' + Number(outlook.kcActual).toFixed(2) + '.</div>';

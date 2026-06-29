@@ -367,7 +367,7 @@
       : null;
     const margenSinEstres=perfilAgua?Math.max(0,perfilAgua.aguaUtilMm-perfilAgua.umbralUtilMm):auMm;
     const demandaDiaria=perfilAgua&&perfilAgua.etc>0?perfilAgua.etc:et0;
-    const diasR=outlookAgua?outlookAgua.diasSinLluvia:(demandaDiaria>0?Math.floor(margenSinEstres/demandaDiaria):null);
+    const diasR=outlookAgua?outlookAgua.diasOperativos:(demandaDiaria>0?Math.floor(margenSinEstres/demandaDiaria):null);
     const diasRNum=diasR==null?999:diasR;
     const diasRLabel=diasR==null?'>16':String(diasR);
 

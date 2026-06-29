@@ -137,6 +137,7 @@ test('autonomia usa inicio de estres y ETc del cultivo', () => {
 
   assert.equal(out.diasSinLluvia, 9);
   assert.equal(out.diasConPronostico, 9);
+  assert.equal(out.diasOperativos, 9);
   assert.equal(out.serie[0].etc, 2);
 });
 
@@ -166,6 +167,30 @@ test('lluvia probable anterior al umbral extiende la autonomia', () => {
   assert.ok(out.diasConPronostico == null || out.diasConPronostico > out.diasSinLluvia);
   assert.equal(out.lluviaPuente.dia, 3);
   assert.equal(out.puente, 'antes');
+});
+
+test('autonomia operativa toma el horizonte conservador si los modelos divergen', () => {
+  const ctx = loadCore();
+  const perfil = {
+    aguaUtilMm:30,
+    capacidadUtilMm:40,
+    umbralUtilMm:20,
+    pct:75,
+    estado:'disponible',
+  };
+  const dias = Array.from({length:12}, (_, i) => ({
+    fecha:`2026-07-${String(i+1).padStart(2, '0')}`,
+    et0:4,
+    kc:0.5,
+    precipitacion:0,
+    probabilidad:0,
+    modeloPerfil:{ pct:i >= 2 ? 20 : 70, pctCritico:33 },
+  }));
+  const out = ctx.amSoilWaterOutlook(perfil, dias, { cultivo:'trigo', horizonte:12 });
+
+  assert.equal(out.diasConPronostico, 9);
+  assert.equal(out.diasModelo, 3);
+  assert.equal(out.diasOperativos, 3);
 });
 
 test('etapa hidrica ajusta Kc y profundidad radicular con el avance', () => {
