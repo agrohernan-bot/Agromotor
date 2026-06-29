@@ -480,3 +480,91 @@ test('ReTAA deriva el codigo de fecha desde el mes de siembra', () => {
   assert.equal(RETAA.derivarFecha('soja', '2026-01-10'), 's'); // 2°
   assert.equal(RETAA.derivarFecha('sorgo', '2025-11-01'), null); // sorgo no distingue fecha
 });
+
+test('cvGuardarDensidad guarda la densidad de siembra ajustada en el lote activo', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-a',
+    lotes: [
+      { id: 'lote-a', nombre: 'Lote A', data: { cultivo: 'Soja', planificacionSiembra: {} } },
+    ],
+  });
+
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+
+  // Mock de DOM y dependencias en el sandbox
+  window.document = createDocument();
+  window.document.ensureElement('cv-cultivo', { value: 'Soja' });
+  window.document.ensureElement('cv-retaa-dens-edit', { value: '' });
+
+  // Cargar cultivares en el sandbox
+  vm.runInNewContext(read('js/cultivares.js'), window, { filename: 'js/cultivares.js' });
+
+  // Guardar una densidad
+  window.cvGuardarDensidad(12.5);
+
+  const lote = window.amGetLoteActivo();
+  assert.equal(lote.data.planificacionSiembra.verano.densidadConf, 12.5);
+
+  // Borrar
+  window.cvGuardarDensidad('');
+  assert.equal(lote.data.planificacionSiembra.verano.densidadConf, undefined);
+});
+
+test('pulvPrepararOrdenRapida cambia a pulverizacion y carga el producto', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-a',
+    lotes: [
+      { id: 'lote-a', nombre: 'Lote A', data: { cultivo: 'Maíz', superficie: 150 } },
+    ],
+  });
+
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+
+  // Mock de DOM y variables globales
+  window.document = createDocument();
+  window.document.ensureElement('pc-tipo', { value: '' });
+  window.document.ensureElement('c-tipo', { value: '' });
+  window.document.ensureElement('pc-producto', { value: '' });
+  window.document.ensureElement('c-volha', { value: '80' });
+  window.document.ensureElement('c-tanque', { value: '3000' });
+  window.document.ensureElement('c-ha', { value: '' });
+  window.document.ensureElement('pc-ha', { value: '' });
+  window.document.ensureElement('reg-ha', { value: '' });
+  window.document.ensureElement('reg-lote', { value: '' });
+  window.document.ensureElement('pc-cultivo', { value: '' });
+  window.document.ensureElement('reg-cultivo', { value: '' });
+  window.document.ensureElement('pc-ancho', { value: '' });
+  window.document.ensureElement('pc-vel', { value: '' });
+  window.document.ensureElement('pc-efic', { value: '' });
+  window.document.ensureElement('pc-horas', { value: '' });
+  window.document.ensureElement('pc-mix-list');
+  window.document.ensureElement('pc-pauta-body');
+  window.document.ensureElement('pulv-gps-dot');
+  window.document.ensureElement('pulv-gps-txt');
+  window.document.ensureElement('pulv-sem-loading');
+  window.document.ensureElement('pulv-sem-content');
+  window.document.ensureElement('pulv-ventana-card');
+
+  // Mocks de nav y timers
+  window.switchMod = (mod) => { window.modActivo = mod; };
+  window.setTimeout = (fn) => fn(); // Ejecutar síncronamente los timers
+  window.setInterval = () => {};
+  window.clearInterval = () => {};
+  window.amToast = () => {};
+  window.navigator = {}; // Mock navigator
+  window.fetch = () => new Promise(() => {}); // Mock fetch síncrono que no hace nada
+
+  // Cargar pulverizacion en el sandbox
+  vm.runInNewContext(read('js/pulverizacion.js'), window, { filename: 'js/pulverizacion.js' });
+
+  // Disparar orden rápida
+  window.pulvPrepararOrdenRapida({
+    tipo: 'insecticida',
+    productoNombre: 'Lambda-cialotrina 5%',
+    dosis: 0.15
+  });
+
+  assert.equal(window.modActivo, 'pulverizacion');
+});

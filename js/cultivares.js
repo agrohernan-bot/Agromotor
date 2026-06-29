@@ -362,7 +362,17 @@ function cvRenderReTAA(lat, lon, cultivo, fechaStr, ambiente) {
   cvSetTxt('cv-retaa-dens-unit', r.unidad);
 
   const edit = document.getElementById('cv-retaa-dens-edit');
-  if (edit && document.activeElement !== edit) edit.value = (r.densidad.ajustada != null ? r.densidad.ajustada : '');
+  if (edit && document.activeElement !== edit) {
+    const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    let valorPersistido = null;
+    if (lote && lote.data && typeof window.amGrupoPorCultivo === 'function') {
+      const grupo = window.amGrupoPorCultivo(cultivo);
+      if (grupo && lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) {
+        valorPersistido = lote.data.planificacionSiembra[grupo].densidadConf;
+      }
+    }
+    edit.value = (valorPersistido != null) ? valorPersistido : (r.densidad.ajustada != null ? r.densidad.ajustada : '');
+  }
 
   cvSetTxt('cv-retaa-nota', (r.esFallback ? '⚠️ Sin relevamiento específico para esta subregión: se muestra referencia nacional/núcleo. ' : '') + r.nota);
 
@@ -674,10 +684,46 @@ function dcSeleccionarCultivar(cultivar, empresa, especie) {
 //         empresas[], especies[], destacado, verified
 // ════════════════════════════════════════════════════════
 
+  function cvGuardarDensidad(val) {
+    const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    if (!lote) return;
+    const cultivo = document.getElementById('cv-cultivo')?.value || lote.data.cultivo || 'Soja';
+    const grupo = (typeof window.amGrupoPorCultivo === 'function') ? window.amGrupoPorCultivo(cultivo) : '';
+    if (!grupo) return;
+
+    lote.data = lote.data || {};
+    lote.data.planificacionSiembra = lote.data.planificacionSiembra || {};
+    lote.data.planificacionSiembra[grupo] = lote.data.planificacionSiembra[grupo] || {};
+
+    const num = parseFloat(val);
+    if (!isNaN(num) && num > 0) {
+      lote.data.planificacionSiembra[grupo].densidadConf = num;
+    } else {
+      delete lote.data.planificacionSiembra[grupo].densidadConf;
+    }
+
+    if (typeof window.amGuardarLotesEstado === 'function') {
+      window.amGuardarLotesEstado();
+    }
+
+    if (typeof window.svActualizar === 'function') {
+      try { window.svActualizar(); } catch (e) {}
+    }
+  }
+
+  // Escuchar cambios en el input
+  const editEl = document.getElementById('cv-retaa-dens-edit');
+  if (editEl) {
+    editEl.addEventListener('input', function() {
+      cvGuardarDensidad(this.value);
+    });
+  }
+
   // Exposición a global
   window.cvActualizar = cvActualizar;
   window.dcSeleccionarCultivar = dcSeleccionarCultivar;
   window.CV_DB = CV_DB;
   window.CV_ZONAS = CV_ZONAS;
+  window.cvGuardarDensidad = cvGuardarDensidad;
 
 })();

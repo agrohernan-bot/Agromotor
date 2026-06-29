@@ -655,7 +655,29 @@
         h+='<br><span class="as-feno-warn">⏱ Cultivo fuera de la ventana vulnerable - sin alarma ('+dis.vulnStages.join(', ')+')</span>';
       }
       h+='</div>';
-      h+='<div class="as-dc-rec">'+dis.rec+'</div></div>';
+      h+='<div class="as-dc-rec">'+dis.rec+'</div>';
+      if ((dis.riskClass === 'med' || dis.riskClass === 'high') && dis.inSeason && dis.inVuln) {
+        var prodSugerido = 'Azoxistrobin + Cipro';
+        var dosisSugerida = 0.3;
+        var enfClean = dis.name.toLowerCase();
+        if (enfClean.includes('roya')) {
+          prodSugerido = 'Tebuconazole 25%';
+          dosisSugerida = 0.75;
+        } else if (enfClean.includes('mancha') || enfClean.includes('septoria')) {
+          prodSugerido = 'Azoxistrobin + Cipro';
+          dosisSugerida = 0.3;
+        } else if (enfClean.includes('carbón') || enfClean.includes('carbon')) {
+          prodSugerido = 'Trifloxistrobin + Cip.';
+          dosisSugerida = 0.4;
+        }
+        h += '<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(0,0,0,.08);display:flex;justify-content:flex-end">' +
+             '<button type="button" onclick="if(typeof window.pulvPrepararOrdenRapida===\'function\') window.pulvPrepararOrdenRapida({tipo:\'fungicida\', productoNombre:\'' + prodSugerido + '\', dosis:' + dosisSugerida + '});" ' +
+             'style="background:linear-gradient(135deg,#2A6D4E,#1A4D2E);color:white;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.74rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem">' +
+             '💦 Receta de Pulverización' +
+             '</button>' +
+             '</div>';
+      }
+      h+='</div>';
     });
 
     // Heatmap

@@ -665,6 +665,27 @@ function renderMain(params) {
     html+='</div>';
     html+='<div class="pc-rec">'+pest.rec+'</div>';
     html+='<div class="orientativa-tag">⚠️ Estimación orientativa — validar con monitoreo</div>';
+    if ((pest.riskClass === 'med' || pest.riskClass === 'high') && pest.inSeason && pest.inVuln) {
+      var prodSugerido = 'Lambda-cialotrina 5%';
+      var dosisSugerida = 0.15;
+      var plagaClean = pest.name.toLowerCase();
+      if (plagaClean.includes('isoca') || plagaClean.includes('oruga') || plagaClean.includes('cogollero')) {
+        prodSugerido = 'Lambda-cialotrina 5%';
+        dosisSugerida = 0.2;
+      } else if (plagaClean.includes('chinche')) {
+        prodSugerido = 'Imidacloprid 35%';
+        dosisSugerida = 0.25;
+      } else if (plagaClean.includes('pulgón') || plagaClean.includes('pulgon')) {
+        prodSugerido = 'Imidacloprid 35%';
+        dosisSugerida = 0.2;
+      }
+      html += '<div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid rgba(0,0,0,.08);display:flex;justify-content:flex-end">' +
+              '<button type="button" onclick="if(typeof window.pulvPrepararOrdenRapida===\'function\') window.pulvPrepararOrdenRapida({tipo:\'insecticida\', productoNombre:\'' + prodSugerido + '\', dosis:' + dosisSugerida + '});" ' +
+              'style="background:linear-gradient(135deg,#2A6D4E,#1A4D2E);color:white;border:none;border-radius:8px;padding:.45rem .9rem;font-size:.74rem;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem">' +
+              '💦 Receta de Pulverización' +
+              '</button>' +
+              '</div>';
+    }
     html+='</div>';
   });
 

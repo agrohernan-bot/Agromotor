@@ -4832,6 +4832,85 @@ window.pulvPrepararAutoLote = () => pulvPrepararAutoLote();
 if(typeof renderHRAC === 'function') window.pulvRenderHRAC      = () => renderHRAC();
 window.pulvFiltrarHRAC = () => filtrarHRAC();
 window.pulvAbrirHRACModal = (id) => abrirHRACModal(id);
+window.pulvPrepararOrdenRapida = function(opts) {
+  if (!opts) return;
+
+  // 1. Cambiar al módulo de pulverización
+  if (typeof window.switchMod === 'function') {
+    window.switchMod('pulverizacion');
+  }
+
+  // 2. Ejecutar la inicialización tras un breve delay
+  setTimeout(function() {
+    if (typeof pulvPrepararAutoLote === 'function') {
+      pulvPrepararAutoLote();
+    }
+
+    // 3. Forzar el select tipo
+    if (opts.tipo) {
+      var selectTipo = document.getElementById('pc-tipo') || document.getElementById('c-tipo');
+      if (selectTipo) {
+        selectTipo.value = opts.tipo;
+        if (typeof actualizarProductos === 'function') {
+          actualizarProductos();
+        }
+      }
+    }
+
+    // 4. Limpiar mezcla previa y agregar el nuevo producto
+    caldoMezclaSeleccionada = [];
+
+    if (opts.productoNombre) {
+      var dbProd = null;
+      var cat = PRODUCTOS[opts.tipo];
+      var idx = -1;
+      if (cat) {
+        idx = cat.findIndex(function(p) {
+          return p.nombre.toLowerCase().includes(opts.productoNombre.toLowerCase()) || 
+                 opts.productoNombre.toLowerCase().includes(p.nombre.toLowerCase());
+        });
+        if (idx >= 0) dbProd = cat[idx];
+      }
+
+      var prodObj = {
+        key: dbProd ? (opts.tipo + '_' + idx) : ('propio_manual_' + Date.now()),
+        nombre: dbProd ? dbProd.nombre : opts.productoNombre,
+        dosis: opts.dosis || (dbProd ? dbProd.dosis : 1.0),
+        unidad: opts.unidad || (dbProd ? dbProd.unidad : 'L/ha'),
+        tipo: opts.tipo || 'insecticida',
+        formulacion: dbProd ? (dbProd.formulacion || dbProd.mezcla || 'EC') : (opts.formulacion || 'EC'),
+        sigla: dbProd ? (dbProd.sigla || dbProd.mezcla || 'EC') : (opts.sigla || 'EC'),
+        grupo: dbProd ? (dbProd.grupo || '') : (opts.grupo || '')
+      };
+
+      var prodNorm = pulvNormalizarProductoCaldo(prodObj);
+      if (!caldoMezclaSeleccionada.some(function(p) { return p.key === prodNorm.key; })) {
+        caldoMezclaSeleccionada.push(prodNorm);
+      }
+    }
+
+    // 5. Refrescar UI y cálculos
+    if (typeof pulvRenderMezclaCaldo === 'function') {
+      pulvRenderMezclaCaldo();
+    }
+    if (typeof calcCaldo === 'function') {
+      calcCaldo();
+    }
+
+    // 6. Activar la pestaña del caldo/mezcla si no está visible
+    var btnCaldo = document.querySelector('button[onclick*="pulvTab(\'caldo\'"]');
+    if (btnCaldo && typeof window.pulvTab === 'function') {
+      window.pulvTab('caldo', btnCaldo);
+    } else if (typeof window.pulvTab === 'function') {
+      window.pulvTab('caldo');
+    }
+
+    if (typeof window.amToast === 'function') {
+      window.amToast('Mezcla sugerida cargada: ' + (opts.productoNombre || 'fitosanitario'), 'ok');
+    }
+  }, 350);
+};
+
 window.pulvInitGPS = () => initGPS();
 window.pulvEnviarMensaje = () => enviarMensaje();
 
