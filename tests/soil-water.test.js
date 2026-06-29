@@ -116,3 +116,65 @@ test('pondera propiedades SoilGrids por profundidad', () => {
   assert.equal(Number(capa.sand.toFixed(2)), 43.33);
   assert.equal(Number(capa.da.toFixed(3)), 1.267);
 });
+
+test('autonomia usa inicio de estres y ETc del cultivo', () => {
+  const ctx = loadCore();
+  const perfil = {
+    aguaUtilMm:30,
+    capacidadUtilMm:40,
+    umbralUtilMm:20,
+    pct:75,
+    estado:'disponible',
+  };
+  const dias = Array.from({length:12}, (_, i) => ({
+    fecha:`2026-07-${String(i+1).padStart(2, '0')}`,
+    et0:4,
+    kc:0.5,
+    precipitacion:0,
+    probabilidad:0,
+  }));
+  const out = ctx.amSoilWaterOutlook(perfil, dias, { cultivo:'trigo', horizonte:12 });
+
+  assert.equal(out.diasSinLluvia, 9);
+  assert.equal(out.diasConPronostico, 9);
+  assert.equal(out.serie[0].etc, 2);
+});
+
+test('lluvia probable anterior al umbral extiende la autonomia', () => {
+  const ctx = loadCore();
+  const perfil = {
+    aguaUtilMm:30,
+    capacidadUtilMm:40,
+    umbralUtilMm:20,
+    pct:75,
+    estado:'disponible',
+  };
+  const dias = Array.from({length:16}, (_, i) => ({
+    fecha:`2026-07-${String(i+1).padStart(2, '0')}`,
+    et0:4,
+    kc:0.5,
+    precipitacion:i === 2 ? 20 : 0,
+    probabilidad:i === 2 ? 80 : 0,
+  }));
+  const out = ctx.amSoilWaterOutlook(perfil, dias, {
+    cultivo:'trigo',
+    horizonte:16,
+    factorInfiltracion:0.8,
+  });
+
+  assert.equal(out.diasSinLluvia, 9);
+  assert.ok(out.diasConPronostico == null || out.diasConPronostico > out.diasSinLluvia);
+  assert.equal(out.lluviaPuente.dia, 3);
+  assert.equal(out.puente, 'antes');
+});
+
+test('etapa hidrica ajusta Kc y profundidad radicular con el avance', () => {
+  const ctx = loadCore();
+  const inicial = ctx.amCropWaterStage('trigo', 5, 190);
+  const macollaje = ctx.amCropWaterStage('trigo', 45, 190);
+  const llenado = ctx.amCropWaterStage('trigo', 120, 190);
+
+  assert.ok(macollaje.raizCm > inicial.raizCm);
+  assert.ok(macollaje.kc > inicial.kc);
+  assert.ok(llenado.raizCm >= macollaje.raizCm);
+});

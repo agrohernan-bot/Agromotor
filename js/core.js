@@ -223,6 +223,148 @@ function amSoilWaterProfile(layers, suelo, sg, options) {
   };
 }
 
+// ── PROYECCIÓN HÍDRICA ──
+function amCropWaterStage(cultivo, diasDesdeSiembra, duracionCiclo) {
+  const key = String(cultivo || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const cfg = {
+    soja:     { kcIni:0.30, kcMid:1.15, kcEnd:0.35, raizIni:15, raizMax:81 },
+    maiz:     { kcIni:0.30, kcMid:1.20, kcEnd:0.40, raizIni:20, raizMax:81 },
+    trigo:    { kcIni:0.30, kcMid:1.15, kcEnd:0.30, raizIni:15, raizMax:81 },
+    cebada:   { kcIni:0.30, kcMid:1.10, kcEnd:0.30, raizIni:15, raizMax:81 },
+    girasol:  { kcIni:0.35, kcMid:1.15, kcEnd:0.45, raizIni:20, raizMax:81 },
+    sorgo:    { kcIni:0.30, kcMid:1.10, kcEnd:0.40, raizIni:20, raizMax:81 },
+    colza:    { kcIni:0.35, kcMid:1.10, kcEnd:0.35, raizIni:15, raizMax:81 },
+    canola:   { kcIni:0.35, kcMid:1.10, kcEnd:0.35, raizIni:15, raizMax:81 },
+  }[key] || { kcIni:0.30, kcMid:1.10, kcEnd:0.40, raizIni:20, raizMax:81 };
+  const dias = Math.max(0, Number(diasDesdeSiembra) || 0);
+  const ciclo = Math.max(30, Number(duracionCiclo) || 150);
+  const avance = Math.max(0, Math.min(1, dias/ciclo));
+  let kc;
+  if (avance <= 0.15) kc = cfg.kcIni;
+  else if (avance < 0.40) kc = cfg.kcIni + (cfg.kcMid-cfg.kcIni)*((avance-0.15)/0.25);
+  else if (avance <= 0.75) kc = cfg.kcMid;
+  else kc = cfg.kcMid + (cfg.kcEnd-cfg.kcMid)*((avance-0.75)/0.25);
+  const raizAvance = Math.min(1, avance/0.45);
+  const raizCm = cfg.raizIni + (cfg.raizMax-cfg.raizIni)*raizAvance;
+  return {
+    avance,
+    kc:Math.max(0.15, Math.min(1.30, kc)),
+    raizCm:Math.max(cfg.raizIni, Math.min(81, raizCm)),
+  };
+}
+
+function amRainInfiltrationFactor(sg, humedadPct) {
+  const sand = Number(sg && sg.sand);
+  const clay = Number(sg && sg.clay);
+  let factor = 0.78;
+  if (Number.isFinite(sand) && sand >= 65) factor = 0.88;
+  else if (Number.isFinite(clay) && clay >= 40) factor = 0.66;
+  else if (Number.isFinite(clay) && clay >= 30) factor = 0.72;
+  const pct = Number(humedadPct);
+  if (Number.isFinite(pct) && pct >= 90) factor -= 0.20;
+  else if (Number.isFinite(pct) && pct >= 75) factor -= 0.10;
+  return Math.max(0.45, Math.min(0.90, factor));
+}
+
+function amSoilWaterOutlook(perfilInicial, dias, options) {
+  if (!perfilInicial || !Number.isFinite(Number(perfilInicial.aguaUtilMm)) ||
+      !Number.isFinite(Number(perfilInicial.capacidadUtilMm))) return null;
+  const opts = options || {};
+  const horizonte = Math.max(1, Math.min(16, Number(opts.horizonte) || 16));
+  const lista = (dias || []).slice(0, horizonte);
+  let aguaSeca = Math.max(0, Number(perfilInicial.aguaUtilMm));
+  let aguaPron = aguaSeca;
+  let capacidad = Math.max(0, Number(perfilInicial.capacidadUtilMm));
+  let diasSeca = aguaSeca <= Number(perfilInicial.umbralUtilMm) ? 0 : null;
+  let diasPron = diasSeca;
+  let diasModelo = perfilInicial.estado === 'estres' || perfilInicial.estado === 'pmp' ? 0 : null;
+  let lluviaPuente = null;
+  const serie = [];
+  const factorBase = Number.isFinite(Number(opts.factorInfiltracion))
+    ? Number(opts.factorInfiltracion)
+    : amRainInfiltrationFactor(opts.sg, perfilInicial.pct);
+
+  lista.forEach(function(d, idx) {
+    const capDia = Number(d && d.capacidadUtilMm);
+    const gananciaRaiz = Math.max(0, Number(d && d.gananciaRaizMm) || 0);
+    if (Number.isFinite(capDia) && capDia > capacidad) capacidad = capDia;
+    aguaSeca = Math.min(capacidad, aguaSeca + gananciaRaiz);
+    aguaPron = Math.min(capacidad, aguaPron + gananciaRaiz);
+
+    const et0 = Math.max(0, Number(d && d.et0) || 0);
+    const kc = Math.max(0.15, Math.min(1.30, Number(d && d.kc) || Number(opts.kc) || 1));
+    const etc = et0*kc;
+    const lluvia = Math.max(0, Number(d && d.precipitacion) || 0);
+    const prob = Math.max(0, Math.min(100, Number(d && d.probabilidad) || 0));
+    const factorHum = amRainInfiltrationFactor(opts.sg, capacidad > 0 ? aguaPron/capacidad*100 : null);
+    const factorInf = Math.min(factorBase, factorHum);
+    const lluviaEfectiva = lluvia*factorInf*(prob/100);
+
+    aguaSeca = Math.max(0, aguaSeca-etc);
+    aguaPron = Math.max(0, Math.min(capacidad, aguaPron+lluviaEfectiva-etc));
+    const dep = amSoilWaterDepletion(opts.cultivo, et0, kc, opts.sg);
+    const umbral = capacidad*(1-dep.p);
+    const modelo = d && d.modeloPerfil;
+    const modeloPct = modelo && Number.isFinite(Number(modelo.pct)) ? Number(modelo.pct) : null;
+    const modeloUmbral = modelo && Number.isFinite(Number(modelo.pctCritico))
+      ? Number(modelo.pctCritico) : (1-dep.p)*100;
+
+    if (diasSeca == null && aguaSeca <= umbral) diasSeca = idx+1;
+    if (diasPron == null && aguaPron <= umbral) diasPron = idx+1;
+    if (diasModelo == null && modeloPct != null && modeloPct <= modeloUmbral) diasModelo = idx+1;
+    if (!lluviaPuente && lluvia >= 3 && prob >= 50) {
+      lluviaPuente = {
+        dia:idx+1,
+        fecha:d && d.fecha || '',
+        precipitacion:lluvia,
+        probabilidad:prob,
+        efectiva:lluviaEfectiva,
+      };
+    }
+    serie.push({
+      dia:idx+1,
+      fecha:d && d.fecha || '',
+      et0, kc, etc, precipitacion:lluvia, probabilidad:prob, lluviaEfectiva,
+      aguaSinLluviaMm:aguaSeca, aguaPronosticoMm:aguaPron,
+      capacidadUtilMm:capacidad, umbralUtilMm:umbral,
+      pctPronostico:capacidad > 0 ? aguaPron/capacidad*100 : null,
+      pctModelo:modeloPct,
+      estresSinLluvia:aguaSeca <= umbral,
+      estresPronostico:aguaPron <= umbral,
+      estresModelo:modeloPct != null ? modeloPct <= modeloUmbral : null,
+    });
+  });
+
+  let confianza = 'moderada';
+  if (diasModelo != null && diasPron != null) {
+    const dif = Math.abs(diasModelo-diasPron);
+    confianza = dif <= 2 ? 'alta' : dif <= 4 ? 'moderada' : 'baja';
+  } else if (diasModelo == null && diasPron == null && lista.length >= horizonte) {
+    confianza = 'alta';
+  } else if (diasModelo != null || diasPron != null) {
+    confianza = 'baja';
+  }
+  let puente = 'sin-recarga';
+  if (lluviaPuente) {
+    if (diasSeca == null || lluviaPuente.dia < diasSeca) puente = 'antes';
+    else if (lluviaPuente.dia === diasSeca) puente = 'mismo-dia';
+    else puente = 'despues';
+  }
+  return {
+    horizonte,
+    diasSinLluvia:diasSeca,
+    diasConPronostico:diasPron,
+    diasModelo,
+    fechaEstresSinLluvia:diasSeca > 0 && serie[diasSeca-1] ? serie[diasSeca-1].fecha : '',
+    fechaEstresPronostico:diasPron > 0 && serie[diasPron-1] ? serie[diasPron-1].fecha : '',
+    lluviaPuente,
+    puente,
+    confianza,
+    serie,
+  };
+}
+
 // ── COORDS ──
 const SPOLY={
   Molisol:[[-68,-25],[-65,-27],[-62,-30],[-59,-33],[-57,-36],[-59,-39],[-62,-40],[-65,-38],[-67,-35],[-68,-30]],
@@ -349,11 +491,17 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amSoilWaterDepletion = amSoilWaterDepletion;
   window.amSoilAtDepth = amSoilAtDepth;
   window.amSoilWaterProfile = amSoilWaterProfile;
+  window.amCropWaterStage = amCropWaterStage;
+  window.amRainInfiltrationFactor = amRainInfiltrationFactor;
+  window.amSoilWaterOutlook = amSoilWaterOutlook;
   window.AM.soilWater = {
     thresholds: amSoilWaterThresholds,
     depletion: amSoilWaterDepletion,
     soilAtDepth: amSoilAtDepth,
-    profile: amSoilWaterProfile
+    profile: amSoilWaterProfile,
+    cropStage: amCropWaterStage,
+    infiltration: amRainInfiltrationFactor,
+    outlook: amSoilWaterOutlook
   };
   window.DB = DB;
   window.SPOLY = SPOLY;

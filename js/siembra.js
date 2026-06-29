@@ -345,7 +345,31 @@
       localStorage.setItem('am_lote_awc_mm', String(Math.round(awcMm)));
       localStorage.setItem('am_fen_agua_perfil', String(Math.round(auMm)));
     } catch (_) {}
-    const diasR=et0>0?Math.round(auMm/et0):999;
+    const fechaDiag=gv('s-fecha');
+    const diasPron=(window._siembraDias||[]).filter(d=>!fechaDiag||d.fecha>=fechaDiag).slice(0,16);
+    const outlookAgua=(perfilAgua&&diasPron.length&&typeof window.amSoilWaterOutlook==='function')
+      ? window.amSoilWaterOutlook(perfilAgua,diasPron.map((d,idx)=>{
+          const etapa=typeof window.amCropWaterStage==='function'
+            ? window.amCropWaterStage(cult,idx,150) : {kc:0.4};
+          const modelo=(d.sm39!=null&&d.sm927!=null&&d.sm2781!=null)
+            ? window.amSoilWaterProfile([
+                {theta:d.sm39,depthCm:6,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,3,9):sueloEfectivo},
+                {theta:d.sm927,depthCm:18,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,9,27):sueloEfectivo},
+                {theta:d.sm2781,depthCm:54,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,27,81):sueloEfectivo}
+              ],suelo,sueloEfectivo,{cultivo:cult,et0:d.et0d,kc:etapa.kc})
+            : null;
+          return{
+            fecha:d.fecha,et0:d.et0d,kc:etapa.kc,
+            precipitacion:d.precS,probabilidad:d.precP,modeloPerfil:modelo,
+            capacidadUtilMm:modelo?modelo.capacidadUtilMm:null
+          };
+        }),{cultivo:cult,sg:sueloEfectivo,horizonte:Math.min(16,diasPron.length||16)})
+      : null;
+    const margenSinEstres=perfilAgua?Math.max(0,perfilAgua.aguaUtilMm-perfilAgua.umbralUtilMm):auMm;
+    const demandaDiaria=perfilAgua&&perfilAgua.etc>0?perfilAgua.etc:et0;
+    const diasR=outlookAgua?outlookAgua.diasSinLluvia:(demandaDiaria>0?Math.floor(margenSinEstres/demandaDiaria):null);
+    const diasRNum=diasR==null?999:diasR;
+    const diasRLabel=diasR==null?'>16':String(diasR);
 
     // Scores
     // HUMEDAD
@@ -365,9 +389,13 @@
 
     // RESERVA HÍDRICA (ET₀)
     let sE,eE,mE;
-    if(diasR>=14){sE=100;eE='v';mE=`Reserva hídrica sólida: ${auMm.toFixed(0)} mm agua útil en el perfil → ${diasR} días antes de marchitez permanente.`}
-    else if(diasR>=7){sE=70;eE='a';mE=`Reserva moderada: ${auMm.toFixed(0)} mm → ${diasR} días de reserva a ET₀ ${et0} mm/d. Monitorear lluvia.`}
-    else{sE=25;eE='r';mE=`Reserva crítica: ${auMm.toFixed(0)} mm → solo ${diasR} días a ET₀ ${et0} mm/d. Riesgo de estrés hídrico severo.`}
+    if(diasRNum>=14){sE=100;eE='v';mE=`Reserva hídrica sólida: ${auMm.toFixed(0)} mm útiles → ${diasRLabel} días sin alcanzar el umbral de estrés.`}
+    else if(diasRNum>=7){sE=70;eE='a';mE=`Reserva moderada: ${auMm.toFixed(0)} mm útiles → ${diasRLabel} días sin estrés con la demanda prevista del cultivo.`}
+    else{sE=25;eE='r';mE=`Reserva crítica: ${auMm.toFixed(0)} mm útiles → ${diasRLabel} días hasta el umbral de estrés.`}
+    if(outlookAgua&&outlookAgua.lluviaPuente){
+      const lp=outlookAgua.lluviaPuente;
+      mE+=` Lluvia probable: ${lp.precipitacion.toFixed(0)} mm (${lp.probabilidad.toFixed(0)}%) ${outlookAgua.puente==='antes'?'antes':'después'} del umbral.`;
+    }
 
     // VPD
     let sV,eV,mV;
@@ -462,7 +490,7 @@
 
     $('s-kpis').innerHTML=`
       <div class="kc ${sg<50?'danger':sg<75?'warn':''}"><div class="kl">Score global</div><div class="kv">${sg}</div><div class="ku">/ 100</div></div>
-      <div class="kc ${eE==='r'?'danger':eE==='a'?'warn':''}"><div class="kl">Días reserva</div><div class="kv">${diasR>99?'∞':diasR}</div><div class="ku">ET₀ ${et0} mm/d</div></div>
+      <div class="kc ${eE==='r'?'danger':eE==='a'?'warn':''}"><div class="kl">Autonomía sin estrés</div><div class="kv">${diasRLabel}</div><div class="ku">días · ETc + pronóstico</div></div>
       <div class="kc ${eV==='r'?'danger':eV==='a'?'warn':''}"><div class="kl">VPD</div><div class="kv">${vpd.toFixed(1)}</div><div class="ku">kPa</div></div>
       <div class="kc ${eW==='r'?'danger':eW==='a'?'warn':''}"><div class="kl">Viento</div><div class="kv">${viento}</div><div class="ku">km/h</div></div>
       <div class="kc neutral"><div class="kl">Agua útil</div><div class="kv">${auMm.toFixed(0)}</div><div class="ku">mm perfil</div></div>
@@ -473,7 +501,7 @@
     const inds=[
       {l:'Humedad zona activa (3-9 cm)',s:sH,e:eH,v:`${h1}%`,r:`${hRef.n}-${hRef.x}%`},
       {l:'Temperatura suelo (6 cm)',s:sT,e:eT,v:`${tEf.toFixed(1)}°C`,r:`≥${tMin}°C`},
-      {l:'Reserva hídrica / ET₀',s:sE,e:eE,v:`${diasR>99?'∞':diasR} días`,r:`ET₀ ${et0} mm/d`},
+      {l:'Autonomía hídrica',s:sE,e:eE,v:`${diasRLabel} días`,r:'hasta inicio de estrés'},
       {l:'VPD atmosférico',s:sV,e:eV,v:`${vpd.toFixed(2)} kPa`,r:'0.4–1.6 kPa'},
       {l:'Compactación',s:sC,e:eC,v:`${comp} MPa`,r:'<2.0 MPa'},
       {l:'Viento operativo',s:sW,e:eW,v:`${viento} km/h`,r:'<20 km/h'},
@@ -501,7 +529,7 @@
         loteId: _ltR ? _ltR.id : null,
         score: sg, label: dec,
         humedad: h1, vpd, viento,
-        diasReserva: diasR > 99 ? null : diasR,
+        diasReserva: diasR,
         fechaDiag: gv('s-fecha'),
         ts: Date.now(),
       };
