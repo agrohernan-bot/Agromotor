@@ -1091,7 +1091,7 @@
     html += '</div>';
     html += '<div class="dlw-meta">θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · agua total modelada ' + Math.round(perfil.aguaTotalMm) + ' mm</div>';
     if (bajoPmp) {
-      html += '<div class="dlw-meta" style="color:#D4522A">0 mm útiles sobre el PMP estimado; no significa 0 mm de agua total. Validar con calicata, sensor o laboratorio.</div>';
+      html += '<div class="dlw-meta" style="color:#D4522A">0 mm útiles sobre el PMP estimado; no significa 0 mm de agua total.</div>';
     } else {
       html += '<div class="dlw-meta">Inicio de estrés: ' + pctCritico + '% útil · ' +
         (margen >= 0 ? margen + ' puntos por encima' : Math.abs(margen) + ' puntos por debajo') + '</div>';
