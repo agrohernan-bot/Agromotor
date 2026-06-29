@@ -342,8 +342,28 @@ function _activarModulo(mod) {
     var h1 = parseFloat((document.getElementById('s-h1') || {}).value) || 0;
     var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
     var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
-    if (h1 > 0 && document.getElementById('bh-agua-perfil'))
-      document.getElementById('bh-agua-perfil').value = Math.max(20, Math.min(350, Math.round((h1*0.06+h2*0.18+h3*0.54)*10*2)));
+    if (h1 > 0 && document.getElementById('bh-agua-perfil')) {
+      var sgBh = Object.assign({}, window._sgDatos || {});
+      var labBh = window._labDatos || {};
+      if (labBh.da != null) sgBh.da = labBh.da;
+      if (labBh.cc != null) sgBh.cc = labBh.cc;
+      if (labBh.pmp != null) sgBh.pmp = labBh.pmp;
+      if (labBh.retencionBase) sgBh.retencionBase = labBh.retencionBase;
+      var cultBh = (document.getElementById('s-cultivo') || {}).value || '';
+      var et0Bh = parseFloat((document.getElementById('s-et0') || {}).value);
+      var perfilBh = typeof window.amSoilWaterProfile === 'function'
+        ? window.amSoilWaterProfile([
+            {theta:h1,depthCm:6,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgBh,3,9):sgBh},
+            {theta:h2,depthCm:18,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgBh,9,27):sgBh},
+            {theta:h3,depthCm:54,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgBh,27,81):sgBh}
+          ], ss ? ss.value : 'Molisol', sgBh, {cultivo:cultBh, et0:et0Bh, kc:0.4})
+        : null;
+      if (perfilBh) {
+        document.getElementById('bh-agua-perfil').value = Math.round(perfilBh.aguaUtilMm);
+        var capBh = document.getElementById('bh-cap-max');
+        if (capBh) capBh.value = Math.round(perfilBh.capacidadUtilMm);
+      }
+    }
     // Si no hay datos de suelo, usar agua calculada por fenología si está disponible
     if (h1 <= 0) {
       var fenAgua = localStorage.getItem('am_fen_agua_perfil');

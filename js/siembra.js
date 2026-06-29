@@ -318,10 +318,33 @@
     if(!hRef||!prof||!sRef)return;
 
     const tEf=rast?t6-1.5:t6;
-    const{cc,pm,da}=sRef;
+    const{cc,pm}=sRef;
 
-    // Agua útil total en perfil 80 cm (mm)
-    const auMm=(Math.max(0,h1-pm)*6+Math.max(0,h2-pm)*18+Math.max(0,h3-pm)*56)*da/100;
+    // Agua útil total: θ volumétrica × espesor. La densidad aparente no
+    // interviene porque Open-Meteo ya entrega m³ de agua por m³ de suelo.
+    const sueloEfectivo = Object.assign({}, window._sgDatos || {});
+    const labHidrico = window._labDatos || {};
+    if (labHidrico.da != null) sueloEfectivo.da = labHidrico.da;
+    if (labHidrico.cc != null) sueloEfectivo.cc = labHidrico.cc;
+    if (labHidrico.pmp != null) sueloEfectivo.pmp = labHidrico.pmp;
+    if (labHidrico.retencionBase) sueloEfectivo.retencionBase = labHidrico.retencionBase;
+    const perfilAgua = typeof window.amSoilWaterProfile === 'function'
+      ? window.amSoilWaterProfile([
+          {theta:h1,depthCm:6,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,3,9):sueloEfectivo},
+          {theta:h2,depthCm:18,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,9,27):sueloEfectivo},
+          {theta:h3,depthCm:54,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sueloEfectivo,27,81):sueloEfectivo}
+        ], suelo, sueloEfectivo, {cultivo:cult, et0:et0, kc:0.4})
+      : null;
+    const auMm = perfilAgua
+      ? perfilAgua.aguaUtilMm
+      : (Math.max(0,h1-pm)*6 + Math.max(0,h2-pm)*18 + Math.max(0,h3-pm)*54) / 10;
+    const awcMm = perfilAgua
+      ? perfilAgua.capacidadUtilMm
+      : ((cc-pm)*78/10);
+    try {
+      localStorage.setItem('am_lote_awc_mm', String(Math.round(awcMm)));
+      localStorage.setItem('am_fen_agua_perfil', String(Math.round(auMm)));
+    } catch (_) {}
     const diasR=et0>0?Math.round(auMm/et0):999;
 
     // Scores
@@ -443,6 +466,8 @@
       <div class="kc ${eV==='r'?'danger':eV==='a'?'warn':''}"><div class="kl">VPD</div><div class="kv">${vpd.toFixed(1)}</div><div class="ku">kPa</div></div>
       <div class="kc ${eW==='r'?'danger':eW==='a'?'warn':''}"><div class="kl">Viento</div><div class="kv">${viento}</div><div class="ku">km/h</div></div>
       <div class="kc neutral"><div class="kl">Agua útil</div><div class="kv">${auMm.toFixed(0)}</div><div class="ku">mm perfil</div></div>
+      ${perfilAgua?`<div class="kc neutral"><div class="kl">Humedad volumétrica</div><div class="kv">${(perfilAgua.thetaVolumetrica*100).toFixed(1)}</div><div class="ku">% vol · Open-Meteo</div></div>`:''}
+      ${perfilAgua?`<div class="kc ${perfilAgua.estado==='estres'||perfilAgua.estado==='pmp'?'warn':'neutral'}"><div class="kl">Disponibilidad útil</div><div class="kv">${perfilAgua.pct.toFixed(0)}</div><div class="ku">% · estrés &lt;${perfilAgua.pctCritico.toFixed(0)}%</div></div>`:''}
       <div class="kc blue"><div class="kl">Prof. rec.</div><div class="kv">${prof[1]}</div><div class="ku">cm</div></div>`;
 
     const inds=[

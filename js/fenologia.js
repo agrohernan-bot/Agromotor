@@ -724,10 +724,14 @@ async function omHumedadSuelo(lat, lon, fechaInicio, fechaFin) {
   const limiteArch = _addDays(hoy, -OPENMETEO_ARCHIVE_LAG_DIAS);
   const baseUrl    = fechaFin < limiteArch ? OPENMETEO_ARCHIVE_BASE : OPENMETEO_FORECAST_BASE;
 
+  const esArchivo = fechaFin < limiteArch;
+  const variables = esArchivo
+    ? "soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm"
+    : "soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm";
   const params = new URLSearchParams({
     latitude:   String(lat),
     longitude:  String(lon),
-    hourly:     "soil_moisture_0_to_7cm,soil_moisture_7_to_28cm,soil_moisture_28_to_100cm",
+    hourly:     variables,
     timezone:   "America/Argentina/Buenos_Aires",
     start_date: _formatISO(fechaInicio),
     end_date:   _formatISO(fechaFin),
@@ -738,9 +742,15 @@ async function omHumedadSuelo(lat, lon, fechaInicio, fechaFin) {
 
   const json  = await resp.json();
   const times = json.hourly?.time ?? [];
-  const sm0   = json.hourly?.soil_moisture_0_to_7cm    ?? [];
-  const sm1   = json.hourly?.soil_moisture_7_to_28cm   ?? [];
-  const sm2   = json.hourly?.soil_moisture_28_to_100cm ?? [];
+  const sm0   = esArchivo
+    ? (json.hourly?.soil_moisture_0_to_7cm ?? [])
+    : (json.hourly?.soil_moisture_3_to_9cm ?? []);
+  const sm1   = esArchivo
+    ? (json.hourly?.soil_moisture_7_to_28cm ?? [])
+    : (json.hourly?.soil_moisture_9_to_27cm ?? []);
+  const sm2   = esArchivo
+    ? (json.hourly?.soil_moisture_28_to_100cm ?? [])
+    : (json.hourly?.soil_moisture_27_to_81cm ?? []);
 
   // Agregar horas → medias diarias
   const diarios = Object.create(null);
@@ -886,10 +896,28 @@ function _persistirResultado(res) {
         const h2v = parseFloat((document.getElementById("s-h2") || {}).value) || 0;
         const h3v = parseFloat((document.getElementById("s-h3") || {}).value) || 0;
         if (h1v > 0) {
-          const aguaPerfil = Math.max(20, Math.min(350,
-            Math.round((h1v * 0.06 + h2v * 0.18 + h3v * 0.54) * 10 * 2)
-          ));
+          const suelo = (document.getElementById("s-suelo") || {}).value || "Molisol";
+          const sgPerfil = Object.assign({}, window._sgDatos || {});
+          const labPerfil = window._labDatos || {};
+          if (labPerfil.da != null) sgPerfil.da = labPerfil.da;
+          if (labPerfil.cc != null) sgPerfil.cc = labPerfil.cc;
+          if (labPerfil.pmp != null) sgPerfil.pmp = labPerfil.pmp;
+          if (labPerfil.retencionBase) sgPerfil.retencionBase = labPerfil.retencionBase;
+          const cultivoPerfil = (document.getElementById("s-cultivo") || {}).value || "";
+          const perfil = typeof window.amSoilWaterProfile === "function"
+            ? window.amSoilWaterProfile([
+                { theta:h1v, depthCm:6, sg:typeof window.amSoilAtDepth==="function"?window.amSoilAtDepth(sgPerfil,3,9):sgPerfil },
+                { theta:h2v, depthCm:18, sg:typeof window.amSoilAtDepth==="function"?window.amSoilAtDepth(sgPerfil,9,27):sgPerfil },
+                { theta:h3v, depthCm:54, sg:typeof window.amSoilAtDepth==="function"?window.amSoilAtDepth(sgPerfil,27,81):sgPerfil },
+              ], suelo, sgPerfil, { cultivo:cultivoPerfil })
+            : null;
+          const pm = (window.DB && window.DB.suelo && window.DB.suelo[suelo])
+            ? window.DB.suelo[suelo].pm : 14;
+          const aguaPerfil = Math.round(perfil
+            ? perfil.aguaUtilMm
+            : (Math.max(0,h1v-pm)*6 + Math.max(0,h2v-pm)*18 + Math.max(0,h3v-pm)*54) / 10);
           localStorage.setItem("am_fen_agua_perfil", String(aguaPerfil));
+          if (perfil) localStorage.setItem("am_lote_awc_mm", String(Math.round(perfil.capacidadUtilMm)));
           const elAgua = document.getElementById("bh-agua-perfil");
           if (elAgua) elAgua.value = aguaPerfil;
         }

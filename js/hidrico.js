@@ -527,6 +527,7 @@
     const aguaFinalMm = Math.max(0, aguaTotalDisp - etcUsar);
     const diasEst     = deficit > 0 ? Math.round((deficit / etcUsar) * cicloTotal) : 0;
     const hidricoObj  = {
+      aguaActualMm: aguaPerf,
       aguaFinalMm,
       deficitAcum:   Math.round(deficit),
       diasEstres:    diasEst,
@@ -535,7 +536,8 @@
       lluviaTotal:   precipCiclo,
       etapas:        [],
     };
-    localStorage.setItem("am_hidrico_agua_actual_mm",  String(Math.round(aguaFinalMm)));
+    localStorage.setItem("am_hidrico_agua_actual_mm",  String(Math.round(aguaPerf)));
+    localStorage.setItem("am_hidrico_agua_final_proyectada_mm", String(Math.round(aguaFinalMm)));
     localStorage.setItem("am_hidrico_cap_max_mm",      String(capMax));
     localStorage.setItem("am_hidrico_deficit_acum_mm", String(Math.round(deficit)));
     localStorage.setItem("am_hidrico_dias_estres",     String(diasEst));
@@ -550,7 +552,8 @@
       if (loteHid) {
         loteHid.data = loteHid.data || {};
         loteHid.data.calcKeys = loteHid.data.calcKeys || {};
-        loteHid.data.calcKeys['am_hidrico_agua_actual_mm']  = String(Math.round(aguaFinalMm));
+        loteHid.data.calcKeys['am_hidrico_agua_actual_mm']  = String(Math.round(aguaPerf));
+        loteHid.data.calcKeys['am_hidrico_agua_final_proyectada_mm'] = String(Math.round(aguaFinalMm));
         loteHid.data.calcKeys['am_hidrico_cap_max_mm']      = String(capMax);
         loteHid.data.calcKeys['am_hidrico_deficit_acum_mm'] = String(Math.round(deficit));
         loteHid.data.calcKeys['am_hidrico_dias_estres']     = String(diasEst);

@@ -75,6 +75,154 @@ const DB={
   dosis:{Soja:80,Maíz:20,Trigo:120,Girasol:4,Sorgo:6,Urea:100,MAP:150,'Microgranulado Zn':20,Vacío:0},
 };
 
+// ── AGUA EN SUELO ───────────────────────────────────────
+// Open-Meteo entrega humedad volumétrica (m³/m³). La disponibilidad para el
+// cultivo se expresa entre PMP (0%) y capacidad de campo (100%).
+function amSoilWaterThresholds(suelo, sg) {
+  const presets = {
+    molisol:  { cc:0.34, pmp:0.12 },
+    vertisol: { cc:0.36, pmp:0.20 },
+    alfisol:  { cc:0.36, pmp:0.16 },
+    entisol:  { cc:0.18, pmp:0.07 },
+    oxisol:   { cc:0.26, pmp:0.10 },
+  };
+  const key = String(suelo || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let out = presets[key] || { cc:0.34, pmp:0.14 };
+  let fuente = 'tipo-suelo';
+  let ccLab = Number(sg && (sg.cc ?? sg.thetaFC));
+  let pmpLab = Number(sg && (sg.pmp ?? sg.thetaWP));
+  if (ccLab > 1) ccLab /= 100;
+  if (pmpLab > 1) pmpLab /= 100;
+  if (sg && sg.retencionBase === 'gravimetrica') {
+    const daLab = Number(sg.da);
+    if (Number.isFinite(daLab) && daLab > 0) {
+      ccLab *= daLab;
+      pmpLab *= daLab;
+    } else {
+      ccLab = NaN;
+      pmpLab = NaN;
+    }
+  }
+  if (Number.isFinite(ccLab) && Number.isFinite(pmpLab) &&
+      pmpLab >= 0.01 && ccLab <= 0.70 && ccLab - pmpLab >= 0.03) {
+    out = { cc:ccLab, pmp:pmpLab };
+    fuente = 'laboratorio';
+  }
+
+  // PTF Saxton & Rawls: arena/arcilla como fracción y materia orgánica en %.
+  const sandPct = Number(sg && sg.sand);
+  const clayPct = Number(sg && sg.clay);
+  const socGkg  = Number(sg && sg.soc);
+  if (fuente !== 'laboratorio' && Number.isFinite(sandPct) && Number.isFinite(clayPct) &&
+      sandPct >= 0 && clayPct >= 0 && sandPct + clayPct <= 105) {
+    const S = sandPct / 100;
+    const C = clayPct / 100;
+    const OM = Number.isFinite(socGkg) ? Math.max(0, socGkg * 0.1724) : 2.5;
+    const wpT = -0.024*S + 0.487*C + 0.006*OM +
+      0.005*S*OM - 0.013*C*OM + 0.068*S*C + 0.031;
+    const fcT = -0.251*S + 0.195*C + 0.011*OM +
+      0.006*S*OM - 0.027*C*OM + 0.452*S*C + 0.299;
+    const pmp = wpT + 0.14*wpT - 0.02;
+    const cc  = fcT + 1.283*fcT*fcT - 0.374*fcT - 0.015;
+    if (Number.isFinite(cc) && Number.isFinite(pmp) &&
+        pmp >= 0.02 && cc <= 0.60 && cc - pmp >= 0.05) {
+      out = { cc, pmp };
+      fuente = 'soilgrids-ptf';
+    }
+  }
+
+  return { cc:out.cc, pmp:out.pmp, fuente };
+}
+
+function amSoilWaterDepletion(cultivo, et0, kc, sg) {
+  const key = String(cultivo || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const pTabla = {
+    soja:0.50, maiz:0.55, trigo:0.55, cebada:0.55,
+    girasol:0.45, sorgo:0.55, colza:0.60, canola:0.60
+  }[key] ?? 0.50;
+  const et0N = Number(et0);
+  const kcN = Number(kc);
+  const etc = Number.isFinite(et0N) && et0N >= 0
+    ? et0N * (Number.isFinite(kcN) && kcN > 0 ? kcN : 1)
+    : 5;
+  let p = pTabla + 0.04 * (5 - etc);
+  const sand = Number(sg && sg.sand);
+  const clay = Number(sg && sg.clay);
+  if (Number.isFinite(sand) && sand >= 65) p += 0.05;
+  if (Number.isFinite(clay) && clay >= 40) p -= 0.05;
+  return { p:Math.max(0.10, Math.min(0.80, p)), pTabla, etc };
+}
+
+function amSoilAtDepth(sg, top, bottom) {
+  const hs = sg && Array.isArray(sg.horizontes) ? sg.horizontes : [];
+  if (!hs.length) return sg;
+  const out = {}, pesos = {};
+  hs.forEach(function(h) {
+    const overlap = Math.max(0, Math.min(bottom, Number(h.bottom)) - Math.max(top, Number(h.top)));
+    if (!overlap) return;
+    ['sand','clay','silt','soc','da'].forEach(function(k) {
+      const n = Number(h[k]);
+      if (!Number.isFinite(n)) return;
+      out[k] = (out[k] || 0) + n*overlap;
+      pesos[k] = (pesos[k] || 0) + overlap;
+    });
+  });
+  Object.keys(out).forEach(function(k) { out[k] /= pesos[k]; });
+  return Object.keys(out).length ? out : sg;
+}
+
+function amSoilWaterProfile(layers, suelo, sg, options) {
+  const umbral = amSoilWaterThresholds(suelo, sg);
+  const dep = amSoilWaterDepletion(
+    options && options.cultivo,
+    options && options.et0,
+    options && options.kc,
+    sg
+  );
+  let aguaUtil = 0, capacidad = 0, aguaTotal = 0, profundidad = 0;
+  let ccPond = 0, pmpPond = 0;
+  let fuenteUmbrales = umbral.fuente;
+  (layers || []).forEach(function(layer) {
+    let theta = Number(layer && (layer.theta ?? layer.value));
+    const depthCm = Number(layer && (layer.depthCm ?? layer.profundidadCm));
+    if (!Number.isFinite(theta) || !Number.isFinite(depthCm) || depthCm <= 0) return;
+    if (theta > 1) theta /= 100; // acepta sliders en % además de m³/m³
+    if (theta < 0 || theta > 0.8) return;
+    const uCapa = umbral.fuente === 'laboratorio' || !layer.sg
+      ? umbral : amSoilWaterThresholds(suelo, layer.sg);
+    if (uCapa.fuente === 'soilgrids-ptf') fuenteUmbrales = 'soilgrids-ptf-horizontes';
+    profundidad += depthCm;
+    aguaTotal += theta * depthCm * 10;
+    aguaUtil += Math.max(0, Math.min(theta, uCapa.cc) - uCapa.pmp) * depthCm * 10;
+    capacidad += (uCapa.cc - uCapa.pmp) * depthCm * 10;
+    ccPond += uCapa.cc * depthCm;
+    pmpPond += uCapa.pmp * depthCm;
+  });
+  const pct = capacidad > 0 && profundidad > 0
+    ? Math.max(0, Math.min(100, aguaUtil / capacidad * 100))
+    : null;
+  const thetaProm = profundidad > 0 ? aguaTotal / (profundidad * 10) : null;
+  const da = Number(sg && sg.da);
+  const gravimetrica = thetaProm != null && Number.isFinite(da) && da > 0
+    ? thetaProm / da : null;
+  const ccPerfil = profundidad > 0 ? ccPond/profundidad : umbral.cc;
+  const pmpPerfil = profundidad > 0 ? pmpPond/profundidad : umbral.pmp;
+  const critica = pmpPerfil + (1-dep.p)*(ccPerfil-pmpPerfil);
+  const pctCritico = (1-dep.p)*100;
+  return {
+    pct, aguaUtilMm:aguaUtil, capacidadUtilMm:capacidad, aguaTotalMm:aguaTotal,
+    profundidadCm:profundidad, cc:ccPerfil, pmp:pmpPerfil,
+    critica, pctCritico, p:dep.p, pTabla:dep.pTabla, etc:dep.etc,
+    thetaVolumetrica:thetaProm, humedadGravimetrica:gravimetrica,
+    agotamientoMm:capacidad > 0 ? capacidad-aguaUtil : null,
+    rawMm:capacidad*dep.p, umbralUtilMm:capacidad*(1-dep.p),
+    fuenteUmbrales,
+    estado:pct == null ? 'sin-datos' : pct <= 0 ? 'pmp' : pct < pctCritico ? 'estres' : 'disponible'
+  };
+}
+
 // ── COORDS ──
 const SPOLY={
   Molisol:[[-68,-25],[-65,-27],[-62,-30],[-59,-33],[-57,-36],[-59,-39],[-62,-40],[-65,-38],[-67,-35],[-68,-30]],
@@ -197,6 +345,16 @@ document.addEventListener('DOMContentLoaded', () => {
   window.gv = gv;
   window.gi = gi;
   window.setR = setR;
+  window.amSoilWaterThresholds = amSoilWaterThresholds;
+  window.amSoilWaterDepletion = amSoilWaterDepletion;
+  window.amSoilAtDepth = amSoilAtDepth;
+  window.amSoilWaterProfile = amSoilWaterProfile;
+  window.AM.soilWater = {
+    thresholds: amSoilWaterThresholds,
+    depletion: amSoilWaterDepletion,
+    soilAtDepth: amSoilAtDepth,
+    profile: amSoilWaterProfile
+  };
   window.DB = DB;
   window.SPOLY = SPOLY;
   window.inPoly = inPoly;

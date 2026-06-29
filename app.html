@@ -635,6 +635,24 @@
           <label>Densidad aparente <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(g/cm³)</span></label>
           <input type="number" id="lab-da" placeholder="ej: 1.25" min="0.8" max="2.0" step="0.01" oninput="sueloLabAutoguardar()">
         </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Capacidad de campo <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(% vol)</span></label>
+          <input type="number" id="lab-cc" placeholder="ej: 34" min="5" max="70" step="0.1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">Curva de retención · −10/−33 kPa</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>PMP <span style="font-size:.62rem;color:rgba(74,46,26,.4)">(% vol)</span></label>
+          <input type="number" id="lab-pmp" placeholder="ej: 13" min="1" max="50" step="0.1" oninput="sueloLabAutoguardar()">
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">Punto de marchitez permanente · −1500 kPa</div>
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label>Base de CC/PMP</label>
+          <select id="lab-retencion-base" onchange="sueloLabAutoguardar()">
+            <option value="volumetrica">Volumétrica (% volumen)</option>
+            <option value="gravimetrica">Gravimétrica (% masa)</option>
+          </select>
+          <div style="font-size:.63rem;color:rgba(74,46,26,.35);margin-top:.18rem">Si es gravimétrica se convierte usando densidad aparente</div>
+        </div>
       </div>
       <div style="margin-top:.9rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap">
         <button onclick="sueloAplicarLab()" style="background:linear-gradient(135deg,#2D5A30,#4A8C4E);color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-size:.82rem;font-weight:700;cursor:pointer;font-family:inherit">
@@ -1488,7 +1506,7 @@
       <button onclick="_ghdRefrescar()" class="btn btn-s" style="margin-left:auto;font-size:.68rem;padding:.2rem .55rem;border:1px solid rgba(42,90,140,.3);background:rgba(42,90,140,.07);color:#2A5A8C">🔄 Actualizar</button>
     </div>
     <div style="font-size:.71rem;color:rgba(74,46,26,.45);margin-bottom:.5rem">
-      Balance real día a día · datos históricos ERA5 (Open-Meteo) + pronóstico 10 días · CC y PME del lote
+      Balance real día a día · datos históricos ERA5 (Open-Meteo) + pronóstico 10 días · CC, estrés reversible y PMP del lote
     </div>
     <div id="ghd-loading" style="display:flex;align-items:center;justify-content:center;padding:1.4rem;font-size:.82rem;color:rgba(74,46,26,.45)">
       ⟳ Cargando datos históricos…
@@ -4436,7 +4454,24 @@ function _fsAguaPerfilMm() {
   var h1 = parseFloat((document.getElementById('s-h1') || {}).value) || 0;
   var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
   var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
-  if (h1 > 0 || h2 > 0 || h3 > 0) return Math.max(20, Math.min(350, Math.round((h1 * 0.06 + h2 * 0.18 + h3 * 0.54) * 10 * 2)));
+  if (h1 > 0 || h2 > 0 || h3 > 0) {
+    var suelo = (document.getElementById('s-suelo') || {}).value || 'Molisol';
+    var sgPerfil = Object.assign({}, window._sgDatos || {});
+    var labPerfil = window._labDatos || {};
+    if (labPerfil.da != null) sgPerfil.da = labPerfil.da;
+    if (labPerfil.cc != null) sgPerfil.cc = labPerfil.cc;
+    if (labPerfil.pmp != null) sgPerfil.pmp = labPerfil.pmp;
+    if (labPerfil.retencionBase) sgPerfil.retencionBase = labPerfil.retencionBase;
+    var cultivoPerfil = (document.getElementById('s-cultivo') || {}).value || '';
+    var perfil = typeof window.amSoilWaterProfile === 'function'
+      ? window.amSoilWaterProfile([
+          {theta:h1,depthCm:6,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgPerfil,3,9):sgPerfil},
+          {theta:h2,depthCm:18,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgPerfil,9,27):sgPerfil},
+          {theta:h3,depthCm:54,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgPerfil,27,81):sgPerfil}
+        ], suelo, sgPerfil, {cultivo:cultivoPerfil})
+      : null;
+    if (perfil) return Math.round(perfil.aguaUtilMm);
+  }
   return 120;
 }
 
@@ -5070,10 +5105,10 @@ function _fsRender(res, diasTranscurridos) {
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
-<script src="js/core.js?v=86"></script>
-<script src="js/config.js?v=175"></script>
+<script src="js/core.js?v=88"></script>
+<script src="js/config.js?v=177"></script>
 <script src="js/login.js?v=90"></script>
-<script src="js/cache.js?v=102"></script>
+<script src="js/cache.js?v=103"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
@@ -5081,17 +5116,17 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/enso.js?v=88"></script>
 <script src="js/alertas.js?v=85"></script>
 <script src="js/barbecho.js?v=85"></script>
-<script src="js/fenologia.js?v=85"></script>
+<script src="js/fenologia.js?v=87"></script>
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=106"></script>
+<script src="js/nav.js?v=108"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
-<script src="js/siembra.js?v=95"></script>
-<script src="js/siembra-apis.js?v=89"></script>
+<script src="js/siembra.js?v=97"></script>
+<script src="js/siembra-apis.js?v=91"></script>
 <script src="js/nutricion.js?v=123"></script>
 <script src="js/economia.js?v=87"></script>
 <script src="js/maquinaria.js?v=88"></script>
@@ -5102,7 +5137,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=91"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=99"></script>
-<script src="js/dashboard-lotes.js?v=143"></script>
+<script src="js/dashboard-lotes.js?v=145"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=93"></script>
@@ -5112,7 +5147,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/decision.js?v=85"></script>
 <script src="js/comparador-campana.js?v=85"></script>
 <script src="js/rotacion.js?v=85"></script>
-<script src="js/graficos-hidrico.js?v=85"></script>
+<script src="js/graficos-hidrico.js?v=87"></script>
 <script src="js/bitacora.js?v=87"></script>
 <script src="js/rendimiento-predictor.js?v=87"></script>
 <script src="js/notificaciones.js?v=85"></script>

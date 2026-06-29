@@ -657,7 +657,7 @@ const CALC_KEYS = [
   'am_lote_awc_mm', 'am_lote_nombre',
   'am_fen_kc_hoy', 'am_fen_etapa_hoy', 'am_fen_gdd_acum', 'am_fen_fecha_etapa_fin', 'am_fen_duracion_ciclo',
   'am_fen_agua_perfil', 'am_fen_precip_nasa', 'am_fen_agua_perfil_fuente',
-  'am_hidrico_agua_actual_mm', 'am_hidrico_deficit_acum_mm', 'am_hidrico_dias_estres', 'am_hidrico_cap_max_mm',
+  'am_hidrico_agua_actual_mm', 'am_hidrico_agua_final_proyectada_mm', 'am_hidrico_deficit_acum_mm', 'am_hidrico_dias_estres', 'am_hidrico_cap_max_mm',
   'am_rend_pred_p50', 'am_rend_pred_t_ha', 'am_rend_pred_pct_obj',
   'am_enso_fase', 'am_enso_factor', 'am_alertas_activas', 'am_campana_id', 'am_campana_activa_id',
   'am_modo_global', 'am_modo_hidrico', 'am_modo_fenologia', 'am_cosecha_fecha', 'am_cultivo'

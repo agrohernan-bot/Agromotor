@@ -42,7 +42,19 @@
   var ENSO_ADJ = { nino:1.18, neutro:1.00, nina:0.82 };
 
   var ET0_DIA    = 4.5;   // ET₀ media histórica pampeana (mm/día)
-  var WILTING_F  = 0.35;  // Punto de marchitamiento como fracción de CC
+  // capMax y aguaHoy son agua útil (por encima de PMP): PMP = 0 mm útiles.
+  // El 50% marca el umbral genérico de estrés reversible (FAO-56, p=0,5).
+  var WILTING_F  = 0;
+  var CRITICAL_F = 0.50;
+
+  function fraccionCritica(cultivo, et0, kc) {
+    if (typeof window.amSoilWaterDepletion !== 'function') return CRITICAL_F;
+    var sg = Object.assign({}, window._sgDatos || {});
+    var lab = window._labDatos || {};
+    if (lab.da != null) sg.da = lab.da;
+    var dep = window.amSoilWaterDepletion(cultivo, et0, kc, sg);
+    return 1 - dep.p;
+  }
 
   // ── ESTADO ────────────────────────────────────────────
   var _chart = null;
@@ -82,6 +94,7 @@
     var ensoAdj  = ENSO_ADJ[ensoFase] || 1.0;
 
     var wiltingMm = Math.round(capMax * WILTING_F);
+    var criticalMm = Math.round(capMax * fraccionCritica(cultNombre, 5, 1));
 
     // Mes de inicio de siembra (0=ene … 11=dic)
     var fechaSiembra = ls('am_siembra_fecha');
@@ -125,7 +138,7 @@
       });
     }
 
-    return { etapas, capMax, wiltingMm, cultNombre };
+    return { etapas, capMax, wiltingMm, criticalMm, cultNombre };
   }
 
   // ── RENDER DEL GRÁFICO ────────────────────────────────
@@ -145,6 +158,7 @@
     var etapas  = calc.etapas;
     var capMax  = calc.capMax;
     var wilt    = calc.wiltingMm;
+    var critical = calc.criticalMm;
 
     var labels   = etapas.map(function(e) { return e.label; });
     var precData = etapas.map(function(e) { return e.precEfec; });
@@ -152,6 +166,7 @@
     var aguaData = etapas.map(function(e) { return e.aguaInicio; });
     var ccLine   = labels.map(function() { return capMax; });
     var wiltLine = labels.map(function() { return wilt; });
+    var criticalLine = labels.map(function() { return critical; });
 
     // Destruir gráfico previo si existe
     if (_chart) { _chart.destroy(); _chart = null; }
@@ -212,7 +227,20 @@
           },
           {
             type:            'line',
-            label:           'Punto de marchitamiento',
+            label:           'Umbral estrés reversible',
+            data:            criticalLine,
+            borderColor:     'rgba(184,122,32,.70)',
+            backgroundColor: 'transparent',
+            borderWidth:     1.8,
+            borderDash:      [4,3],
+            pointRadius:     0,
+            fill:            false,
+            tension:         0,
+            order:           3,
+          },
+          {
+            type:            'line',
+            label:           'Punto de marchitez permanente (PMP)',
             data:            wiltLine,
             borderColor:     'rgba(212,82,42,.65)',
             backgroundColor: 'transparent',
@@ -491,7 +519,8 @@
       var aguaIni     = parseFloat(ls('am_fen_agua_perfil'))
                      || parseFloat(ls('am_hidrico_agua_actual_mm'))
                      || 120;
-      var wiltMm      = Math.round(capMax * 0.35);
+      var wiltMm      = 0;
+      var criticalMm  = Math.round(capMax * fraccionCritica(cultNombre, 5, 1));
       var fechaSiembra = ls('am_siembra_fecha');
 
       if (!ls('am_siembra_lat') || !fechaSiembra) {
@@ -509,7 +538,7 @@
       canvas.style.display = 'block';
 
       var siembraDate = new Date(fechaSiembra + 'T12:00:00');
-      var labels = [], awcReal = [], awcPronos = [], precData = [], probData = [];
+      var labels = [], awcReal = [], awcPronos = [], precData = [], probData = [], criticalData = [];
       var awc = aguaIni, stressDias = 0, totalPrecip = 0, diasReal = 0;
 
       for (var i = 0; i < dias.length; i++) {
@@ -518,6 +547,7 @@
         var kc       = _ghdKc(cult, diaN);
         var etc      = (d.et0 || 3.5) * kc;
         var pEfec    = (d.precip || 0) * 0.75;
+        var criticalDia = Math.round(capMax * fraccionCritica(cultNombre, d.et0 || 3.5, kc) * 10) / 10;
         awc = Math.min(capMax, Math.max(0, awc + pEfec - etc));
 
         var val = Math.round(awc * 10) / 10;
@@ -526,11 +556,12 @@
         awcPronos.push(d.esPronos ? val  : null);
         precData.push(Math.round((d.precip || 0) * 10) / 10);
         probData.push(d.esPronos ? (d.probLluvia || 0) : null);
+        criticalData.push(criticalDia);
 
         if (!d.esPronos) {
           diasReal++;
           totalPrecip += (d.precip || 0);
-          if (awc < wiltMm * 1.15) stressDias++;
+          if (awc < criticalDia) stressDias++;
         }
       }
 
@@ -580,10 +611,16 @@
               borderDash: [8, 4], pointRadius: 0, fill: false, order: 3,
             },
             {
-              type: 'line', label: 'Punto de marchitamiento',
+              type: 'line', label: 'Umbral estrés reversible',
+              data: criticalData,
+              borderColor: 'rgba(184,122,32,.6)', borderWidth: 1.5,
+              borderDash: [4, 3], pointRadius: 0, fill: false, order: 4,
+            },
+            {
+              type: 'line', label: 'Punto de marchitez permanente (PMP)',
               data: labels.map(function() { return wiltMm; }),
               borderColor: 'rgba(201,74,42,.5)', borderWidth: 1.5,
-              borderDash: [4, 3], pointRadius: 0, fill: false, order: 4,
+              borderDash: [2, 2], pointRadius: 0, fill: false, order: 5,
             },
           ],
         },
@@ -597,7 +634,9 @@
                 font: { family: "'DM Sans',sans-serif", size: 10 }, padding: 10,
                 usePointStyle: true, pointStyleWidth: 8,
                 filter: function(item) {
-                  return item.text !== 'Capacidad de campo' && item.text !== 'Punto de marchitamiento';
+                  return item.text !== 'Capacidad de campo' &&
+                    item.text !== 'Umbral estrés reversible' &&
+                    item.text !== 'Punto de marchitez permanente (PMP)';
                 },
               },
             },
@@ -623,7 +662,8 @@
                   if (v === null || v === undefined) return null;
                   if (ctx.dataset.label.includes('Precipitación')) return ' 🌧 Precip.: ' + v + ' mm';
                   if (ctx.dataset.label.includes('Agua') || ctx.dataset.label.includes('Pronóstico'))
-                    return ' 💧 Perfil: ' + v + ' mm  (CC ' + capMax + ' · PME ' + wiltMm + ')';
+                    return ' 💧 Agua útil: ' + v + ' mm  (CC ' + capMax +
+                      ' · estrés ' + Math.round(criticalData[ctx.dataIndex]) + ' · PMP ' + wiltMm + ')';
                   return null;
                 },
               },

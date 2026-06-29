@@ -314,9 +314,9 @@ async function buscarSoilGrids(lat, lon) {
   // ── INTENTO 1: REST API de SoilGrids ──────────────────
   // Endpoint: rest.isric.org/soilgrids/v2.0/properties/query
   // Propiedades: phh2o, clay, sand, silt, soc, nitrogen, bdod, cec
-  // Profundidad: 0-5cm · Valor: mean
+  // Profundidades estándar SoilGrids · Valor: mean
   try {
-    const urlFinal = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=phh2o&property=clay&property=sand&property=silt&property=soc&property=nitrogen&property=bdod&property=cec&depth=0-5cm&value=mean`;
+    const urlFinal = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=phh2o&property=clay&property=sand&property=silt&property=soc&property=nitrogen&property=bdod&property=cec&depth=0-5cm&depth=5-15cm&depth=15-30cm&depth=30-60cm&depth=60-100cm&value=mean`;
 
     const res = await Promise.race([
       fetch(urlFinal),
@@ -336,13 +336,25 @@ async function buscarSoilGrids(lat, lon) {
     const factores = { phh2o:0.1, clay:0.1, sand:0.1, silt:0.1, soc:0.1, nitrogen:0.01, bdod:0.01, cec:0.1 };
     const claves   = { phh2o:'ph', clay:'clay', sand:'sand', silt:'silt', soc:'soc', nitrogen:'n', bdod:'da', cec:'cec' };
 
+    const horizontes = {};
     layers.forEach(layer => {
       const nombre = layer.name;
       const val    = layer.depths?.[0]?.values?.mean;
       if (val != null && val > 0 && val < 32000 && factores[nombre]) {
         r[claves[nombre]] = val * factores[nombre];
       }
+      (layer.depths || []).forEach(function(depth) {
+        const label = depth.label || '';
+        const m = label.match(/(\d+)-(\d+)cm/);
+        const value = depth.values && depth.values.mean;
+        if (!m || value == null || value <= 0 || value >= 32000 || !factores[nombre]) return;
+        if (!horizontes[label]) horizontes[label] = { top:Number(m[1]), bottom:Number(m[2]) };
+        horizontes[label][claves[nombre]] = value * factores[nombre];
+      });
     });
+    r.horizontes = Object.keys(horizontes)
+      .map(function(k) { return horizontes[k]; })
+      .sort(function(a,b) { return a.top-b.top; });
 
     if (Object.keys(r).length < 3) throw new Error('Datos insuficientes');
 
@@ -741,15 +753,14 @@ function calcularCompactacion(sg, humActual, trafico, diaRef) {
   // Aproximación simplificada calibrada para suelos pampeanos:
   const clayF = clay / 100;
   const sandF = sand / 100;
-  const moF   = mo / 100;
 
-  // PTF Saxton & Rawls para θ_FC y θ_WP
-  const thetaFC = 0.299 - 0.251 * sandF + 0.195 * clayF + 0.011 * moF
-                + 0.006 * sandF * moF - 0.027 * clayF * moF
-                + 0.452 * sandF * clayF;
-  const thetaWP = 0.031 - 0.024 * sandF + 0.487 * clayF + 0.006 * moF
-                + 0.005 * sandF * moF - 0.013 * clayF * moF
-                + 0.068 * sandF * clayF;
+  // PTF Saxton & Rawls centralizada. Evita mezclar MO como fracción con una
+  // ecuación que la requiere en porcentaje.
+  const umbrales = typeof window.amSoilWaterThresholds === 'function'
+    ? window.amSoilWaterThresholds(sg.textura || '', sg)
+    : { cc:0.34, pmp:0.14 };
+  const thetaFC = umbrales.cc;
+  const thetaWP = umbrales.pmp;
 
   // Índice S de Dexter — punto inflexión curva de retención
   // S = n * (θ_FC - θ_WP) / (da / 2.65) * factor_arcilla
@@ -853,7 +864,7 @@ function calcularCompactacion(sg, humActual, trafico, diaRef) {
     scoreRiesgo, mpaEstimado, nivel, color, icono,
     diasEsperar, recomendacion, indiceS: indiceSAbs,
     factorHum, factorArcilla, factorMO, factorDA, factorTraf,
-    thetaFC, thetaWP, thetaOpt, mo, humVol, ccPorc,
+    thetaFC, thetaWP, thetaCritica:thetaWP + 0.5*(thetaFC-thetaWP), thetaOpt, mo, humVol, ccPorc,
   };
 }
 
@@ -873,6 +884,10 @@ function renderCompactacion(c, sg) {
       interp: c.factorHum > 0.6 ? '🚫 Zona de alto riesgo' : c.factorHum > 0.3 ? '⚠️ Precaución' : '✅ Fuera de zona crítica' },
     { label:'Capacidad de campo estimada',       val: `${c.ccPorc.toFixed(0)}% vol`,
       interp: '—' },
+    { label:'Punto marchitez permanente',        val: `${(c.thetaWP*100).toFixed(0)}% vol`,
+      interp: '0% de agua útil' },
+    { label:'Umbral de estrés reversible',       val: `${(c.thetaCritica*100).toFixed(0)}% vol`,
+      interp: '≈50% de agua útil disponible' },
     { label:'Densidad aparente (DA)',            val: `${sg.da?.toFixed(2)||'—'} g/cm³`,
       interp: (sg.da??0) >= 1.45 ? '🚫 Ya compactado' : (sg.da??0) >= 1.35 ? '⚠️ Moderada' : '✅ Normal' },
     { label:'Materia orgánica',                  val: `${c.mo.toFixed(1)}%`,
@@ -1028,7 +1043,7 @@ function sueloFusionar() {
   if (sg.zn != null) sd.zn = { valor: sg.zn, fuente: pkzId || 'soilgrids' };
 
   // Override campo a campo con datos de laboratorio (máxima prioridad)
-  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da: lab.da };
+  const labCampos = { ph: lab.ph, mo: lab.mo, n: lab.n, p: lab.p, k: lab.k, cec: lab.cec, da:lab.da, cc:lab.cc, pmp:lab.pmp };
   Object.keys(labCampos).forEach(function(k) {
     const v = labCampos[k];
     if (v != null && v !== '' && !isNaN(parseFloat(v))) {
@@ -1058,6 +1073,7 @@ function sueloRenderResumenLab() {
     ph:'pH', mo:'MO (%)', soc:'SOC g/kg', n:'N total g/kg',
     da:'DA g/cm³', cec:'CEC cmol/kg', clay:'Arcilla %',
     p:'P disp. ppm', k:'K int. ppm', textura:'Textura',
+    cc:'CC % vol', pmp:'PMP % vol',
   };
   // Lab primero, luego SoilGrids (máx 10 ítems)
   const labItems = Object.entries(sd).filter(function(e) { return e[1] && e[1].fuente === 'laboratorio'; });
@@ -1090,11 +1106,13 @@ function sueloRenderResumenLab() {
 // Rellena los inputs del panel lab con _labDatos guardados
 function sueloRestaurarLabInputs() {
   const lab = window._labDatos || {};
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', cc:'lab-cc', pmp:'lab-pmp' };
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
     if (el && lab[k] != null) el.value = lab[k];
   });
+  const baseRet = document.getElementById('lab-retencion-base');
+  if (baseRet) baseRet.value = lab.retencionBase || 'volumetrica';
   // Si hay datos, mostrar badge y resumen
   const tieneLab = Object.keys(lab).length > 0;
   if (tieneLab) {
@@ -1160,7 +1178,9 @@ window.sueloEscanearLab = async function(input) {
       '- "p": Fósforo disponible Bray I en ppm (número)\n' +
       '- "k": Potasio intercambiable en ppm (número)\n' +
       '- "cec": CEC o Capacidad de Intercambio Catiónico en cmol/kg (decimal)\n' +
-      '- "da": Densidad Aparente en g/cm³ (decimal)\n\n' +
+      '- "da": Densidad Aparente en g/cm³ (decimal)\n' +
+      '- "cc": Capacidad de campo en porcentaje volumétrico (decimal)\n' +
+      '- "pmp": Punto de marchitez permanente en porcentaje volumétrico (decimal)\n\n' +
       'Ejemplo de respuesta: {"ph":6.2,"mo":3.1,"p":18,"k":165}';
 
     var response = await fetch(window.AM_CONFIG.claudeProxy, {
@@ -1200,7 +1220,7 @@ window.sueloEscanearLab = async function(input) {
     }
 
     // Llenar los campos del formulario
-    var fieldMap = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+    var fieldMap = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', cc:'lab-cc', pmp:'lab-pmp' };
     var filled = 0;
     Object.keys(fieldMap).forEach(function(key) {
       if (parsed[key] != null && !isNaN(parseFloat(parsed[key]))) {
@@ -1246,7 +1266,7 @@ window.sueloLabAutoguardar = function() {
 
 // Aplica el análisis de laboratorio
 window.sueloAplicarLab = function(silencioso) {
-  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da' };
+  const map = { ph:'lab-ph', mo:'lab-mo', n:'lab-n', p:'lab-p', k:'lab-k', cec:'lab-cec', da:'lab-da', cc:'lab-cc', pmp:'lab-pmp' };
   const labData = {};
   Object.keys(map).forEach(function(k) {
     const el = document.getElementById(map[k]);
@@ -1255,6 +1275,14 @@ window.sueloAplicarLab = function(silencioso) {
       if (!isNaN(v)) labData[k] = v;
     }
   });
+  if (labData.cc != null || labData.pmp != null) {
+    const baseEl = document.getElementById('lab-retencion-base');
+    labData.retencionBase = baseEl ? baseEl.value : 'volumetrica';
+  }
+  if (labData.cc != null && labData.pmp != null && labData.cc - labData.pmp < 3) {
+    if (!silencioso) alert('Capacidad de campo debe ser al menos 3 puntos mayor que PMP.');
+    return;
+  }
 
   if (Object.keys(labData).length === 0 && !silencioso) {
     alert('Completá al menos un campo del análisis de laboratorio.');
@@ -1276,10 +1304,12 @@ window.sueloAplicarLab = function(silencioso) {
 window.sueloLimpiarLab = function() {
   window._labDatos = {};
   sueloFusionar();
-  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da'].forEach(function(id) {
+  ['lab-ph','lab-mo','lab-n','lab-p','lab-k','lab-cec','lab-da','lab-cc','lab-pmp'].forEach(function(id) {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const baseRet = document.getElementById('lab-retencion-base');
+  if (baseRet) baseRet.value = 'volumetrica';
   const badge   = document.getElementById('lab-status-badge');
   const resumen = document.getElementById('lab-resumen');
   if (badge)   badge.style.display = 'none';

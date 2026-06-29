@@ -503,11 +503,13 @@
     if (fenEtapa) html += kv('🌱 Etapa',   fenEtapa);
     if (sup)      html += kv('📐 Área',    sup + ' ha');
     if (sueloTex) html += kv('🌍 Suelo',   sueloTex);
-    if (aguaCC > 0) {
+    if (coords) {
+      html += '<div id="dl-hidrico-' + esc(lote.id) + '"></div>';
+    } else if (aguaCC > 0) {
       var pct = Math.min(100, Math.round(aguaMm / aguaCC * 100));
       var bcolor = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
       html += '<div class="dl-hidrico">';
-      html +=   '<div class="dl-hidrico-top"><span>💧 Humedad suelo</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
+      html +=   '<div class="dl-hidrico-top"><span>💧 Reserva proyectada</span><strong style="color:' + bcolor + '">' + pct + '%</strong></div>';
       html +=   '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + bcolor + '"></div></div>';
       html += '</div>';
     }
@@ -1249,6 +1251,70 @@
   }
 
   // ── CLIMA ASÍNCRONO EN CARDS ─────────────────────────
+  function _sgParaCapa(sg, top, bottom) {
+    if (typeof window.amSoilAtDepth === 'function') return window.amSoilAtDepth(sg, top, bottom);
+    var hs = sg && Array.isArray(sg.horizontes) ? sg.horizontes : [];
+    if (!hs.length) return sg;
+    var out = {}, pesos = {};
+    hs.forEach(function(h) {
+      var overlap = Math.max(0, Math.min(bottom, Number(h.bottom)) - Math.max(top, Number(h.top)));
+      if (!overlap) return;
+      ['sand','clay','silt','soc','da'].forEach(function(k) {
+        var n = Number(h[k]);
+        if (!isFinite(n)) return;
+        out[k] = (out[k] || 0) + n*overlap;
+        pesos[k] = (pesos[k] || 0) + overlap;
+      });
+    });
+    Object.keys(out).forEach(function(k) { out[k] /= pesos[k]; });
+    return Object.keys(out).length ? out : sg;
+  }
+
+  function _soilProfileForLote(lote, cur, et0) {
+    if (!lote || !cur || typeof window.amSoilWaterProfile !== 'function') return null;
+    var d = lote.data || {};
+    var sg = Object.assign({}, d.sgDatos || {});
+    if (sg.sand == null) sg.sand = d['sg-sand'];
+    if (sg.clay == null) sg.clay = d['sg-clay'];
+    if (sg.soc == null) sg.soc = d['sg-soc'];
+    if (sg.da == null) sg.da = d['sg-da'];
+    var lab = d.labDatos || {};
+    if (lab.da != null) sg.da = lab.da;
+    if (lab.cc != null) sg.cc = lab.cc;
+    if (lab.pmp != null) sg.pmp = lab.pmp;
+    if (lab.retencionBase) sg.retencionBase = lab.retencionBase;
+    var suelo = d['sg-textura'] || (d.calcKeys || {})['am_siembra_suelo'] || '';
+    var cultivo = d.cultivo || (d.calcKeys || {})['am_siembra_cultivo'] || '';
+    var kc = parseFloat((d.calcKeys || {})['am_fen_kc_hoy']) || 1;
+    return window.amSoilWaterProfile([
+      { theta:cur.soil_moisture_3_to_9cm,  depthCm:6,  sg:_sgParaCapa(sg,3,9) },
+      { theta:cur.soil_moisture_9_to_27cm, depthCm:18, sg:_sgParaCapa(sg,9,27) },
+      { theta:cur.soil_moisture_27_to_81cm, depthCm:54, sg:_sgParaCapa(sg,27,81) }
+    ], suelo, sg, { cultivo:cultivo, et0:et0, kc:kc });
+  }
+
+  function _renderHumedadInCard(lote, data) {
+    var el = document.getElementById('dl-hidrico-' + lote.id);
+    if (!el) return;
+    var perfil = _soilProfileForLote(lote, data.current || {}, data.et0);
+    if (!perfil || perfil.pct == null) {
+      el.innerHTML = '';
+      return;
+    }
+    var pct = Math.round(perfil.pct);
+    var color = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
+    var title = 'Open-Meteo ' + perfil.profundidadCm + ' cm · θ ' +
+      (perfil.thetaVolumetrica * 100).toFixed(1) + '% vol · PMP ' +
+      (perfil.pmp * 100).toFixed(0) + '% · estrés ' +
+      (perfil.critica * 100).toFixed(0) + '% · CC ' + (perfil.cc * 100).toFixed(0) + '%';
+    el.innerHTML = '<div class="dl-hidrico" title="' + esc(title) + '">' +
+      '<div class="dl-hidrico-top"><span>💧 Agua útil actual</span><strong style="color:' + color + '">' + pct + '%</strong></div>' +
+      '<div class="dl-hidrico-bar"><div class="dl-hidrico-fill" style="width:' + pct + '%;background:' + color + '"></div></div>' +
+      '<div style="font-size:.62rem;color:rgba(237,224,196,.48);margin-top:.22rem">θ ' +
+      (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · ' + Math.round(perfil.aguaUtilMm) + ' mm útiles</div>' +
+      '</div>';
+  }
+
   function _fetchClimaCards(lotes) {
     lotes.forEach(function(lote) {
       var coords = _coordsFromLote(lote);
@@ -1258,11 +1324,13 @@
       var cKey = coords.lat.toFixed(2) + ',' + coords.lng.toFixed(2);
       if (_climaCache[cKey]) {
         _renderClimaInCard(el, _climaCache[cKey]);
+        _renderHumedadInCard(lote, _climaCache[cKey]);
         return;
       }
       var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + coords.lat.toFixed(4) +
                 '&longitude=' + coords.lng.toFixed(4) +
-                '&current=temperature_2m&daily=precipitation_probability_max' +
+                '&current=temperature_2m,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
+                '&daily=precipitation_probability_max,et0_fao_evapotranspiration' +
                 '&forecast_days=1&timezone=auto';
       fetch(url)
         .then(function(r) { return r.ok ? r.json() : null; })
@@ -1271,10 +1339,13 @@
           var temp = data.current ? data.current.temperature_2m : null;
           var prob = (data.daily && data.daily.precipitation_probability_max)
                      ? data.daily.precipitation_probability_max[0] : null;
-          var result = { temp: temp, prob: prob };
+          var et0 = data.daily && data.daily.et0_fao_evapotranspiration
+            ? data.daily.et0_fao_evapotranspiration[0] : null;
+          var result = { temp: temp, prob: prob, et0:et0, current:data.current || {} };
           _climaCache[cKey] = result;
           var el2 = document.getElementById('dl-clima-' + lote.id);
           if (el2) _renderClimaInCard(el2, result);
+          _renderHumedadInCard(lote, result);
         })
         .catch(function() {});
     });
@@ -1318,7 +1389,8 @@
     try {
       var [omData, nasaProps, ensoResult] = await Promise.all([
         fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
-          '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,soil_moisture_3_9cm' +
+          '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,' +
+          'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
           '&daily=et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum,' +
           'temperature_2m_max,temperature_2m_min,weather_code' +
           '&timezone=auto&forecast_days=7').then(function(r) { return r.json(); }),
@@ -1351,7 +1423,12 @@
     var hr     = cur.relative_humidity_2m != null ? Math.round(cur.relative_humidity_2m) + '%' : '—';
     var viento = cur.wind_speed_10m != null ? Math.round(cur.wind_speed_10m) + ' km/h' : '—';
     var tSuelo = cur.soil_temperature_0cm != null ? cur.soil_temperature_0cm.toFixed(1) + '°C' : '—';
-    var humSuelo = cur.soil_moisture_3_9cm != null ? (cur.soil_moisture_3_9cm * 100).toFixed(1) + '%' : '—';
+    var loteHum = getLote(loteId);
+    var et0Numero = day.et0_fao_evapotranspiration && day.et0_fao_evapotranspiration[0];
+    var perfilHum = _soilProfileForLote(loteHum, cur, et0Numero);
+    var humSuelo = perfilHum && perfilHum.pct != null
+      ? Math.round(perfilHum.pct) + '% útil'
+      : (cur.soil_moisture_3_to_9cm != null ? (cur.soil_moisture_3_to_9cm * 100).toFixed(1) + '% vol' : '—');
 
     var vpd = '—';
     if (cur.temperature_2m != null && cur.relative_humidity_2m != null) {
@@ -1378,6 +1455,33 @@
     html +=     _hdKV('🌫️', 'VPD', vpd);
     html +=   '</div>';
     html += '</div>';
+
+    if (perfilHum && perfilHum.pct != null) {
+      var fuenteH = perfilHum.fuenteUmbrales === 'laboratorio' ? 'Laboratorio'
+        : perfilHum.fuenteUmbrales === 'soilgrids-ptf-horizontes' ? 'SoilGrids por horizonte + PTF'
+        : perfilHum.fuenteUmbrales === 'soilgrids-ptf' ? 'SoilGrids + PTF Saxton–Rawls'
+        : 'Tipo de suelo (referencia)';
+      html += '<div class="dl-hdatos-sec">';
+      html +=   '<div class="dl-hdatos-titulo">💧 Estado hídrico del perfil · 3–81 cm</div>';
+      html +=   '<div class="dl-hdatos-grid">';
+      html +=     _hdKV('🧪', 'Humedad volumétrica', (perfilHum.thetaVolumetrica*100).toFixed(1) + '% vol');
+      if (perfilHum.humedadGravimetrica != null) {
+        var daEsLab = !!(loteHum && loteHum.data && loteHum.data.labDatos && loteHum.data.labDatos.da != null);
+        html +=   _hdKV('⚖️', 'Humedad gravimétrica' + (daEsLab ? '' : ' estim.'), (perfilHum.humedadGravimetrica*100).toFixed(1) + '% masa');
+      }
+      html +=     _hdKV('💧', 'Agua total', Math.round(perfilHum.aguaTotalMm) + ' mm');
+      html +=     _hdKV('🌱', 'Agua útil', Math.round(perfilHum.aguaUtilMm) + ' mm · ' + Math.round(perfilHum.pct) + '%');
+      html +=     _hdKV('📉', 'Agotamiento', Math.round(perfilHum.agotamientoMm) + ' mm');
+      html +=     _hdKV('⚠️', 'Inicio de estrés', Math.round(perfilHum.pctCritico) + '% útil · θ ' + (perfilHum.critica*100).toFixed(1) + '%');
+      html +=   '</div>';
+      html +=   '<div style="font-size:.66rem;color:rgba(74,46,26,.48);line-height:1.5;margin-top:.55rem">PMP ' +
+        (perfilHum.pmp*100).toFixed(1) + '% vol · CC ' + (perfilHum.cc*100).toFixed(1) +
+        '% vol · p FAO-56 ' + perfilHum.p.toFixed(2) + ' · ETc ' + perfilHum.etc.toFixed(1) +
+        ' mm/d · Umbrales: ' + esc(fuenteH) + '. Humedad actual: modelo Open-Meteo, no sensor de lote. ' +
+        (perfilHum.humedadGravimetrica != null ? 'La gravimétrica se deriva con densidad aparente ' + (daEsLab ? 'de laboratorio.' : 'estimada por SoilGrids.') : '') +
+        '</div>';
+      html += '</div>';
+    }
 
     // ── NASA POWER + ENSO panel ──────────────────────────
     var nasaClaves = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
