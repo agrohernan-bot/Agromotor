@@ -326,7 +326,47 @@
   function bhToggleRiego() {
     const checked = $('bh-riego-check')?.checked;
     $('bh-riego-panel').classList.toggle('hidden', !checked);
+    if (checked && bhEl('bh-riego-fecha') && !bhEl('bh-riego-fecha').value) {
+      bhEl('bh-riego-fecha').value = bhFechaLocal();
+    }
     bhActualizar();
+  }
+
+  function bhFechaLocal(fecha) {
+    var d = fecha || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function bhEventosRiegoCiclo(lote) {
+    var d = (lote && lote.data) || {};
+    var eventos = Array.isArray(d.hydricEvents) ? d.hydricEvents : [];
+    var ck = d.calcKeys || {};
+    var campanaId = String(ck.am_campana_activa_id || ck.am_campana_id || '');
+    var siembra = String(d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '').slice(0, 10);
+    return eventos.filter(function(e) {
+      if (!e || e.eventType !== 'irrigation') return false;
+      if (campanaId && e.campaignId) return String(e.campaignId) === campanaId;
+      return !siembra || String(e.eventAt || '').slice(0, 10) >= siembra;
+    });
+  }
+
+  function bhRiegoAplicadoCiclo(lote) {
+    return bhEventosRiegoCiclo(lote).reduce(function(total, e) {
+      var bruto = Number(e.amountMm) || 0;
+      var eficiencia = Number(e.efficiency);
+      if (!Number.isFinite(eficiencia) || eficiencia <= 0 || eficiencia > 1) eficiencia = 1;
+      return total + bruto * eficiencia;
+    }, 0);
+  }
+
+  function bhRenderRiegoAplicado(lote) {
+    var status = bhEl('bh-riego-aplicado-status');
+    if (!status) return;
+    var eventos = bhEventosRiegoCiclo(lote);
+    var efectivo = bhRiegoAplicadoCiclo(lote);
+    status.textContent = eventos.length
+      ? eventos.length + (eventos.length === 1 ? ' aplicación' : ' aplicaciones') + ' · ' + efectivo.toFixed(1) + ' mm efectivos incorporados al ciclo'
+      : 'Sin aplicaciones registradas en este ciclo.';
   }
 
   function bhActualizarEnsoSelector() {
@@ -359,6 +399,9 @@
     const eficRiego = gi('bh-efic-riego') / 100 || 0.85;
     const m3Disp    = gi('bh-m3-disp') || 2000;
     const ensoFase  = gv('bh-enso') || 'neutro';
+    const loteActivo = bhLoteActivo();
+    const riegoAplicadoEfectivo = bhRiegoAplicadoCiclo(loteActivo);
+    bhRenderRiegoAplicado(loteActivo);
 
     const c = BH_CULTIVOS[cult] || BH_CULTIVOS.Soja;
 
@@ -366,7 +409,7 @@
     // Agua inicial perfil + precipitación esperada del ciclo
     // Se descuenta escorrentía y percolación (coef. 0.75 para precipitación efectiva)
     const precipEfec   = precipCiclo * 0.75;   // precipitación efectiva (75% llega al perfil)
-    const aguaTotalDisp = aguaPerf + precipEfec;
+    const aguaTotalDisp = aguaPerf + precipEfec + riegoAplicadoEfectivo;
 
     // ── 2. REQUERIMIENTO HÍDRICO DEL CULTIVO ─────────────
     // ETc = ET₀ histórica × Kc promedio × días ciclo
@@ -455,6 +498,11 @@
         <div class="kv">${etcUsar.toFixed(0)}</div>
         <div class="ku">mm requeridos</div>
       </div>
+      ${riegoAplicadoEfectivo > 0 ? `<div class="kc neutral">
+        <div class="kl">Riego aplicado</div>
+        <div class="kv">${riegoAplicadoEfectivo.toFixed(0)}</div>
+        <div class="ku">mm efectivos</div>
+      </div>` : ''}
       <div class="kc ${deficit>80?'warn':deficit>40?'neutral':''}">
         <div class="kl">${deficit>0?'Déficit hídrico':'Superávit'}</div>
         <div class="kv">${deficit>0?deficit.toFixed(0):superavit.toFixed(0)}</div>
@@ -469,6 +517,7 @@
           <tr><td>Agua útil en perfil (inicio)</td><td class="mn">+ ${aguaPerf} mm</td></tr>
           <tr><td>Precipitación esperada (${ensoInfo.label})</td><td class="mn">+ ${precipCiclo} mm</td></tr>
           <tr><td>Precipitación efectiva (75%)</td><td class="mn">+ ${precipEfec.toFixed(0)} mm</td></tr>
+          ${riegoAplicadoEfectivo > 0 ? `<tr><td>Riego aplicado (efectivo)</td><td class="mn">+ ${riegoAplicadoEfectivo.toFixed(1)} mm</td></tr>` : ''}
           <tr class="hl"><td><strong>Agua total disponible</strong></td><td class="mn"><strong>${aguaTotalDisp.toFixed(0)} mm</strong></td></tr>
           <tr><td>Requerimiento ETc ${cult}</td><td class="mn">− ${etcUsar.toFixed(0)} mm</td></tr>
           <tr class="${deficit>0?'warn-row':'ok-row'}" style="background:${deficit>0?'rgba(201,74,42,.06)':'rgba(42,122,74,.06)'}">
@@ -534,6 +583,7 @@
       diasEtCritica: diasEst,
       etcTotal:      Math.round(etcUsar),
       lluviaTotal:   precipCiclo,
+      riegoAplicadoMm: Math.round(riegoAplicadoEfectivo * 10) / 10,
       etapas:        [],
     };
     localStorage.setItem("am_hidrico_agua_actual_mm",  String(Math.round(aguaPerf)));
@@ -543,12 +593,13 @@
     localStorage.setItem("am_hidrico_dias_estres",     String(diasEst));
     localStorage.setItem("am_hidrico_dias_et_crit",    String(diasEst));
     localStorage.setItem("am_hidrico_etc_total",       String(Math.round(etcUsar)));
+    localStorage.setItem("am_hidrico_riego_aplicado_mm", String(Math.round(riegoAplicadoEfectivo * 10) / 10));
     localStorage.setItem("am_hidrico_ultimo",          JSON.stringify(hidricoObj));
     localStorage.setItem("am_enso_fase",               ensoFase);
 
     // Sincronizar resultado con el lote activo en memoria (score lo lee de calcKeys)
-    if (typeof AM_LOTES !== 'undefined' && typeof AM_LOTE_ACTIVO !== 'undefined') {
-      var loteHid = AM_LOTES.find(function(l) { return l.id === AM_LOTE_ACTIVO; });
+    if (typeof window.amGetLoteActivo === 'function') {
+      var loteHid = window.amGetLoteActivo();
       if (loteHid) {
         loteHid.data = loteHid.data || {};
         loteHid.data.calcKeys = loteHid.data.calcKeys || {};
@@ -557,6 +608,7 @@
         loteHid.data.calcKeys['am_hidrico_cap_max_mm']      = String(capMax);
         loteHid.data.calcKeys['am_hidrico_deficit_acum_mm'] = String(Math.round(deficit));
         loteHid.data.calcKeys['am_hidrico_dias_estres']     = String(diasEst);
+        loteHid.data.calcKeys['am_hidrico_riego_aplicado_mm'] = String(Math.round(riegoAplicadoEfectivo * 10) / 10);
         loteHid.data.calcKeys['am_enso_fase']               = ensoFase;
         if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
 
@@ -573,11 +625,95 @@
 }
 
   // Exposición a global por retrocompatibilidad HTML
+  async function bhRegistrarRiegoAplicado() {
+    var lote = bhLoteActivo();
+    if (!lote) {
+      if (typeof window.amToast === 'function') window.amToast('Seleccioná un lote antes de registrar el riego', 'warn');
+      return;
+    }
+    var amountMm = Number(bhEl('bh-riego-aplicado-mm') && bhEl('bh-riego-aplicado-mm').value);
+    var efficiency = (Number(bhEl('bh-efic-riego') && bhEl('bh-efic-riego').value) || 85) / 100;
+    var date = String((bhEl('bh-riego-fecha') && bhEl('bh-riego-fecha').value) || bhFechaLocal());
+    if (!Number.isFinite(amountMm) || amountMm <= 0 || amountMm > 500) {
+      if (typeof window.amToast === 'function') window.amToast('Ingresá una lámina de riego válida', 'warn');
+      return;
+    }
+    if (date > bhFechaLocal()) {
+      if (typeof window.amToast === 'function') window.amToast('El riego aplicado no puede tener una fecha futura', 'warn');
+      return;
+    }
+    efficiency = Math.max(0.01, Math.min(1, efficiency));
+
+    var now = new Date();
+    var d = lote.data || (lote.data = {});
+    var ck = d.calcKeys || {};
+    var campaignId = String(ck.am_campana_activa_id || ck.am_campana_id || '');
+    var event = {
+      clientEventId: 'hydric-' + String(lote.id) + '-' + now.getTime(),
+      eventType: 'irrigation',
+      eventAt: date + 'T12:00:00-03:00',
+      amountMm: Math.round(amountMm * 100) / 100,
+      efficiency: Math.round(efficiency * 10000) / 10000,
+      source: 'hydric-module',
+      campaignId: campaignId
+    };
+    var events = Array.isArray(d.hydricEvents) ? d.hydricEvents.slice() : [];
+    events.push(event);
+    d.hydricEvents = events.slice(-100);
+    if (typeof window.amGuardarLotesEstado === 'function') window.amGuardarLotesEstado();
+
+    var effectiveMm = event.amountMm * event.efficiency;
+    bhGuardarBitacora({
+      id: 'bh-riego-' + now.getTime(),
+      fecha: date,
+      hora: now.toTimeString().slice(0, 5),
+      tipo: 'riego',
+      loteId: lote.id,
+      loteNombre: lote.nombre || 'Lote',
+      cultivo: d.cultivo || gv('s-cultivo') || '',
+      etapa: localStorage.getItem('am_fen_etapa_hoy') || '',
+      nota: 'Riego aplicado: ' + event.amountMm.toFixed(1) + ' mm brutos · ' + effectiveMm.toFixed(1) + ' mm efectivos',
+      resolucionHidrica: { decision: 'riego_aplicado', event: event }
+    });
+
+    var remoteSaved = false;
+    try {
+      var session = window.AM_SESION;
+      if (window.AM_SB && session && session.id) {
+        var result = await window.AM_SB.from('hydric_events').upsert({
+          user_id: session.id,
+          lote_id: String(lote.id),
+          client_event_id: event.clientEventId,
+          event_type: event.eventType,
+          event_at: event.eventAt,
+          amount_mm: event.amountMm,
+          efficiency: event.efficiency,
+          source: event.source,
+          metadata: { campaign_id: campaignId }
+        }, { onConflict: 'user_id,client_event_id' });
+        if (result.error) throw result.error;
+        remoteSaved = true;
+      }
+    } catch (error) {
+      console.warn('[AgroMotor] El riego quedó guardado en el lote; sincronización hídrica pendiente.', error);
+    }
+
+    if (bhEl('bh-riego-aplicado-mm')) bhEl('bh-riego-aplicado-mm').value = '';
+    bhActualizar();
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    if (typeof window.dashOperativoRefresh === 'function') window.dashOperativoRefresh();
+    window.dispatchEvent(new CustomEvent('am:hydric-event', { detail: { loteId: lote.id, event: event } }));
+    var message = 'Riego incorporado: ' + effectiveMm.toFixed(1) + ' mm efectivos';
+    if (!remoteSaved && window.AM_SESION) message += ' · sincronización pendiente';
+    if (typeof window.amToast === 'function') window.amToast(message, 'ok');
+  }
+
   window.consultarENSO = consultarENSO;
   window.renderENSO = renderENSO;
   window.bhToggleRiego = bhToggleRiego;
   window.bhActualizarEnsoSelector = bhActualizarEnsoSelector;
   window.bhActualizar = bhActualizar;
+  window.bhRegistrarRiegoAplicado = bhRegistrarRiegoAplicado;
   window.bhRenderContextoRecorrida = bhRenderContextoRecorrida;
   window.bhRegistrarResolucion = function(decision) {
     var lote = bhLoteActivo();

@@ -193,6 +193,31 @@ test('autonomia operativa toma el horizonte conservador si los modelos divergen'
   assert.equal(out.diasOperativos, 3);
 });
 
+test('riego registrado repone agua sin ponderacion probabilistica', () => {
+  const ctx = loadCore();
+  const perfil = {
+    aguaUtilMm:30,
+    capacidadUtilMm:40,
+    umbralUtilMm:20,
+    pct:75,
+    estado:'disponible',
+  };
+  const dias = Array.from({length:12}, (_, i) => ({
+    fecha:`2026-07-${String(i+1).padStart(2, '0')}`,
+    et0:4,
+    kc:0.5,
+    precipitacion:0,
+    probabilidad:0,
+    riegoMm:i === 2 ? 10 : 0,
+    eficienciaRiego:.8,
+  }));
+  const out = ctx.amSoilWaterOutlook(perfil, dias, { cultivo:'trigo', horizonte:12 });
+
+  assert.equal(out.diasSinLluvia, 9);
+  assert.ok(out.diasConPronostico == null || out.diasConPronostico > 9);
+  assert.equal(out.serie[2].riegoEfectivo, 8);
+});
+
 test('etapa hidrica ajusta Kc y profundidad radicular con el avance', () => {
   const ctx = loadCore();
   const inicial = ctx.amCropWaterStage('trigo', 5, 190);

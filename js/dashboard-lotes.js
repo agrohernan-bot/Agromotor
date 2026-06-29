@@ -79,6 +79,7 @@
   var _modContext = null;
   var _climaCache = {};
   var _hubDataCache = {};  // keyed by loteId_month
+  var _hydricAutoCache = {};
   var _mapaInstances = {};
   var _dlClienteFiltro = null;
 
@@ -1110,9 +1111,26 @@
       html += '<div class="dlw-meta">Raíz efectiva estimada: ' + Math.round(outlook.raizActualCm) +
         ' cm · Kc ' + Number(outlook.kcActual).toFixed(2) + '.</div>';
     }
+    var irrigation = outlook.serie.filter(function(d) { return d.riegoEfectivo > 0; });
+    if (irrigation.length) {
+      var irrigationTotal = irrigation.reduce(function(sum, d) { return sum+d.riegoEfectivo; }, 0);
+      html += '<div class="dlw-meta" style="color:#4F9DD9">💧 Riego registrado: ' +
+        irrigationTotal.toFixed(1) + ' mm efectivos dentro del horizonte.</div>';
+    }
+    if (outlook.irrigationCarryoverMm > 0) {
+      html += '<div class="dlw-meta" style="color:#4F9DD9">💧 Remanente estimado de riegos aplicados: ' +
+        outlook.irrigationCarryoverMm.toFixed(1) + ' mm.</div>';
+    }
+    if (outlook.calibrationSamples > 0) {
+      html += '<div class="dlw-meta">Calibración automática activa · ' +
+        outlook.calibrationSamples + ' comparaciones históricas.</div>';
+    } else {
+      html += '<div class="dlw-meta">Calibración automática iniciada · aprende con cada actualización diaria.</div>';
+    }
     html += '<div style="display:flex;gap:3px;margin-top:.5rem" title="Proyección diaria: verde disponible, rojo bajo umbral; azul indica lluvia probable">';
     outlook.serie.forEach(function(d) {
-      var bg = d.estresPronostico ? '#D4522A' : d.precipitacion >= 3 && d.probabilidad >= 50 ? '#4F9DD9' : '#6DBF82';
+      var bg = d.estresPronostico ? '#D4522A' : d.riegoEfectivo > 0 ? '#55C7D9' :
+        d.precipitacion >= 3 && d.probabilidad >= 50 ? '#4F9DD9' : '#6DBF82';
       html += '<span style="height:7px;flex:1;border-radius:3px;background:' + bg + ';opacity:' +
         (d.probabilidad >= 50 || d.estresPronostico ? '1' : '.55') + '"></span>';
     });
@@ -1453,6 +1471,73 @@
     };
   }
 
+  function _fetchHydricAutomation(loteId) {
+    if (!window.AM_SB || !window.AM_SESION || !window.AM_SESION.id) return Promise.resolve(null);
+    if (_hydricAutoCache[loteId]) return Promise.resolve(_hydricAutoCache[loteId]);
+    return Promise.all([
+      window.AM_SB.from('hydric_calibrations')
+        .select('samples,bias_layers,mae_layers,updated_at')
+        .eq('lote_id', loteId).maybeSingle(),
+      window.AM_SB.from('hydric_latest')
+        .select('summary,updated_at')
+        .eq('lote_id', loteId).maybeSingle()
+    ]).then(function(rows) {
+      var result = {
+        calibration:rows[0] && !rows[0].error ? rows[0].data : null,
+        latest:rows[1] && !rows[1].error ? rows[1].data : null
+      };
+      _hydricAutoCache[loteId] = result;
+      return result;
+    }).catch(function() { return null; });
+  }
+
+  function _applyHydricBias(cur, hydric) {
+    if (!cur) return cur;
+    var bias = hydric && hydric.calibration && hydric.calibration.bias_layers || {};
+    var out = Object.assign({}, cur);
+    [
+      ['soil_moisture_3_to_9cm','sm39'],
+      ['soil_moisture_9_to_27cm','sm927'],
+      ['soil_moisture_27_to_81cm','sm2781']
+    ].forEach(function(pair) {
+      var value = Number(out[pair[0]]);
+      var correction = Number(bias[pair[1]]);
+      if (isFinite(value) && isFinite(correction)) out[pair[0]] = Math.max(0, value+correction);
+    });
+    return out;
+  }
+
+  function _irrigationForDate(lote, fecha) {
+    var events = lote && lote.data && lote.data.hydricEvents;
+    if (!Array.isArray(events)) return { mm:0, efficiency:1 };
+    var selected = events.filter(function(event) {
+      return event && event.eventType === 'irrigation' &&
+        String(event.eventAt || event.fecha || '').slice(0,10) === fecha;
+    });
+    var gross = selected.reduce(function(sum, event) { return sum+(Number(event.amountMm) || 0); }, 0);
+    var effective = selected.reduce(function(sum, event) {
+      return sum+(Number(event.amountMm) || 0)*(Number(event.efficiency) || 1);
+    }, 0);
+    return { mm:gross, efficiency:gross > 0 ? effective/gross : 1 };
+  }
+
+  function _irrigationCarryover(lote, fecha, etcDiaria) {
+    var events = lote && lote.data && lote.data.hydricEvents;
+    if (!Array.isArray(events)) return 0;
+    var target = new Date(fecha + 'T12:00:00');
+    if (isNaN(target.getTime())) return 0;
+    return events.reduce(function(sum, event) {
+      if (!event || event.eventType !== 'irrigation') return sum;
+      var eventDate = String(event.eventAt || event.fecha || '').slice(0,10);
+      if (!eventDate || eventDate >= fecha) return sum;
+      var applied = new Date(eventDate + 'T12:00:00');
+      var days = Math.max(0, Math.round((target-applied)/86400000));
+      if (!isFinite(days) || days > 30) return sum;
+      var effective = (Number(event.amountMm) || 0)*(Number(event.efficiency) || 1);
+      return sum+Math.max(0, effective-days*Math.max(.5, Number(etcDiaria) || 0));
+    }, 0);
+  }
+
   function _futureWeatherDays(om) {
     var hourly = om.hourly || {};
     var times = hourly.time || [];
@@ -1478,7 +1563,7 @@
     return orden.slice(0,16).map(function(fecha) { return grupos[fecha]; });
   }
 
-  function _buildWaterOutlook(lote, om) {
+  function _buildWaterOutlook(lote, om, hydric) {
     if (!lote || !om || typeof window.amSoilWaterOutlook !== 'function' ||
         typeof window.amCropWaterStage !== 'function') return null;
     var d = lote.data || {};
@@ -1495,11 +1580,20 @@
     if (!isFinite(Number(et0Hoy))) et0Hoy = diasMeteo[0].et0;
     var perfilInicial = _soilProfileForLote(lote, om.current || {}, et0Hoy, etapaHoy.raizCm, etapaHoy.kc);
     if (!perfilInicial) return null;
+    var carryoverRiego = _irrigationCarryover(lote, diasMeteo[0].fecha, Number(et0Hoy)*etapaHoy.kc);
+    if (carryoverRiego > 0) {
+      perfilInicial = Object.assign({}, perfilInicial);
+      perfilInicial.aguaUtilMm = Math.min(perfilInicial.capacidadUtilMm,
+        perfilInicial.aguaUtilMm+carryoverRiego);
+      perfilInicial.pct = perfilInicial.capacidadUtilMm > 0
+        ? perfilInicial.aguaUtilMm/perfilInicial.capacidadUtilMm*100 : perfilInicial.pct;
+    }
     var prevRaiz = etapaHoy.raizCm;
     var dias = diasMeteo.map(function(meteo, idx) {
       var fecha = meteo.fecha;
       var etapa = window.amCropWaterStage(cultivo, diasBase+idx+1, ciclo);
-      var curDia = idx === 0 ? (om.current || {}) : _hourlySoilForDate(om.hourly, fecha);
+      var curDia = idx === 0 ? (om.current || {}) : _applyHydricBias(_hourlySoilForDate(om.hourly, fecha), hydric);
+      var irrigation = _irrigationForDate(lote, fecha);
       var perfilNuevo = curDia
         ? _soilProfileForLote(lote, curDia, meteo.et0, etapa.raizCm, etapa.kc)
         : null;
@@ -1515,6 +1609,8 @@
         kc:etapa.kc,
         precipitacion:meteo.precipitacion,
         probabilidad:meteo.probabilidad,
+        riegoMm:irrigation.mm,
+        eficienciaRiego:irrigation.efficiency,
         capacidadUtilMm:perfilNuevo ? perfilNuevo.capacidadUtilMm : null,
         gananciaRaizMm:gananciaRaiz,
         modeloPerfil:perfilNuevo,
@@ -1531,6 +1627,9 @@
       outlook.raizActualCm = etapaHoy.raizCm;
       outlook.kcActual = etapaHoy.kc;
       outlook.perfilInicial = perfilInicial;
+      outlook.calibrationSamples = Number(hydric && hydric.calibration && hydric.calibration.samples) || 0;
+      outlook.automationUpdatedAt = hydric && hydric.latest && hydric.latest.updated_at || '';
+      outlook.irrigationCarryoverMm = carryoverRiego;
     }
     return outlook;
   }
@@ -1638,7 +1737,7 @@
     }
 
     try {
-      var [omData, nasaProps, ensoResult] = await Promise.all([
+      var [omData, nasaProps, ensoResult, hydricAuto] = await Promise.all([
         fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
           '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,' +
           'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
@@ -1652,10 +1751,11 @@
           : Promise.resolve(null)),
         (window.ENSO && typeof window.ENSO.getFaseENSO === 'function'
           ? window.ENSO.getFaseENSO().catch(function() { return null; })
-          : Promise.resolve(null))
+          : Promise.resolve(null)),
+        _fetchHydricAutomation(loteId)
       ]);
 
-      var result = { om: omData, nasa: nasaProps, enso: ensoResult };
+      var result = { om: omData, nasa: nasaProps, enso: ensoResult, hydric:hydricAuto };
       _hubDataCache[cacheKey] = result;
       if (!document.getElementById('dl-hub-datos-' + loteId)) return; // user navigated away
       _renderHubDatos(el, result, loteId);
@@ -1679,7 +1779,7 @@
     var loteHum = getLote(loteId);
     var et0Numero = day.et0_fao_evapotranspiration && day.et0_fao_evapotranspiration[0];
     var perfilHum = _soilProfileForLote(loteHum, cur, et0Numero);
-    var outlookHum = _buildWaterOutlook(loteHum, om);
+    var outlookHum = _buildWaterOutlook(loteHum, om, data.hydric);
     _actualizarWidgetHidricoActual(loteId, perfilHum, outlookHum);
     var humSuelo = perfilHum && perfilHum.pct != null
       ? Math.round(perfilHum.pct) + '% útil'

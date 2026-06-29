@@ -297,12 +297,15 @@ function amSoilWaterOutlook(perfilInicial, dias, options) {
     const etc = et0*kc;
     const lluvia = Math.max(0, Number(d && d.precipitacion) || 0);
     const prob = Math.max(0, Math.min(100, Number(d && d.probabilidad) || 0));
+    const riego = Math.max(0, Number(d && d.riegoMm) || 0);
+    const eficienciaRiego = Math.max(0.10, Math.min(1, Number(d && d.eficienciaRiego) || 1));
+    const riegoEfectivo = riego*eficienciaRiego;
     const factorHum = amRainInfiltrationFactor(opts.sg, capacidad > 0 ? aguaPron/capacidad*100 : null);
     const factorInf = Math.min(factorBase, factorHum);
     const lluviaEfectiva = lluvia*factorInf*(prob/100);
 
     aguaSeca = Math.max(0, aguaSeca-etc);
-    aguaPron = Math.max(0, Math.min(capacidad, aguaPron+lluviaEfectiva-etc));
+    aguaPron = Math.max(0, Math.min(capacidad, aguaPron+lluviaEfectiva+riegoEfectivo-etc));
     const dep = amSoilWaterDepletion(opts.cultivo, et0, kc, opts.sg);
     const umbral = capacidad*(1-dep.p);
     const modelo = d && d.modeloPerfil;
@@ -326,6 +329,7 @@ function amSoilWaterOutlook(perfilInicial, dias, options) {
       dia:idx+1,
       fecha:d && d.fecha || '',
       et0, kc, etc, precipitacion:lluvia, probabilidad:prob, lluviaEfectiva,
+      riegoMm:riego, eficienciaRiego, riegoEfectivo,
       aguaSinLluviaMm:aguaSeca, aguaPronosticoMm:aguaPron,
       capacidadUtilMm:capacidad, umbralUtilMm:umbral,
       pctPronostico:capacidad > 0 ? aguaPron/capacidad*100 : null,

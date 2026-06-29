@@ -1432,6 +1432,23 @@
             <label>Disponibilidad máx. de agua (m³/ha)</label>
             <input type="number" id="bh-m3-disp" value="2000" min="100" oninput="bhActualizar()">
           </div>
+          <div style="margin-top:.8rem;padding:.8rem;border:1px solid rgba(42,90,140,.2);border-radius:10px;background:rgba(42,90,140,.04)">
+            <div style="font-size:.72rem;font-weight:700;color:#2A5A8C;margin-bottom:.55rem">Riego realmente aplicado</div>
+            <div class="grid-2">
+              <div class="fg">
+                <label>Fecha</label>
+                <input type="date" id="bh-riego-fecha">
+              </div>
+              <div class="fg">
+                <label>Lámina bruta (mm)</label>
+                <input type="number" id="bh-riego-aplicado-mm" min="0.1" max="500" step="0.1" placeholder="Ej. 25">
+              </div>
+            </div>
+            <button type="button" class="btn btn-p btn-full" onclick="bhRegistrarRiegoAplicado()">
+              Registrar riego aplicado
+            </button>
+            <div id="bh-riego-aplicado-status" style="margin-top:.45rem;font-size:.72rem;color:rgba(74,46,26,.6)"></div>
+          </div>
         </div>
         <button class="btn btn-p btn-full" style="margin-top:.8rem" onclick="bhActualizar()">
           💧 Calcular balance hídrico
@@ -5106,7 +5123,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=90"></script>
-<script src="js/config.js?v=182"></script>
+<script src="js/config.js?v=183"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
