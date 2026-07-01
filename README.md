@@ -16,7 +16,7 @@ Planificación  →  Implantación  →  Nutrición  →  Economía  →  Sanida
    (3 mods)      (3 mods)       (3 mods)     (3 mods)     (3 mods)    (2 mods)
 ```
 
-Datos en tiempo real desde 7 APIs externas (Open-Meteo, NASA POWER, SoilGrids ISRIC, ENSO/NOAA, DolarAPI, BCRA, Agromonitoring) + Asistente IA conectado a Anthropic Claude Sonnet 4.5.
+Datos en tiempo real desde APIs externas (Open-Meteo, NASA POWER, SoilGrids ISRIC, ENSO/NOAA, DolarAPI, BCRA, Agromonitoring, Copernicus y Earth Search/AWS) + Asistente IA conectado a Anthropic Claude.
 
 **Exclusivo para profesionales matriculados** — registro requiere número de matrícula y CPIA (Consejo Profesional de Ingeniería Agronómica) declarado bajo juramento.
 
@@ -109,9 +109,14 @@ supabase functions deploy mp-crear-suscripcion
 | `MP_ACCESS_TOKEN` | Supabase secrets (Mercado Pago panel) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase auto |
 | `SUPABASE_URL` | Supabase auto |
+| `AGROMONITORING_API_KEY` | Vercel Environment Variables (opcional, proveedor NDVI primario) |
+| `CDSE_CLIENT_ID` | Vercel Environment Variables (opcional, fallback Copernicus) |
+| `CDSE_CLIENT_SECRET` | Vercel Environment Variables (opcional, fallback Copernicus) |
 
 Configuración pública (no secret):
-- `js/config.js` → `AM_CONFIG.supabase.url`, `anonKey`, `claudeProxy`, `agromonitoringKey`
+- `js/config.js` → `AM_CONFIG.supabase.url`, `anonKey` y proxies públicos.
+
+El monitoreo NDVI nunca calcula sustitutos fenológicos. Intenta Agromonitoring, luego Copernicus y finalmente Sentinel-2 L2A público mediante Earth Search/AWS. Si no existe una escena con calidad suficiente, informa que el dato no está disponible y conserva el último resultado observado.
 
 ## 💰 Modelo comercial
 

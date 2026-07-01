@@ -545,7 +545,7 @@ async function mapaSatAnalizar() {
     var grid = satBuildGrid(geo, centro);
     var data;
     try { data = await satFetchRealNDVI(geo, 4, grid); }
-    catch (e) { data = satGenerarNDVIModelado(lote, grid, 4); }
+    catch (e) { throw new Error('NDVI real no disponible'); }
     var stats = satStats(data.gridValues);
     var anom = satDetectarAnomalias(data.gridValues, stats, data.historial, satPctCiclo(lote));
     var res = { lote, grid, stats, anomalias: anom, historial: data.historial, fuente: data.fuente, gridValues: data.gridValues };
@@ -567,5 +567,18 @@ async function mapaSatAnalizar() {
 window.mapaSatelitalInit = mapaSatelitalInit;
 window.mapaSatCambiarCapa = mapaSatCambiarCapa;
 window.mapaSatAnalizar = mapaSatAnalizar;
+window.satMapaInterno = {
+  getMap: function () { return SAT_MAP; },
+  getLote: satLoteActivo,
+  getPolygon: satPolygon,
+  getGeoJSON: function (lote) { var poly = satPolygon(lote); return satGeoJSON(lote, poly); },
+  clearLegacyAnalysis: function () {
+    if (SAT_MAP && SAT_NDVI_LAYER) SAT_MAP.removeLayer(SAT_NDVI_LAYER);
+    if (SAT_MAP && SAT_ANOM_LAYER) SAT_MAP.removeLayer(SAT_ANOM_LAYER);
+    SAT_NDVI_LAYER = null;
+    SAT_ANOM_LAYER = null;
+    if (SAT_CHART) { SAT_CHART.destroy(); SAT_CHART = null; }
+  }
+};
 
 })();

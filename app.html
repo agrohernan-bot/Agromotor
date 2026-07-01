@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 
   <!-- Estilos propios -->
-  <link rel="stylesheet" href="css/agromotor.css?v=91">
+  <link rel="stylesheet" href="css/agromotor.css?v=92">
   <link rel="stylesheet" href="css/cosecha.css?v=86">
   <link rel="stylesheet" href="css/siembra-variable.css?v=87">
   <link rel="stylesheet" href="css/alerta-sanitaria.css?v=87">
@@ -1896,7 +1896,7 @@
 <!-- ══ MÓDULO MAPA / IMÁGENES SATELITALES ══ -->
 <div id="mod-mapa" class="module-panel">
   <div class="module-title">🛰️ Mapa / <em>Imagenes satelitales</em></div>
-  <div class="module-subtitle">Visualizacion geografica del lote activo · poligono · centroide · capas satelitales</div>
+  <div class="module-subtitle">NDVI observado · escenas trazables · contexto agronomico · Sentinel-2</div>
 
   <div class="grid-2" style="gap:1.2rem">
     <div>
@@ -1904,27 +1904,34 @@
         <div class="card-title">📍 Lote activo</div>
         <div id="mapa-sat-contexto" style="display:flex;flex-wrap:wrap;gap:.45rem;margin:.6rem 0"></div>
         <div style="font-size:.78rem;color:rgba(28,18,8,.68);line-height:1.55">
-          Usa el poligono cargado en Mis Lotes. Si el lote no tiene poligono, se muestra el centroide o las coordenadas disponibles.
+          El mapa hereda el poligono de Mis Lotes. El NDVI requiere el perimetro completo; las coordenadas solas se usan unicamente para ubicar el lote.
         </div>
+        <div id="mapa-sat-contexto-agro" style="margin-top:.7rem;padding:.65rem .7rem;border:1px solid rgba(74,140,92,.24);background:rgba(74,140,92,.07);border-radius:10px"></div>
       </div>
 
       <div class="card gap-top" style="padding:.95rem">
-        <div class="card-title">🧭 Capas disponibles</div>
+        <div class="card-title">🧭 Visualizacion</div>
         <div style="display:grid;gap:.55rem">
-          <button type="button" onclick="mapaSatCambiarCapa('sat')" style="background:rgba(74,140,92,.14);border:1px solid rgba(74,140,92,.35);color:#1E4D2B;border-radius:10px;padding:.65rem .85rem;font-weight:800;text-align:left">Satelite ESRI</button>
-          <button type="button" onclick="mapaSatCambiarCapa('osm')" style="background:#fff;border:1px solid rgba(74,46,26,.14);color:#4A2E1A;border-radius:10px;padding:.65rem .85rem;font-weight:800;text-align:left">Mapa callejero</button>
-          <button type="button" onclick="mapaSatAnalizar()" id="mapa-sat-btn-analizar" style="background:linear-gradient(135deg,#1E6B3A,#2F8B57);border:1px solid rgba(74,140,92,.55);color:#fff;border-radius:10px;padding:.72rem .85rem;font-weight:900;text-align:left;box-shadow:0 8px 18px rgba(30,107,58,.22)">Analizar NDVI y anomalias</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem">
+            <button type="button" data-sat-product="ndvi" aria-pressed="true" onclick="satMostrarProducto('ndvi')" class="sat-layer-button sat-layer-active">NDVI real</button>
+            <button type="button" data-sat-product="base" aria-pressed="false" onclick="satMostrarProducto('base')" class="sat-layer-button">Imagen de referencia</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.45rem">
+            <button type="button" onclick="mapaSatCambiarCapa('sat')" class="sat-base-button">Esri satelite</button>
+            <button type="button" onclick="mapaSatCambiarCapa('osm')" class="sat-base-button">Mapa callejero</button>
+          </div>
+          <button type="button" onclick="mapaSatAnalizar()" id="mapa-sat-btn-analizar" class="sat-analyze-button">Actualizar NDVI real</button>
         </div>
       </div>
 
       <div class="card gap-top" style="padding:.95rem">
-        <div class="card-title">Tablero satelital</div>
+        <div class="card-title">Tablero de la escena</div>
         <div id="mapa-sat-kpis" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin-top:.65rem"></div>
         <div id="mapa-sat-alertas" style="display:grid;gap:.55rem;margin-top:.75rem"></div>
       </div>
 
       <div class="card gap-top" style="padding:.95rem">
-        <div class="card-title">Evolucion del vigor</div>
+        <div class="card-title">Evolucion observada</div>
         <div style="height:140px;max-height:140px;margin-top:.55rem;position:relative">
           <canvas id="mapa-sat-chart" style="width:100%;height:140px;max-height:140px;display:block"></canvas>
         </div>
@@ -1940,7 +1947,7 @@
           Selecciona un lote con coordenadas o poligono para visualizarlo en el mapa.
         </div>
       </div>
-      <div style="margin-top:.65rem;font-size:.7rem;color:rgba(237,224,196,.42);text-align:center">Imagenes: Esri World Imagery · Mapa: OpenStreetMap · Leaflet.js</div>
+      <div style="margin-top:.65rem;font-size:.7rem;color:rgba(237,224,196,.52);text-align:center">NDVI: Agromonitoring / Copernicus Sentinel-2 L2A · Esri: referencia visual sin fecha comun con la escena · Leaflet.js</div>
     </div>
   </div>
 </div>
@@ -5123,7 +5130,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=90"></script>
-<script src="js/config.js?v=184"></script>
+<script src="js/config.js?v=186"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
@@ -5137,7 +5144,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/informe-cierre.js?v=85"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=108"></script>
+<script src="js/nav.js?v=109"></script>
 
 
 

@@ -4,6 +4,7 @@
 output/
 scratch/
 src/
+tests/
 
 *.zip
 fix.py

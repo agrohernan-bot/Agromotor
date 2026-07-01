@@ -63,7 +63,7 @@ function switchMod(mod) {
   var modLazy = {
     'hidrico':       ['hidrico.js'],
     'cultivares':    ['densidad-retaa-db.js', 'densidad-retaa.js', 'cultivares.js', 'cultivares-extra.js'],
-    'mapa':          ['mapa.js'],
+    'mapa':          ['mapa.js', 'mapa-ndvi.js'],
     'donde-comprar': ['mapa.js'],
     'pulverizacion': ['pulverizacion.js'],
     'decision':      ['decision.js'],
@@ -555,7 +555,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }, 1500);
   
   setTimeout(function() { amCargarModulo('hidrico.js'); amCargarModulo('cultivares.js'); }, 2000);
-  setTimeout(function() { amCargarModulo('cultivares-extra.js'); amCargarModulo('mapa.js'); amCargarModulo('pulverizacion.js'); }, 5000);
+  setTimeout(function() {
+    amCargarModulo('cultivares-extra.js');
+    amCargarModulo('mapa.js', function() { amCargarModulo('mapa-ndvi.js'); });
+    amCargarModulo('pulverizacion.js');
+  }, 5000);
   setTimeout(function() { amCargarModulo('fenologia.js'); }, 8000);
   var trafico = document.getElementById('s-trafico');
   if (trafico) {
