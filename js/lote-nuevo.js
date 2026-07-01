@@ -129,10 +129,11 @@
                 '<span class="lnv-modo-fijo">✏ Polígono obligatorio</span>',
               '</div>',
             '</div>',
-            '<div style="display:flex;gap:.5rem;margin-bottom:.55rem">',
+            '<div style="display:flex;gap:.5rem;margin-bottom:.2rem">',
               '<input id="lnv-search-box" class="lnv-input" type="text" placeholder="Buscar localidad (ej: Concepción del Uruguay)" style="margin-bottom:0;flex:1">',
               '<button type="button" class="lnv-poly-btn" onclick="window.lnvBuscarLocalidad()" style="width:auto;padding:.4rem .8rem;margin:0;font-weight:700">🔍 Buscar</button>',
             '</div>',
+            '<div style="font-size:.58rem;color:#9ca3af;margin-bottom:.55rem;text-align:right">Datos de búsqueda por © <a href="https://www.openstreetmap.org/copyright" target="_blank" style="color:inherit;text-decoration:underline">OpenStreetMap</a> contributors</div>',
             '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.</div>',
             '<div class="lnv-poly-controles" id="lnv-poly-controles">',
               '<button class="lnv-poly-btn" id="lnv-btn-deshacer" onclick="window.lnvDeshacer()">← Deshacer último punto</button>',
@@ -590,7 +591,7 @@
     try {
       if (typeof window.amToast === 'function') window.amToast('Buscando ubicación...', 'info');
       
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=ar`, {
         headers: {
           'Accept-Language': 'es'
         }

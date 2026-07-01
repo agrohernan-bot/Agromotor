@@ -652,3 +652,126 @@ test('Siembra Variable cambia de escala a kg y calcula totales para Trigo vs Mai
   // Maíz: ts = 100 ha * 7.5 sem/m2 * 10000 = 7500000 semillas -> ts / 1000 = 7500 miles.
   assert.match(tpEl.innerHTML, /7[.,]?500 miles/);
 });
+
+test('Buscador de lote nuevo consulta a Nominatim con filtro countrycodes=ar', async () => {
+  const sandbox = createBrowserSandbox();
+  
+  // Mockear leaflet L.map y Leaflet global
+  sandbox.L = {
+    map() {
+      const mapObj = {
+        setView() { this.setViewCalled = true; return this; },
+        remove() {},
+        on() { return this; },
+        fitBounds() { return this; },
+        doubleClickZoom: {
+          disable() {}
+        },
+        addLayer() {}
+      };
+      return mapObj;
+    },
+    tileLayer() {
+      return { addTo() {} };
+    },
+    marker() {
+      return { addTo() {} };
+    },
+    divIcon() {},
+    polygon() {
+      return { addTo() {} };
+    },
+    DomEvent: {
+      stopPropagation() {}
+    }
+  };
+
+  sandbox.document.ensureElement('lnv-search-box', { value: 'Tandil' });
+  sandbox.amToast = () => {};
+
+  // Mockear todo el DOM del modal
+  sandbox.document.ensureElement('lnv-overlay');
+  const nombreEl = sandbox.document.ensureElement('lnv-nombre');
+  nombreEl.focus = () => {};
+  sandbox.document.ensureElement('lnv-sup');
+  sandbox.document.ensureElement('lnv-sup-calc');
+  sandbox.document.ensureElement('lnv-sup-auto-wrap');
+  sandbox.document.ensureElement('lnv-btn-deshacer');
+  sandbox.document.ensureElement('lnv-btn-reiniciar');
+  sandbox.document.ensureElement('lnv-coord-display');
+  sandbox.document.ensureElement('lnv-mapa');
+  sandbox.document.ensureElement('lnv-cliente-sel');
+  sandbox.document.ensureElement('lnv-cultivo');
+
+  // Cargar lote-nuevo en el sandbox
+  vm.runInNewContext(read('js/lote-nuevo.js'), sandbox, { filename: 'js/lote-nuevo.js' });
+  
+  sandbox.dlMostrarModalNuevoLote();
+
+  let fetchedUrl = '';
+  sandbox.fetch = async (url) => {
+    fetchedUrl = url;
+    return {
+      ok: true,
+      json: async () => [{ lat: '-37.3216', lon: '-59.1332' }]
+    };
+  };
+
+  await sandbox.lnvBuscarLocalidad();
+
+  assert.match(fetchedUrl, /countrycodes=ar/);
+  assert.match(fetchedUrl, /q=Tandil/);
+});
+
+test('pdfInformeCierre procesa notas de cierre manuales y automaticas correctamente', () => {
+  const sandbox = createBrowserSandbox();
+  
+  // Guardar en localStorage un cierre con notas manuales tipo string
+  const cierreMock = {
+    lote: 'Lote Test',
+    cultivo: 'Trigo',
+    diasEtCritica: 3,
+    notasAuto: ['3 días de estrés hídrico'],
+    notas: 'Aplicar nitrógeno foliar urgente.'
+  };
+  sandbox.localStorage.setItem('am_campana_cerrada_ultima', JSON.stringify(cierreMock));
+  sandbox.amToast = () => {};
+
+  // Mockear jsPDF global
+  let docSaved = false;
+  let sections = [];
+  sandbox.jspdf = {
+    jsPDF: function() {
+      return {
+        setFont() {},
+        setFontSize() {},
+        setTextColor() {},
+        setFillColor() {},
+        setDrawColor() {},
+        setLineWidth() {},
+        line() {},
+        rect() {},
+        roundedRect() {},
+        text(txt) { 
+          if (typeof txt === 'string' && txt.includes('OBSERVACIONES')) sections.push(txt); 
+        },
+        splitTextToSize(txt) { return [txt]; },
+        save() { docSaved = true; },
+        addPage() {},
+        setPage() {},
+        internal: {
+          getNumberOfPages() { return 1; }
+        }
+      };
+    }
+  };
+
+  // Cargar pdf-modulo en el sandbox
+  vm.runInNewContext(read('js/pdf-modulo.js'), sandbox, { filename: 'js/pdf-modulo.js' });
+
+  sandbox.pdfInformeCierre();
+
+  assert.equal(docSaved, true);
+  assert.ok(sections.some(s => s.includes('AUTOMÁTICAS')));
+  assert.ok(sections.some(s => s.includes('PROFESIONAL')));
+});

@@ -947,12 +947,31 @@
   // ── EXPORTACIÓN ───────────────────────────────────
   function _features() {
     var cd = svZonaData.gridInfo.cellDeg;
+    var lote = _loteActivo();
+    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cKey = svMapCultivoReTAA(cultivo);
+    var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
+
     return svZonaData.gridInfo.points.map(function (p, i) {
       var z = svZonaData.assignments[i];
+      var semVal = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
+      
+      var prop = { 
+        ambiente: ZONE_NAMES[z], 
+        ndvi: +svZonaData.gridValues[i].toFixed(3), 
+        dosis_fertilizante_kg_ha: +(document.getElementById('sv-fer-' + z) || { value: 0 }).value || 0 
+      };
+      
+      if (esFino) {
+        prop.dosis_semilla_kg_ha = semVal;
+      } else {
+        prop.dosis_semilla_sem_m2 = semVal;
+      }
+
       return {
         type: 'Feature',
         geometry: { type: 'Polygon', coordinates: [[[p[0] - cd / 2, p[1] - cd / 2], [p[0] + cd / 2, p[1] - cd / 2], [p[0] + cd / 2, p[1] + cd / 2], [p[0] - cd / 2, p[1] + cd / 2], [p[0] - cd / 2, p[1] - cd / 2]]] },
-        properties: { ambiente: ZONE_NAMES[z], ndvi: +svZonaData.gridValues[i].toFixed(3), dosis_semilla_sem_m2: +(document.getElementById('sv-sem-' + z) || { value: 0 }).value, dosis_fertilizante_kg_ha: +(document.getElementById('sv-fer-' + z) || { value: 0 }).value }
+        properties: prop
       };
     });
   }
@@ -964,7 +983,15 @@
     if (!svZonaData) return;
     var tot = svZonaData.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(svZonaData.k).fill(0); svZonaData.assignments.forEach(function (a) { cnt[a]++; });
-    var lines = ['Ambiente,Superficie_ha,NDVI_promedio,Score_compuesto,Dosis_semilla_sem_m2,Dosis_fertilizante_kg_ha'];
+    
+    var lote = _loteActivo();
+    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cKey = svMapCultivoReTAA(cultivo);
+    var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
+    
+    var semCol = esFino ? 'Dosis_semilla_kg_ha' : 'Dosis_semilla_sem_m2';
+    var lines = ['Ambiente,Superficie_ha,NDVI_promedio,Score_compuesto,' + semCol + ',Dosis_fertilizante_kg_ha'];
+    
     for (var i = 0; i < svZonaData.k; i++) {
       var ha = (cnt[i] / tot * area).toFixed(2);
       var ndviProm = svZonaData.gridValues.filter(function (_, j) { return svZonaData.assignments[j] === i; })
@@ -977,11 +1004,31 @@
   }
   function exportarCSVMonitor() {
     if (!svZonaData) return;
+    
+    var lote = _loteActivo();
+    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cKey = svMapCultivoReTAA(cultivo);
+    var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
+    var pms = (lote && lote.data.semillaPMS) || 0;
+    var pmsRef = pms > 0 ? pms : (cKey === 'soja' ? 160 : 38);
+
     var lines = ['Latitude,Longitude,Seed_Rate_m2,Seed_Rate_ha,Fert_Rate_ha,Zone_Name'];
     svZonaData.gridInfo.points.forEach(function (p, i) {
       var z = svZonaData.assignments[i];
-      var seedM2 = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
-      var seedHa = Math.round(seedM2 * 10000);
+      var inputVal = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
+      
+      var seedM2 = 0;
+      var seedHa = 0;
+      
+      if (esFino) {
+        seedHa = inputVal; // kg/ha para maquinaria de fina
+        // Estimación de semillas/m2 sembradas en base a PMS
+        seedM2 = Math.round(inputVal * 100 / pmsRef * 10) / 10;
+      } else {
+        seedM2 = inputVal; // sem/m2
+        seedHa = Math.round(seedM2 * 10000); // sem/ha para maíz
+      }
+      
       var fertHa = +(document.getElementById('sv-fer-' + z) || { value: 0 }).value || 0;
       lines.push([p[1].toFixed(6), p[0].toFixed(6), seedM2, seedHa, fertHa, ZONE_NAMES[z]].join(','));
     });
