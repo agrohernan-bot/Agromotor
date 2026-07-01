@@ -1149,7 +1149,7 @@
         ['Balance lluvia - ETc (mm)',        prec(d.balanceMm, 1) + (d.balanceMm != null ? ' mm' : '')],
         ['Déficit acumulado (mm)',           prec(d.deficitAcum, 1) + (d.deficitAcum ? ' mm' : '')],
         ['Días de estrés hídrico',          d.diasEstres != null ? d.diasEstres + ' días' : '—'],
-        ['Días estrés en etapas críticas',  d.diasEtCrit != null ? d.diasEtCrit + ' días' : '—'],
+        ['Días estrés en etapas críticas',  (d.diasEtCritica ?? d.diasEtCrit) != null ? (d.diasEtCritica ?? d.diasEtCrit) + ' días' : '—'],
         ['Agua en perfil al cierre (mm)',    prec(d.aguaFinalMm, 0) + (d.aguaFinalMm != null ? ' mm' : '')],
         ['EUH (eficiencia uso del agua)',    d.euh != null ? (d.euh*100).toFixed(0)+'%' : '—'],
         ['Reserva AWC del lote (mm)',        prec(d.awcMm) + (d.awcMm ? ' mm' : '')],
@@ -1158,14 +1158,14 @@
       ctx.y += 4;
 
       // ── 3. Notas automáticas ──────────────────────────
-      var notas = d.notas || [];
-      if (notas.length > 0) {
+      var notasAuto = d.notasAuto || [];
+      if (notasAuto.length > 0) {
         checkPage(ctx, 20);
         seccion(ctx, '📋 OBSERVACIONES AUTOMÁTICAS', ctx.COL.WARN);
         doc.setFontSize(8.5);
         doc.setFont('helvetica','normal');
         doc.setTextColor(...ctx.COL.NEGRO);
-        notas.forEach(function(nota) {
+        notasAuto.forEach(function(nota) {
           checkPage(ctx, 10);
           var lines = doc.splitTextToSize('• ' + nota, ctx.W - 6);
           lines.forEach(function(l) {
@@ -1173,6 +1173,23 @@
             ctx.y += 4.5;
           });
           ctx.y += 1;
+        });
+        ctx.y += 4;
+      }
+
+      // ── 3.5. Notas manuales (Observaciones del profesional) ──
+      var notasManuales = typeof d.notas === 'string' ? d.notas.trim() : '';
+      if (notasManuales.length > 0) {
+        checkPage(ctx, 20);
+        seccion(ctx, '📝 OBSERVACIONES DEL PROFESIONAL', ctx.COL.VERDE);
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica','normal');
+        doc.setTextColor(...ctx.COL.NEGRO);
+        var lines = doc.splitTextToSize(notasManuales, ctx.W - 6);
+        lines.forEach(function(l) {
+          checkPage(ctx, 6);
+          doc.text(l, ctx.ML+3, ctx.y);
+          ctx.y += 4.5;
         });
         ctx.y += 4;
       }

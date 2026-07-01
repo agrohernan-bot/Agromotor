@@ -568,3 +568,87 @@ test('pulvPrepararOrdenRapida cambia a pulverizacion y carga el producto', () =>
 
   assert.equal(window.modActivo, 'pulverizacion');
 });
+
+test('Calculadora de semillas cvCalcularEquivalenciaSemilla calcula dosis equivalentes para Maiz y Trigo', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-test',
+    lotes: [
+      { id: 'lote-test', nombre: 'Lote Test', data: { cultivo: 'Maíz', superficie: 100 } },
+    ],
+  });
+
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+
+  // Mock de DOM y variables globales
+  window.document = createDocument();
+  const pmsEl = window.document.ensureElement('cv-calc-pms', { value: '180' });
+  const pgEl = window.document.ensureElement('cv-calc-pg', { value: '90' });
+  const logroEl = window.document.ensureElement('cv-calc-logro', { value: '85' });
+  const densEl = window.document.ensureElement('cv-retaa-dens-edit', { value: '75' });
+  const resEl = window.document.ensureElement('cv-calc-result');
+  const lblEl = window.document.ensureElement('cv-calc-lbl-result');
+  window.document.ensureElement('cv-cultivo', { value: 'Maíz' });
+
+  // Cargar cultivares en el sandbox
+  vm.runInNewContext(read('js/cultivares.js'), window, { filename: 'js/cultivares.js' });
+
+  window.cvCalcularEquivalenciaSemilla();
+  // (75 * 180 * 10) / (90 * 85) = 135000 / 7650 = 17.65 kg/ha -> 17.6 o 17.6 kg/ha
+  assert.match(resEl.innerHTML, /17\.6/);
+
+  // Probar con trigo:
+  window.document.getElementById('cv-cultivo').value = 'Trigo';
+  const lote = window.amGetLoteActivo();
+  if (lote) lote.data.cultivo = 'Trigo';
+  densEl.value = '120'; // 120 kg/ha
+  window.cvCalcularEquivalenciaSemilla();
+  // pl/m2 = Dosis (kg/ha) * PG% * Logro% / (PMS(g) * 100) = (120 * 90 * 85) / (180 * 100) = 51.0
+  assert.match(resEl.innerHTML, /51\.0/);
+});
+
+test('Siembra Variable cambia de escala a kg y calcula totales para Trigo vs Maiz', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-sv-test',
+    lotes: [
+      { id: 'lote-sv-test', nombre: 'Lote SV', data: { cultivo: 'Trigo', superficie: 100 } },
+    ],
+  });
+
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+
+  // Mock de DOM y variables globales
+  window.document = createDocument();
+  window.document.ensureElement('sv-fer-0', { value: '150' });
+  window.document.ensureElement('sv-sem-0', { value: '120' }); // 120 kg/ha
+  const tpEl = window.document.ensureElement('sv-totales-presc');
+  window.document.ensureElement('cv-cultivo', { value: 'Trigo' });
+
+  // Mock de Turf y variables de zona
+  window.turf = {
+    area: () => 1000000 // 100 ha en m2
+  };
+  window.svLoteGeoJSON = { type: 'Feature' };
+  // Cargar siembra-variable en el sandbox
+  vm.runInNewContext(read('js/siembra-variable.js'), window, { filename: 'js/siembra-variable.js' });
+
+  window.svSetZonaData({
+    k: 1,
+    gridInfo: { points: new Array(100).fill(0) },
+    assignments: new Array(100).fill(0)
+  });
+
+  window.svCalcTotales();
+  // Trigo: ts = 100 ha * 120 kg/ha = 12000 kg.
+  assert.match(tpEl.innerHTML, /12[.,]?000 kg/);
+
+  // Probar con maíz:
+  window.document.getElementById('cv-cultivo').value = 'Maíz';
+  const lote = window.amGetLoteActivo();
+  if (lote) lote.data.cultivo = 'Maíz';
+  window.document.getElementById('sv-sem-0').value = '7.5'; // 7.5 sem/m2
+  window.svCalcTotales();
+  // Maíz: ts = 100 ha * 7.5 sem/m2 * 10000 = 7500000 semillas -> ts / 1000 = 7500 miles.
+  assert.match(tpEl.innerHTML, /7[.,]?500 miles/);
+});

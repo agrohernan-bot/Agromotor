@@ -1739,6 +1739,28 @@
           <span id="cv-retaa-dens-unit" style="font-size:.7rem;color:rgba(74,46,26,.5)">—</span>
           <span style="font-size:.66rem;color:rgba(74,46,26,.45)">(ajustada a tu lote · editable)</span>
         </div>
+        <!-- Calculadora de Semillas -->
+        <div id="cv-retaa-calc-box" style="margin-top:.6rem;margin-bottom:.65rem;padding-top:.6rem;border-top:1px dashed rgba(74,46,26,.15);display:flex;flex-direction:column;gap:.4rem">
+          <div style="font-size:.68rem;font-weight:700;color:var(--earth);text-transform:uppercase;letter-spacing:.3px">Calculadora de Semillas (kg/ha ⇄ pl/m²)</div>
+          <div style="display:flex;flex-wrap:wrap;gap:.45rem;align-items:center">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <label style="font-size:.62rem;color:rgba(74,46,26,.65);font-weight:600">PMS (g)</label>
+              <input id="cv-calc-pms" type="number" min="10" max="400" step="1" style="width:70px;padding:.25rem .4rem;border:1px solid var(--border);border-radius:4px;font-size:.75rem;font-weight:600" oninput="cvCalcularEquivalenciaSemilla()">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <label style="font-size:.62rem;color:rgba(74,46,26,.65);font-weight:600">PG (%)</label>
+              <input id="cv-calc-pg" type="number" min="50" max="100" step="1" value="95" style="width:60px;padding:.25rem .4rem;border:1px solid var(--border);border-radius:4px;font-size:.75rem;font-weight:600" oninput="cvCalcularEquivalenciaSemilla()">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <label style="font-size:.62rem;color:rgba(74,46,26,.65);font-weight:600">Logro (%)</label>
+              <input id="cv-calc-logro" type="number" min="50" max="100" step="1" value="85" style="width:60px;padding:.25rem .4rem;border:1px solid var(--border);border-radius:4px;font-size:.75rem;font-weight:600" oninput="cvCalcularEquivalenciaSemilla()">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:120px">
+              <label id="cv-calc-lbl-result" style="font-size:.62rem;color:rgba(74,46,26,.65);font-weight:600">Dosis Equivalente</label>
+              <div id="cv-calc-result" style="font-size:.82rem;font-weight:700;color:var(--canopy);line-height:1.25">—</div>
+            </div>
+          </div>
+        </div>
         <div style="position:relative;height:150px"><canvas id="cv-retaa-chart"></canvas></div>
         <div id="cv-retaa-nota" style="font-size:.68rem;color:rgba(74,46,26,.5);margin-top:.5rem;font-style:italic;line-height:1.5"></div>
       </div>
@@ -5130,7 +5152,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=90"></script>
-<script src="js/config.js?v=186"></script>
+<script src="js/config.js?v=187"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 

@@ -373,10 +373,20 @@ function cvRenderReTAA(lat, lon, cultivo, fechaStr, ambiente) {
     }
     edit.value = (valorPersistido != null) ? valorPersistido : (r.densidad.ajustada != null ? r.densidad.ajustada : '');
   }
-
   cvSetTxt('cv-retaa-nota', (r.esFallback ? '⚠️ Sin relevamiento específico para esta subregión: se muestra referencia nacional/núcleo. ' : '') + r.nota);
 
   window.AM_RETAA.renderTendencia('cv-retaa-chart', r);
+
+  // Cargar variables de semilla persistidas en el lote
+  if (lote && lote.data) {
+    const pmsEl = document.getElementById('cv-calc-pms');
+    const pgEl = document.getElementById('cv-calc-pg');
+    const logroEl = document.getElementById('cv-calc-logro');
+    if (pmsEl) pmsEl.value = lote.data.semillaPMS != null ? lote.data.semillaPMS : '';
+    if (pgEl) pgEl.value = lote.data.semillaPG != null ? lote.data.semillaPG : '95';
+    if (logroEl) logroEl.value = lote.data.semillaLogro != null ? lote.data.semillaLogro : '85';
+  }
+  cvCalcularEquivalenciaSemilla();
 }
 
 function cvActualizar() {
@@ -719,11 +729,60 @@ function dcSeleccionarCultivar(cultivar, empresa, especie) {
     });
   }
 
+  function cvCalcularEquivalenciaSemilla() {
+    const pmsEl = document.getElementById('cv-calc-pms');
+    const pgEl = document.getElementById('cv-calc-pg');
+    const logroEl = document.getElementById('cv-calc-logro');
+    const densEl = document.getElementById('cv-retaa-dens-edit');
+    const resEl = document.getElementById('cv-calc-result');
+    const lblEl = document.getElementById('cv-calc-lbl-result');
+
+    if (!resEl) return;
+
+    const pms = pmsEl ? parseFloat(pmsEl.value) : 0;
+    const pg = pgEl ? parseFloat(pgEl.value) : 0;
+    const logro = logroEl ? parseFloat(logroEl.value) : 0;
+    const dens = densEl ? parseFloat(densEl.value) : 0;
+
+    const lote = (typeof window.amGetLoteActivo === 'function') ? window.amGetLoteActivo() : null;
+    if (lote) {
+      lote.data = lote.data || {};
+      if (pms > 0) lote.data.semillaPMS = pms; else delete lote.data.semillaPMS;
+      if (pg > 0) lote.data.semillaPG = pg; else delete lote.data.semillaPG;
+      if (logro > 0) lote.data.semillaLogro = logro; else delete lote.data.semillaLogro;
+      if (typeof window.amGuardarLotesEstado === 'function') {
+        window.amGuardarLotesEstado();
+      }
+    }
+
+    if (pms <= 0 || pg <= 0 || logro <= 0 || dens <= 0) {
+      resEl.innerHTML = '—';
+      return;
+    }
+
+    const cultivo = document.getElementById('cv-cultivo')?.value || (lote && lote.data.cultivo) || 'Soja';
+    const key = cvMapCultivoReTAA(cultivo);
+
+    // Si el cultivo dosifica en kg sem/ha originalmente (grano fino/soja)
+    if (key === 'trigo' || key === 'cebada' || key === 'soja') {
+      if (lblEl) lblEl.textContent = 'Plantas logradas/m²';
+      // pl/m2 = Dosis (kg/ha) * PG% * Logro% / (PMS(g) * 100)
+      const plM2 = (dens * pg * logro) / (pms * 100);
+      resEl.innerHTML = `<strong>${plM2.toFixed(1)}</strong> pl/m²`;
+    } else {
+      if (lblEl) lblEl.textContent = 'Dosis Equivalente';
+      // Dosis (kg/ha) = mil pl/ha * PMS * 10 / (PG% * Logro%)
+      const dosis = (dens * pms * 10) / (pg * logro);
+      resEl.innerHTML = `<strong>${dosis.toFixed(1)}</strong> kg/ha`;
+    }
+  }
+
   // Exposición a global
   window.cvActualizar = cvActualizar;
   window.dcSeleccionarCultivar = dcSeleccionarCultivar;
   window.CV_DB = CV_DB;
   window.CV_ZONAS = CV_ZONAS;
   window.cvGuardarDensidad = cvGuardarDensidad;
+  window.cvCalcularEquivalenciaSemilla = cvCalcularEquivalenciaSemilla;
 
 })();

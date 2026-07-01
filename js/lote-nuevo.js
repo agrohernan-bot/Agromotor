@@ -129,6 +129,10 @@
                 '<span class="lnv-modo-fijo">✏ Polígono obligatorio</span>',
               '</div>',
             '</div>',
+            '<div style="display:flex;gap:.5rem;margin-bottom:.55rem">',
+              '<input id="lnv-search-box" class="lnv-input" type="text" placeholder="Buscar localidad (ej: Concepción del Uruguay)" style="margin-bottom:0;flex:1">',
+              '<button type="button" class="lnv-poly-btn" onclick="window.lnvBuscarLocalidad()" style="width:auto;padding:.4rem .8rem;margin:0;font-weight:700">🔍 Buscar</button>',
+            '</div>',
             '<div class="lnv-mapa-hint" id="lnv-hint">Hacé click para agregar puntos al polígono. Doble-click para cerrarlo.</div>',
             '<div class="lnv-poly-controles" id="lnv-poly-controles">',
               '<button class="lnv-poly-btn" id="lnv-btn-deshacer" onclick="window.lnvDeshacer()">← Deshacer último punto</button>',
@@ -571,6 +575,45 @@
     if (!sel || sel.value !== '__nuevo__') return;
     sel.value = '';
     if (typeof window.amMostrarModalClientes === 'function') window.amMostrarModalClientes();
+  };
+
+  window.lnvBuscarLocalidad = async function() {
+    const qEl = document.getElementById('lnv-search-box');
+    if (!qEl || !qEl.value.trim()) return;
+    const query = qEl.value.trim();
+    
+    if (!_mapa) {
+      if (typeof window.amToast === 'function') window.amToast('El mapa no está inicializado.', 'err');
+      return;
+    }
+    
+    try {
+      if (typeof window.amToast === 'function') window.amToast('Buscando ubicación...', 'info');
+      
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+        headers: {
+          'Accept-Language': 'es'
+        }
+      });
+      
+      if (!res.ok) throw new Error('Error al consultar Nominatim');
+      
+      const data = await res.json();
+      if (!data || data.length === 0) {
+        if (typeof window.amToast === 'function') window.amToast('No se encontró la localidad.', 'err');
+        return;
+      }
+      
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      
+      _mapa.setView([lat, lon], 14);
+      if (typeof window.amToast === 'function') window.amToast('Localidad encontrada.', 'ok');
+      
+    } catch (e) {
+      console.error('lnvBuscarLocalidad error:', e);
+      if (typeof window.amToast === 'function') window.amToast('Error en la búsqueda.', 'err');
+    }
   };
 
 })();

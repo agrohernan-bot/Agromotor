@@ -834,7 +834,6 @@
     }
     return r;
   }
-
   // Distribuye la densidad base por zona según su NDVI (mejor ambiente →
   // más densidad), acotado a ±15% y al rango válido del input.
   function svDistribuirPorZona(base, zd) {
@@ -845,6 +844,17 @@
       var f = mean > 0 ? 1 + Math.max(-0.15, Math.min(0.15, (cs[i] - mean) / mean * 0.5)) : 1;
       var v = Math.round(base * f * 2) / 2;
       out.push(Math.max(2, Math.min(15, v)));
+    }
+    return out;
+  }
+  function svDistribuirPorZonaKgHa(base, zd) {
+    var cs = zd.centroids || [];
+    var mean = cs.length ? cs.reduce(function (s, v) { return s + v; }, 0) / cs.length : 0;
+    var out = [];
+    for (var i = 0; i < zd.k; i++) {
+      var f = mean > 0 ? 1 + Math.max(-0.15, Math.min(0.15, (cs[i] - mean) / mean * 0.5)) : 1;
+      var v = Math.round(base * f / 5) * 5; // Redondear a múltiplos de 5 kg/ha
+      out.push(Math.max(30, Math.min(300, v)));
     }
     return out;
   }
@@ -864,21 +874,39 @@
   function renderPrescrip(zd) {
     var tot = zd.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(zd.k).fill(0); zd.assignments.forEach(function (a) { cnt[a]++; });
-    var ds = [8.5, 7.5, 6.5, 5.5], df = [200, 160, 120, 90];
+    
+    var lote = _loteActivo();
+    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cKey = svMapCultivoReTAA(cultivo);
+    var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
 
-    // Referencia ReTAA: cartel para todos los cultivos; autollenado de
-    // sem/m² por zona solo cuando la conversión es válida (maíz/girasol).
+    var ds = esFino ? [140, 120, 100, 80] : [8.5, 7.5, 6.5, 5.5];
+    var df = [200, 160, 120, 90];
+
+    // Referencia ReTAA
     var retaa = svGetReTAA();
-    if (retaa && retaa.semM2Base) ds = svDistribuirPorZona(retaa.semM2Base, zd);
+    if (retaa) {
+      if (esFino && retaa.densidad && retaa.densidad.ajustada) {
+        ds = svDistribuirPorZonaKgHa(retaa.densidad.ajustada, zd);
+      } else if (retaa.semM2Base) {
+        ds = svDistribuirPorZona(retaa.semM2Base, zd);
+      }
+    }
+
+    var semUnidad = esFino ? 'kg/ha' : 'sem/m²';
+    var semMin = esFino ? 30 : 2;
+    var semMax = esFino ? 300 : 15;
+    var semStep = esFino ? 5 : .5;
+
     var html = svReTAABanner(retaa) +
       '<table class="sv-presc-table"><thead><tr><th>Amb.</th><th>ha</th>' +
-      '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">sem/m²</small></th>' +
+      '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">' + semUnidad + '</small></th>' +
       '<th>Fertiliz.<br><small style="font-weight:400;color:#9ca3af">kg/ha</small></th></tr></thead><tbody>';
     for (var i = 0; i < zd.k; i++) {
       var ha = (cnt[i] / tot * area).toFixed(1);
       html += '<tr><td><span class="sv-amb-chip" style="background:' + ZONE_COLORS[i] + '"></span><strong>' + String.fromCharCode(65 + i) + '</strong></td>' +
         '<td>' + ha + '</td>' +
-        '<td><input class="sv-presc-input" id="sv-sem-' + i + '" type="number" min="2" max="15" step=".5" value="' + ds[i] + '" oninput="svCalcTotales()"/></td>' +
+        '<td><input class="sv-presc-input" id="sv-sem-' + i + '" type="number" min="' + semMin + '" max="' + semMax + '" step="' + semStep + '" value="' + ds[i] + '" oninput="svCalcTotales()"/></td>' +
         '<td><input class="sv-presc-input" id="sv-fer-' + i + '" type="number" min="0" max="500" step="10" value="' + df[i] + '" oninput="svCalcTotales()"/></td></tr>';
     }
     html += '</tbody></table><div id="sv-totales-presc"></div>';
@@ -889,17 +917,31 @@
     if (!svZonaData) return;
     var tot = svZonaData.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(svZonaData.k).fill(0); svZonaData.assignments.forEach(function (a) { cnt[a]++; });
+    
+    var lote = _loteActivo();
+    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cKey = svMapCultivoReTAA(cultivo);
+    var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
+
     var tf = 0, ts = 0;
     for (var i = 0; i < svZonaData.k; i++) {
       var ha = cnt[i] / tot * area;
       tf += ha * (+(document.getElementById('sv-fer-' + i) || { value: 0 }).value || 0);
-      ts += ha * (+(document.getElementById('sv-sem-' + i) || { value: 0 }).value || 0) * 10000;
+      var semVal = (+(document.getElementById('sv-sem-' + i) || { value: 0 }).value || 0);
+      if (esFino) {
+        ts += ha * semVal; // En kg directamente
+      } else {
+        ts += ha * semVal * 10000; // En sem/m2 → sem/ha
+      }
     }
     var tp = el('totales-presc');
-    if (tp) tp.innerHTML =
-      '<div style="border-top:1px solid var(--sv-bdr);margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:0">' +
-      '<div class="sv-srow"><span>Total fertilizante</span><span class="sv-sval">' + Math.round(tf).toLocaleString('es') + ' kg</span></div>' +
-      '<div class="sv-srow"><span>Total semillas</span><span class="sv-sval">' + Math.round(ts / 1000).toLocaleString('es') + ' miles</span></div></div>';
+    if (tp) {
+      var semLabel = esFino ? Math.round(ts).toLocaleString('es') + ' kg' : Math.round(ts / 1000).toLocaleString('es') + ' miles';
+      tp.innerHTML =
+        '<div style="border-top:1px solid var(--sv-bdr);margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:0">' +
+        '<div class="sv-srow"><span>Total fertilizante</span><span class="sv-sval">' + Math.round(tf).toLocaleString('es') + ' kg</span></div>' +
+        '<div class="sv-srow"><span>Total semillas</span><span class="sv-sval">' + semLabel + '</span></div></div>';
+    }
   }
 
   // ── EXPORTACIÓN ───────────────────────────────────
@@ -1013,5 +1055,9 @@
   window.svExportarCSVMonitor = function () { exportarCSVMonitor(); };
   window.svExportarShapefile= function () { exportarShapefile(); };
   window.svTogglePanel     = function (h) { svTogglePanel(h); };
+  
+  // Getter y Setter de svZonaData para testing
+  window.svGetZonaData     = function () { return svZonaData; };
+  window.svSetZonaData     = function (val) { svZonaData = val; };
 
 })();
