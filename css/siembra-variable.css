@@ -138,6 +138,11 @@
 .sv-amb-chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 3px; vertical-align: middle; }
 .sv-presc-input { width: 54px; padding: 3px 5px; border: 1px solid var(--sv-bdr); border-radius: 4px; font-size: 11px; text-align: right; outline: none; }
 .sv-presc-input:focus { border-color: var(--sv-gm); }
+.sv-plan-source { margin-bottom: 7px; padding: 8px 9px; border-radius: 8px; background: rgba(26,107,60,.07); border: 1px solid rgba(26,107,60,.18); font-size: 11px; line-height: 1.45; color: #374151; }
+.sv-plan-source strong { color: #1a6b3c; }
+.sv-plan-source span { color: #6b7280; }
+.sv-plan-missing { background: rgba(245,158,11,.09); border-color: rgba(245,158,11,.32); }
+.sv-plan-missing strong { color: #92400e; }
 
 .sv-csv-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; background: var(--sv-gl); color: var(--sv-gd); border: 1px solid #c6e8d4; padding: 4px 9px; border-radius: 6px; font-weight: 600; }
 .sv-col-sel { display: flex; flex-direction: column; gap: 5px; }

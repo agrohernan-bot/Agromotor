@@ -8,9 +8,10 @@
 
   // ── Estado interno (no contamina el scope global) ───
   var svMap, svDrawnItems, svNdviLayer, svZonaLayer, svYieldLayer, svNdviChart;
-  var svApiKey = null, svModoDemo = true, svLoteGeoJSON = null;
+  var svLoteGeoJSON = null, svEscenaActual = null;
   var svLastGridValues = null, svLastGridInfo = null, svLastElevValues = null;
   var svZonaData = null, svNumZonas = 3;
+  var svPlanSemilla = null, svPlanFertilizantes = [];
   var svYieldPuntos = null, svCsvHeaders = [], svCsvRows = [];
   var svIniciado = false;
   var svLoteBloqueado = false;
@@ -253,19 +254,9 @@
     // Bloquear si no hay lote activo delimitado con poligono.
     if (!loteGeo) { _actualizarBloqueoLote(false); }
 
-    // Auto-conectar con key centralizada sin validación de red (confiamos en config.js)
-    if (typeof AM_CONFIG !== 'undefined' && AM_CONFIG.agromonitoringKey) {
-      svApiKey = AM_CONFIG.agromonitoringKey;
-      svModoDemo = false;
-      el('api-key').value = AM_CONFIG.agromonitoringKey;
-      el('bdemo').style.display = 'none';
-      el('bapi').classList.add('show');
-      if (el('demo-badge')) el('demo-badge').style.display = 'none';
-      if (el('chart-tag')) el('chart-tag').textContent = 'Sentinel-2 real';
-      el('api-status').innerHTML = '<span class="sv-dot sv-dot-ok"></span> Conectado · Agromonitoring';
-      // Ocultar el panel de API key: el usuario no necesita verlo ni manejarlo
-      var apiPanelEl = document.getElementById('sv-panel-api');
-      if (apiPanelEl) apiPanelEl.style.display = 'none';
+    // La fuente satelital se consulta a través del backend compartido.
+    if (el('api-status')) {
+      el('api-status').innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> Esperando análisis del lote';
     }
 
     // Centrar mapa en lote activo (o fallback a pampa húmeda)
@@ -430,32 +421,11 @@
   }
 
   // ── API AGROMONITORING ────────────────────────────
-  function agromonitoringDirectoHabilitado() {
-    return typeof AM_CONFIG !== 'undefined' && AM_CONFIG.allowDirectAgromonitoring === true;
-  }
-
   function conectarAPI() {
-    var key = el('api-key').value.trim(); if (!key) return;
+    // Compatibilidad con enlaces antiguos: las credenciales se gestionan
+    // exclusivamente en el servidor y nunca se solicitan al usuario.
     var st = el('api-status');
-    if (!agromonitoringDirectoHabilitado()) {
-      st.innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> API directa no disponible; usando modo demo/proxy';
-      svModoDemo = true;
-      return;
-    }
-    st.innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> Verificando...';
-    fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key)
-      .then(function (r) {
-        if (r.ok) {
-          svApiKey = key; svModoDemo = false;
-          el('bdemo').style.display = 'none';
-          el('bapi').classList.add('show');
-          el('demo-badge').style.display = 'none';
-          el('chart-tag').textContent = 'Sentinel-2 real';
-          st.innerHTML = '<span class="sv-dot sv-dot-ok"></span> Conectado · Agromonitoring';
-        } else throw 0;
-      }).catch(function () {
-        st.innerHTML = '<span class="sv-dot sv-dot-err"></span> API key inválida';
-      });
+    if (st) st.innerHTML = '<span class="sv-dot sv-dot-ok"></span> Fuente satelital administrada por AgroMotor';
   }
 
   // ── CSV RENDIMIENTOS ──────────────────────────────
@@ -565,26 +535,60 @@
   async function analizarNDVI() {
     if (!svLoteGeoJSON) return;
     var btn = el('btn-analizar');
-    btn.disabled = true; btn.textContent = '⏳ Analizando...';
+    btn.disabled = true; btn.textContent = '⏳ Buscando escena real...';
     if (svNdviLayer) { svMap.removeLayer(svNdviLayer); svNdviLayer = null; }
     if (svZonaLayer) { svMap.removeLayer(svZonaLayer); svZonaLayer = null; }
-
-    var meses = +el('periodo').value;
-    var useElev = el('use-elev').checked;
+    var useElev = false;
     var gridInfo = buildGrid(svLoteGeoJSON);
-    var historial, gridValues, fuente;
+    var historial, gridValues, fuente, payload;
+    el('btn-zonificar').disabled = true;
+    el('panel-prescripcion').style.display = 'none';
+    el('panel-exportar').style.display = 'none';
+    svZonaData = null;
+    if (el('api-status')) el('api-status').innerHTML = '<span class="sv-dot" style="background:#9ca3af"></span> Consultando Sentinel-2 L2A...';
 
     try {
-      if (!svModoDemo && svApiKey) {
-        var res = await analizarConAPI(svLoteGeoJSON, svApiKey, meses, gridInfo);
-        historial = res.historial; gridValues = res.gridValues; fuente = 'Sentinel-2 · Agromonitoring';
-      } else {
-        var dem = generarDemo(gridInfo, meses);
-        historial = dem.historial; gridValues = dem.gridValues; fuente = 'Simulado · Modo demo';
+      var response = await fetch((typeof AM_CONFIG !== 'undefined' && AM_CONFIG.ndviProxy) || '/api/ndvi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ geojson: svLoteGeoJSON, includeSpatial: true })
+      });
+      payload = await response.json().catch(function () { return { ok: false }; });
+      if (!response.ok || !payload.ok || !Array.isArray(payload.muestras) || payload.muestras.length < 12) {
+        throw new Error(payload.error || payload.mensaje || 'No hay una escena espacial con calidad suficiente');
       }
+      var muestras = payload.muestras.map(function (p) {
+        return { lng: Number(p.lon), lat: Number(p.lat), val: Number(p.ndvi) };
+      }).filter(function (p) {
+        return isFinite(p.lng) && isFinite(p.lat) && isFinite(p.val);
+      });
+      if (muestras.length < 12) throw new Error('La escena no contiene suficientes píxeles válidos');
+      gridValues = gridInfo.points.map(function (p) { return idw(p[0], p[1], muestras, 2); });
+      historial = (payload.historial || []).map(function (h) {
+        return { fecha: h.fecha, valor: Number(h.mean) };
+      }).filter(function (h) { return h.fecha && isFinite(h.valor); });
+      fuente = (payload.proveedor || 'Proveedor satelital') + ' · ' +
+        ((payload.escena && payload.escena.satelite) || 'Sentinel-2 L2A');
+      svEscenaActual = payload;
     } catch (e) {
-      var dem = generarDemo(gridInfo, meses);
-      historial = dem.historial; gridValues = dem.gridValues; fuente = 'Demo (fallback)';
+      svLastGridValues = svLastGridInfo = svLastElevValues = null;
+      svEscenaActual = null;
+      el('ndvi-result').style.display = 'flex';
+      el('r-avg').textContent = '—';
+      el('r-max').textContent = '—';
+      el('r-min').textContent = '—';
+      el('r-cv').textContent = 'No calculable';
+      el('r-src').textContent = 'Sin escena real apta';
+      if (el('api-status')) {
+        el('api-status').innerHTML = '<span class="sv-dot sv-dot-err"></span> ' + (e.message || 'NDVI no disponible');
+      }
+      if (el('demo-badge')) {
+        el('demo-badge').style.display = 'block';
+        el('demo-badge').textContent = 'SIN ESCENA REAL · PRESCRIPCIÓN BLOQUEADA';
+      }
+      btn.disabled = false;
+      btn.textContent = '🔄 Reintentar escena real';
+      return;
     }
 
     svLastElevValues = null;
@@ -611,38 +615,19 @@
     el('r-min').textContent = mn.toFixed(3);
     el('r-cv').textContent = cv + '% · ' + (cv > 15 ? '⚠ alta' : '✓ normal');
     el('r-src').textContent = fuente + (svLastElevValues ? ' + SRTM' : '');
+    if (el('api-status')) {
+      var scene = payload.escena || {};
+      var fecha = scene.fecha ? new Date(scene.fecha).toLocaleDateString('es-AR') : 'sin fecha';
+      var cobertura = isFinite(Number(scene.coberturaPct)) ? ' · cobertura ' + Number(scene.coberturaPct).toFixed(0) + '%' : '';
+      var nubes = isFinite(Number(scene.nubesPct)) ? ' · nubes ' + Number(scene.nubesPct).toFixed(1) + '%' : '';
+      el('api-status').innerHTML = '<span class="sv-dot sv-dot-ok"></span> ' + fuente + ' · ' + fecha + cobertura + nubes;
+    }
+    if (el('demo-badge')) el('demo-badge').style.display = 'none';
+    if (el('chart-tag')) el('chart-tag').textContent = 'OBSERVADO · ' + ((payload.escena && payload.escena.calidad) || 'calidad verificada');
     el('ndvi-result').style.display = 'flex';
     el('btn-zonificar').disabled = false;
     renderChart(historial);
     btn.disabled = false; btn.textContent = '🔄 Re-analizar';
-  }
-
-  async function analizarConAPI(geo, key, meses, gridInfo) {
-    if (!agromonitoringDirectoHabilitado()) {
-      throw new Error('Agromonitoring directo deshabilitado; usando modo demo/proxy');
-    }
-    var now = Math.floor(Date.now() / 1000), from = now - meses * 30 * 86400;
-    var pr = await fetch('https://agromonitoring.com/agromonitoring/v1/polygons?appid=' + key, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'am_' + Date.now(), geo_json: geo })
-    });
-    var poly = await pr.json();
-    var hr = await fetch('https://agromonitoring.com/agromonitoring/v1/ndvi/history?polyid=' + poly.id + '&from=' + from + '&to=' + now + '&appid=' + key);
-    var hist = await hr.json();
-    var historial = hist.map(function (h) {
-      return { fecha: new Date(h.dt * 1000).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }), valor: h.data.mean };
-    });
-    var mean = historial.reduce(function (s, h) { return s + h.valor; }, 0) / (historial.length || 1);
-    return { historial: historial, gridValues: gridInfo.points.map(function (p) { return clamp(mean + noise(p[1] * 48, p[0] * 48) * .2, .15, .92); }) };
-  }
-
-  function generarDemo(gridInfo, meses) {
-    var hist = [], now = new Date(), steps = Math.min(meses * 2, 38);
-    for (var i = steps; i >= 0; i--) {
-      var d = new Date(now.getTime() - i * 14 * 86400000), mes = d.getMonth();
-      hist.push({ fecha: d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }), valor: clamp(.32 + .43 * Math.max(0, Math.sin((mes - 1) * Math.PI / 5.5)) + (Math.random() - .5) * .07, .12, .91) });
-    }
-    return { historial: hist, gridValues: gridInfo.points.map(function (p) { return clamp(.57 + noise(p[1] * 52, p[0] * 52) * .30, .22, .90); }) };
   }
 
   // ── GRILLA ────────────────────────────────────────
@@ -731,7 +716,7 @@
     if (!svLastGridValues || !svLastGridInfo) return;
     var wN = +el('w-ndvi').value || 60;
     var wE = 100 - wN;
-    var useElev = el('use-elev').checked && svLastElevValues;
+    var useElev = false;
     var normN = normalize(svLastGridValues);
     var normE = useElev ? normalize(svLastElevValues.map(function (v) { return v === null ? 0 : v; })) : null;
     var normY = null;
@@ -824,7 +809,10 @@
     var key = svMapCultivoReTAA(data.cultivo); if (!key) return null;
     var c;
     try { c = turf.centroid(svLoteGeoJSON).geometry.coordinates; } catch (e) { return null; }
-    var r = window.AM_RETAA.calcular({ lat: c[1], lon: c[0], cultivo: key, fechaSiembra: data.fechaSiembra || '', ambiente: 'm', hidrico: 'n' });
+    var grupo = svGrupoCultivo(data.cultivo);
+    var plan = data.planificacionSiembra && data.planificacionSiembra[grupo];
+    var fecha = plan && (plan.fechaSiembraConf || plan.fechaSiembraPlan) || data.fechaSiembra || '';
+    var r = window.AM_RETAA.calcular({ lat: c[1], lon: c[0], cultivo: key, fechaSiembra: fecha, ambiente: 'm', hidrico: 'n' });
     if (!r) return null;
     r.semM2Base = null; r.cultivoKey = key;
     if (r.unidad === 'mil pl/ha' && (key === 'maiz' || key === 'girasol')) {
@@ -834,27 +822,72 @@
     }
     return r;
   }
-  // Distribuye la densidad base por zona según su NDVI (mejor ambiente →
-  // más densidad), acotado a ±15% y al rango válido del input.
-  function svDistribuirPorZona(base, zd) {
-    var cs = zd.centroids || [];
-    var mean = cs.length ? cs.reduce(function (s, v) { return s + v; }, 0) / cs.length : 0;
-    var out = [];
-    for (var i = 0; i < zd.k; i++) {
-      var f = mean > 0 ? 1 + Math.max(-0.15, Math.min(0.15, (cs[i] - mean) / mean * 0.5)) : 1;
-      var v = Math.round(base * f * 2) / 2;
-      out.push(Math.max(2, Math.min(15, v)));
-    }
-    return out;
+  function svGrupoCultivo(cultivo) {
+    if (typeof window.amGrupoPorCultivo === 'function') return window.amGrupoPorCultivo(cultivo);
+    var key = svMapCultivoReTAA(cultivo);
+    return key === 'trigo' || key === 'cebada' ? 'invierno' : 'verano';
   }
-  function svDistribuirPorZonaKgHa(base, zd) {
-    var cs = zd.centroids || [];
-    var mean = cs.length ? cs.reduce(function (s, v) { return s + v; }, 0) / cs.length : 0;
-    var out = [];
-    for (var i = 0; i < zd.k; i++) {
-      var f = mean > 0 ? 1 + Math.max(-0.15, Math.min(0.15, (cs[i] - mean) / mean * 0.5)) : 1;
-      var v = Math.round(base * f / 5) * 5; // Redondear a múltiplos de 5 kg/ha
-      out.push(Math.max(30, Math.min(300, v)));
+
+  function svDensidadPlanificada(lote) {
+    if (!lote || !lote.data) return null;
+    var data = lote.data;
+    var key = svMapCultivoReTAA(data.cultivo);
+    var esKgHa = key === 'trigo' || key === 'cebada' || key === 'soja';
+    var grupo = svGrupoCultivo(data.cultivo);
+    var plan = data.planificacionSiembra && data.planificacionSiembra[grupo];
+    var objetivo = plan && Number(plan.densidadConf);
+    if (!isFinite(objetivo) || objetivo <= 0) return null;
+    if (esKgHa) return { base: objetivo, unidad: 'kg/ha', fuente: 'Siembra · densidad aprobada', grupo: grupo };
+    var pg = Math.max(.01, Number(data.semillaPG || 92) / 100);
+    var logro = Math.max(.01, Number(data.semillaLogro || (key === 'girasol' ? 88 : 92)) / 100);
+    return {
+      base: objetivo / 10 / pg / logro,
+      unidad: 'sem/m²',
+      fuente: 'Siembra · ' + objetivo.toFixed(1) + ' mil pl/ha · PG ' + Math.round(pg * 100) + '% · logro ' + Math.round(logro * 100) + '%',
+      grupo: grupo
+    };
+  }
+
+  function svPlanNutricion(lote) {
+    var plan = lote && lote.data && lote.data.nutricionPlan;
+    var resultados = plan && plan.resultados;
+    if (!resultados) return [];
+    return ['N', 'P', 'S', 'K'].map(function (nut) {
+      var r = resultados[nut], base = r && Number(r.kgFert);
+      if (!r || !isFinite(base) || base <= 0) return null;
+      return {
+        nutriente: nut,
+        producto: r.fertNombre || nut,
+        base: base,
+        dosisNutriente: Number(r.dosisRec) || 0,
+        amplitud: nut === 'N' ? .10 : 0
+      };
+    }).filter(Boolean);
+  }
+
+  function svPesosZonas(zd) {
+    var counts = new Array(zd.k).fill(0);
+    zd.assignments.forEach(function (z) { counts[z] += 1; });
+    return counts;
+  }
+
+  // Redistribuye sin alterar la compra total teórica. La zona A recibe el
+  // mayor factor y la compensación ponderada mantiene la media del lote.
+  function svDistribuirConservando(base, zd, amplitud, paso) {
+    var weights = svPesosZonas(zd);
+    var raw = Array.from({ length: zd.k }, function (_, i) {
+      var rank = zd.k > 1 ? 1 - (2 * i / (zd.k - 1)) : 0;
+      return base * (1 + amplitud * rank);
+    });
+    var totalW = weights.reduce(function (s, v) { return s + v; }, 0) || 1;
+    var rawAvg = raw.reduce(function (s, v, i) { return s + v * weights[i]; }, 0) / totalW;
+    var correction = rawAvg ? base / rawAvg : 1;
+    var out = raw.map(function (v) { return Math.max(0, Math.round((v * correction) / paso) * paso); });
+    var target = base * totalW;
+    var current = out.reduce(function (s, v, i) { return s + v * weights[i]; }, 0);
+    var pivot = weights.indexOf(Math.max.apply(null, weights));
+    if (pivot >= 0 && weights[pivot] > 0) {
+      out[pivot] = Math.max(0, Math.round((out[pivot] + (target - current) / weights[pivot]) / paso) * paso);
     }
     return out;
   }
@@ -863,10 +896,10 @@
     if (!r) return '';
     var colMap = { '◉': ['#1b5e35', 'rgba(27,94,53,.10)'], '◎': ['#1f6f9c', 'rgba(41,128,185,.10)'], '◈': ['#8a6200', 'rgba(212,168,71,.15)'] };
     var col = colMap[r.densidad.fuente] || colMap['◎'];
-    var conv = r.semM2Base ? ' · ≈ ' + r.semM2Base.toFixed(1) + ' sem/m² (base autollenada por zona, editable)' : '';
+    var conv = r.semM2Base ? ' · ≈ ' + r.semM2Base.toFixed(1) + ' sem/m² como referencia' : '';
     return '<div style="background:' + col[1] + ';border:1px solid ' + col[0] + '33;border-left:3px solid ' + col[0] +
       ';border-radius:8px;padding:.55rem .7rem;margin-bottom:.7rem;font-size:.78rem;color:#374151;line-height:1.5">' +
-      '<strong style="color:' + col[0] + '">📊 Densidad observada ReTAA · ' + r.subregion.nombre + '</strong><br>' +
+      '<strong style="color:' + col[0] + '">📊 Referencia regional ReTAA · ' + r.subregion.nombre + '</strong><br>' +
       r.densidad.valor + ' ' + r.unidad + ' <span style="color:' + col[0] + ';font-weight:700">' + r.densidad.fuente + '</span> (' + r.campania + ')' + conv +
       '</div>';
   }
@@ -874,43 +907,57 @@
   function renderPrescrip(zd) {
     var tot = zd.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(zd.k).fill(0); zd.assignments.forEach(function (a) { cnt[a]++; });
-    
     var lote = _loteActivo();
-    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var cultivo = lote && lote.data ? lote.data.cultivo : 'Soja';
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
-
-    var ds = esFino ? [140, 120, 100, 80] : [8.5, 7.5, 6.5, 5.5];
-    var df = [200, 160, 120, 90];
-
-    // Referencia ReTAA
+    svPlanSemilla = svDensidadPlanificada(lote);
+    svPlanFertilizantes = svPlanNutricion(lote);
     var retaa = svGetReTAA();
-    if (retaa) {
-      if (esFino && retaa.densidad && retaa.densidad.ajustada) {
-        ds = svDistribuirPorZonaKgHa(retaa.densidad.ajustada, zd);
-      } else if (retaa.semM2Base) {
-        ds = svDistribuirPorZona(retaa.semM2Base, zd);
-      }
+    var ampSem = ({ maiz:.12, girasol:.10, sorgo:.10, trigo:.08, cebada:.08 })[cKey] || 0;
+    var ds = svPlanSemilla ? svDistribuirConservando(svPlanSemilla.base, zd, ampSem, .1) : [];
+    var fertDosis = {};
+    svPlanFertilizantes.forEach(function (f) {
+      fertDosis[f.nutriente] = svDistribuirConservando(f.base, zd, f.amplitud, .1);
+    });
+
+    var sources = '';
+    if (svPlanSemilla) {
+      sources += '<div class="sv-plan-source"><strong>Semilla base:</strong> ' + svPlanSemilla.base.toFixed(esFino ? 0 : 2) + ' ' + svPlanSemilla.unidad +
+        '<br><span>' + svPlanSemilla.fuente + '</span></div>';
+    } else {
+      sources += '<div class="sv-plan-source sv-plan-missing"><strong>Falta la densidad aprobada.</strong><br>Definila en Cultivares / Siembra para calcular semillas y compras.' +
+        '<button class="sv-btn sv-btn-sec sv-btn-full" style="margin-top:6px" onclick="svAbrirSiembra()">Definir densidad</button></div>';
+    }
+    if (svPlanFertilizantes.length) {
+      sources += '<div class="sv-plan-source"><strong>Fertilización base:</strong> ' +
+        svPlanFertilizantes.map(function (f) { return f.producto + ' ' + f.base + ' kg/ha (' + f.nutriente + ')'; }).join(' · ') +
+        '<br><span>N se redistribuye conservando el total; P, S y K permanecen uniformes sin una capa edáfica específica.</span></div>';
+    } else {
+      sources += '<div class="sv-plan-source sv-plan-missing"><strong>Falta el plan nutricional.</strong><br>La prescripción no inventará una dosis de fertilizante.' +
+        '<button class="sv-btn sv-btn-sec sv-btn-full" style="margin-top:6px" onclick="svAbrirNutricion()">Ir a Nutrición</button></div>';
     }
 
-    var semUnidad = esFino ? 'kg/ha' : 'sem/m²';
-    var semMin = esFino ? 30 : 2;
-    var semMax = esFino ? 300 : 15;
-    var semStep = esFino ? 5 : .5;
-
-    var html = svReTAABanner(retaa) +
-      '<table class="sv-presc-table"><thead><tr><th>Amb.</th><th>ha</th>' +
-      '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">' + semUnidad + '</small></th>' +
-      '<th>Fertiliz.<br><small style="font-weight:400;color:#9ca3af">kg/ha</small></th></tr></thead><tbody>';
+    var html = sources + svReTAABanner(retaa) +
+      '<div style="overflow-x:auto"><table class="sv-presc-table"><thead><tr><th>Amb.</th><th>ha</th>' +
+      '<th>Semilla<br><small style="font-weight:400;color:#9ca3af">' + (svPlanSemilla ? svPlanSemilla.unidad : 'sin base') + '</small></th>' +
+      svPlanFertilizantes.map(function (f) {
+        return '<th>' + f.nutriente + '<br><small style="font-weight:400;color:#9ca3af" title="' + f.producto + '">' + f.producto.split(' ')[0] + ' kg/ha</small></th>';
+      }).join('') + '</tr></thead><tbody>';
     for (var i = 0; i < zd.k; i++) {
       var ha = (cnt[i] / tot * area).toFixed(1);
       html += '<tr><td><span class="sv-amb-chip" style="background:' + ZONE_COLORS[i] + '"></span><strong>' + String.fromCharCode(65 + i) + '</strong></td>' +
         '<td>' + ha + '</td>' +
-        '<td><input class="sv-presc-input" id="sv-sem-' + i + '" type="number" min="' + semMin + '" max="' + semMax + '" step="' + semStep + '" value="' + ds[i] + '" oninput="svCalcTotales()"/></td>' +
-        '<td><input class="sv-presc-input" id="sv-fer-' + i + '" type="number" min="0" max="500" step="10" value="' + df[i] + '" oninput="svCalcTotales()"/></td></tr>';
+        '<td>' + (svPlanSemilla
+          ? '<input class="sv-presc-input" id="sv-sem-' + i + '" type="number" min="0" step=".1" value="' + ds[i] + '" oninput="svCalcTotales()"/>'
+          : '—') + '</td>' +
+        svPlanFertilizantes.map(function (f) {
+          return '<td><input class="sv-presc-input" id="sv-fer-' + f.nutriente + '-' + i + '" type="number" min="0" max="1000" step=".1" value="' + fertDosis[f.nutriente][i] + '" oninput="svCalcTotales()"/></td>';
+        }).join('') + '</tr>';
     }
-    html += '</tbody></table><div id="sv-totales-presc"></div>';
+    html += '</tbody></table></div><div id="sv-totales-presc"></div>';
     el('pb-prescripcion').innerHTML = html;
+    el('panel-exportar').style.display = (svPlanSemilla || svPlanFertilizantes.length) ? 'block' : 'none';
     calcTotales();
   }
   function calcTotales() {
@@ -923,24 +970,33 @@
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
 
-    var tf = 0, ts = 0;
+    var fertTotals = {}, ts = 0;
+    svPlanFertilizantes.forEach(function (f) { fertTotals[f.nutriente] = 0; });
     for (var i = 0; i < svZonaData.k; i++) {
       var ha = cnt[i] / tot * area;
-      tf += ha * (+(document.getElementById('sv-fer-' + i) || { value: 0 }).value || 0);
       var semVal = (+(document.getElementById('sv-sem-' + i) || { value: 0 }).value || 0);
       if (esFino) {
         ts += ha * semVal; // En kg directamente
       } else {
         ts += ha * semVal * 10000; // En sem/m2 → sem/ha
       }
+      svPlanFertilizantes.forEach(function (f) {
+        fertTotals[f.nutriente] += ha * (+(document.getElementById('sv-fer-' + f.nutriente + '-' + i) || { value: 0 }).value || 0);
+      });
     }
     var tp = el('totales-presc');
     if (tp) {
       var semLabel = esFino ? Math.round(ts).toLocaleString('es') + ' kg' : Math.round(ts / 1000).toLocaleString('es') + ' miles';
+      if (!esFino && svPlanSemilla) {
+        var pms = Number(lote && lote.data && lote.data.semillaPMS);
+        if (isFinite(pms) && pms > 0) semLabel += ' · ≈ ' + Math.round(ts * pms / 1000000).toLocaleString('es') + ' kg';
+      }
       tp.innerHTML =
         '<div style="border-top:1px solid var(--sv-bdr);margin-top:6px;padding-top:6px;display:flex;flex-direction:column;gap:0">' +
-        '<div class="sv-srow"><span>Total fertilizante</span><span class="sv-sval">' + Math.round(tf).toLocaleString('es') + ' kg</span></div>' +
-        '<div class="sv-srow"><span>Total semillas</span><span class="sv-sval">' + semLabel + '</span></div></div>';
+        svPlanFertilizantes.map(function (f) {
+          return '<div class="sv-srow"><span>' + f.producto + ' (' + f.nutriente + ')</span><span class="sv-sval">' + Math.round(fertTotals[f.nutriente]).toLocaleString('es') + ' kg</span></div>';
+        }).join('') +
+        '<div class="sv-srow"><span>Total semillas</span><span class="sv-sval">' + (svPlanSemilla || ts > 0 ? semLabel : 'Falta definir') + '</span></div></div>';
     }
   }
 
@@ -956,11 +1012,16 @@
       var z = svZonaData.assignments[i];
       var semVal = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
       
-      var prop = { 
-        ambiente: ZONE_NAMES[z], 
-        ndvi: +svZonaData.gridValues[i].toFixed(3), 
-        dosis_fertilizante_kg_ha: +(document.getElementById('sv-fer-' + z) || { value: 0 }).value || 0 
+      var prop = {
+        ambiente: ZONE_NAMES[z],
+        ndvi: +svZonaData.gridValues[i].toFixed(3),
+        ndvi_proveedor: svEscenaActual && svEscenaActual.proveedor || '',
+        ndvi_fecha: svEscenaActual && svEscenaActual.escena && svEscenaActual.escena.fecha || ''
       };
+      svPlanFertilizantes.forEach(function (f) {
+        prop['fert_' + f.nutriente + '_producto'] = f.producto;
+        prop['fert_' + f.nutriente + '_kg_ha'] = +(document.getElementById('sv-fer-' + f.nutriente + '-' + z) || { value: 0 }).value || 0;
+      });
       
       if (esFino) {
         prop.dosis_semilla_kg_ha = semVal;
@@ -990,15 +1051,19 @@
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
     
     var semCol = esFino ? 'Dosis_semilla_kg_ha' : 'Dosis_semilla_sem_m2';
-    var lines = ['Ambiente,Superficie_ha,NDVI_promedio,Score_compuesto,' + semCol + ',Dosis_fertilizante_kg_ha'];
+    var fertCols = svPlanFertilizantes.map(function (f) { return 'Dosis_' + f.nutriente + '_' + f.producto.replace(/[^a-z0-9]+/gi, '_') + '_kg_ha'; });
+    var lines = [['Ambiente','Superficie_ha','NDVI_promedio','Score_compuesto',semCol].concat(fertCols).join(',')];
     
     for (var i = 0; i < svZonaData.k; i++) {
       var ha = (cnt[i] / tot * area).toFixed(2);
       var ndviProm = svZonaData.gridValues.filter(function (_, j) { return svZonaData.assignments[j] === i; })
         .reduce(function (s, v, _, a) { return s + v / a.length; }, 0).toFixed(3);
-      lines.push([ZONE_NAMES[i], ha, ndviProm, svZonaData.centroids[i].toFixed(3),
-        (document.getElementById('sv-sem-' + i) || { value: '' }).value,
-        (document.getElementById('sv-fer-' + i) || { value: '' }).value].join(','));
+      var row = [ZONE_NAMES[i], ha, ndviProm, svZonaData.centroids[i].toFixed(3),
+        (document.getElementById('sv-sem-' + i) || { value: '' }).value];
+      svPlanFertilizantes.forEach(function (f) {
+        row.push((document.getElementById('sv-fer-' + f.nutriente + '-' + i) || { value: '' }).value);
+      });
+      lines.push(row.join(','));
     }
     dl(lines.join('\n'), 'prescripcion_' + hoy() + '.csv', 'text/csv');
   }
@@ -1012,7 +1077,8 @@
     var pms = (lote && lote.data.semillaPMS) || 0;
     var pmsRef = pms > 0 ? pms : (cKey === 'soja' ? 160 : 38);
 
-    var lines = ['Latitude,Longitude,Seed_Rate_m2,Seed_Rate_ha,Fert_Rate_ha,Zone_Name'];
+    var fertHeaders = svPlanFertilizantes.map(function (f) { return 'Fert_' + f.nutriente + '_kg_ha'; });
+    var lines = [['Latitude','Longitude','Seed_Rate_m2','Seed_Rate_ha'].concat(fertHeaders).concat(['Zone_Name']).join(',')];
     svZonaData.gridInfo.points.forEach(function (p, i) {
       var z = svZonaData.assignments[i];
       var inputVal = +(document.getElementById('sv-sem-' + z) || { value: 0 }).value || 0;
@@ -1029,8 +1095,12 @@
         seedHa = Math.round(seedM2 * 10000); // sem/ha para maíz
       }
       
-      var fertHa = +(document.getElementById('sv-fer-' + z) || { value: 0 }).value || 0;
-      lines.push([p[1].toFixed(6), p[0].toFixed(6), seedM2, seedHa, fertHa, ZONE_NAMES[z]].join(','));
+      var row = [p[1].toFixed(6), p[0].toFixed(6), seedM2, seedHa];
+      svPlanFertilizantes.forEach(function (f) {
+        row.push(+(document.getElementById('sv-fer-' + f.nutriente + '-' + z) || { value: 0 }).value || 0);
+      });
+      row.push(ZONE_NAMES[z]);
+      lines.push(row.join(','));
     });
     dl(lines.join('\n'), 'prescripcion_monitor_' + hoy() + '.csv', 'text/csv');
   }
@@ -1060,15 +1130,10 @@
 
   // ── UTILS ─────────────────────────────────────────
   function ndviColor(v) { return v > .75 ? '#1a9641' : v > .65 ? '#91cf60' : v > .55 ? '#d9ef8b' : v > .45 ? '#fee08b' : v > .30 ? '#fc8d59' : '#d73027'; }
-  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function normalize(arr) {
     var vld = arr.filter(function (v) { return v !== null && !isNaN(v); });
     var mn = Math.min.apply(null, vld), mx = Math.max.apply(null, vld), rng = mx - mn;
     return arr.map(function (v) { return (v === null || isNaN(v)) ? .5 : (rng > 0 ? (v - mn) / rng : .5); });
-  }
-  function noise(x, y) {
-    return .40 * Math.sin(x * .63 + y * .31) + .25 * Math.sin(x * 1.41 - y * .87 + 1.3) +
-           .20 * Math.sin(x * 2.17 + y * 1.73 + 2.8) + .15 * Math.sin(x * 3.61 - y * 2.43 + 4.2);
   }
   function dl(content, name, type) {
     var b = new Blob([content], { type: type }); var u = URL.createObjectURL(b);
@@ -1082,12 +1147,18 @@
     if (arr) arr.style.transform = open ? 'rotate(-90deg)' : '';
   }
 
+  function abrirModuloPlan(modulo) {
+    if (typeof window.switchMod === 'function') window.switchMod(modulo);
+  }
+
   // ── Exponer funciones al scope global (onclick) ──
   window.svUsarLoteCompleto = function () { usarLoteCompleto(); };
   window.svDibujarParcela  = function () { dibujarParcela(); };
   window.svLimpiarLote     = function () { limpiarLote(); };
   window.svImportarGeoJSON = function (ev) { importarGeoJSON(ev); };
   window.svConectarAPI     = function () { conectarAPI(); };
+  window.svAbrirSiembra    = function () { abrirModuloPlan('cultivares'); };
+  window.svAbrirNutricion  = function () { abrirModuloPlan('nutricion'); };
   window.svImportarCSV     = function (ev) { importarCSV(ev); };
   window.svConfirmarCSV    = function () { confirmarCSV(); };
   window.svToggleElevUI    = function () { toggleElevUI(); };

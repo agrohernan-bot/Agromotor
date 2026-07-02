@@ -566,9 +566,11 @@ async function readEarthSearchScene(item, geometry, includeImage) {
   const height = redWindow[3] - redWindow[1];
   const sclWidth = sclWindow[2] - sclWindow[0];
   const values = [];
+  const samples = [];
   let insideCount = 0;
   let cloudCount = 0;
   const png = includeImage && PNG ? new PNG({ width, height, colorType: 6 }) : null;
+  const sampleStride = Math.max(1, Math.ceil(Math.sqrt((width * height) / 1400)));
   const invalidScl = new Set([0, 1, 3, 7, 8, 9, 10, 11]);
   const cloudScl = new Set([3, 8, 9, 10]);
 
@@ -596,6 +598,14 @@ async function readEarthSearchScene(item, geometry, includeImage) {
       const value = (nir - red) / denominator;
       if (!Number.isFinite(value) || value < -1 || value > 1) continue;
       values.push(value);
+      if (x % sampleStride === 0 && y % sampleStride === 0) {
+        const lonLat = project.inverse(projected);
+        samples.push({
+          lon: Number(lonLat[0].toFixed(7)),
+          lat: Number(lonLat[1].toFixed(7)),
+          ndvi: Number(value.toFixed(5)),
+        });
+      }
       if (png) {
         const color = ndviRgb(value);
         const offset = pixelIndex * 4;
@@ -616,6 +626,7 @@ async function readEarthSearchScene(item, geometry, includeImage) {
     coverage,
     clouds,
     image,
+    samples,
     fecha: item.properties.datetime,
     satelite: item.properties.platform || item.properties.constellation || 'Sentinel-2',
   };
@@ -670,12 +681,30 @@ async function analyzeEarthSearch(geometry) {
       satelite: reading.satelite,
     })),
     imagenNdvi: latest.image,
+    muestras: latest.samples,
+    resolucionMetros: 10,
     bbox: bboxOf(geometry),
   };
 }
 
-async function analyzeNdvi(geometry) {
+async function analyzeNdvi(geometry, options = {}) {
   const attempts = [];
+  // Las prescripciones requieren valores espaciales numéricos, no una imagen
+  // coloreada ni un promedio de lote. Earth Search permite leer las bandas
+  // Sentinel-2 L2A y devolver muestras NDVI observadas dentro del polígono.
+  if (options.includeSpatial) {
+    try {
+      const result = await analyzeEarthSearch(geometry);
+      if (!Array.isArray(result.muestras) || result.muestras.length < 12) {
+        throw new Error('La escena no contiene suficientes muestras espaciales');
+      }
+      result.intentos = attempts;
+      return result;
+    } catch (error) {
+      attempts.push({ proveedor: 'Earth Search · AWS Open Data', error: error instanceof Error ? error.message : String(error) });
+      throw Object.assign(new Error('No hay una escena espacial real apta para prescripción'), { attempts });
+    }
+  }
   try {
     const result = await analyzeAgromonitoring(geometry);
     result.intentos = attempts;
@@ -711,13 +740,18 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Metodo no permitido' });
   }
   try {
-    const geometry = geometryFromBody(req.body || {});
-    const result = await analyzeNdvi(geometry);
+    const body = req.body || {};
+    const geometry = geometryFromBody(body);
+    const result = await analyzeNdvi(geometry, { includeSpatial: body.includeSpatial === true });
     res.setHeader('Cache-Control', result.ok ? 's-maxage=1800, stale-while-revalidate=7200' : 'no-store');
     return res.status(result.ok ? 200 : 503).json(result);
   } catch (error) {
     const status = error && error.status ? error.status : 500;
-    return res.status(status).json({ ok: false, error: error instanceof Error ? error.message : String(error) });
+    return res.status(status).json({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+      intentos: error && Array.isArray(error.attempts) ? error.attempts : undefined,
+    });
   }
 };
 

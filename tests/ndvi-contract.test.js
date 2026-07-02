@@ -93,3 +93,15 @@ test('modulo visible no usa NDVI sintetico ni clave publica', () => {
   assert.match(visible, /ndviSeguimiento/);
   assert.match(fs.readFileSync(path.join(ROOT, 'api', 'ndvi.js'), 'utf8'), /Earth Search · AWS Open Data/);
 });
+
+test('siembra variable exige muestras espaciales reales y hereda planes operativos', () => {
+  const variable = fs.readFileSync(path.join(ROOT, 'js', 'siembra-variable.js'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT, 'app.html'), 'utf8');
+  assert.doesNotMatch(variable, /Math\.random|Math\.sin|agromonitoring\.com\/agromonitoring|agromonitoringKey/);
+  assert.match(variable, /includeSpatial:\s*true/);
+  assert.match(variable, /planificacionSiembra/);
+  assert.match(variable, /nutricionPlan/);
+  assert.match(variable, /svDistribuirConservando/);
+  assert.match(html, /nunca se generan valores simulados/);
+  assert.doesNotMatch(html, /Modo demo · datos simulados/i);
+});

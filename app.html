@@ -3784,21 +3784,12 @@
   <aside class="sv-sidebar">
 
     <div class="sv-panel" id="sv-panel-api">
-      <div class="sv-ph" onclick="svTogglePanel(this)"><span>⚙️ API Agromonitoring</span><span class="sv-arr">▾</span></div>
+      <div class="sv-ph" onclick="svTogglePanel(this)"><span>🛰️ Fuente satelital</span><span class="sv-arr">▾</span></div>
       <div class="sv-pb">
-        <span class="sv-flabel">API Key</span>
-        <div class="sv-igrp">
-          <input type="text" id="sv-api-key" placeholder="API key configurada" autocomplete="off" autocapitalize="off" spellcheck="false" readonly/>
-          <button class="sv-btn sv-btn-sec" onclick="svConectarAPI()">→</button>
-        </div>
         <div class="sv-api-status" id="sv-api-status">
-          <span class="sv-dot sv-dot-demo"></span><span>Modo demo · datos simulados</span>
+          <span class="sv-dot" style="background:#9ca3af"></span><span>Esperando análisis del lote</span>
         </div>
-        <div style="display:flex;gap:6px;margin-top:2px">
-          <span class="sv-badge sv-badge-demo" id="sv-bdemo">DEMO</span>
-          <span class="sv-badge sv-badge-api" id="sv-bapi">API REAL</span>
-        </div>
-        <p class="sv-hint"><a href="https://agromonitoring.com" target="_blank">Obtener API key gratuita →</a></p>
+        <p class="sv-hint">La clave permanece protegida en el servidor. Para prescribir se utilizan píxeles Sentinel-2 L2A observados; nunca se generan valores simulados.</p>
       </div>
     </div>
 
@@ -3855,16 +3846,10 @@
     <div class="sv-panel">
       <div class="sv-ph" onclick="svTogglePanel(this)"><span>🛰 Variabilidad NDVI</span><span class="sv-arr">▾</span></div>
       <div class="sv-pb">
-        <span class="sv-flabel">Período de análisis</span>
-        <select id="sv-periodo">
-          <option value="6">Últimos 6 meses</option>
-          <option value="12" selected>Campaña actual · 12 meses</option>
-          <option value="24">Últimos 2 años</option>
-          <option value="60">Histórico 5 años</option>
-        </select>
+        <p class="sv-hint">Se busca la escena reciente con cobertura útil y se conserva su fecha, proveedor, nubosidad y resolución.</p>
         <label class="sv-tog-row">
-          <input type="checkbox" id="sv-use-elev" onchange="svToggleElevUI()"/>
-          Incluir topografía SRTM 30m
+          <input type="checkbox" id="sv-use-elev" disabled/>
+          Topografía SRTM 30m · próximamente como capa independiente
         </label>
         <div id="sv-elev-config" style="display:none;flex-direction:column;gap:4px">
           <div class="sv-weight-row">
@@ -3877,7 +3862,7 @@
             <input type="range" id="sv-w-elev" min="20" max="70" step="10" value="40" oninput="svSyncWeights2()"/>
             <span class="sv-weight-val" id="sv-w-elev-v">40%</span>
           </div>
-          <p class="sv-hint" style="font-style:italic">Zonas bajas = mayor potencial (Pampa húmeda)</p>
+          <p class="sv-hint" style="font-style:italic">La topografía complementa la escena; no determina por sí sola el potencial productivo.</p>
         </div>
         <button class="sv-btn sv-btn-primary sv-btn-full" id="sv-btn-analizar" onclick="svAnalizarNDVI()" disabled>
           🛰 Analizar variabilidad del lote
@@ -3933,13 +3918,13 @@
   </aside>
 
   <div class="sv-map-area">
-    <div id="sv-demo-badge" class="sv-map-demo-badge">MODO DEMO · datos simulados</div>
+    <div id="sv-demo-badge" class="sv-map-demo-badge" style="display:none">SIN ESCENA REAL</div>
     <div id="sv-map"></div>
     <div class="sv-legend-box" id="sv-legend" style="display:none"></div>
     <div class="sv-chart-panel" id="sv-chart-panel" style="display:none">
       <div class="sv-chart-hdr">
         <span>NDVI histórico del lote</span>
-        <span class="sv-chart-tag" id="sv-chart-tag">SIMULADO</span>
+        <span class="sv-chart-tag" id="sv-chart-tag">OBSERVADO</span>
       </div>
       <canvas id="sv-ndvi-chart" height="80" style="height:80px;width:100%"></canvas>
     </div>
@@ -5152,7 +5137,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=90"></script>
-<script src="js/config.js?v=188"></script>
+<script src="js/config.js?v=189"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
