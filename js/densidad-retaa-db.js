@@ -10,7 +10,7 @@
 //   ◎ ESTIMADO — interpolado por comportamiento zonal
 //   ◈ SORGO    — nacional confirmado, regional estimado por metodología ReTAA
 //
-// Fuente: prototipo retaa-v3 (H. Ferrari · Leaf Agrotronics / Crucianelli).
+// Fuente: prototipo tecnico retaa-v3, adaptado a criterios AgroMotor.
 // Portado a AgroMotor como global de solo lectura. No escribe estado.
 // ════════════════════════════════════════════════════════
 (function () {

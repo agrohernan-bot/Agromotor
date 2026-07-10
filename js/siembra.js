@@ -518,8 +518,18 @@
     const tipos={v:'ok',a:'warn',r:'danger'};
     const iconos={v:'✅',a:'⚠️',r:'🚫'};
     const msgs=[[mH,eH],[mT,eT],[mE,eE],[mV,eV],[mC,eC],[mW,eW]];
-    const spec=['💨','💨'];
-    $('s-recs').innerHTML=msgs.map(([m,e])=>`<div class="alert ${tipos[e]}"><span class="ai">${iconos[e]}</span><div class="ac">${m}</div></div>`).join('')+
+    let surcoHtml = '';
+    try {
+      const loteSurco = typeof window.amGetLoteActivo === 'function' ? window.amGetLoteActivo() : null;
+      const planSurco = loteSurco && loteSurco.data ? loteSurco.data.nutricionPlan : null;
+      if (planSurco && window.AM && window.AM.surcoGuardrails) {
+        const surcoEval = planSurco.surcoGuardrails || window.AM.surcoGuardrails.evaluateNutritionPlan(planSurco, { modulo: 'siembra' });
+        if (surcoEval && surcoEval.alerts && surcoEval.alerts.length) {
+          surcoHtml = window.AM.surcoGuardrails.renderAlerts(surcoEval.alerts, { compact: true });
+        }
+      }
+    } catch(_) {}
+    $('s-recs').innerHTML=msgs.map(([m,e])=>`<div class="alert ${tipos[e]}"><span class="ai">${iconos[e]}</span><div class="ac">${m}</div></div>`).join('')+surcoHtml+
       `<div class="alert info"><span class="ai">📏</span><div class="ac"><strong>Profundidad de siembra:</strong> ${profRec} para ${cult} en ${suelo}</div></div>`;
 
     // Exponer resultado para captura en dlRegistrarSiembra (Fase B snapshot)

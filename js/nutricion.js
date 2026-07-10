@@ -918,6 +918,12 @@ window.ncPlanCalcular = async function() {
 
 // ── RENDER PLAN ──────────────────────────────────────────
 function ncRenderPlan(res, ctx) {
+  var surcoEval = null;
+  try {
+    if (window.AM && window.AM.surcoGuardrails) {
+      surcoEval = window.AM.surcoGuardrails.evaluateNutritionPlan({ resultados: res }, { modulo: 'nutricion' });
+    }
+  } catch(_) {}
   try {
     var lotePlan = ncLoteActivo();
     if (lotePlan) {
@@ -928,7 +934,8 @@ function ncRenderPlan(res, ctx) {
         rendimiento: ctx.rendObj,
         superficie: ctx.sup,
         costoTotal: ctx.costoTotal,
-        resultados: res
+        resultados: res,
+        surcoGuardrails: surcoEval
       };
       if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     }
@@ -963,6 +970,10 @@ function ncRenderPlan(res, ctx) {
 
   if (ctx.esFBN) {
     html += '<div class="alert info" style="margin-bottom:.9rem"><span class="ai">💡</span><div class="ac"><strong>Soja — Fijación Biológica de N (FBN):</strong> Con inoculación de <em>Bradyrhizobium</em>, la soja cubre hasta el 80% de sus necesidades de N. La dosis de N indicada es para arranque o ambientes de alto potencial.</div></div>';
+  }
+
+  if (surcoEval && surcoEval.alerts && surcoEval.alerts.length && window.AM && window.AM.surcoGuardrails) {
+    html += window.AM.surcoGuardrails.renderAlerts(surcoEval.alerts, { compact: true });
   }
 
   // Tarjetas por nutriente

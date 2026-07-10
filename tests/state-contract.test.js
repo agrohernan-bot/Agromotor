@@ -150,6 +150,35 @@ test('modulos criticos leen el lote activo via helper central', () => {
   }
 });
 
+test('Guardrails de surco distinguen starter, nutricion masiva y bloqueos operativos', () => {
+  const sandbox = createBrowserSandbox();
+  vm.runInNewContext(read('js/surco-guardrails.js'), sandbox, { filename: 'js/surco-guardrails.js' });
+
+  const starter = sandbox.AM.surcoGuardrails.evaluateProduct({
+    nombre: 'Fertilizante starter liquido',
+    surco: { starter: true, mezclaValidada: true }
+  }, { placement: 'surco_siembra' });
+  assert.equal(starter.level, 'ok');
+
+  const masiva = sandbox.AM.surcoGuardrails.evaluateNutritionPlan({
+    resultados: {
+      N: { fertNombre: 'Urea (46-0-0)', kgFert: 120, dosisRec: 55 },
+      P: { fertNombre: 'MAP (11-52-0)', kgFert: 90, dosisRec: 47 }
+    }
+  });
+  assert.equal(masiva.level, 'advertencia');
+  assert.ok(masiva.alerts.some(a => a.code === 'SURCO_NUTRICION_MASIVA'));
+  assert.ok(masiva.alerts.some(a => a.code === 'SURCO_FITOTOX_SEMILLA'));
+
+  const mezcla = sandbox.AM.surcoGuardrails.evaluateMixture([
+    { nombre: 'Suspension organica', formulacion: 'SC', surco: { solid: true, precipita: true, mezclaValidada: false } },
+    { nombre: 'Starter liquido', surco: { starter: true, mezclaValidada: true } }
+  ], { placement: 'surco_siembra' });
+  assert.equal(mezcla.level, 'bloqueo');
+  assert.ok(mezcla.alerts.some(a => a.code === 'SURCO_SOLIDOS'));
+  assert.ok(mezcla.alerts.every(a => /Especificacion tecnica privada/.test(a.source)));
+});
+
 test('AgroENSO genera lectura agronomica accionable por fase actual', () => {
   const enso = require(path.join(ROOT, 'js/enso.js'));
   const lote = { data: { depto_nombre: 'Concordia' } };
@@ -408,6 +437,85 @@ test('amGetFechaSiembraGrupo prioriza siembra real sobre fecha planificada', () 
   assert.equal(window.amGetFechaSiembraGrupo(lote, 'invierno'), '2026-06-09');
   assert.equal(window.amGrupoPorCultivo('Trigo'), 'invierno');
   assert.equal(window.amGrupoPorCultivo('Maíz'), 'verano');
+});
+
+test('dlAplicarSnapshotSiembra conserva fecha legacy y registra snapshot post-siembra en Bitacora', () => {
+  const { window, localStorage } = loadCacheWithStorage({
+    am_global_lotes_v2: JSON.stringify({
+      activo: 'tmc',
+      lotes: [
+        {
+          id: 'tmc',
+          nombre: 'TMC',
+          data: {
+            coord: '-33.90,-60.50',
+            superficie: 120,
+            faseGrupos: { invierno: 'pre-siembra' },
+            planificacionSiembra: { invierno: { cultivo: 'Trigo', fechaSiembraPlan: '2026-06-26' } },
+          },
+        },
+      ],
+    }),
+  });
+  window.addEventListener = function() {};
+  window.amToast = function() {};
+  window.bitacoraRender = function() {};
+  window.amCargarLotesGlobales();
+  window.AM_SIEMBRA_LAST_RESULT = {
+    loteId: 'tmc',
+    score: 82,
+    label: 'Apto',
+    humedad: 24,
+    vpd: 0.9,
+    viento: 11,
+    diasReserva: 6,
+    fechaDiag: '2026-06-26',
+  };
+  vm.runInNewContext(read('js/dashboard-lotes.js'), window, { filename: 'js/dashboard-lotes.js' });
+
+  const payload = {
+    fecha: '2026-06-26',
+    postSiembra: {
+      version: 1,
+      tipo: 'post-siembra',
+      profundidadCm: 3.5,
+      humedadPercibida: 'Adecuada',
+      calidadTapado: 'Bueno',
+      maquinaObs: 'Rueda tapadora firme',
+      standEsperado: 250,
+      standUnidad: 'plantas/m2',
+      observaciones: 'Cabecera norte algo mas seca',
+    },
+  };
+
+  const entry = window.dlAplicarSnapshotSiembra('tmc', 'invierno', payload);
+  const lote = window.AM_LOTES.find(l => l.id === 'tmc');
+
+  assert.equal(entry.fecha, '2026-06-26');
+  assert.equal(entry.cultivo, 'Trigo');
+  assert.equal(entry.hectareasTotal, 120);
+  assert.equal(entry.hectareasCompletadas, 0);
+  assert.equal(entry.snapshotPostSiembra.postSiembra.profundidadCm, 3.5);
+  assert.equal(entry.snapshotPostSiembra.postSiembra.humedadPercibida, 'Adecuada');
+  assert.match(entry.snapshotPostSiembra.resumen, /Prof\. 3\.5 cm/);
+  assert.equal(entry.condiciones.score, 82);
+  assert.equal(lote.data.faseGrupos.invierno, 'en-curso');
+  assert.equal(window.amGetFechaSiembraGrupo(lote, 'invierno'), '2026-06-26');
+
+  assert.equal(lote.data.bitacora.length, 1);
+  assert.equal(lote.data.bitacora[0].tipo, 'siembra_acto');
+  assert.equal(lote.data.bitacora[0].siembraSnapshot.postSiembra.standEsperado, 250);
+  assert.match(lote.data.bitacora[0].nota, /Rueda tapadora firme/);
+  assert.equal(JSON.parse(localStorage.getItem('am_bitacora_v2')).length, 1);
+
+  window.dlAplicarSnapshotSiembra('tmc', 'invierno', {
+    fecha: '2026-06-26',
+    postSiembra: Object.assign({}, payload.postSiembra, { calidadTapado: 'Regular' }),
+  });
+
+  assert.equal(lote.data.bitacora.length, 1);
+  assert.equal(JSON.parse(localStorage.getItem('am_bitacora_v2')).length, 1);
+  assert.equal(lote.data.siembraRealizada.invierno.snapshotPostSiembra.postSiembra.calidadTapado, 'Regular');
 });
 
 test('mapeo geografico Nominatim a IDs de Supabase', () => {

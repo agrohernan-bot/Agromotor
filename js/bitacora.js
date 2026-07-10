@@ -366,7 +366,32 @@ function _htmlEntrada(e) {
           title="Eliminar entrada">✕</button>
       </div>
       ${metaItems.length ? `<div style="display:flex;flex-wrap:wrap;gap:.25rem .6rem;font-size:.67rem;color:#6b7280">${metaItems.join(' · ')}</div>` : ''}
+      ${_htmlSiembraSnapshot(e)}
       ${e.nota ? `<div style="font-size:.8rem;color:#374151;background:#f9fafb;border-radius:6px;padding:.4rem .55rem;border-left:3px solid #3A7A4A">${_esc(e.nota)}</div>` : ''}
+    </div>
+  `;
+}
+
+function _htmlSiembraSnapshot(e) {
+  var snap = e && (e.siembraSnapshot || e.snapshotPostSiembra);
+  if (!snap) return '';
+  var p = snap.postSiembra || snap;
+  var chips = [];
+  if (p.profundidadCm !== null && p.profundidadCm !== undefined) chips.push(['Profundidad', p.profundidadCm + ' cm']);
+  if (p.humedadPercibida) chips.push(['Humedad', p.humedadPercibida]);
+  if (p.calidadTapado) chips.push(['Tapado', p.calidadTapado]);
+  if (p.standEsperado !== null && p.standEsperado !== undefined) chips.push(['Stand esperado', p.standEsperado + (p.standUnidad ? ' ' + p.standUnidad : '')]);
+  var obs = [];
+  if (p.maquinaObs) obs.push('Maquina: ' + p.maquinaObs);
+  if (p.observaciones) obs.push(p.observaciones);
+  if (!chips.length && !obs.length) return '';
+  return `
+    <div style="background:#f4fbf6;border:1px solid rgba(42,122,74,.16);border-radius:8px;padding:.55rem .65rem">
+      <div style="font-size:.65rem;font-weight:800;color:#1b5e35;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem">Snapshot post-siembra</div>
+      ${chips.length ? '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem">' + chips.map(function(c) {
+        return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:7px;padding:.38rem .45rem;min-width:0"><div style="font-size:.58rem;color:#6b7280;text-transform:uppercase;font-weight:800">' + _esc(c[0]) + '</div><div style="font-size:.76rem;color:#1f2937;font-weight:700;word-break:break-word">' + _esc(c[1]) + '</div></div>';
+      }).join('') + '</div>' : ''}
+      ${obs.length ? '<div style="font-size:.75rem;color:#374151;line-height:1.4;margin-top:.45rem">' + _esc(obs.join(' · ')) + '</div>' : ''}
     </div>
   `;
 }

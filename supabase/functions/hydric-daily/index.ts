@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.108.2'
 
 type Json = Record<string, unknown>
 type Layers = { sm39: number | null; sm927: number | null; sm2781: number | null }
+type HydricEvent = { user_id: string; lote_id: string; event_at: string; amount_mm: unknown; efficiency: unknown; effective_mm?: unknown }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -19,6 +20,31 @@ function json(body: unknown, status = 200) {
 function num(value: unknown): number | null {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : null
+}
+
+function normalizeTheta(value: unknown): number | null {
+  let theta = num(value)
+  if (theta == null) return null
+  if (theta > 1 && theta <= 100) theta /= 100
+  if (theta < 0 || theta > 0.8) return null
+  return theta
+}
+
+function boundedBias(value: unknown): number {
+  const bias = num(value) || 0
+  return Math.max(-0.25, Math.min(0.25, bias))
+}
+
+function applyBias(layers: Layers, bias: Json): Layers {
+  const apply = (value: number | null, key: string) => {
+    if (value == null) return null
+    return normalizeTheta(value + boundedBias(bias[key]))
+  }
+  return {
+    sm39: apply(layers.sm39, 'sm39'),
+    sm927: apply(layers.sm927, 'sm927'),
+    sm2781: apply(layers.sm2781, 'sm2781'),
+  }
 }
 
 function errorMessage(error: unknown) {
@@ -78,6 +104,16 @@ function soilThresholds(data: Json) {
   let pmpLab = num(lab.pmp)
   if (ccLab != null && ccLab > 1) ccLab /= 100
   if (pmpLab != null && pmpLab > 1) pmpLab /= 100
+  if (lab.retencionBase === 'gravimetrica') {
+    const da = num(lab.da)
+    if (da != null && da > 0 && ccLab != null && pmpLab != null) {
+      ccLab *= da
+      pmpLab *= da
+    } else {
+      ccLab = null
+      pmpLab = null
+    }
+  }
   if (ccLab != null && pmpLab != null && pmpLab >= .01 && ccLab <= .7 && ccLab-pmpLab >= .03) {
     return { cc:ccLab, pmp:pmpLab, source:'laboratory' }
   }
@@ -132,8 +168,9 @@ function profilePct(layers: Layers, thresholds: { cc:number; pmp:number }) {
   let capacity = 0
   let total = 0
   let depth = 0
-  values.forEach((theta, idx) => {
-    if (theta == null || !Number.isFinite(theta)) return
+  values.forEach((rawTheta, idx) => {
+    const theta = normalizeTheta(rawTheta)
+    if (theta == null) return
     useful += Math.max(0, Math.min(theta, thresholds.cc)-thresholds.pmp)*depths[idx]*10
     capacity += (thresholds.cc-thresholds.pmp)*depths[idx]*10
     total += theta*depths[idx]*10
@@ -148,7 +185,17 @@ function profilePct(layers: Layers, thresholds: { cc:number; pmp:number }) {
   }
 }
 
-function compactForecast(api: Json, data: Json, bias: Json) {
+function addIrrigationToProfile(profile: ReturnType<typeof profilePct>, irrigationEffective: number) {
+  if (!(irrigationEffective > 0) || profile.pct == null || !(profile.capacity_mm > 0)) return profile
+  const useful = Math.min(profile.capacity_mm, profile.useful_mm + irrigationEffective)
+  return {
+    ...profile,
+    useful_mm: useful,
+    pct: Math.max(0, Math.min(100, useful/profile.capacity_mm*100)),
+  }
+}
+
+function compactForecast(api: Json, data: Json, bias: Json, irrigationByDate: Map<string, number>) {
   const hourly = (api.hourly || {}) as Json
   const daily = (api.daily || {}) as Json
   const times = (hourly.time || []) as string[]
@@ -163,16 +210,13 @@ function compactForecast(api: Json, data: Json, bias: Json) {
     let idx = times.indexOf(date + 'T12:00')
     if (idx < 0) idx = times.findIndex(t => t.startsWith(date))
     const raw: Layers = {
-      sm39:valueAt('soil_moisture_3_to_9cm', idx),
-      sm927:valueAt('soil_moisture_9_to_27cm', idx),
-      sm2781:valueAt('soil_moisture_27_to_81cm', idx),
+      sm39:normalizeTheta(valueAt('soil_moisture_3_to_9cm', idx)),
+      sm927:normalizeTheta(valueAt('soil_moisture_9_to_27cm', idx)),
+      sm2781:normalizeTheta(valueAt('soil_moisture_27_to_81cm', idx)),
     }
-    const calibrated: Layers = {
-      sm39:raw.sm39 == null ? null : Math.max(0, raw.sm39+b39),
-      sm927:raw.sm927 == null ? null : Math.max(0, raw.sm927+b927),
-      sm2781:raw.sm2781 == null ? null : Math.max(0, raw.sm2781+b2781),
-    }
-    const profile = profilePct(calibrated, thresholds)
+    const calibrated = applyBias(raw, { sm39:b39, sm927:b927, sm2781:b2781 })
+    const irrigationEffective = Math.max(0, irrigationByDate.get(date) || 0)
+    const profile = addIrrigationToProfile(profilePct(calibrated, thresholds), irrigationEffective)
     const stage = cropStage(data, dayIdx)
     return {
       date,
@@ -182,6 +226,7 @@ function compactForecast(api: Json, data: Json, bias: Json) {
       et0:dailyAt('et0_fao_evapotranspiration', dayIdx),
       precipitation:dailyAt('precipitation_sum', dayIdx),
       probability:dailyAt('precipitation_probability_max', dayIdx),
+      irrigation_effective_mm:irrigationEffective,
       tmax:dailyAt('temperature_2m_max', dayIdx),
       tmin:dailyAt('temperature_2m_min', dayIdx),
       kc:stage.kc,
@@ -229,6 +274,22 @@ async function readAllLotes() {
   return rows
 }
 
+function groupHydricEvents(events: HydricEvent[]) {
+  const out = new Map<string, Map<string, number>>()
+  for (const event of events) {
+    const date = String(event.event_at || '').slice(0, 10)
+    if (!date) continue
+    const key = `${event.user_id}:${event.lote_id}`
+    const gross = Math.max(0, num(event.amount_mm) || 0)
+    const efficiency = Math.max(0, Math.min(1, num(event.efficiency) ?? 1))
+    const effective = Math.max(0, num(event.effective_mm) ?? gross*efficiency)
+    if (!out.has(key)) out.set(key, new Map())
+    const byDate = out.get(key)!
+    byDate.set(date, (byDate.get(date) || 0) + effective)
+  }
+  return out
+}
+
 async function fetchOpenMeteo(lat: number, lon: number) {
   const url = new URL('https://api.open-meteo.com/v1/forecast')
   url.searchParams.set('latitude', lat.toFixed(5))
@@ -267,7 +328,9 @@ Deno.serve(async (req) => {
 
     const today = new Date().toISOString().slice(0, 10)
     const previousFrom = new Date(Date.now()-3*86400000).toISOString().slice(0, 10)
-    const [lotes, previousRes, calibrationRes] = await Promise.all([
+    const eventsFrom = new Date(Date.now()-30*86400000).toISOString()
+    const eventsTo = new Date(Date.now()+16*86400000).toISOString()
+    const [lotes, previousRes, calibrationRes, eventsRes] = await Promise.all([
       readAllLotes(),
       supabase.from('hydric_forecasts')
         .select('user_id,lote_id,run_at,forecast_days')
@@ -275,9 +338,14 @@ Deno.serve(async (req) => {
         .order('run_at', { ascending:false }).limit(5000),
       supabase.from('hydric_calibrations')
         .select('user_id,lote_id,samples,bias_layers,mae_layers').limit(5000),
+      supabase.from('hydric_events')
+        .select('user_id,lote_id,event_at,amount_mm,efficiency,effective_mm')
+        .eq('event_type', 'irrigation')
+        .gte('event_at', eventsFrom).lte('event_at', eventsTo).limit(10000),
     ])
     if (previousRes.error) throw previousRes.error
     if (calibrationRes.error) throw calibrationRes.error
+    if (eventsRes.error) throw eventsRes.error
 
     const previous = new Map<string, Json>()
     for (const row of (previousRes.data || []) as Json[]) {
@@ -288,6 +356,7 @@ Deno.serve(async (req) => {
     for (const row of (calibrationRes.data || []) as Json[]) {
       calibrations.set(`${row.user_id}:${row.lote_id}`, row)
     }
+    const eventsByLote = groupHydricEvents((eventsRes.data || []) as HydricEvent[])
 
     let processed = 0
     let skipped = 0
@@ -302,9 +371,9 @@ Deno.serve(async (req) => {
         const api = await fetchOpenMeteo(coord.lat, coord.lon)
         const currentApi = (api.current || {}) as Json
         const current: Layers = {
-          sm39:num(currentApi.soil_moisture_3_to_9cm),
-          sm927:num(currentApi.soil_moisture_9_to_27cm),
-          sm2781:num(currentApi.soil_moisture_27_to_81cm),
+          sm39:normalizeTheta(currentApi.soil_moisture_3_to_9cm),
+          sm927:normalizeTheta(currentApi.soil_moisture_9_to_27cm),
+          sm2781:normalizeTheta(currentApi.soil_moisture_27_to_81cm),
         }
         let calibration = calibrations.get(key)
         const prev = previous.get(key)
@@ -332,9 +401,14 @@ Deno.serve(async (req) => {
         }
 
         const bias = (calibration?.bias_layers || {}) as Json
-        const days = compactForecast(api, data, bias)
+        const currentCalibrated = applyBias(current, bias)
+        const loteEvents = eventsByLote.get(key) || new Map<string, number>()
+        const days = compactForecast(api, data, bias, loteEvents)
         const thresholds = soilThresholds(data)
-        const currentProfile = profilePct(current, thresholds)
+        const currentProfile = addIrrigationToProfile(
+          profilePct(currentCalibrated, thresholds),
+          Math.max(0, loteEvents.get(today) || 0),
+        )
         const currentStage = cropStage(data)
         const pTable: Record<string, number> = {
           soja:.50, maiz:.55, trigo:.55, cebada:.55, girasol:.45, sorgo:.55, colza:.60,
@@ -349,6 +423,9 @@ Deno.serve(async (req) => {
           current_pct:currentProfile.pct,
           current_theta:currentProfile.theta,
           current_useful_mm:currentProfile.useful_mm,
+          irrigation_16d_mm:Array.from(loteEvents.entries())
+            .filter(([date]) => date >= today)
+            .reduce((sum, [, mm]) => sum + mm, 0),
           critical_pct:criticalPct,
           model_stress_days:firstStress < 0 ? null : firstStress,
           model_stress_date:firstStress < 0 ? null : days[firstStress].date,
@@ -365,7 +442,7 @@ Deno.serve(async (req) => {
             run_at:new Date().toISOString(),
             latitude:coord.lat,
             longitude:coord.lon,
-            current_state:{ soil:current, water:currentProfile, thresholds },
+            current_state:{ soil:current, soil_calibrated:currentCalibrated, water:currentProfile, thresholds },
             forecast_days:days,
             summary,
           }, { onConflict:'user_id,lote_id,run_date' })

@@ -1480,11 +1480,17 @@
         .eq('lote_id', loteId).maybeSingle(),
       window.AM_SB.from('hydric_latest')
         .select('summary,updated_at')
-        .eq('lote_id', loteId).maybeSingle()
+        .eq('lote_id', loteId).maybeSingle(),
+      window.AM_SB.from('hydric_events')
+        .select('client_event_id,event_type,event_at,amount_mm,efficiency,effective_mm,metadata')
+        .eq('lote_id', loteId)
+        .order('event_at', { ascending:false })
+        .limit(100)
     ]).then(function(rows) {
       var result = {
         calibration:rows[0] && !rows[0].error ? rows[0].data : null,
-        latest:rows[1] && !rows[1].error ? rows[1].data : null
+        latest:rows[1] && !rows[1].error ? rows[1].data : null,
+        events:rows[2] && !rows[2].error && Array.isArray(rows[2].data) ? rows[2].data : []
       };
       _hydricAutoCache[loteId] = result;
       return result;
@@ -1502,13 +1508,40 @@
     ].forEach(function(pair) {
       var value = Number(out[pair[0]]);
       var correction = Number(bias[pair[1]]);
-      if (isFinite(value) && isFinite(correction)) out[pair[0]] = Math.max(0, value+correction);
+      if (isFinite(value) && isFinite(correction)) {
+        correction = Math.max(-0.25, Math.min(0.25, correction));
+        var adjusted = value + correction;
+        if (adjusted >= 0 && adjusted <= 0.8) out[pair[0]] = adjusted;
+      }
     });
     return out;
   }
 
-  function _irrigationForDate(lote, fecha) {
-    var events = lote && lote.data && lote.data.hydricEvents;
+  function _hydricEventsForLote(lote, hydric) {
+    var local = lote && lote.data && Array.isArray(lote.data.hydricEvents) ? lote.data.hydricEvents : [];
+    var remote = hydric && Array.isArray(hydric.events) ? hydric.events.map(function(e) {
+      var meta = e.metadata || {};
+      return {
+        clientEventId:e.client_event_id,
+        eventType:e.event_type,
+        eventAt:e.event_at,
+        amountMm:Number(e.amount_mm) || 0,
+        efficiency:Number(e.efficiency) || 1,
+        effectiveMm:Number(e.effective_mm),
+        campaignId:meta.campaign_id || meta.campaignId || ''
+      };
+    }) : [];
+    var map = {};
+    local.concat(remote).forEach(function(e) {
+      if (!e) return;
+      var key = e.clientEventId || (String(e.eventAt || e.fecha || '') + '_' + e.eventType + '_' + e.amountMm);
+      map[key] = e;
+    });
+    return Object.keys(map).map(function(k) { return map[k]; });
+  }
+
+  function _irrigationForDate(lote, fecha, hydric) {
+    var events = _hydricEventsForLote(lote, hydric);
     if (!Array.isArray(events)) return { mm:0, efficiency:1 };
     var selected = events.filter(function(event) {
       return event && event.eventType === 'irrigation' &&
@@ -1521,8 +1554,8 @@
     return { mm:gross, efficiency:gross > 0 ? effective/gross : 1 };
   }
 
-  function _irrigationCarryover(lote, fecha, etcDiaria) {
-    var events = lote && lote.data && lote.data.hydricEvents;
+  function _irrigationCarryover(lote, fecha, etcDiaria, hydric) {
+    var events = _hydricEventsForLote(lote, hydric);
     if (!Array.isArray(events)) return 0;
     var target = new Date(fecha + 'T12:00:00');
     if (isNaN(target.getTime())) return 0;
@@ -1533,7 +1566,8 @@
       var applied = new Date(eventDate + 'T12:00:00');
       var days = Math.max(0, Math.round((target-applied)/86400000));
       if (!isFinite(days) || days > 30) return sum;
-      var effective = (Number(event.amountMm) || 0)*(Number(event.efficiency) || 1);
+      var effective = Number(event.effectiveMm);
+      if (!isFinite(effective)) effective = (Number(event.amountMm) || 0)*(Number(event.efficiency) || 1);
       return sum+Math.max(0, effective-days*Math.max(.5, Number(etcDiaria) || 0));
     }, 0);
   }
@@ -1578,9 +1612,10 @@
     var etapaHoy = window.amCropWaterStage(cultivo, diasBase, ciclo);
     var et0Hoy = (daily.et0_fao_evapotranspiration || [])[0];
     if (!isFinite(Number(et0Hoy))) et0Hoy = diasMeteo[0].et0;
-    var perfilInicial = _soilProfileForLote(lote, om.current || {}, et0Hoy, etapaHoy.raizCm, etapaHoy.kc);
+    var currentCalibrado = _applyHydricBias(om.current || {}, hydric);
+    var perfilInicial = _soilProfileForLote(lote, currentCalibrado, et0Hoy, etapaHoy.raizCm, etapaHoy.kc);
     if (!perfilInicial) return null;
-    var carryoverRiego = _irrigationCarryover(lote, diasMeteo[0].fecha, Number(et0Hoy)*etapaHoy.kc);
+    var carryoverRiego = _irrigationCarryover(lote, diasMeteo[0].fecha, Number(et0Hoy)*etapaHoy.kc, hydric);
     if (carryoverRiego > 0) {
       perfilInicial = Object.assign({}, perfilInicial);
       perfilInicial.aguaUtilMm = Math.min(perfilInicial.capacidadUtilMm,
@@ -1592,8 +1627,8 @@
     var dias = diasMeteo.map(function(meteo, idx) {
       var fecha = meteo.fecha;
       var etapa = window.amCropWaterStage(cultivo, diasBase+idx+1, ciclo);
-      var curDia = idx === 0 ? (om.current || {}) : _applyHydricBias(_hourlySoilForDate(om.hourly, fecha), hydric);
-      var irrigation = _irrigationForDate(lote, fecha);
+      var curDia = idx === 0 ? currentCalibrado : _applyHydricBias(_hourlySoilForDate(om.hourly, fecha), hydric);
+      var irrigation = _irrigationForDate(lote, fecha, hydric);
       var perfilNuevo = curDia
         ? _soilProfileForLote(lote, curDia, meteo.et0, etapa.raizCm, etapa.kc)
         : null;
@@ -1634,10 +1669,11 @@
     return outlook;
   }
 
-  function _renderHumedadInCard(lote, data) {
+  function _renderHumedadInCard(lote, data, hydric) {
     var el = document.getElementById('dl-hidrico-' + lote.id);
     if (!el) return;
-    var perfil = _soilProfileForLote(lote, data.current || {}, data.et0);
+    var cur = _applyHydricBias(data.current || {}, hydric);
+    var perfil = _soilProfileForLote(lote, cur, data.et0);
     if (!perfil || perfil.pct == null) {
       el.innerHTML = '';
       return;
@@ -1670,6 +1706,9 @@
       if (_climaCache[cKey]) {
         _renderClimaInCard(el, _climaCache[cKey]);
         _renderHumedadInCard(lote, _climaCache[cKey]);
+        _fetchHydricAutomation(lote.id).then(function(hydric) {
+          if (hydric) _renderHumedadInCard(lote, _climaCache[cKey], hydric);
+        });
         return;
       }
       var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + coords.lat.toFixed(4) +
@@ -1691,6 +1730,9 @@
           var el2 = document.getElementById('dl-clima-' + lote.id);
           if (el2) _renderClimaInCard(el2, result);
           _renderHumedadInCard(lote, result);
+          _fetchHydricAutomation(lote.id).then(function(hydric) {
+            if (hydric) _renderHumedadInCard(lote, result, hydric);
+          });
         })
         .catch(function() {});
     });
@@ -1706,7 +1748,12 @@
           var coords = _coordsFromLote(lote);
           if (!coords) return;
           var cKey = coords.lat.toFixed(2) + ',' + coords.lng.toFixed(2);
-          if (_climaCache[cKey]) _renderHumedadInCard(lote, _climaCache[cKey]);
+          if (_climaCache[cKey]) {
+            _renderHumedadInCard(lote, _climaCache[cKey]);
+            _fetchHydricAutomation(lote.id).then(function(hydric) {
+              if (hydric) _renderHumedadInCard(lote, _climaCache[cKey], hydric);
+            });
+          }
         }).catch(function() {});
       }
     });
@@ -1778,7 +1825,8 @@
     var tSuelo = cur.soil_temperature_0cm != null ? cur.soil_temperature_0cm.toFixed(1) + '°C' : '—';
     var loteHum = getLote(loteId);
     var et0Numero = day.et0_fao_evapotranspiration && day.et0_fao_evapotranspiration[0];
-    var perfilHum = _soilProfileForLote(loteHum, cur, et0Numero);
+    var curHidrico = _applyHydricBias(cur, data.hydric);
+    var perfilHum = _soilProfileForLote(loteHum, curHidrico, et0Numero);
     var outlookHum = _buildWaterOutlook(loteHum, om, data.hydric);
     _actualizarWidgetHidricoActual(loteId, perfilHum, outlookHum);
     var humSuelo = perfilHum && perfilHum.pct != null
@@ -2158,6 +2206,178 @@
     return (window.AM_LOTES || []).find(function (l) { return l.id === id; }) || null;
   }
 
+  function fechaLocalISO() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function _numOrNull(v) {
+    if (v === null || v === undefined || String(v).trim() === '') return null;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+
+  function _siembraDefaultProfundidad(cultivo) {
+    var c = String(cultivo || '').toLowerCase();
+    try { c = c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(_) {}
+    if (c.indexOf('trigo') >= 0 || c.indexOf('cebada') >= 0) return '3.5';
+    if (c.indexOf('colza') >= 0) return '1.5';
+    if (c.indexOf('maiz') >= 0 || c.indexOf('girasol') >= 0 || c.indexOf('sorgo') >= 0) return '4.5';
+    if (c.indexOf('soja') >= 0) return '3.0';
+    return '';
+  }
+
+  function _siembraDefaultStand(cultivo, plan) {
+    var keys = ['standEsperado','plantasObjetivo','plantasLogradas','densidadObjetivo','densidad','semillasM2'];
+    for (var i = 0; i < keys.length; i++) {
+      var n = _numOrNull(plan && plan[keys[i]]);
+      if (n !== null) return String(n);
+    }
+    var c = String(cultivo || '').toLowerCase();
+    try { c = c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(_) {}
+    if (c.indexOf('trigo') >= 0 || c.indexOf('cebada') >= 0) return '250';
+    if (c.indexOf('colza') >= 0) return '70';
+    if (c.indexOf('maiz') >= 0) return '7';
+    if (c.indexOf('girasol') >= 0) return '4';
+    if (c.indexOf('sorgo') >= 0) return '18';
+    if (c.indexOf('soja') >= 0) return '28';
+    return '';
+  }
+
+  function _siembraResumenSnapshot(snapshot) {
+    if (!snapshot) return '';
+    var p = snapshot.postSiembra || snapshot;
+    var out = [];
+    if (p.profundidadCm != null) out.push('Prof. ' + p.profundidadCm + ' cm');
+    if (p.humedadPercibida) out.push('Humedad ' + p.humedadPercibida);
+    if (p.calidadTapado) out.push('Tapado ' + p.calidadTapado);
+    if (p.standEsperado != null) out.push('Stand esperado ' + p.standEsperado + (p.standUnidad ? ' ' + p.standUnidad : ''));
+    if (p.maquinaObs) out.push('Maquina: ' + p.maquinaObs);
+    if (p.observaciones) out.push(p.observaciones);
+    return out.join(' · ');
+  }
+
+  function _guardarBitacoraSiembra(lote, grupo, entry, snapshot) {
+    if (!lote || !lote.data || !entry || !entry.fecha) return;
+    var now = new Date();
+    var idBase = 'siembra-' + (lote.id || 'lote') + '-' + grupo + '-' + entry.fecha;
+    var nota = _siembraResumenSnapshot(snapshot) || 'Siembra realizada.';
+    var bit = {
+      id: idBase,
+      fecha: entry.fecha,
+      hora: now.toTimeString().slice(0, 5),
+      loteId: lote.id || '',
+      loteNombre: lote.nombre || '',
+      cultivo: entry.cultivo || '',
+      etapa: 'Post-siembra',
+      diasSiembra: 0,
+      coord: (lote.data && lote.data.coord) || '',
+      tipo: 'siembra_acto',
+      nota: nota,
+      grupo: grupo,
+      siembraSnapshot: snapshot
+    };
+    var listaLote = Array.isArray(lote.data.bitacora) ? lote.data.bitacora.slice() : [];
+    listaLote = listaLote.filter(function(e) { return e && e.id !== bit.id; });
+    listaLote.push(bit);
+    lote.data.bitacora = listaLote.slice(-200);
+    lote.data.ultimaRecorrida = entry.fecha;
+    try {
+      var raw = localStorage.getItem('am_bitacora_v2');
+      var lista = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(lista)) lista = [];
+      lista = lista.filter(function(e) { return e && e.id !== bit.id; });
+      lista.push(bit);
+      localStorage.setItem('am_bitacora_v2', JSON.stringify(lista.slice(-200)));
+    } catch(_) {}
+  }
+
+  function _modalSnapshotSiembra(opts, callback) {
+    opts = opts || {};
+    var cultivo = opts.cultivo || '';
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(28,18,8,.58);z-index:9999;display:flex;align-items:center;justify-content:center;padding:.8rem;backdrop-filter:blur(4px)';
+
+    var card = document.createElement('div');
+    card.style.cssText = 'background:#fff;border-radius:14px;width:100%;max-width:430px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(28,18,8,.25);font-family:"DM Sans",sans-serif;color:#1c1208';
+    card.innerHTML =
+      '<form id="dl-siembra-post-form" style="padding:1rem">' +
+        '<div style="font-weight:800;font-size:1rem;color:#1c1208">Registrar siembra realizada</div>' +
+        '<div style="font-size:.74rem;color:#6b5b45;margin:.2rem 0 .85rem">' + esc(opts.loteNombre || '') + (cultivo ? ' · ' + esc(cultivo) : '') + '</div>' +
+        _fieldDate('dlps-fecha', 'Fecha', opts.fecha || fechaLocalISO()) +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem">' +
+          _fieldNum('dlps-prof', 'Prof. lograda cm', opts.profundidad || '') +
+          _fieldNum('dlps-stand', 'Stand esperado', opts.stand || '') +
+        '</div>' +
+        _fieldSelect('dlps-stand-unidad', 'Unidad stand', ['plantas/m2','plantas/m lineal','semillas/m2'], opts.standUnidad || 'plantas/m2') +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem">' +
+          _fieldSelect('dlps-humedad', 'Humedad percibida', ['Adecuada','Justa','Seca','Exceso'], opts.humedad || 'Adecuada') +
+          _fieldSelect('dlps-tapado', 'Calidad de tapado', ['Bueno','Regular','Deficiente','Variable'], opts.tapado || 'Bueno') +
+        '</div>' +
+        _fieldText('dlps-maq', 'Dudas/observaciones de maquina', 'Ej: corte de rastrojo, dosificador, rueda tapadora, patinaje...', '') +
+        _fieldText('dlps-obs', 'Observaciones utiles para emergencia/resiembra', 'Ej: sectores con barro, cabeceras, costras, profundidad variable...', '') +
+        '<div style="display:flex;gap:.55rem;justify-content:flex-end;margin-top:.9rem;position:sticky;bottom:0;background:#fff;padding-top:.6rem">' +
+          '<button type="button" id="dlps-cancel" style="border:1.5px solid #d4c9b8;background:#fff;color:#5a4a32;border-radius:8px;padding:.52rem .9rem;font-size:.82rem;cursor:pointer;font-family:inherit">Cancelar</button>' +
+          '<button type="submit" style="border:none;background:#2A5A3A;color:#fff;border-radius:8px;padding:.55rem 1rem;font-size:.82rem;font-weight:800;cursor:pointer;font-family:inherit">Guardar siembra</button>' +
+        '</div>' +
+      '</form>';
+
+    function close(val) {
+      if (overlay.parentNode) document.body.removeChild(overlay);
+      callback(val || null);
+    }
+    function val(id) {
+      var el = document.getElementById(id);
+      return el ? String(el.value || '').trim() : '';
+    }
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) close(null); });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    document.getElementById('dlps-cancel').addEventListener('click', function() { close(null); });
+    document.getElementById('dl-siembra-post-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      var fecha = val('dlps-fecha');
+      if (!fecha) return;
+      fecha = (typeof window.amFechaISO === 'function') ? window.amFechaISO(fecha) : fecha;
+      close({
+        fecha: fecha,
+        postSiembra: {
+          version: 1,
+          tipo: 'post-siembra',
+          fechaCaptura: fechaLocalISO(),
+          cultivo: cultivo,
+          profundidadCm: _numOrNull(val('dlps-prof')),
+          humedadPercibida: val('dlps-humedad'),
+          calidadTapado: val('dlps-tapado'),
+          maquinaObs: val('dlps-maq'),
+          standEsperado: _numOrNull(val('dlps-stand')),
+          standUnidad: val('dlps-stand-unidad'),
+          observaciones: val('dlps-obs')
+        }
+      });
+    });
+    setTimeout(function() {
+      var f = document.getElementById('dlps-fecha');
+      if (f) f.focus();
+    }, 40);
+  }
+
+  function _fieldDate(id, label, value) {
+    return '<label style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:.55rem"><span style="font-size:.64rem;font-weight:800;color:#675642;text-transform:uppercase;letter-spacing:.05em">' + label + '</span><input id="' + id + '" type="date" value="' + esc(value) + '" style="border:1.5px solid #d4c9b8;border-radius:8px;padding:.52rem .65rem;font-size:.84rem;font-family:inherit;color:#1c1208"></label>';
+  }
+  function _fieldNum(id, label, value) {
+    return '<label style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:.55rem;min-width:0"><span style="font-size:.64rem;font-weight:800;color:#675642;text-transform:uppercase;letter-spacing:.05em">' + label + '</span><input id="' + id + '" type="number" step="0.1" value="' + esc(value) + '" style="min-width:0;border:1.5px solid #d4c9b8;border-radius:8px;padding:.52rem .65rem;font-size:.84rem;font-family:inherit;color:#1c1208"></label>';
+  }
+  function _fieldSelect(id, label, opts, selected) {
+    return '<label style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:.55rem;min-width:0"><span style="font-size:.64rem;font-weight:800;color:#675642;text-transform:uppercase;letter-spacing:.05em">' + label + '</span><select id="' + id + '" style="min-width:0;border:1.5px solid #d4c9b8;border-radius:8px;padding:.52rem .55rem;font-size:.82rem;font-family:inherit;color:#1c1208;background:#fff">' + opts.map(function(o) { return '<option value="' + esc(o) + '"' + (o === selected ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>';
+  }
+  function _fieldText(id, label, ph, value) {
+    return '<label style="display:flex;flex-direction:column;gap:.25rem;margin-bottom:.55rem"><span style="font-size:.64rem;font-weight:800;color:#675642;text-transform:uppercase;letter-spacing:.05em">' + label + '</span><textarea id="' + id + '" maxlength="220" rows="2" placeholder="' + esc(ph) + '" style="border:1.5px solid #d4c9b8;border-radius:8px;padding:.52rem .65rem;font-size:.82rem;font-family:inherit;color:#1c1208;resize:vertical;line-height:1.4">' + esc(value || '') + '</textarea></label>';
+  }
+
   function refrescarDashboardLote() {
     var refreshers = [
       'dashCampanaRefresh',
@@ -2436,48 +2656,78 @@
     renderPanel();
   };
 
+  window.dlAplicarSnapshotSiembra = function(loteId, grupo, res) {
+    var lote = getLote(loteId);
+    if (!lote || !res || !res.fecha) return null;
+    var plan = ((lote.data || {}).planificacionSiembra || {})[grupo] || {};
+    var cultivoDef = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+    var fechaConf = (typeof window.amFechaISO === 'function') ? window.amFechaISO(res.fecha) : res.fecha;
+    lote.data = lote.data || {};
+    if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'en-curso');
+    else {
+      lote.data.faseGrupos = lote.data.faseGrupos || {};
+      lote.data.faseGrupos[grupo] = 'en-curso';
+    }
+    lote.data.siembraRealizada = lote.data.siembraRealizada || {};
+    var _siembraEntry = lote.data.siembraRealizada[grupo] || {};
+    _siembraEntry.fecha = fechaConf;
+    _siembraEntry.cultivo = plan.cultivo || _siembraEntry.cultivo || cultivoDef;
+    _siembraEntry.ts = Date.now();
+    _siembraEntry.snapshotPostSiembra = {
+      fecha: fechaConf,
+      grupo: grupo,
+      loteId: loteId,
+      postSiembra: res.postSiembra || {},
+      resumen: _siembraResumenSnapshot(res),
+      createdAt: Date.now()
+    };
+    var _supLote = parseFloat((lote.data || {}).superficie);
+    if (!isNaN(_supLote) && _supLote > 0) {
+      _siembraEntry.hectareasTotal = _supLote;
+      _siembraEntry.hectareasCompletadas = 0;
+    }
+    var _lr = window.AM_SIEMBRA_LAST_RESULT;
+    if (_lr && _lr.loteId === loteId) {
+      _siembraEntry.condiciones = {
+        score:       _lr.score,
+        label:       _lr.label,
+        humedad:     _lr.humedad,
+        vpd:         _lr.vpd,
+        viento:      _lr.viento,
+        diasReserva: _lr.diasReserva,
+        fechaDiag:   _lr.fechaDiag,
+      };
+    }
+    lote.data.siembraRealizada[grupo] = _siembraEntry;
+    _guardarBitacoraSiembra(lote, grupo, _siembraEntry, _siembraEntry.snapshotPostSiembra);
+    if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof window.bitacoraRender === 'function') window.bitacoraRender();
+    return _siembraEntry;
+  };
+
   window.dlRegistrarSiembra = function(loteId, grupo) {
     var lote = getLote(loteId);
     if (!lote) return;
     var plan = ((lote.data || {}).planificacionSiembra || {})[grupo] || {};
-    var hoy = new Date().toISOString().split('T')[0];
+    var hoy = fechaLocalISO();
     var defFecha = plan.fechaSiembraConf || plan.fechaSiembraPlan || hoy;
-    if (typeof amInputModal !== 'function') return;
-    amInputModal('Fecha de siembra realizada', defFecha, function(fechaConf) {
-      if (!fechaConf) return;
-      fechaConf = (typeof window.amFechaISO === 'function') ? window.amFechaISO(fechaConf) : fechaConf;
-      lote.data = lote.data || {};
-      if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'en-curso');
-      else {
-        lote.data.faseGrupos = lote.data.faseGrupos || {};
-        lote.data.faseGrupos[grupo] = 'en-curso';
-      }
-      lote.data.siembraRealizada = lote.data.siembraRealizada || {};
-      var _siembraEntry = lote.data.siembraRealizada[grupo] || {};
-      _siembraEntry.fecha = fechaConf;
-      _siembraEntry.cultivo = plan.cultivo || _siembraEntry.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
-      _siembraEntry.ts = Date.now();
-      // Capturar superficie total del lote para el tracker de progreso
-      var _supLote = parseFloat((lote.data || {}).superficie);
-      if (!isNaN(_supLote) && _supLote > 0) {
-        _siembraEntry.hectareasTotal = _supLote;
-        _siembraEntry.hectareasCompletadas = 0;
-      }
+    var cultivoDef = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+    var srPrev = (((lote.data || {}).siembraRealizada || {})[grupo]) || {};
+    var snapPrev = srPrev.snapshotPostSiembra && srPrev.snapshotPostSiembra.postSiembra ? srPrev.snapshotPostSiembra.postSiembra : null;
+    _modalSnapshotSiembra({
+      loteNombre: lote.nombre || '',
+      cultivo: cultivoDef,
+      fecha: srPrev.fecha || defFecha,
+      profundidad: snapPrev && snapPrev.profundidadCm != null ? snapPrev.profundidadCm : _siembraDefaultProfundidad(cultivoDef),
+      stand: snapPrev && snapPrev.standEsperado != null ? snapPrev.standEsperado : _siembraDefaultStand(cultivoDef, plan),
+      standUnidad: snapPrev && snapPrev.standUnidad ? snapPrev.standUnidad : 'plantas/m2',
+      humedad: snapPrev && snapPrev.humedadPercibida ? snapPrev.humedadPercibida : 'Adecuada',
+      tapado: snapPrev && snapPrev.calidadTapado ? snapPrev.calidadTapado : 'Bueno'
+    }, function(res) {
+      if (!res || !res.fecha) return;
+      var fechaConf = (typeof window.amFechaISO === 'function') ? window.amFechaISO(res.fecha) : res.fecha;
+      window.dlAplicarSnapshotSiembra(loteId, grupo, res);
       // Capturar snapshot del diagnóstico si fue ejecutado para este lote
-      var _lr = window.AM_SIEMBRA_LAST_RESULT;
-      if (_lr && _lr.loteId === loteId) {
-        _siembraEntry.condiciones = {
-          score:       _lr.score,
-          label:       _lr.label,
-          humedad:     _lr.humedad,
-          vpd:         _lr.vpd,
-          viento:      _lr.viento,
-          diasReserva: _lr.diasReserva,
-          fechaDiag:   _lr.fechaDiag,
-        };
-      }
-      lote.data.siembraRealizada[grupo] = _siembraEntry;
-      if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
       if (typeof amToast === 'function') amToast('Siembra registrada el ' + fechaConf + '. ¡A monitorear el cultivo!', 'ok');
       renderPanel();
     });
@@ -2537,6 +2787,10 @@
 
   window.dlInit = init;
   window.dlGetCampanaPlanificacion = getCampanaPlanificacion;
+  window.addEventListener('am:hydric-event', function(ev) {
+    var loteId = ev && ev.detail && ev.detail.loteId;
+    if (loteId && _hydricAutoCache[loteId]) delete _hydricAutoCache[loteId];
+  });
 
   // ── PATCH switchMod: gestionar visibilidad de sidebar ──
   // Se ejecuta en init() una vez que switchMod está disponible

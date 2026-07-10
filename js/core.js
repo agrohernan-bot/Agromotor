@@ -155,6 +155,14 @@ function amSoilWaterDepletion(cultivo, et0, kc, sg) {
   return { p:Math.max(0.10, Math.min(0.80, p)), pTabla, etc };
 }
 
+function amSoilWaterNormalizeTheta(value) {
+  let theta = Number(value);
+  if (!Number.isFinite(theta)) return null;
+  if (theta > 1 && theta <= 100) theta /= 100;
+  if (theta < 0 || theta > 0.8) return null;
+  return theta;
+}
+
 function amSoilAtDepth(sg, top, bottom) {
   const hs = sg && Array.isArray(sg.horizontes) ? sg.horizontes : [];
   if (!hs.length) return sg;
@@ -185,11 +193,9 @@ function amSoilWaterProfile(layers, suelo, sg, options) {
   let ccPond = 0, pmpPond = 0;
   let fuenteUmbrales = umbral.fuente;
   (layers || []).forEach(function(layer) {
-    let theta = Number(layer && (layer.theta ?? layer.value));
+    const theta = amSoilWaterNormalizeTheta(layer && (layer.theta ?? layer.value));
     const depthCm = Number(layer && (layer.depthCm ?? layer.profundidadCm));
-    if (!Number.isFinite(theta) || !Number.isFinite(depthCm) || depthCm <= 0) return;
-    if (theta > 1) theta /= 100; // acepta sliders en % además de m³/m³
-    if (theta < 0 || theta > 0.8) return;
+    if (theta == null || !Number.isFinite(depthCm) || depthCm <= 0) return;
     const uCapa = umbral.fuente === 'laboratorio' || !layer.sg
       ? umbral : amSoilWaterThresholds(suelo, layer.sg);
     if (uCapa.fuente === 'soilgrids-ptf') fuenteUmbrales = 'soilgrids-ptf-horizontes';
@@ -500,6 +506,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.setR = setR;
   window.amSoilWaterThresholds = amSoilWaterThresholds;
   window.amSoilWaterDepletion = amSoilWaterDepletion;
+  window.amSoilWaterNormalizeTheta = amSoilWaterNormalizeTheta;
   window.amSoilAtDepth = amSoilAtDepth;
   window.amSoilWaterProfile = amSoilWaterProfile;
   window.amCropWaterStage = amCropWaterStage;
@@ -508,6 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.AM.soilWater = {
     thresholds: amSoilWaterThresholds,
     depletion: amSoilWaterDepletion,
+    normalizeTheta: amSoilWaterNormalizeTheta,
     soilAtDepth: amSoilAtDepth,
     profile: amSoilWaterProfile,
     cropStage: amCropWaterStage,

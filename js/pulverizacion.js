@@ -3746,6 +3746,12 @@ const PRODUCTOS_MEZCLA = [
   { id:'antievaporante',nombre:'Antievaporante',           tipo:'coadyuvante',grupo:'coadyuvante',  orden:2, formulacion:'SL' },
   { id:'urea_foliar',   nombre:'Urea foliar 20%',          tipo:'foliar',    grupo:'foliar',        orden:5, formulacion:'SL' },
   { id:'boro',          nombre:'Boro líquido',             tipo:'foliar',    grupo:'foliar',        orden:5, formulacion:'SL' },
+  { id:'surco_inoculante', nombre:'Inoculante liquido para surco', tipo:'surco', grupo:'surco_biologico', orden:1, formulacion:'SL', surco:{ starter:true, mezclaValidada:true } },
+  { id:'surco_bioest_soluble', nombre:'Bioestimulante soluble para surco', tipo:'surco', grupo:'surco_bioestimulante', orden:2, formulacion:'SL', surco:{ starter:true, mezclaValidada:true } },
+  { id:'surco_starter_liquido', nombre:'Fertilizante starter liquido', tipo:'surco', grupo:'surco_starter', orden:3, formulacion:'SL', surco:{ starter:true, mezclaValidada:true, maxStarterKgHa:35 } },
+  { id:'surco_np_alta', nombre:'N/P alta concentracion', tipo:'surco', grupo:'surco_np_alta', orden:3, formulacion:'SL', surco:{ uso:'masiva', altoN:true, altoP:true, altaSalinidad:true, dosisSuperiorStarter:true, mezclaValidada:false } },
+  { id:'surco_suspension', nombre:'Producto con solidos/precipitado', tipo:'surco', grupo:'surco_suspension', orden:0, formulacion:'SC', surco:{ solid:true, suspendido:true, precipita:true, mezclaValidada:false } },
+  { id:'surco_agitacion', nombre:'Producto con agitacion permanente', tipo:'surco', grupo:'surco_agitacion', orden:0, formulacion:'SC', surco:{ agitacionPermanente:true, mezclaValidada:false } },
 ];
 
 let mezclaSeleccion = [null, null]; // hasta 4 slots
@@ -3837,9 +3843,15 @@ function analizarMezcla() {
     alertasGlobales.push({ ico:'🧪', txt:'Múltiples formulaciones EC: realizar SIEMPRE test de jarrita antes de cargar el equipo completo.' });
   }
 
+  const surcoProductos = seleccionados.filter(p => p && p.surco);
+  let surcoEval = null;
+  if (surcoProductos.length && window.AM && window.AM.surcoGuardrails) {
+    surcoEval = window.AM.surcoGuardrails.evaluateMixture(surcoProductos, { placement:'surco_siembra', modulo:'pulverizacion' });
+  }
+
   // Veredicto global
-  const hayIncompat = resultados.some(r => r.st === 'incompatible');
-  const hayPrecaucion = resultados.some(r => r.st === 'precaucion');
+  const hayIncompat = resultados.some(r => r.st === 'incompatible') || (surcoEval && surcoEval.level === 'bloqueo');
+  const hayPrecaucion = resultados.some(r => r.st === 'precaucion') || (surcoEval && surcoEval.level === 'advertencia');
   const verdGlobal = hayIncompat ? 'incompatible' : hayPrecaucion ? 'precaucion' : 'compatible';
   const verdIcono = hayIncompat ? '🚫' : hayPrecaucion ? '⚠️' : '✅';
   const verdTxt = hayIncompat ? 'Mezcla con incompatibilidades — revisar antes de aplicar' : hayPrecaucion ? 'Mezcla viable con precauciones' : 'Mezcla compatible';
@@ -3856,6 +3868,7 @@ function analizarMezcla() {
         <div class="rec-icon">${a.ico}</div>
         <div class="rec-content"><div class="rec-texto">${a.txt}</div></div>
       </div>`).join('')}
+    ${surcoEval && surcoEval.alerts && surcoEval.alerts.length && window.AM && window.AM.surcoGuardrails ? window.AM.surcoGuardrails.renderAlerts(surcoEval.alerts, { compact: true }) : ''}
     ${resultados.map(r => `
       <div class="compat-result ${r.st}">
         <div class="compat-header">

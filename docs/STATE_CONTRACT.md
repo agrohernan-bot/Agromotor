@@ -54,6 +54,29 @@ Campos recomendados en `lote.data`:
     "Trigo": "2026-06-07",
     "Soja": "2026-11-10"
   },
+  "siembraRealizada": {
+    "invierno": {
+      "fecha": "2026-06-26",
+      "cultivo": "Trigo",
+      "snapshotPostSiembra": {
+        "fecha": "2026-06-26",
+        "grupo": "invierno",
+        "loteId": "tmc",
+        "postSiembra": {
+          "version": 1,
+          "tipo": "post-siembra",
+          "profundidadCm": 3.5,
+          "humedadPercibida": "Adecuada",
+          "calidadTapado": "Bueno",
+          "maquinaObs": "Dosificador estable; revisar una linea",
+          "standEsperado": 250,
+          "standUnidad": "plantas/m2",
+          "observaciones": "Cabecera norte mas compactada"
+        },
+        "resumen": "Prof. 3.5 cm · Humedad Adecuada · Tapado Bueno"
+      }
+    }
+  },
   "campanasActivas": {
     "planfina": "fina-2026",
     "plangruesa": "gruesa-2026"
@@ -75,6 +98,7 @@ Reglas:
 - `js/cache.js` ejecuta `amNormalizarEstadoLotes()` al cargar y antes de persistir para corregir un activo inexistente o una lista vacia.
 - Si se elimina el lote activo, el nuevo activo debe ser el primer lote disponible o `default`.
 - Las coordenadas se guardan como string `lat,lon` para compatibilidad, pero los mapas deben preferir `polygon`/`geojson` cuando existan.
+- `siembraRealizada[grupo].fecha` sigue siendo el contrato minimo para consumidores legacy. `snapshotPostSiembra` agrega contexto operativo corto del momento de siembra y tambien se duplica como entrada `siembra_acto` en `lote.data.bitacora` / `am_bitacora_v2`.
 
 Helpers publicos:
 

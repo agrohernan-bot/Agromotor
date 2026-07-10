@@ -36,6 +36,22 @@ test('convierte humedad volumetrica a agua util sin densidad aparente', () => {
   assert.equal(Math.round(perfil.pct), 71);
 });
 
+test('descarta humedades fuera del dominio fisico', () => {
+  const ctx = loadCore();
+  assert.equal(ctx.amSoilWaterNormalizeTheta(23), 0.23);
+  assert.equal(ctx.amSoilWaterNormalizeTheta(0.23), 0.23);
+  assert.equal(ctx.amSoilWaterNormalizeTheta(145), null);
+  assert.equal(ctx.amSoilWaterNormalizeTheta(0.95), null);
+
+  const perfil = ctx.amSoilWaterProfile([
+    { theta: 95, depthCm: 6 },
+    { theta: 24, depthCm: 18 },
+  ], 'Molisol');
+
+  assert.equal(perfil.profundidadCm, 18);
+  assert.ok(perfil.pct > 0 && perfil.pct < 100);
+});
+
 test('PMP es cero agua util y CC es cien por ciento', () => {
   const ctx = loadCore();
   const t = ctx.amSoilWaterThresholds('Vertisol');
