@@ -400,7 +400,7 @@
     if (tieneFina) {
       html += '<div class="sc-antecesor" style="background:rgba(79,195,247,.06);border:1px solid rgba(79,195,247,.15);border-radius:8px;padding:.6rem .8rem">';
       html +=   '<span class="sc-ant-label" style="margin-bottom:0;color:var(--accent);display:block">🌱 Antecesor fijado por fina activa: <strong>' + esc(cultivoFina) + '</strong></span>';
-      html +=   '<div style="font-size:.72rem;color:var(--c2);margin-top:.2rem">Planificando cultivos de 2ª época (post-cosecha) para la campaña gruesa.</div>';
+      html +=   '<div style="font-size:.72rem;color:rgba(237,224,196,.6);margin-top:.2rem">Planificando cultivos de 2ª época (post-cosecha) para la campaña gruesa.</div>';
       html += '</div>';
     } else {
       html += '<div class="sc-antecesor">';
@@ -478,7 +478,7 @@
       if (idx === 0 && !esActivo) html += '<span class="sc-top-badge">mejor opción</span>';
       html +=   '</div>';
       if (etiquetaVentana) {
-        html +=   '<div style="font-size:.7rem;color:var(--c2);margin-top:.15rem;padding-left:1.5rem">' + esc(etiquetaVentana) + (tieneFina ? ' <span style="color:#4fc3f7">(2ª época)</span>' : ' <span style="color:#81c784">(1ª época)</span>') + '</div>';
+        html +=   '<div style="font-size:.7rem;color:rgba(237,224,196,.6);margin-top:.15rem;padding-left:1.5rem">' + esc(etiquetaVentana) + (tieneFina ? ' <span style="color:#4fc3f7">(2ª época)</span>' : ' <span style="color:#81c784">(1ª época)</span>') + '</div>';
       }
       html += '</div>';
 
