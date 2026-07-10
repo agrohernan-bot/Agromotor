@@ -29,7 +29,6 @@
     { mod: 'fen-plan',         emoji: '📅', titulo: 'Simular fenología',       desc: 'Predicción de estadios con corrección ENSO/NOAA' },
     { mod: 'economia',         emoji: '💰', titulo: 'Presupuesto de campaña',  desc: 'Costos de insumos, maquinaria y labores' },
     { mod: 'maquinaria',       emoji: '🚜', titulo: 'Maquinaria',              desc: 'Inventario y costos de maquinaria propia o contratada' },
-    { mod: 'decision',         emoji: '⚖️', titulo: '¿Qué sembrar?',          desc: 'Análisis multicriterio: rentabilidad vs. aptitud agronómica' },
     { mod: 'rotacion',         emoji: '🔄', titulo: 'Rotación',                desc: 'Planificación de rotación multiañal de cultivos' },
     { mod: 'hist-campanas',    emoji: '📊', titulo: 'Historial de campañas',   desc: 'Comparativo entre campañas anteriores del lote' },
   ];

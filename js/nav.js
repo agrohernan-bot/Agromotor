@@ -54,6 +54,9 @@ function amCargarModulo(archivo, callback) {
 
 // ── SWITCH DE MÓDULOS ─────────────────────────────────────
 function switchMod(mod) {
+  if (mod === 'decision') {
+    mod = 'dashboard';
+  }
 
   if (typeof amTieneAcceso === 'function' && !amTieneAcceso(mod)) {
     if (typeof amMostrarModalUpgrade === 'function') amMostrarModalUpgrade(mod);
