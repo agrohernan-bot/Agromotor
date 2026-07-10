@@ -828,23 +828,52 @@
     return key === 'trigo' || key === 'cebada' ? 'invierno' : 'verano';
   }
 
+  function svGetActiveCropAndGroup(lote) {
+    if (!lote || !lote.data) return { cultivo: 'Soja', grupo: 'verano' };
+    
+    // 1. Intentar obtener el contexto activo del plan
+    if (typeof window.amGetContextoPlanificacion === 'function') {
+      var ctx = window.amGetContextoPlanificacion();
+      if (ctx && ctx.lote && ctx.lote.id === lote.id && ctx.cultivo) {
+        return { cultivo: ctx.cultivo, grupo: ctx.grupo };
+      }
+    }
+    
+    // 2. Fallback: deducir a partir del plan de verano o invierno guardado
+    var data = lote.data;
+    if (data.planificacionSiembra) {
+      var verano = data.planificacionSiembra.verano || {};
+      var invierno = data.planificacionSiembra.invierno || {};
+      if (verano.cultivo && verano.cultivo.trim().toLowerCase() !== 'ninguno') {
+        return { cultivo: verano.cultivo, grupo: 'verano' };
+      }
+      if (invierno.cultivo && invierno.cultivo.trim().toLowerCase() !== 'ninguno') {
+        return { cultivo: invierno.cultivo, grupo: 'invierno' };
+      }
+    }
+    
+    // 3. Fallback al cultivo base del lote
+    var baseCultivo = data.cultivo || 'Soja';
+    var baseGrupo = svGrupoCultivo(baseCultivo);
+    return { cultivo: baseCultivo, grupo: baseGrupo };
+  }
+
   function svDensidadPlanificada(lote) {
     if (!lote || !lote.data) return null;
-    var data = lote.data;
-    var key = svMapCultivoReTAA(data.cultivo);
+    var info = svGetActiveCropAndGroup(lote);
+    var key = svMapCultivoReTAA(info.cultivo);
     var esKgHa = key === 'trigo' || key === 'cebada' || key === 'soja';
-    var grupo = svGrupoCultivo(data.cultivo);
-    var plan = data.planificacionSiembra && data.planificacionSiembra[grupo];
+    var plan = lote.data.planificacionSiembra && lote.data.planificacionSiembra[info.grupo];
     var objetivo = plan && Number(plan.densidadConf);
     if (!isFinite(objetivo) || objetivo <= 0) return null;
-    if (esKgHa) return { base: objetivo, unidad: 'kg/ha', fuente: 'Siembra · densidad aprobada', grupo: grupo };
-    var pg = Math.max(.01, Number(data.semillaPG || 92) / 100);
-    var logro = Math.max(.01, Number(data.semillaLogro || (key === 'girasol' ? 88 : 92)) / 100);
+    if (esKgHa) return { base: objetivo, unidad: 'kg/ha', fuente: 'Siembra · densidad aprobada', grupo: info.grupo };
+    var pg = Math.max(.01, Number(lote.data.semillaPG || 92) / 100);
+    var logro = Math.max(.01, Number(lote.data.semillaLogro || (key === 'girasol' ? 88 : 92)) / 100);
     return {
       base: objetivo / 10 / pg / logro,
       unidad: 'sem/m²',
       fuente: 'Siembra · ' + objetivo.toFixed(1) + ' mil pl/ha · PG ' + Math.round(pg * 100) + '% · logro ' + Math.round(logro * 100) + '%',
-      grupo: grupo
+      grupo: info.grupo
     };
   }
 
@@ -908,7 +937,8 @@
     var tot = zd.gridInfo.points.length, area = turf.area(svLoteGeoJSON) / 10000;
     var cnt = new Array(zd.k).fill(0); zd.assignments.forEach(function (a) { cnt[a]++; });
     var lote = _loteActivo();
-    var cultivo = lote && lote.data ? lote.data.cultivo : 'Soja';
+    var info = svGetActiveCropAndGroup(lote);
+    var cultivo = info.cultivo;
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
     svPlanSemilla = svDensidadPlanificada(lote);
@@ -966,7 +996,8 @@
     var cnt = new Array(svZonaData.k).fill(0); svZonaData.assignments.forEach(function (a) { cnt[a]++; });
     
     var lote = _loteActivo();
-    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var info = svGetActiveCropAndGroup(lote);
+    var cultivo = info.cultivo;
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
 
@@ -1004,7 +1035,8 @@
   function _features() {
     var cd = svZonaData.gridInfo.cellDeg;
     var lote = _loteActivo();
-    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var info = svGetActiveCropAndGroup(lote);
+    var cultivo = info.cultivo;
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
 
@@ -1046,7 +1078,8 @@
     var cnt = new Array(svZonaData.k).fill(0); svZonaData.assignments.forEach(function (a) { cnt[a]++; });
     
     var lote = _loteActivo();
-    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var info = svGetActiveCropAndGroup(lote);
+    var cultivo = info.cultivo;
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
     
@@ -1071,7 +1104,8 @@
     if (!svZonaData) return;
     
     var lote = _loteActivo();
-    var cultivo = lote ? lote.data.cultivo : 'Soja';
+    var info = svGetActiveCropAndGroup(lote);
+    var cultivo = info.cultivo;
     var cKey = svMapCultivoReTAA(cultivo);
     var esFino = (cKey === 'trigo' || cKey === 'cebada' || cKey === 'soja');
     var pms = (lote && lote.data.semillaPMS) || 0;

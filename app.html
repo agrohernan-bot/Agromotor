@@ -116,7 +116,7 @@
     <div class="nav-tab active" data-mod="lotes" onclick="window.dlVolverNueva()"><span class="dot"></span>🏠 Mis Lotes</div>
     <!-- 1. PLANIFICACIÓN -->
     <div class="nav-tab" data-mod="dashboard" onclick="switchMod('dashboard')"><span class="dot"></span>📋 Dashboard</div>
-    <div class="nav-tab" data-mod="decision" onclick="switchMod('decision')"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
+    <div class="nav-tab" data-mod="decision" onclick="switchMod('decision')" style="display:none"><span class="dot"></span>⚖️ ¿Qué sembrar?</div>
     <div class="nav-tab" data-mod="cultivares" onclick="switchMod('cultivares')"><span class="dot"></span>🌾 Cultivares</div>
     <div class="nav-sep"></div>
     <!-- 2. IMPLANTACIÓN -->
@@ -306,7 +306,7 @@
 
     <div class="mod-group-title">1 · Planificación</div>
     <div class="mod-card-grid">
-      <div class="mod-card mc-plan" onclick="switchMod('decision')"><div class="mc-ico">⚖️</div><div class="mc-name">¿Qué sembrar?</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Comparación económica entre cultivos</div></div>
+      <div class="mod-card mc-plan" onclick="switchMod('decision')" style="display:none"><div class="mc-ico">⚖️</div><div class="mc-name">¿Qué sembrar?</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Comparación económica entre cultivos</div></div>
       <div class="mod-card mc-plan" onclick="switchMod('cultivares')"><div class="mc-ico">🌾</div><div class="mc-name">Cultivares</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Selección de variedades · GM · densidad</div></div>
       <div class="mod-card mc-plan" onclick="switchMod('fen-plan')"><div class="mc-ico">📅</div><div class="mc-name">Fen. Planificación</div><span class="mc-status" data-status="empty">⏳</span><div class="mc-desc">Estadios fenológicos · ETc · hídrico</div></div>
     </div>
@@ -1645,6 +1645,8 @@
           </select>
         </div>
 
+        <!-- Filtros adicionales ocultos para simplificar la interfaz -->
+        <div style="display:none">
         <div class="divider"></div>
         <div class="sl">Filtros adicionales</div>
 
@@ -1684,6 +1686,7 @@
             <option value="sanidad">Mejor comportamiento sanitario</option>
             <option value="precoz">Mayor precocidad (escape a estreses)</option>
           </select>
+        </div>
         </div>
       </div>
 
@@ -1836,7 +1839,7 @@
           </div>
         </div>
 
-        <button onclick="dsRender()" class="btn btn-p btn-full" style="margin-bottom:1rem">
+        <button onclick="dsRender()" class="btn btn-p btn-full" style="margin-bottom:1rem;display:none">
           📏 Calcular densidad recomendada
         </button>
 
@@ -5200,7 +5203,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=91"></script>
-<script src="js/config.js?v=197"></script>
+<script src="js/config.js?v=198"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
@@ -5235,9 +5238,9 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/dashboard-lotes.js?v=152"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
-<script src="js/cultivares.js?v=94"></script>
+<script src="js/cultivares.js?v=95"></script>
 <script src="js/score-cultivares.js?v=102"></script>
-<script src="js/siembra-planificacion.js?v=5"></script>
+<script src="js/siembra-planificacion.js?v=6"></script>
 <script src="js/graficos-economia.js?v=85"></script>
 <script src="js/decision.js?v=85"></script>
 <script src="js/comparador-campana.js?v=85"></script>

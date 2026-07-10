@@ -307,6 +307,10 @@ window.dsRender = function() {
         </div>
         <div style="margin-top:.6rem;font-size:.72rem;color:rgba(74,46,26,.5)">PMS ${pms}g · Surco ${surco}m · Germinación ${(germ*100).toFixed(0)}% · Implantación ${(vigor*100).toFixed(0)}%</div>
         <div style="margin-top:.4rem;font-size:.7rem;color:rgba(74,46,26,.4)">Rango recomendado: ${p.minPl}–${p.maxPl} plantas/m²</div>
+        <button onclick="window.cvAplicarDensidadRecomendada(${Math.round(kgHa)}, 'kg/ha')"
+                style="margin-top:.8rem;width:100%;background:linear-gradient(135deg,#1A5C2A,#2D7A3A);color:white;border:none;border-radius:8px;padding:.5rem;font-weight:600;font-size:.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;box-shadow:0 2px 4px rgba(0,0,0,.1)">
+          ✓ Aplicar esta densidad (${Math.round(kgHa)} kg/ha)
+        </button>
       </div>`;
   } else {
     // Maíz / Soja / Girasol / Sorgo: plantas/ha
@@ -332,6 +336,10 @@ window.dsRender = function() {
         </div>
         <div style="margin-top:.6rem;font-size:.72rem;color:rgba(74,46,26,.5)">PMS ${pms}g · Surco ${surco}m · Germinación ${(germ*100).toFixed(0)}% · Implantación ${(vigor*100).toFixed(0)}%</div>
         <div style="margin-top:.4rem;font-size:.7rem;color:rgba(74,46,26,.4)">Rango: ${(p.minPl/1000).toFixed(0)}k–${(p.maxPl/1000).toFixed(0)}k plantas/ha · ${p.gmNombre}</div>
+        <button onclick="window.cvAplicarDensidadRecomendada(${(p.optPl/1000).toFixed(0)}, 'mil pl/ha')"
+                style="margin-top:.8rem;width:100%;background:linear-gradient(135deg,#1A5C2A,#2D7A3A);color:white;border:none;border-radius:8px;padding:.5rem;font-weight:600;font-size:.78rem;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.3rem;box-shadow:0 2px 4px rgba(0,0,0,.1)">
+          ✓ Aplicar esta densidad (${(p.optPl/1000).toFixed(0)} mil pl/ha)
+        </button>
       </div>`;
   }
 
@@ -390,6 +398,22 @@ window.dsSurcoChange = function(sel) {
     dsRender();
   }
 };
+
+  window.cvAplicarDensidadRecomendada = function(val, unidad) {
+    const edit = document.getElementById('cv-retaa-dens-edit');
+    if (edit) {
+      edit.value = val;
+      if (typeof window.cvGuardarDensidad === 'function') {
+        window.cvGuardarDensidad(val);
+      }
+      if (typeof window.cvCalcularEquivalenciaSemilla === 'function') {
+        window.cvCalcularEquivalenciaSemilla();
+      }
+      if (typeof window.amToast === 'function') {
+        window.amToast('Densidad de siembra aplicada: ' + val + ' ' + unidad, 'ok');
+      }
+    }
+  };
 
   // Exposición a global
   window.cvAgregarComparador = cvAgregarComparador;
