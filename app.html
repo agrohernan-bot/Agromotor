@@ -4021,6 +4021,8 @@
     </div>
   </div>
 
+  <div id="fp-contexto-lote"></div>
+
   <div id="fp-resultado">
     <div class="dash-ph-card">
       <div class="dash-ph-icon">📅</div>
@@ -4104,21 +4106,75 @@
 // FENOLOGÍA · PLANIFICACIÓN
 // ════════════════════════════════════════════════
 function fpUsarLote() {
-  var coordSrc = document.getElementById('s-coord');
-  if (coordSrc && coordSrc.value) {
-    var parts = coordSrc.value.split(',');
-    if (parts.length === 2) {
-      document.getElementById('fp-lat').value = parseFloat(parts[0].trim());
-      document.getElementById('fp-lon').value = parseFloat(parts[1].trim());
+  var ctx = typeof amGetContextoPlanificacion === 'function' ? amGetContextoPlanificacion() : null;
+  var lat = '', lon = '', fecha = '', cultivo = '';
+  if (ctx && ctx.lote) {
+    var d = ctx.lote.data || {};
+    fecha = ctx.fecha;
+    cultivo = ctx.cultivo;
+    if (d.coord) {
+      var parts = d.coord.split(',');
+      if (parts.length === 2) {
+        lat = parseFloat(parts[0].trim());
+        lon = parseFloat(parts[1].trim());
+      }
     }
+  } else {
+    var coordSrc = document.getElementById('s-coord');
+    if (coordSrc && coordSrc.value) {
+      var parts = coordSrc.value.split(',');
+      if (parts.length === 2) {
+        lat = parseFloat(parts[0].trim());
+        lon = parseFloat(parts[1].trim());
+      }
+    }
+    var fecSrc = document.getElementById('s-fecha');
+    if (fecSrc && fecSrc.value) fecha = fecSrc.value;
+    var cultSrc = document.getElementById('s-cultivo');
+    if (cultSrc && cultSrc.value) cultivo = cultSrc.value;
   }
-  var fecSrc = document.getElementById('s-fecha');
-  if (fecSrc && fecSrc.value) document.getElementById('fp-fecha').value = fecSrc.value;
-  var cultSrc = document.getElementById('s-cultivo');
-  if (cultSrc && cultSrc.value) {
-    var norm = cultSrc.value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (lat) document.getElementById('fp-lat').value = lat;
+  if (lon) document.getElementById('fp-lon').value = lon;
+  if (fecha) document.getElementById('fp-fecha').value = fecha;
+  if (cultivo) {
+    var norm = cultivo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     document.getElementById('fp-cultivo').value = norm;
   }
+}
+
+function fpPrepararDetalleLote() {
+  fpUsarLote();
+  var lote = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+  var form = document.getElementById('fp-form-card');
+  var ctx = document.getElementById('fp-contexto-lote');
+  if (!lote) {
+    if (form) form.style.display = 'block';
+    if (ctx) ctx.innerHTML = '';
+    return;
+  }
+  var d = lote.data || {};
+  if (form) form.style.display = 'none';
+  if (ctx) {
+    var cultivo = (document.getElementById('fp-cultivo') || {}).value || d.cultivo || '-';
+    var fecha = (document.getElementById('fp-fecha') || {}).value || '-';
+    var sueloTex = d['sg-textura'] || (lote.data && lote.data.calcKeys && lote.data.calcKeys['am_siembra_suelo']) || d.suelo || '';
+    ctx.innerHTML = '<div class="card" style="margin-bottom:1rem">'
+      + '<div style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--c2);margin-bottom:.7rem">Contexto heredado del lote</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:.45rem">'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(lote.nombre || 'Lote activo') + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(cultivo) + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">Siembra ' + escHTML(fecha) + '</span>'
+      + (d.superficie ? '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(d.superficie) + ' has</span>' : '')
+      + (sueloTex ? '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(sueloTex) + '</span>' : '')
+      + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.4;margin-top:.7rem">La fenología se genera automáticamente con datos del lote y de la planificación. Para cambiar cultivo o fecha, editar la planificación del lote.</div>'
+      + '</div>';
+  }
+}
+
+function escHTML(str) {
+  return String(str == null ? '' : str).replace(/[&<>"']/g, function(ch) {
+    return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[ch];
+  });
 }
 
 var _fpChart = null;
@@ -4275,22 +4331,27 @@ var _fsChart = null;
 function fsPrepararDetalleLote() {
   fsUsarLote();
   var lote = _fsLoteActivo();
-  var d = (lote && lote.data) || {};
   var form = document.getElementById('fs-form-card');
   var ctx = document.getElementById('fs-contexto-lote');
+  if (!lote) {
+    if (form) form.style.display = 'block';
+    if (ctx) ctx.innerHTML = '';
+    return;
+  }
+  var d = lote.data || {};
   if (form) form.style.display = 'none';
   if (ctx) {
     var cultivo = (document.getElementById('fs-cultivo') || {}).value || d.cultivo || '-';
-    var lat = (document.getElementById('fs-lat') || {}).value || '-';
-    var lon = (document.getElementById('fs-lon') || {}).value || '-';
     var fecha = (document.getElementById('fs-fecha') || {}).value || '-';
+    var sueloTex = d['sg-textura'] || (lote.data && lote.data.calcKeys && lote.data.calcKeys['am_siembra_suelo']) || d.suelo || '';
     ctx.innerHTML = '<div class="card" style="margin-bottom:1rem">'
       + '<div style="font-size:.68rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--c2);margin-bottom:.7rem">Contexto heredado del lote</div>'
       + '<div style="display:flex;flex-wrap:wrap;gap:.45rem">'
-      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + (lote ? lote.nombre : 'Lote activo') + '</span>'
-      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + cultivo + '</span>'
-      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">Siembra ' + fecha + '</span>'
-      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + lat + ', ' + lon + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(lote.nombre || 'Lote activo') + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(cultivo) + '</span>'
+      + '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">Siembra ' + escHTML(fecha) + '</span>'
+      + (d.superficie ? '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(d.superficie) + ' has</span>' : '')
+      + (sueloTex ? '<span style="background:rgba(74,140,92,.09);border:1px solid rgba(74,140,92,.18);border-radius:20px;padding:.28rem .65rem;font-size:.78rem">' + escHTML(sueloTex) + '</span>' : '')
       + '</div><div style="font-size:.72rem;color:var(--c2);line-height:1.4;margin-top:.7rem">La fenología se genera automáticamente con datos del lote y de la planificación. Para cambiar cultivo, coordenadas o fecha, editar la planificación del lote.</div>'
       + '</div>';
   }
@@ -5136,8 +5197,8 @@ function _fsRender(res, diasTranscurridos) {
 
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
-<script src="js/core.js?v=90"></script>
-<script src="js/config.js?v=189"></script>
+<script src="js/core.js?v=91"></script>
+<script src="js/config.js?v=192"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
@@ -5149,6 +5210,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/barbecho.js?v=85"></script>
 <script src="js/fenologia.js?v=87"></script>
 <script src="js/informe-cierre.js?v=85"></script>
+<script src="js/surco-guardrails.js?v=1"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
 <script src="js/nav.js?v=109"></script>
@@ -5168,7 +5230,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/alerta-sanitaria.js?v=91"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=99"></script>
-<script src="js/dashboard-lotes.js?v=150"></script>
+<script src="js/dashboard-lotes.js?v=152"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=93"></script>
@@ -5179,7 +5241,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/comparador-campana.js?v=85"></script>
 <script src="js/rotacion.js?v=85"></script>
 <script src="js/graficos-hidrico.js?v=87"></script>
-<script src="js/bitacora.js?v=87"></script>
+<script src="js/bitacora.js?v=88"></script>
 <script src="js/rendimiento-predictor.js?v=87"></script>
 <script src="js/notificaciones.js?v=85"></script>
 <script src="js/malezas.js?v=86"></script>

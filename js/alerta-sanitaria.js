@@ -311,12 +311,15 @@
     var ctx = document.getElementById('as-contexto-lote');
     if (form) form.style.display = 'none';
     if (!ctx) return;
+    var d = (lote && lote.data) || {};
+    var sueloTex = d['sg-textura'] || (d.calcKeys && d.calcKeys['am_siembra_suelo']) || d.suelo || '';
     ctx.innerHTML = '<div class="as-auto-context"><div class="as-auto-title">Contexto heredado del lote</div>'
       + '<div class="as-auto-chips">'
       + '<span>' + escAS(lote ? lote.nombre : 'Lote activo') + '</span>'
       + '<span>' + escAS(cultivo || '-') + '</span>'
       + '<span>Siembra ' + escAS(fecha || '-') + '</span>'
-      + '<span>' + (coords ? coords.lat.toFixed(4) + ', ' + coords.lon.toFixed(4) : '-') + '</span>'
+      + (d.superficie ? '<span>' + escAS(d.superficie) + ' has</span>' : '')
+      + (sueloTex ? '<span>' + escAS(sueloTex) + '</span>' : '')
       + '</div></div>'
       + renderRecorridaSanitaria(lote);
   }

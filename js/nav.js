@@ -106,6 +106,21 @@ function switchMod(mod) {
 }
 
 function _activarModulo(mod) {
+  // Sincronizar master inputs (s-cultivo y s-fecha) con el contexto de la planificación antes de activar el módulo
+  var loteCtx = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+  var secCtx = typeof dlGetSeccionAbierta === 'function' ? dlGetSeccionAbierta() : '';
+  if (loteCtx && (secCtx === 'plangruesa' || secCtx === 'planfina')) {
+    var grupoCtx = secCtx === 'planfina' ? 'invierno' : 'verano';
+    var planCtx = (loteCtx.data && loteCtx.data.planificacionSiembra && loteCtx.data.planificacionSiembra[grupoCtx]) || {};
+    var cultCtx = planCtx.cultivo || (grupoCtx === 'invierno' ? 'Trigo' : 'Soja');
+    var fechaCtx = planCtx.fechaSiembraConf || planCtx.fechaSiembraPlan || '';
+
+    var masterCult = document.getElementById('s-cultivo');
+    if (masterCult && cultCtx) masterCult.value = cultCtx;
+    var masterFecha = document.getElementById('s-fecha');
+    if (masterFecha && fechaCtx) masterFecha.value = fechaCtx;
+  }
+
   document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.module-panel').forEach(function(p) { p.classList.remove('active'); });
 
@@ -280,6 +295,24 @@ function _activarModulo(mod) {
   // Lee siempre desde el DOM master (s-cultivo / s-fecha), que es la fuente
   // más actualizada. El Store puede estar desincronizado si cacheCargar()
   // asignó .value sin disparar el evento change.
+  var amGetContextoPlanificacion = function() {
+    var lote = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    if (!lote) return null;
+    var sec = typeof dlGetSeccionAbierta === 'function' ? dlGetSeccionAbierta() : '';
+    var grupo = '';
+    if (sec === 'planfina') grupo = 'invierno';
+    else if (sec === 'plangruesa') grupo = 'verano';
+
+    if (grupo) {
+      var plan = (lote.data && lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) || {};
+      var cultivo = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+      var fecha = plan.fechaSiembraConf || plan.fechaSiembraPlan || '';
+      return { cultivo: cultivo, fecha: fecha, grupo: grupo, lote: lote };
+    }
+    return null;
+  };
+  window.amGetContextoPlanificacion = amGetContextoPlanificacion;
+
   var _getMasterCultivo = function() {
     var sc = document.getElementById('s-cultivo');
     if (sc && sc.value) return sc.value;
@@ -295,17 +328,31 @@ function _activarModulo(mod) {
   // destId: ID del select destino. Si el elemento no existe, no hace nada.
   var _syncCultivo = function(destId) {
     var d = document.getElementById(destId);
-    if (d) d.value = _getMasterCultivo();
+    if (!d) return;
+    var ctx = amGetContextoPlanificacion();
+    if (ctx && ctx.cultivo) {
+      d.value = ctx.cultivo;
+    } else {
+      d.value = _getMasterCultivo();
+    }
   };
   var _syncFecha = function(destId) {
     var d = document.getElementById(destId);
-    if (d) d.value = _getMasterFecha();
+    if (!d) return;
+    var ctx = amGetContextoPlanificacion();
+    if (ctx && ctx.fecha) {
+      d.value = ctx.fecha;
+    } else {
+      d.value = _getMasterFecha();
+    }
   };
   // Cosecha usa id="cultivo" con valores en minúscula sin acentos
   var _syncCultivoNorm = function(destId) {
     var d = document.getElementById(destId);
     if (!d) return;
-    d.value = _getMasterCultivo().toLowerCase()
+    var ctx = amGetContextoPlanificacion();
+    var val = (ctx && ctx.cultivo) ? ctx.cultivo : _getMasterCultivo();
+    d.value = val.toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   };
 
@@ -480,6 +527,13 @@ function _activarModulo(mod) {
     }
     _syncCultivoNorm(mod === 'fen-plan' ? 'fp-cultivo' : 'fs-cultivo');
     _syncFecha(mod === 'fen-plan' ? 'fp-fecha' : 'fs-fecha');
+    if (mod === 'fen-plan') {
+      setTimeout(function() {
+        if (typeof fpPrepararDetalleLote === 'function') fpPrepararDetalleLote();
+        else if (typeof fpUsarLote === 'function') fpUsarLote();
+        if (typeof fpCalcular === 'function') fpCalcular();
+      }, 250);
+    }
     if (mod === 'fen-seg') {
       window.AM_FEN_AUTO_DETALLE = false;
       setTimeout(function() {

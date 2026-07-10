@@ -150,13 +150,16 @@ function setContextoPlagas(lote, cultivo, fecha, coords) {
   var ctx = document.getElementById('plagas-contexto-lote');
   if (form) form.style.display = 'none';
   if (!ctx) return;
+  var d = (lote && lote.data) || {};
+  var sueloTex = d['sg-textura'] || (d.calcKeys && d.calcKeys['am_siembra_suelo']) || d.suelo || '';
   ctx.innerHTML = '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:.9rem 1rem;margin-top:1rem">'
     + '<div style="font-size:.62rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);margin-bottom:.55rem">Contexto heredado del lote</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:.4rem">'
     + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (lote ? lote.nombre : 'Lote activo') + '</span>'
     + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (cultivo || '-') + '</span>'
     + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">Siembra ' + (fecha || '-') + '</span>'
-    + '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + (coords ? coords.lat.toFixed(4) + ', ' + coords.lon.toFixed(4) : '-') + '</span>'
+    + (d.superficie ? '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + d.superficie + ' has</span>' : '')
+    + (sueloTex ? '<span style="border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:.22rem .6rem;font-size:.72rem;color:rgba(255,255,255,.7)">' + sueloTex + '</span>' : '')
     + '</div></div>';
 }
 
