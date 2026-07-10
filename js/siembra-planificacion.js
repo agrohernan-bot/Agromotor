@@ -165,18 +165,25 @@
     return Math.min(overlapDias, totalDias);
   }
 
-  function estadoVentana(fechaISO, ventanas, esVerano) {
+  function estadoVentana(fechaISO, ventanas, esVerano, tieneFina) {
     if (!fechaISO || !ventanas) return { label: 'Sin ventana', clase: 'sp-badge-nd' };
     var d = isoToDate(fechaISO);
     if (!d) return { label: 'Fecha inválida', clase: 'sp-badge-nd' };
     var mes = d.getMonth();
     var dia = d.getDate();
-    var tipos = [
+    
+    var tipos = tieneFina ? [
+      { key: 'segunda',  label: '2ª época óptima ✓',    clase: 'sp-badge-ok'   },
+      { key: 'tardia',   label: 'Siembra tardía ⚠',     clase: 'sp-badge-warn'  },
+      { key: 'primera',  label: 'Siembra temprana ⚠',   clase: 'sp-badge-warn'  },
+      { key: 'temprana', label: 'Siembra temprana ⚠',   clase: 'sp-badge-warn'  },
+    ] : [
       { key: 'primera',  label: 'En ventana óptima ✓',  clase: 'sp-badge-ok'   },
       { key: 'segunda',  label: 'Segunda época ✓',       clase: 'sp-badge-ok'   },
       { key: 'temprana', label: 'Siembra temprana ⚠',   clase: 'sp-badge-warn'  },
       { key: 'tardia',   label: 'Siembra tardía ⚠',     clase: 'sp-badge-warn'  },
     ];
+
     for (var i = 0; i < tipos.length; i++) {
       var t = tipos[i];
       var v = parseVentana(ventanas[t.key]);
@@ -453,6 +460,15 @@
     var fechaConf = plan.fechaSiembraConf || '';
     var estaConf  = !!(fechaConf);
 
+    // Detección de fina activa para restringir la ventana a la 2a época
+    var tieneFina = false;
+    if (grupo === 'verano' && d.planificacionSiembra && d.planificacionSiembra.invierno) {
+      var planFina = d.planificacionSiembra.invierno;
+      if (planFina.cultivo && planFina.cultivo.trim().toLowerCase() !== 'ninguno') {
+        tieneFina = true;
+      }
+    }
+
     // Calcular duración de siembra para cada N
     var analisis = [1, 2, 3].map(function (n) {
       var cap  = calcCapacidad(ancho, vel, efic, n, factLluvia);
@@ -463,9 +479,15 @@
       // % en ventana (usando ventana primera + segunda)
       var enVent = 0;
       if (fechaISO && dias > 0 && ventanas) {
-        var dPrimera = diasEnVentana(fechaISO, dias, parseVentana(ventanas.primera), esVerano);
-        var dSegunda = diasEnVentana(fechaISO, dias, parseVentana(ventanas.segunda), esVerano);
-        enVent = Math.min(100, Math.round((dPrimera + dSegunda) / dias * 100));
+        if (tieneFina) {
+          var vSeg = parseVentana(ventanas.segunda || ventanas.tardia || ventanas.primera);
+          var dSeg = diasEnVentana(fechaISO, dias, vSeg, esVerano);
+          enVent = Math.min(100, Math.round(dSeg / dias * 100));
+        } else {
+          var dPrimera = diasEnVentana(fechaISO, dias, parseVentana(ventanas.primera), esVerano);
+          var dSegunda = diasEnVentana(fechaISO, dias, parseVentana(ventanas.segunda), esVerano);
+          enVent = Math.min(100, Math.round((dPrimera + dSegunda) / dias * 100));
+        }
       } else if (!ventanas) {
         enVent = -1; // sin datos
       }
@@ -475,7 +497,7 @@
 
     // Estado de ventana de la fecha elegida
     var estVentana = fechaISO && ventanas
-      ? estadoVentana(fechaISO, ventanas, esVerano)
+      ? estadoVentana(fechaISO, ventanas, esVerano, tieneFina)
       : { label: 'Ingresá una fecha', clase: 'sp-badge-nd' };
 
     // Cultivo emoji
@@ -577,20 +599,45 @@
     if (sup > 0 && activo) {
       var pct1 = activo.pctVentana;
       var pct2 = analisis[Math.min(1, analisis.length - 1)].pctVentana; // con ×2
+
+      // Detección de siembra temprana vs tardía
+      var optKey = tieneFina ? 'segunda' : 'primera';
+      var wOptStr = ventanas ? (ventanas[optKey] || ventanas.primera) : null;
+      var wOpt = parseVentana(wOptStr);
+      var esTemprano = false;
+      var diasEspera = 0;
+      if (fechaISO && wOpt) {
+        var dPlanned = isoToDate(fechaISO);
+        var curDOY = adjustedDOY(dPlanned.getMonth(), dPlanned.getDate(), esVerano);
+        var iniOptDOY = adjustedDOY(wOpt.ini.mes, wOpt.ini.dia, esVerano);
+        if (curDOY < iniOptDOY) {
+          esTemprano = true;
+          diasEspera = iniOptDOY - curDOY;
+        }
+      }
+
+      function formatFechaObj(f) {
+        if (!f) return '';
+        var nombresMeses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+        return f.dia + ' de ' + nombresMeses[f.mes];
+      }
+
       html += '<div class="sp-rec-sec">';
 
-      if (pct1 >= 95) {
+      if (esTemprano) {
+        html += '<span class="sp-rec-texto sp-rec-amarillo">⚠ Siembra temprana planificada: se recomienda esperar ' + diasEspera + ' ' + (diasEspera === 1 ? 'día' : 'días') + ' (hasta el ' + formatFechaObj(wOpt.ini) + ') para entrar en la ventana óptima de ' + (tieneFina ? '2ª época' : '1ª época') + '.</span>';
+      } else if (pct1 >= 95) {
         html += '<span class="sp-rec-texto sp-rec-verde">✓ Podés sembrar toda la superficie en ventana óptima.</span>';
         if (nMaq > 1) html += '<span class="sp-rec-sub">Con ' + nMaq + ' sembradoras terminás en ' + activo.dias.toFixed(1) + ' días.</span>';
       } else if (pct1 >= 70) {
         var hFuera = Math.round(sup * (1 - pct1 / 100));
-        html += '<span class="sp-rec-texto sp-rec-amarillo">⚠ ~' + hFuera + ' ha quedarían fuera de ventana óptima.</span>';
+        html += '<span class="sp-rec-texto sp-rec-amarillo">⚠ ~' + hFuera + ' ha quedarían fuera de ventana óptima por atraso.</span>';
         if (nMaq < 3 && analisis[nMaq] && analisis[nMaq].pctVentana > pct1 + 10) {
           html += '<span class="sp-rec-sub">Con ×' + (nMaq + 1) + ' sembradoras mejorás a ' + analisis[nMaq].pctVentana + '% en ventana.</span>';
         }
       } else if (pct1 >= 0) {
         var hFuera2 = Math.round(sup * (1 - pct1 / 100));
-        html += '<span class="sp-rec-texto sp-rec-rojo">✗ ' + hFuera2 + ' ha fuera de ventana — evaluá más maquinaria o ajustar la fecha.</span>';
+        html += '<span class="sp-rec-texto sp-rec-rojo">✗ ' + hFuera2 + ' ha fuera de ventana por atraso — evaluá más maquinaria o ajustar la fecha.</span>';
         if (analisis[2].pctVentana > pct1 + 15) {
           html += '<span class="sp-rec-sub">Con ×3 sembradoras: ' + analisis[2].pctVentana + '% en ventana.</span>';
         }
@@ -598,7 +645,7 @@
         html += '<span class="sp-rec-texto" style="color:rgba(237,224,196,.4)">Ingresá la fecha de siembra para ver el análisis.</span>';
       }
 
-      if (pct1 < 95) {
+      if (pct1 < 95 && !esTemprano) {
         html += '<button class="sp-btn-maquinaria" onclick="window.dlAbrirModulo(\'maquinaria\',\'' + loteId + '\')">';
         html +=   '<span>🚜 Ajustar sembradora en Maquinaria</span><span>→</span>';
         html += '</button>';

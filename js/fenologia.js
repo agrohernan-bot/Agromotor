@@ -11,7 +11,7 @@
  * │  MODO SEGUIMIENTO    → OpenMeteo ERA5 / forecast         │
  * └─────────────────────────────────────────────────────────┘
  *
- * Cultivos soportados: "soja", "maiz", "trigo", "girasol"
+ * Cultivos soportados: "soja", "maiz", "trigo", "girasol", "sorgo"
  *
  * Metodología:
  *   - Acumulación de GDD (Growing Degree Days) día a día desde siembra
@@ -151,6 +151,25 @@ const CULTIVOS = {
       { id: "llenado",    nombre: "Llenado de granos (R7)", gdd:  900, kcIni: 1.15, kcFin: 0.85, esCritica: true  },
       { id: "madFisio",   nombre: "Madurez fisiológica (R9)",gdd:1150, kcIni: 0.85, kcFin: 0.50, esCritica: false },
       { id: "madurez",    nombre: "Cosecha",                gdd: 1300, kcIni: 0.50, kcFin: 0.50, esCritica: false },
+    ],
+  },
+
+  // SORGO GRANIFERO
+  // GDD base 10 C, techo 34 C. Umbrales orientativos para sorgo granifero
+  // templado-calido; se integran al tablero para evitar cortes de flujo en gruesa.
+  sorgo: {
+    tBase:    10,
+    tCeiling: 34,
+    etapas: [
+      { id: "siembra",    nombre: "Siembra",                  gdd:    0, kcIni: 0.20, kcFin: 0.20, esCritica: false },
+      { id: "emergencia", nombre: "Emergencia",                gdd:   70, kcIni: 0.30, kcFin: 0.40, esCritica: false },
+      { id: "v3v5",       nombre: "Vegetativo V3-V5",          gdd:  220, kcIni: 0.40, kcFin: 0.75, esCritica: false },
+      { id: "v6v10",      nombre: "Vegetativo V6-V10",         gdd:  480, kcIni: 0.75, kcFin: 1.05, esCritica: false },
+      { id: "embuchado",  nombre: "Embuchado",                 gdd:  700, kcIni: 1.05, kcFin: 1.10, esCritica: true  },
+      { id: "floracion",  nombre: "Floracion",                 gdd:  850, kcIni: 1.10, kcFin: 1.10, esCritica: true  },
+      { id: "grano",      nombre: "Llenado de grano",          gdd: 1100, kcIni: 1.10, kcFin: 0.85, esCritica: true  },
+      { id: "madFisio",   nombre: "Madurez fisiologica",       gdd: 1350, kcIni: 0.85, kcFin: 0.50, esCritica: false },
+      { id: "madurez",    nombre: "Cosecha",                   gdd: 1500, kcIni: 0.50, kcFin: 0.40, esCritica: false },
     ],
   },
 };
@@ -395,7 +414,7 @@ async function _fetchOpenMeteoSegmento(baseUrl, lat, lon, fechaIni, fechaFin) {
  * Calcula el calendario fenológico completo para un cultivo.
  *
  * @param {Object}  opts
- * @param {string}  opts.cultivo         "soja"|"maiz"|"trigo"|"girasol"
+ * @param {string}  opts.cultivo         "soja"|"maiz"|"trigo"|"girasol"|"sorgo"
  * @param {string}  opts.fechaSiembra    "YYYY-MM-DD"
  * @param {number}  opts.lat             Latitud decimal (negativo = Sur)
  * @param {number}  opts.lon             Longitud decimal

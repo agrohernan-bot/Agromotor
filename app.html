@@ -1585,6 +1585,8 @@
             <option value="Maíz">Maíz</option>
             <option value="Trigo">Trigo</option>
             <option value="Girasol">Girasol</option>
+            <option value="Cebada">Cebada</option>
+            <option value="Sorgo">Sorgo</option>
           </select>
         </div>
 
@@ -4407,8 +4409,8 @@ function _fsSetVal(id, val) {
 async function fsCalcular() {
   if (!window.Fenologia) { alert('Módulo de fenología no disponible'); return; }
   var cultivo = document.getElementById('fs-cultivo').value;
-  if (['soja','maiz','trigo','girasol'].indexOf(cultivo) < 0) {
-    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #C8A255;padding:1.2rem"><p style="color:#C8A255;margin:0"><strong>Modelo fenológico no calibrado para este cultivo.</strong><br>El tablero mantiene el seguimiento resumido, pero el detalle avanzado hoy está disponible para soja, maíz, trigo y girasol.</p></div>';
+  if (['soja','maiz','trigo','girasol','sorgo'].indexOf(cultivo) < 0) {
+    document.getElementById('fs-resultado').innerHTML = '<div class="card" style="border-left:3px solid #C8A255;padding:1.2rem"><p style="color:#C8A255;margin:0"><strong>Modelo fenológico no calibrado para este cultivo.</strong><br>El tablero mantiene el seguimiento resumido, pero el detalle avanzado hoy está disponible para soja, maíz, trigo, girasol y sorgo.</p></div>';
     return;
   }
   var lat = parseFloat(document.getElementById('fs-lat').value);
@@ -4428,7 +4430,7 @@ async function fsCalcular() {
   try {
     var loteCalc = _fsLoteActivo();
     var ckCalc = (loteCalc && loteCalc.data && loteCalc.data.calcKeys) || {};
-    var duracionPlan = parseInt(ckCalc['am_fen_duracion_ciclo']) || (cultivo === 'trigo' ? 190 : cultivo === 'girasol' ? 130 : 150);
+    var duracionPlan = parseInt(ckCalc['am_fen_duracion_ciclo']) || (cultivo === 'trigo' ? 190 : cultivo === 'girasol' ? 130 : cultivo === 'sorgo' ? 135 : 150);
     var duracion = esFechaFutura ? duracionPlan : Math.max(diasTranscurridos + 18, 60);
     var modoFen = esFechaFutura ? 'planificacion' : 'seguimiento';
     var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: modoFen });
@@ -4455,7 +4457,7 @@ function _fsSum(arr, a, b) {
 }
 
 function _fsEt0Ref(cultivo) {
-  return cultivo === 'trigo' ? 3.6 : cultivo === 'girasol' ? 4.8 : 4.5;
+  return cultivo === 'trigo' ? 3.6 : cultivo === 'girasol' ? 4.8 : cultivo === 'sorgo' ? 4.7 : 4.5;
 }
 
 function _fsRenderAguaEtapas(res, diasTranscurridos) {
@@ -4530,7 +4532,7 @@ function _fsRendimientoObjetivo(cultivo) {
     var n = parseFloat(valores[i]);
     if (!isNaN(n) && n > 0) return n;
   }
-  return cultKey === 'maiz' ? 8.5 : cultKey === 'trigo' ? 3.5 : cultKey === 'girasol' ? 2.4 : 3.5;
+  return cultKey === 'maiz' ? 8.5 : cultKey === 'trigo' ? 3.5 : cultKey === 'girasol' ? 2.4 : cultKey === 'sorgo' ? 6.2 : 3.5;
 }
 
 function _fsAguaPerfilMm() {
@@ -5198,7 +5200,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=91"></script>
-<script src="js/config.js?v=196"></script>
+<script src="js/config.js?v=197"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=103"></script>
 
@@ -5208,7 +5210,7 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/enso.js?v=88"></script>
 <script src="js/alertas.js?v=85"></script>
 <script src="js/barbecho.js?v=85"></script>
-<script src="js/fenologia.js?v=87"></script>
+<script src="js/fenologia.js?v=88"></script>
 <script src="js/informe-cierre.js?v=85"></script>
 <script src="js/surco-guardrails.js?v=1"></script>
 
@@ -5233,9 +5235,9 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/dashboard-lotes.js?v=152"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
-<script src="js/cultivares.js?v=93"></script>
+<script src="js/cultivares.js?v=94"></script>
 <script src="js/score-cultivares.js?v=102"></script>
-<script src="js/siembra-planificacion.js?v=4"></script>
+<script src="js/siembra-planificacion.js?v=5"></script>
 <script src="js/graficos-economia.js?v=85"></script>
 <script src="js/decision.js?v=85"></script>
 <script src="js/comparador-campana.js?v=85"></script>

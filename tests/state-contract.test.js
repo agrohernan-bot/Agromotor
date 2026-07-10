@@ -942,3 +942,12 @@ test('dlRenderScoreCultivares detecta cultivo de fina activo y adapta antecesor 
   assert.ok(htmlConFina.includes('Ideal: 20-nov al 20-dic'));
   assert.ok(htmlConFina.includes('(2ª época)'));
 });
+test('fenologia soporta sorgo desde planificacion de gruesa', () => {
+  const sandbox = createBrowserSandbox();
+  vm.runInNewContext(read('js/fenologia.js'), sandbox, { filename: 'js/fenologia.js' });
+
+  assert.ok(sandbox.Fenologia.getCultivosDisponibles().includes('sorgo'));
+  const etapas = sandbox.Fenologia.getEtapasCultivo('sorgo');
+  assert.ok(etapas.some(e => e.id === 'floracion'), 'sorgo debe tener etapa critica de floracion');
+  assert.ok(etapas.some(e => e.id === 'madurez'), 'sorgo debe completar ciclo hasta cosecha');
+});

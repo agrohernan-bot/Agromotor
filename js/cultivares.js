@@ -127,6 +127,42 @@ const CV_ZONAS = {
   },
 };
 
+// Extender CV_ZONAS con Cebada y Sorgo para todas las zonas
+(function() {
+  const sorgoVentanas = {
+    pampeana_norte: { primera:'1-nov al 15-dic',  segunda:'16-dic al 15-ene', temprana:'15-oct al 31-oct', tardia:'16-ene al 28-feb' },
+    pampeana_sur:   { primera:'1-nov al 30-nov',  segunda:'1-dic al 15-ene',  temprana:'15-oct al 31-oct', tardia:'16-ene al 28-feb' },
+    semiarida:      { primera:'15-nov al 15-dic', segunda:'16-dic al 31-ene', temprana:'1-nov al 14-nov',  tardia:'1-feb al 28-feb'  },
+    nea:            { primera:'1-oct al 30-nov',  segunda:'1-dic al 31-ene',  temprana:'15-sep al 30-sep', tardia:'1-feb al 28-feb'  },
+    noa:            { primera:'1-oct al 15-nov',  segunda:'16-nov al 31-dic', temprana:'15-sep al 30-sep', tardia:'1-ene al 31-ene'  }
+  };
+
+  const cebadaVentanas = {
+    pampeana_norte: { primera:'15-jun al 10-jul', segunda:'11-jul al 31-jul', temprana:'1-jun al 14-jun',  tardia:'1-ago al 15-ago'  },
+    pampeana_sur:   { primera:'1-jun al 30-jun',  segunda:'1-jul al 31-jul',  temprana:'15-may al 31-may', tardia:'1-ago al 15-ago'  },
+    semiarida:      { primera:'15-jun al 10-jul', segunda:'11-jul al 31-jul', temprana:'1-jun al 14-jun',  tardia:'1-ago al 15-ago'  },
+    nea:            { primera:'15-jun al 15-jul', segunda:'16-jul al 15-ago', temprana:'1-jun al 14-jun',  tardia:'16-ago al 31-ago' },
+    noa:            { primera:'15-jun al 31-jul', segunda:'1-ago al 31-ago',  temprana:'1-jun al 14-jun',  tardia:'1-sep al 30-sep'  }
+  };
+
+  for (const z in CV_ZONAS) {
+    if (CV_ZONAS[z] && CV_ZONAS[z].cultivos) {
+      CV_ZONAS[z].cultivos.Sorgo = {
+        gms: ['Precoz','Intermedio','Tardío'],
+        ventana: sorgoVentanas[z] || sorgoVentanas.pampeana_norte,
+        gmPorTipo: { primera:['Intermedio','Tardío'], segunda:['Precoz','Intermedio'], temprana:['Precoz'], tardia:['Precoz'] },
+        gmPorAmbiente: { alto:['Tardío','Intermedio'], medio:['Intermedio'], bajo:['Precoz','Intermedio'] }
+      };
+      CV_ZONAS[z].cultivos.Cebada = {
+        gms: ['Subregión IV','Subregión V'],
+        ventana: cebadaVentanas[z] || cebadaVentanas.pampeana_norte,
+        gmPorTipo: { primera:['Subregión IV'], segunda:['Subregión IV','Subregión V'], temprana:['Subregión V'], tardia:['Subregión IV'] },
+        gmPorAmbiente: { alto:['Subregión IV'], medio:['Subregión IV'], bajo:['Subregión V'] }
+      };
+    }
+  }
+})();
+
 // ── BASE DE CULTIVARES ────────────────────────────────
 // Datos RECSO 2024/25 (INTA Oliveros) + RET-INASE 2024/25
 // Campos: nombre, empresa, gm, tecnologia, zonas[], rend_relativo (% vs testigo),
