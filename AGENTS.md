@@ -64,11 +64,14 @@ No tocar `sw.js` para cambiar versión de caché; se actualiza automáticamente.
 
 Prefijos por módulo: `cos*`, `pulv*`, `sv*`, `dl*`, `as*`, `plagas*` / `amPlagas*`, `sat*`.
 
-## Tests — correr antes de pushear
+## Tests e Integración Continua — Correr antes de pushear y poner en producción
 
-```bash
-node --test tests/state-contract.test.js   # debe dar 10/10
-```
+- **Ejecutar Pruebas**: Correr siempre la suite completa antes de realizar commits, pushes o despliegues en producción para verificar que nada de lo existente se haya roto.
+  ```bash
+  node --test tests/state-contract.test.js
+  ```
+- **Integración Segura con Otras IAs**: Ten presente que otros agentes o IAs pueden realizar cambios concurrentes en el repositorio. Antes de iniciar cualquier tarea, haz pull de los últimos cambios y valida el estado del codebase para no sobreescribir ni romper desarrollos ajenos.
+- **Despliegue y Puesta en Producción**: Siempre que se complete y valide localmente una funcionalidad, ponla en producción haciendo push a `main` para que el usuario pueda verla de inmediato.
 
 ## Módulos grandes — tocar con cuidado
 
