@@ -165,8 +165,9 @@
   }
 
   // ── 1. Fecha (25 pts) ─────────────────────────────────
-  function calcScoreFecha(cultivo, zona, fechaStr) {
-    if (!fechaStr) return { pts:12, label:'Sin fecha de siembra definida' };
+  // ── 1. Fecha (20 pts max) ─────────────────────────────
+  function calcScoreFecha(cultivo, zona, fechaStr, tieneFina) {
+    if (!fechaStr) return { pts:10, label:'Sin fecha de siembra definida' };
     var fecha = new Date(fechaStr + 'T12:00:00');
     var mes = fecha.getMonth();
     var dia = fecha.getDate();
@@ -174,75 +175,102 @@
     var ventanas = (CV && CV[zona] && CV[zona].cultivos && CV[zona].cultivos[cultivo])
       ? CV[zona].cultivos[cultivo].ventana
       : (VENTANAS_EXTRA[zona] && VENTANAS_EXTRA[zona][cultivo]);
-    if (!ventanas) return { pts:10, label:'Sin datos de ventana para esta zona' };
-    var orden = ['primera','segunda','temprana','tardia'];
-    var ptsMap = { primera:25, segunda:18, temprana:13, tardia:6 };
-    var lblMap = {
-      primera:  'Ventana óptima ✓',
-      segunda:  'Segunda época — aceptable',
-      temprana: 'Siembra temprana — riesgo leve',
-      tardia:   'Siembra tardía — menor potencial',
-    };
-    for (var i = 0; i < orden.length; i++) {
-      var tipo = orden[i];
-      if (!ventanas[tipo]) continue;
-      var v = parsearVentana(ventanas[tipo]);
-      if (v && enVentana(mes, dia, v)) return { pts:ptsMap[tipo], label:lblMap[tipo] };
+    if (!ventanas) return { pts:8, label:'Sin datos de ventana para esta zona' };
+
+    if (tieneFina) {
+      // Con fina activa, las épocas tempranas/primera no son viables por cosecha de fina
+      var vSegunda = ventanas.segunda ? parsearVentana(ventanas.segunda) : null;
+      var vTardia = ventanas.tardia ? parsearVentana(ventanas.tardia) : null;
+      var vPrimera = ventanas.primera ? parsearVentana(ventanas.primera) : null;
+      var vTemprana = ventanas.temprana ? parsearVentana(ventanas.temprana) : null;
+
+      if (vSegunda && enVentana(mes, dia, vSegunda)) {
+        return { pts:20, label: 'Ventana de 2ª época ideal (post-cosecha) ✓' };
+      }
+      if (vTardia && enVentana(mes, dia, vTardia)) {
+        return { pts:12, label: 'Ventana de 2ª tardía — menor potencial' };
+      }
+      if ((vPrimera && enVentana(mes, dia, vPrimera)) || (vTemprana && enVentana(mes, dia, vTemprana))) {
+        return { pts:0, label: 'Conflicto: fecha muy temprana (fina en marcha) ✗' };
+      }
+    } else {
+      // Sin fina (barbecho), comportamiento normal
+      var orden = ['primera','segunda','temprana','tardia'];
+      var ptsMap = { primera:20, segunda:14, temprana:10, tardia:5 };
+      var lblMap = {
+        primera:  'Ventana óptima ✓',
+        segunda:  'Segunda época — aceptable',
+        temprana: 'Siembra temprana — riesgo leve',
+        tardia:   'Siembra tardía — menor potencial',
+      };
+      for (var i = 0; i < orden.length; i++) {
+        var tipo = orden[i];
+        if (!ventanas[tipo]) continue;
+        var v = parsearVentana(ventanas[tipo]);
+        if (v && enVentana(mes, dia, v)) return { pts:ptsMap[tipo], label:lblMap[tipo] };
+      }
     }
     return { pts:0, label:'Fuera de ventana de siembra ✗' };
   }
 
-  // ── 2. Agua (20 pts) ──────────────────────────────────
+  // ── 2. Agua (15 pts max) ──────────────────────────────
   function calcScoreHidrico(cultivo, pctAgua) {
-    if (pctAgua < 0) return { pts:10, label:'Sin datos — completá el Balance Hídrico para obtener este criterio (usa valor neutro 10/20 hasta entonces)' };
+    if (pctAgua < 0) return { pts:8, label:'Sin datos — completá el Balance Hídrico para obtener este criterio (usa valor neutro 8/15 hasta entonces)' };
     var t = TOL_HIDRICA[cultivo] || { opt:55, min:35 };
-    if (pctAgua >= t.opt) return { pts:20, label:'Agua disponible óptima ✓' };
+    if (pctAgua >= t.opt) return { pts:15, label:'Agua disponible óptima ✓' };
     if (pctAgua >= t.min) {
-      var pts = Math.round(8 + (pctAgua - t.min) / (t.opt - t.min) * 11);
+      var pts = Math.round(6 + (pctAgua - t.min) / (t.opt - t.min) * 8);
       return { pts:pts, label:'Agua disponible moderada' };
     }
-    return { pts:2, label:'Agua insuficiente — riesgo alto ✗' };
+    return { pts:1, label:'Agua insuficiente — riesgo alto ✗' };
   }
 
-  // ── 3. ENSO (15 pts) ──────────────────────────────────
+  // ── 3. ENSO (10 pts max) ──────────────────────────────
   function calcScoreENSO(cultivo, fase) {
-    if (!fase) return { pts:9, label:'Sin datos ENSO — abrí el Hub del lote para cargarlos automáticamente' };
+    if (!fase) return { pts:6, label:'Sin datos ENSO — abrí el Hub del lote para cargarlos automáticamente' };
     var r = ENSO_RESP[cultivo] || { nino:0, nina:0 };
     var esNino = /niño|nino/i.test(fase);
     var esNina = /niña|nina/i.test(fase);
-    if (esNino) return r.nino > 0 ? { pts:15, label:'El Niño — favorable ✓' }
-                     : r.nino < 0 ? { pts:3,  label:'El Niño — mayor riesgo ✗' }
-                                  : { pts:9,  label:'El Niño — impacto neutro' };
-    if (esNina) return r.nina > 0 ? { pts:15, label:'La Niña — favorable ✓' }
-                     : r.nina < 0 ? { pts:3,  label:'La Niña — mayor riesgo ✗' }
-                                  : { pts:9,  label:'La Niña — impacto neutro' };
-    return { pts:9, label:'ENSO neutro — sin ajuste' };
+    if (esNino) return r.nino > 0 ? { pts:10, label:'El Niño — favorable ✓' }
+                     : r.nino < 0 ? { pts:2,  label:'El Niño — mayor riesgo ✗' }
+                                  : { pts:6,  label:'El Niño — impacto neutro' };
+    if (esNina) return r.nina > 0 ? { pts:10, label:'La Niña — favorable ✓' }
+                     : r.nina < 0 ? { pts:2,  label:'La Niña — mayor riesgo ✗' }
+                                  : { pts:6,  label:'La Niña — impacto neutro' };
+    return { pts:6, label:'ENSO neutro — sin ajuste' };
   }
 
-  // ── 4. Zona (25 pts) ──────────────────────────────────
+  // ── 4. Zona (15 pts max) ──────────────────────────────
   function calcScoreZona(cultivo, zona) {
-    if (!zona) return { pts:14, label:'Sin coordenadas del lote' };
+    if (!zona) return { pts:8, label:'Sin coordenadas del lote' };
     var lista = CULTIVOS_POR_ZONA[zona] || [];
     var idx   = lista.indexOf(cultivo);
     var CV    = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
     var zLbl  = (CV && CV[zona]) ? CV[zona].label : zona;
-    if (idx < 0)  return { pts:5,  label:'No recomendado en ' + zLbl };
-    if (idx === 0) return { pts:25, label:zLbl + ' — cultivo principal ✓' };
-    if (idx <= 2)  return { pts:20, label:zLbl + ' — muy recomendado ✓' };
-    return               { pts:14, label:zLbl + ' — posible con manejo' };
+    if (idx < 0)  return { pts:3,  label:'No recomendado en ' + zLbl };
+    if (idx === 0) return { pts:15, label:zLbl + ' — cultivo principal ✓' };
+    if (idx <= 2)  return { pts:12, label:zLbl + ' — muy recomendado ✓' };
+    return               { pts:8, label:zLbl + ' — posible con manejo' };
   }
 
-  // ── 5. Rotación (15 pts) ──────────────────────────────
+  // ── 5. Rotación (10 pts max) ──────────────────────────
   function calcScoreRotacion(cultivo, antecesor) {
-    if (!antecesor || antecesor === 'no_se') return { pts:8, label:'Antecesor desconocido' };
-    if (antecesor === 'ninguno') return { pts:15, label:'Primer cultivo en el lote — sin restricción ✓' };
+    if (!antecesor || antecesor === 'no_se') return { pts:5, label:'Antecesor desconocido' };
+    if (antecesor === 'ninguno') return { pts:10, label:'Primer cultivo en el lote — sin restricción ✓' };
     if (antecesor === cultivo) {
       var pen = (ECON[cultivo] && ECON[cultivo].penRot) || 8;
-      var pts = Math.max(0, 15 - pen);
+      var pts = Math.max(0, 10 - Math.round(pen * 10 / 15));
       var riesgo = pen >= 12 ? 'alto' : pen >= 7 ? 'moderado' : 'leve';
       return { pts:pts, label:cultivo + ' sobre ' + antecesor + ' — monocultivo, riesgo ' + riesgo + ' ✗' };
     }
-    return { pts:15, label:'Rotación correcta: ' + cultivo + ' después de ' + antecesor + ' ✓' };
+    return { pts:10, label:'Rotación correcta: ' + cultivo + ' después de ' + antecesor + ' ✓' };
+  }
+
+  // ── 6. Economía / Rentabilidad (30 pts max) ───────────
+  function calcScoreEconomia(rentabilidad) {
+    if (rentabilidad <= 0) return { pts:0, label:'Rentabilidad negativa o nula ✗' };
+    var pts = Math.min(30, Math.round((rentabilidad / 50) * 30));
+    return { pts:pts, label:'Rentabilidad proyectada: ' + rentabilidad.toFixed(1) + '%' + (rentabilidad >= 50 ? ' (Excelente ✓)' : '') };
   }
 
   // ── Cálculo de métricas económicas ───────────────────
@@ -273,21 +301,31 @@
   }
 
   // ── Score total ────────────────────────────────────────
-  function calcularScore(cultivo, params) {
-    var sFecha  = calcScoreFecha(cultivo,   params.zona,     params.fechaStr);
+  function calcularScore(cultivo, params, tieneFina) {
+    var sFechaReal = calcScoreFecha(cultivo, params.zona, params.fechaStr, tieneFina);
     var sHidro  = calcScoreHidrico(cultivo, params.pctAgua);
     var sEnso   = calcScoreENSO(cultivo,    params.fase);
     var sZona   = calcScoreZona(cultivo,    params.zona);
     var sRot    = calcScoreRotacion(cultivo, params.antecesor);
+    
     var eco     = calcEconomia(cultivo, params.aguaMm, params.fase);
+    var rent    = (eco && eco.costoBase > 0) ? (eco.margen / eco.costoBase * 100) : 0;
+    var sEco    = calcScoreEconomia(rent);
+
+    // Para el ranking principal asumimos ventana de siembra óptima (20 pts)
+    var totalRanking = 20 + sHidro.pts + sEnso.pts + sZona.pts + sRot.pts + sEco.pts;
+
     return {
-      total:  sFecha.pts + sHidro.pts + sEnso.pts + sZona.pts + sRot.pts,
-      fecha:  sFecha,
-      hidro:  sHidro,
-      enso:   sEnso,
-      zona:   sZona,
-      rot:    sRot,
-      eco:    eco,
+      total:     totalRanking,
+      totalReal: sFechaReal.pts + sHidro.pts + sEnso.pts + sZona.pts + sRot.pts + sEco.pts,
+      fecha:     sFechaReal,
+      hidro:     sHidro,
+      enso:      sEnso,
+      zona:      sZona,
+      rot:       sRot,
+      eco:       eco,
+      ecoScore:  sEco,
+      rent:      rent,
     };
   }
 
@@ -326,7 +364,18 @@
                    : grupo === 'verano'   ? 'Soja · Maíz · Girasol · Sorgo'
                    : 'Todos los cultivos';
 
-    var params = { zona:zona, fechaStr:fechaStr, pctAgua:pctAgua, aguaMm:aguaMm, fase:fase, antecesor:antecesor };
+    var tieneFina = false;
+    var cultivoFina = '';
+    if (grupo === 'verano' && d.planificacionSiembra && d.planificacionSiembra.invierno) {
+      var planFina = d.planificacionSiembra.invierno;
+      if (planFina.cultivo && planFina.cultivo.trim().toLowerCase() !== 'ninguno') {
+        tieneFina = true;
+        cultivoFina = planFina.cultivo;
+      }
+    }
+    var antecesorElegido = tieneFina ? cultivoFina : antecesor;
+
+    var params = { zona:zona, fechaStr:fechaStr, pctAgua:pctAgua, aguaMm:aguaMm, fase:fase, antecesor:antecesorElegido };
 
     // Normalizar fase ENSO a etiqueta legible para chips
     var faseLabel = !fase ? ''
@@ -335,7 +384,7 @@
                   : 'Neutro';
 
     var scored = listaCultivos.map(function (c) {
-      return Object.assign({}, c, { score: calcularScore(c.key, params) });
+      return Object.assign({}, c, { score: calcularScore(c.key, params, tieneFina) });
     });
     scored.sort(function (a, b) { return b.score.total - a.score.total; });
 
@@ -347,18 +396,25 @@
     html +=   '<div class="sc-titulo">🏆 Score de cultivos <span class="sc-subtitulo">' + grupoLabel + '</span></div>';
     html += '</div>';
 
-    // Selector antecesor
-    html += '<div class="sc-antecesor">';
-    html +=   '<span class="sc-ant-label">Cultivo antecesor</span>';
-    html +=   '<div class="sc-ant-opciones">';
-    ANTECESORES.forEach(function (a) {
-      var isActivo = antecesor ? (antecesor === a.key) : (a.key === 'no_se');
-      html += '<button class="sc-ant-btn' + (isActivo ? ' sc-ant-btn-activo' : '') + '"';
-      html +=   ' onclick="window.dlSetAntecesor(\'' + a.key + '\',\'' + esc(lote.id) + '\')">';
-      html +=   a.label + '</button>';
-    });
-    html +=   '</div>';
-    html += '</div>';
+    // Selector antecesor / Indicador antecesor fijo
+    if (tieneFina) {
+      html += '<div class="sc-antecesor" style="background:rgba(79,195,247,.06);border:1px solid rgba(79,195,247,.15);border-radius:8px;padding:.6rem .8rem">';
+      html +=   '<span class="sc-ant-label" style="margin-bottom:0;color:var(--accent);display:block">🌱 Antecesor fijado por fina activa: <strong>' + esc(cultivoFina) + '</strong></span>';
+      html +=   '<div style="font-size:.72rem;color:var(--c2);margin-top:.2rem">Planificando cultivos de 2ª época (post-cosecha) para la campaña gruesa.</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="sc-antecesor">';
+      html +=   '<span class="sc-ant-label">Cultivo antecesor</span>';
+      html +=   '<div class="sc-ant-opciones">';
+      ANTECESORES.forEach(function (a) {
+        var isActivo = antecesorElegido ? (antecesorElegido === a.key) : (a.key === 'no_se');
+        html += '<button class="sc-ant-btn' + (isActivo ? ' sc-ant-btn-activo' : '') + '"';
+        html +=   ' onclick="window.dlSetAntecesor(\'' + a.key + '\',\'' + esc(lote.id) + '\')">';
+        html +=   a.label + '</button>';
+      });
+      html +=   '</div>';
+      html += '</div>';
+    }
 
     // Banner de datos pendientes (solo cuando falta agua o ENSO)
     var sinAgua = pctAgua < 0;
@@ -404,17 +460,26 @@
                       : '#D4522A';
       var infoId = 'sci-' + c.key + '_' + esc(lote.id);
 
+      // Obtener la ventana ideal
+      var ventanaIdeal = obtenerVentanaIdeal(c.key, zona, tieneFina);
+      var etiquetaVentana = ventanaIdeal ? '📅 Ideal: ' + ventanaIdeal : '';
+
       html += '<div class="sc-row-wrap">';
 
       html += '<div class="sc-row' + (esActivo ? ' sc-row-activa' : '') + (idx === 0 ? ' sc-row-top' : '') + '">';
 
       // Cultivo
       html += '<div class="sc-cultivo">';
-      html +=   '<span class="sc-emoji">' + c.emoji + '</span>';
-      html +=   '<span class="sc-nombre">' + c.label + '</span>';
-      html +=   '<button class="sc-info-btn" onclick="window.dlToggleScoreInfo(\'' + infoId + '\')">ℹ</button>';
+      html +=   '<div style="display:flex;align-items:center;gap:.3rem">';
+      html +=     '<span class="sc-emoji">' + c.emoji + '</span>';
+      html +=     '<span class="sc-nombre">' + c.label + '</span>';
+      html +=     '<button class="sc-info-btn" onclick="window.dlToggleScoreInfo(\'' + infoId + '\')">ℹ</button>';
       if (esActivo) html += '<span class="sc-activo-badge">activo</span>';
       if (idx === 0 && !esActivo) html += '<span class="sc-top-badge">mejor opción</span>';
+      html +=   '</div>';
+      if (etiquetaVentana) {
+        html +=   '<div style="font-size:.7rem;color:var(--c2);margin-top:.15rem;padding-left:1.5rem">' + esc(etiquetaVentana) + (tieneFina ? ' <span style="color:#4fc3f7">(2ª época)</span>' : ' <span style="color:#81c784">(1ª época)</span>') + '</div>';
+      }
       html += '</div>';
 
       // Score (solo número, color indica nivel)
@@ -457,13 +522,19 @@
       // Panel ℹ — breakdown de criterios + detalle económico
       html += '<div class="sc-info-panel" id="' + infoId + '" style="display:none">';
       html +=   '<div class="sc-info-grid">';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📅 Fecha · ' + s.fecha.pts + ' / 25 pts</span><span class="sc-info-v">' + esc(s.fecha.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">💧 Agua · ' + s.hidro.pts + ' / 20 pts</span><span class="sc-info-v">' + esc(s.hidro.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🌡️ ENSO · ' + s.enso.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.enso.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📍 Zona · ' + s.zona.pts + ' / 25 pts</span><span class="sc-info-v">' + esc(s.zona.label) + '</span></div>';
-      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🔄 Rotación · ' + s.rot.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.rot.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📅 Ventana óptima · 20 / 20 pts</span><span class="sc-info-v">Asumida óptima para el ranking</span></div>';
+      if (fechaStr) {
+        html +=   '<div class="sc-info-kv" style="opacity:.85;font-size:.78rem"><span class="sc-info-k" style="padding-left:1rem">└─ Fecha elegida (' + fechaStr.split('-').reverse().join('/') + ')</span><span class="sc-info-v">' + s.fecha.pts + ' / 20 pts · ' + esc(s.fecha.label) + '</span></div>';
+      } else {
+        html +=   '<div class="sc-info-kv" style="opacity:.85;font-size:.78rem"><span class="sc-info-k" style="padding-left:1rem">└─ Fecha elegida</span><span class="sc-info-v">Sin definir</span></div>';
+      }
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">💧 Agua · ' + s.hidro.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.hidro.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🌡️ ENSO · ' + s.enso.pts + ' / 10 pts</span><span class="sc-info-v">' + esc(s.enso.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">📍 Zona · ' + s.zona.pts + ' / 15 pts</span><span class="sc-info-v">' + esc(s.zona.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">🔄 Rotación · ' + s.rot.pts + ' / 10 pts</span><span class="sc-info-v">' + esc(s.rot.label) + '</span></div>';
+      html +=     '<div class="sc-info-kv"><span class="sc-info-k">💰 Rentabilidad · ' + s.ecoScore.pts + ' / 30 pts</span><span class="sc-info-v">' + esc(s.ecoScore.label) + '</span></div>';
       if (s.eco) {
-        html += '<div class="sc-info-kv"><span class="sc-info-k">💰 Precio ref.</span><span class="sc-info-v">USD ' + s.eco.precio + '/t · Ret. ' + s.eco.retencion + '% · Costo base USD ' + s.eco.costoBase + '/ha</span></div>';
+        html += '<div class="sc-info-kv"><span class="sc-info-k">💰 Margen Bruto</span><span class="sc-info-v">USD ' + s.eco.margen + '/ha (Rend: ' + s.eco.rendEstim.toFixed(1) + ' t/ha · Precio: USD ' + s.eco.precio + '/t · Costo base: USD ' + s.eco.costoBase + '/ha)</span></div>';
         html += '<div class="sc-info-kv"><span class="sc-info-k">📊 Rel. ins/prod.</span><span class="sc-info-v">' + s.eco.relacion + ' qq/' + c.label.substring(0,3) + ' para cubrir insumos</span></div>';
       }
       html +=   '</div>';
@@ -509,7 +580,7 @@
       html += '</div>';
     }
 
-    html += '<div class="sc-nota">Score agronómico: Fecha (25) · Agua (20) · ENSO (15) · Zona (25) · Rotación (15) = 100 pts. Margen bruto con precios y costos de referencia campaña 2024/25. No reemplaza el análisis profesional.</div>';
+    html += '<div class="sc-nota">Score agronómico y económico: Rentabilidad (30) · Ventana óptima (20) · Agua (15) · ENSO (10) · Zona (15) · Rotación (10) = 100 pts. El ranking asume siembra en fecha óptima para recomendar el cultivo ideal.</div>';
 
     // CTA
     html += '<div class="sc-cta">';
@@ -525,6 +596,22 @@
   // ── Helpers ───────────────────────────────────────────
   function esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function obtenerVentanaIdeal(cultivo, zona, tieneFina) {
+    var CV = (typeof window.CV_ZONAS !== 'undefined') ? window.CV_ZONAS : null;
+    var ventanas = (CV && CV[zona] && CV[zona].cultivos && CV[zona].cultivos[cultivo])
+      ? CV[zona].cultivos[cultivo].ventana
+      : (VENTANAS_EXTRA[zona] && VENTANAS_EXTRA[zona][cultivo]);
+    if (!ventanas) return '';
+
+    if (tieneFina) {
+      // Si hay cultivo de fina, buscar segunda época
+      return ventanas.segunda || ventanas.tardia || ventanas.primera || '';
+    } else {
+      // Si es de primera (barbecho)
+      return ventanas.primera || ventanas.temprana || '';
+    }
   }
 
   function normalizarCultivo(cultivo) {

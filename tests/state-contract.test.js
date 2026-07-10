@@ -883,3 +883,62 @@ test('pdfInformeCierre procesa notas de cierre manuales y automaticas correctame
   assert.ok(sections.some(s => s.includes('AUTOMÁTICAS')));
   assert.ok(sections.some(s => s.includes('PROFESIONAL')));
 });
+
+test('dlRenderScoreCultivares detecta cultivo de fina activo y adapta antecesor y ventanas de 2a epoca', () => {
+  const sandbox = createBrowserSandbox();
+  
+  // Agregar dependencias minimas de score-cultivares
+  sandbox.CV_ZONAS = {
+    pampeana_norte: {
+      label: 'Pampeana Norte',
+      latMin: -35, latMax: -29,
+      cultivos: {
+        Soja: {
+          ventana: { primera:'15-sep al 15-nov', segunda:'20-nov al 20-dic', temprana:'1-sep al 14-sep', tardia:'16-dic al 10-ene' }
+        }
+      }
+    }
+  };
+
+  vm.runInNewContext(read('js/score-cultivares.js'), sandbox, { filename: 'js/score-cultivares.js' });
+
+  // Caso 1: Barbecho (sin fina activa)
+  const loteBarbecho = {
+    id: 'lote-1',
+    nombre: 'Lote Barbecho',
+    data: {
+      coord: '-33.0, -63.0',
+      antecesor: 'Maíz',
+      planificacionSiembra: {
+        verano: { cultivo: '', fechaSiembraPlan: '2026-10-15' },
+        invierno: { cultivo: 'ninguno' }
+      }
+    }
+  };
+
+  const htmlBarbecho = sandbox.dlRenderScoreCultivares(loteBarbecho, 'verano');
+  // Debe renderizar el selector de antecesor normal
+  assert.ok(htmlBarbecho.includes('sc-ant-opciones'));
+  assert.ok(htmlBarbecho.includes('Ideal: 15-sep al 15-nov'));
+  assert.ok(htmlBarbecho.includes('(1ª época)'));
+
+  // Caso 2: Con fina activa (Trigo)
+  const loteConFina = {
+    id: 'lote-2',
+    nombre: 'Lote con Fina',
+    data: {
+      coord: '-33.0, -63.0',
+      planificacionSiembra: {
+        verano: { cultivo: '', fechaSiembraPlan: '2026-12-05' },
+        invierno: { cultivo: 'Trigo' }
+      }
+    }
+  };
+
+  const htmlConFina = sandbox.dlRenderScoreCultivares(loteConFina, 'verano');
+  // Debe renderizar el aviso de antecesor fijo
+  assert.ok(htmlConFina.includes('Antecesor fijado por fina activa'));
+  assert.ok(htmlConFina.includes('Trigo'));
+  assert.ok(htmlConFina.includes('Ideal: 20-nov al 20-dic'));
+  assert.ok(htmlConFina.includes('(2ª época)'));
+});
