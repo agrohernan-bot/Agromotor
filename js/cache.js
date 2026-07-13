@@ -744,6 +744,8 @@ async function amGuardarLotesRemotos(force) {
     activo: String(l.id) === String(AM_LOTE_ACTIVO)
   }));
 
+  amGuardarVersionesLotesRemotos(rows, 'sync_auto');
+
   const up = await AM_SB
     .from('lotes')
     .upsert(rows, { onConflict: 'user_id,lote_id' });
@@ -754,8 +756,49 @@ async function amGuardarLotesRemotos(force) {
   }
 }
 
+async function amGuardarVersionesLotesRemotos(rows, accion) {
+  if (!amLotesRemoteDisponible() || !Array.isArray(rows) || !rows.length) return false;
+  try {
+    const versiones = rows.map(r => ({
+      user_id: AM_SESION.id,
+      lote_id: r.lote_id,
+      nombre: r.nombre,
+      accion: accion || 'sync_auto',
+      snapshot: {
+        nombre: r.nombre,
+        data: amLotesDataJson(r.data),
+        activo: !!r.activo
+      }
+    }));
+    const ins = await AM_SB.from('lotes_versiones').insert(versiones);
+    if (ins.error) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 async function amEliminarLoteRemoto(loteId) {
   if (!amLotesRemoteDisponible() || !loteId) return false;
+  try {
+    const lote = (Array.isArray(AM_LOTES) ? AM_LOTES : []).find(l => String(l.id) === String(loteId));
+    if (lote) {
+      await amGuardarVersionesLotesRemotos([{
+        user_id: AM_SESION.id,
+        lote_id: String(lote.id),
+        nombre: String(lote.nombre || 'Lote'),
+        data: amLotesDataJson(lote.data),
+        activo: false
+      }], 'delete_user');
+    }
+  } catch (_) {}
+  const soft = await AM_SB
+    .from('lotes')
+    .update({ activo: false, deleted_at: new Date().toISOString(), delete_reason: 'user_deleted' })
+    .eq('user_id', AM_SESION.id)
+    .eq('lote_id', String(loteId));
+  if (!soft.error) return true;
+
   const del = await AM_SB
     .from('lotes')
     .delete()
@@ -775,11 +818,19 @@ async function amCargarLotesRemotos(force) {
   _amLotesRemoteLoading = true;
   _amLotesRemoteLoadUid = uid;
   try {
-    const res = await AM_SB
+    let res = await AM_SB
       .from('lotes')
-      .select('lote_id,nombre,data,activo,updated_at')
+      .select('lote_id,nombre,data,activo,updated_at,deleted_at')
       .eq('user_id', uid)
+      .is('deleted_at', null)
       .order('updated_at', { ascending: true });
+    if (res.error) {
+      res = await AM_SB
+        .from('lotes')
+        .select('lote_id,nombre,data,activo,updated_at')
+        .eq('user_id', uid)
+        .order('updated_at', { ascending: true });
+    }
 
     if (res.error) {
       console.warn('Lotes remote load skipped:', res.error.message);
@@ -832,6 +883,7 @@ async function amCargarLotesRemotos(force) {
 
 window.amGuardarLotesRemotos = amGuardarLotesRemotos;
 window.amEliminarLoteRemoto = amEliminarLoteRemoto;
+window.amGuardarVersionesLotesRemotos = amGuardarVersionesLotesRemotos;
 window.amCargarLotesRemotos = amCargarLotesRemotos;
 
 const CALC_KEYS = [

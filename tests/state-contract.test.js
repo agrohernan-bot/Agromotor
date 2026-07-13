@@ -202,7 +202,8 @@ test('cache fusiona lotes remotos sin pisar lotes locales existentes', async () 
           return {
             eq() {
               if (columns === 'lote_id') return Promise.resolve({ data: upsertRows.map(r => ({ lote_id: r.lote_id })) });
-              return {
+              const chain = {
+                is() { return chain; },
                 order() {
                   return Promise.resolve({
                     data: [
@@ -211,6 +212,7 @@ test('cache fusiona lotes remotos sin pisar lotes locales existentes', async () 
                   });
                 },
               };
+              return chain;
             },
           };
         },
@@ -263,7 +265,8 @@ test('cache no sube lote default vacio cuando ya existen lotes reales', async ()
           return {
             eq() {
               if (columns === 'lote_id') return Promise.resolve({ data: upsertRows.map(r => ({ lote_id: r.lote_id })) });
-              return {
+              const chain = {
+                is() { return chain; },
                 order() {
                   return Promise.resolve({
                     data: [
@@ -272,6 +275,7 @@ test('cache no sube lote default vacio cuando ya existen lotes reales', async ()
                   });
                 },
               };
+              return chain;
             },
           };
         },
@@ -325,6 +329,55 @@ test('cache no borra lotes remotos en sincronizacion automatica', async () => {
   assert.ok(upsertRows);
   assert.equal(upsertRows.length, 1);
   assert.equal(deleteCalls, 0);
+});
+
+test('cache elimina lotes remotos con soft delete cuando esta disponible', async () => {
+  const { window } = loadCacheWithStorage({
+    'am_lotes_v2_user-4': JSON.stringify({
+      activo: 'lote-1',
+      lotes: [{ id: 'lote-1', nombre: 'Lote 1', data: { coord: '-31,-58', cultivo: 'soja' } }],
+    }),
+  });
+  let updatePayload = null;
+  let deleteCalls = 0;
+  let versionRows = null;
+  window.AM_SESION = { id: 'user-4' };
+  window.amCargarLotesGlobales();
+  window.AM_SB = {
+    from(table) {
+      if (table === 'lotes_versiones') {
+        return {
+          insert(rows) {
+            versionRows = rows;
+            return Promise.resolve({ error: null });
+          },
+        };
+      }
+      return {
+        update(payload) {
+          updatePayload = payload;
+          return {
+            eq() { return this; },
+            then(resolve) { return Promise.resolve({ error: null }).then(resolve); },
+          };
+        },
+        delete() {
+          deleteCalls += 1;
+          return { eq() { return this; } };
+        },
+      };
+    },
+  };
+
+  const ok = await window.amEliminarLoteRemoto('lote-1');
+
+  assert.equal(ok, true);
+  assert.equal(deleteCalls, 0);
+  assert.equal(updatePayload.activo, false);
+  assert.equal(updatePayload.delete_reason, 'user_deleted');
+  assert.ok(updatePayload.deleted_at);
+  assert.equal(versionRows.length, 1);
+  assert.equal(versionRows[0].accion, 'delete_user');
 });
 
 test('contexto de campania prioriza plan activo y normaliza rendimiento heredado', () => {
