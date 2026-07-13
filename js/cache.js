@@ -75,6 +75,90 @@ function amGrupoPorCultivo(cultivo) {
   return '';
 }
 
+function amNormCultivo(cultivo) {
+  var c = String(cultivo || '').toLowerCase();
+  try { c = c.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch (_) {}
+  if (c.indexOf('maiz') >= 0) return 'maiz';
+  if (c.indexOf('trigo') >= 0) return 'trigo';
+  if (c.indexOf('cebada') >= 0) return 'cebada';
+  if (c.indexOf('colza') >= 0) return 'colza';
+  if (c.indexOf('girasol') >= 0) return 'girasol';
+  if (c.indexOf('sorgo') >= 0) return 'sorgo';
+  if (c.indexOf('soja') >= 0) return 'soja';
+  return c;
+}
+
+function amCultivoLabel(cultivo) {
+  var c = amNormCultivo(cultivo);
+  return {
+    soja: 'Soja',
+    maiz: 'Maiz',
+    trigo: 'Trigo',
+    cebada: 'Cebada',
+    colza: 'Colza',
+    girasol: 'Girasol',
+    sorgo: 'Sorgo'
+  }[c] || (cultivo || '');
+}
+
+function amRendimientoDefault(cultivo) {
+  var c = amNormCultivo(cultivo);
+  return {
+    soja: 3.5,
+    maiz: 8.5,
+    trigo: 3.5,
+    cebada: 3.4,
+    colza: 1.8,
+    girasol: 2.4,
+    sorgo: 6.2
+  }[c] || 3.5;
+}
+
+function amRendimientoMaxPlausible(cultivo) {
+  var c = amNormCultivo(cultivo);
+  return {
+    soja: 7,
+    maiz: 18,
+    trigo: 9,
+    cebada: 9,
+    colza: 5,
+    girasol: 6,
+    sorgo: 14
+  }[c] || 15;
+}
+
+function amNormalizarRendimientoObjetivo(valor, cultivo) {
+  var n = parseFloat(valor);
+  if (!isFinite(n) || n <= 0) return null;
+  var max = amRendimientoMaxPlausible(cultivo);
+  if (n > max && n <= max * 10) n = n / 10;
+  if (n > max) return null;
+  return Math.round(n * 10) / 10;
+}
+
+function amGetGrupoCampaniaActivo(lote, opts) {
+  opts = opts || {};
+  if (opts.grupo) return opts.grupo;
+  if (window.AM_CAMPANIA_GRUPO_ACTIVO) return window.AM_CAMPANIA_GRUPO_ACTIVO;
+  if (window.AM_SIEMBRA_GRUPO) return window.AM_SIEMBRA_GRUPO;
+  var d = (lote && lote.data) || {};
+  var fases = d.faseGrupos || {};
+  var orden = ['verano', 'invierno'];
+  for (var i = 0; i < orden.length; i++) {
+    if (amGetFaseGrupo(lote, orden[i]) === 'en-curso') return orden[i];
+  }
+  for (var j = 0; j < orden.length; j++) {
+    if (amGetFaseGrupo(lote, orden[j]) === 'pre-siembra') return orden[j];
+  }
+  var g = amGrupoPorCultivo(d.cultivo || d.cultivoActual || (d.calcKeys || {})['am_siembra_cultivo'] || '');
+  if (g) return g;
+  for (var k = 0; k < orden.length; k++) {
+    var plan = amGetPlanGrupo(lote, orden[k]);
+    if (plan && plan.cultivo) return orden[k];
+  }
+  return opts.preferGrupo || '';
+}
+
 function amGetPlanGrupo(lote, grupo) {
   var d = (lote && lote.data) || {};
   return (d.planificacionSiembra && d.planificacionSiembra[grupo]) || {};
@@ -119,6 +203,50 @@ function amGetFechaSiembraGrupo(lote, grupo) {
   var d = (lote && lote.data) || {};
   return amFechaISO(plan.fechaSiembraConf || plan.fechaSiembraPlan
     || d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || '');
+}
+
+function amGetContextoCampania(lote, opts) {
+  opts = opts || {};
+  lote = lote || (typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null);
+  var d = (lote && lote.data) || {};
+  var ck = d.calcKeys || {};
+  var grupo = amGetGrupoCampaniaActivo(lote, opts);
+  var plan = grupo ? amGetPlanGrupo(lote, grupo) : {};
+  var real = grupo ? amGetSiembraRealizadaGrupo(lote, grupo) : {};
+  var cultivo = opts.cultivo || real.cultivo || plan.cultivo;
+  var source = cultivo ? (real.cultivo ? 'siembraRealizada' : 'planificacionSiembra') : '';
+  if (!cultivo) {
+    cultivo = d.cultivo || d.cultivoActual || d.cultivoPlanificacion || ck['am_siembra_cultivo'] || '';
+    source = cultivo ? 'lote' : '';
+  }
+  var cultivoNorm = amNormCultivo(cultivo);
+  if (!grupo && cultivoNorm) grupo = amGrupoPorCultivo(cultivoNorm);
+  var fecha = opts.fechaSiembra || (grupo ? amGetFechaSiembraGrupo(lote, grupo) : '')
+    || amFechaISO(d.fechaSiembraConf || d.fechaSiembraPlan || d.fechaSiembra || d.fecha || ck['am_siembra_fecha'] || '');
+  var rend = amNormalizarRendimientoObjetivo(
+    opts.rendimientoObjetivo || real.rendimientoObjetivo || plan.rendimientoObjetivo
+      || d.rendimientoObjetivo || ck.rendimientoObjetivo || ck.am_rend_objetivo || ck.am_rend_pred_p50,
+    cultivoNorm
+  );
+  if (!rend) rend = amRendimientoDefault(cultivoNorm);
+  var suelo = opts.suelo || d['sg-textura'] || ck['am_siembra_suelo'] || d.suelo || d.tipoSuelo || '';
+  return {
+    lote: lote,
+    loteId: lote && lote.id,
+    loteNombre: lote && lote.nombre || '',
+    grupo: grupo || '',
+    fase: grupo ? amGetFaseGrupo(lote, grupo) : '',
+    cultivo: cultivoNorm || amNormCultivo(cultivo),
+    cultivoLabel: amCultivoLabel(cultivo),
+    fechaSiembra: fecha,
+    rendimientoObjetivo: rend,
+    suelo: suelo,
+    superficie: d.superficie || '',
+    coord: d.coord || '',
+    plan: plan || {},
+    siembraRealizada: real || {},
+    source: source || 'fallback'
+  };
 }
 
 function amPersistirLotesLocal() {
@@ -948,6 +1076,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amGetFaseGrupo = amGetFaseGrupo;
   window.amSetFaseGrupo = amSetFaseGrupo;
   window.amGetFechaSiembraGrupo = amGetFechaSiembraGrupo;
+  window.amNormCultivo = amNormCultivo;
+  window.amCultivoLabel = amCultivoLabel;
+  window.amNormalizarRendimientoObjetivo = amNormalizarRendimientoObjetivo;
+  window.amGetGrupoCampaniaActivo = amGetGrupoCampaniaActivo;
+  window.amGetContextoCampania = amGetContextoCampania;
   window.amFechaISO = amFechaISO;
 
   // Exposición global

@@ -31,6 +31,41 @@ function createLocalStorage(initial = {}) {
 function createDocument() {
   const elements = new Map();
   function makeElement(id) {
+    const classes = new Set();
+    function syncClassName(el) {
+      el.className = Array.from(classes).join(' ');
+    }
+    const el = {
+      id,
+      value: '',
+      innerHTML: '',
+      textContent: '',
+      style: {},
+      dataset: {},
+      disabled: false,
+      className: '',
+      appendChild() {},
+      setAttribute() {},
+      addEventListener() {},
+    };
+    el.classList = {
+      add(...names) { names.forEach((name) => classes.add(name)); syncClassName(el); },
+      remove(...names) { names.forEach((name) => classes.delete(name)); syncClassName(el); },
+      toggle(name, force) {
+        const shouldAdd = force === undefined ? !classes.has(name) : !!force;
+        if (shouldAdd) classes.add(name);
+        else classes.delete(name);
+        syncClassName(el);
+        return shouldAdd;
+      },
+      contains(name) { return classes.has(name); },
+    };
+    if (id) el.dataset.id = id;
+    return el;
+  }
+  const documentElement = makeElement('html');
+  const body = makeElement('body');
+  function makeElementLegacy(id) {
     return {
       id,
       value: '',
@@ -65,7 +100,8 @@ function createDocument() {
     querySelectorAll() {
       return [];
     },
-    body: { appendChild() {} },
+    documentElement,
+    body,
   };
 }
 
@@ -132,6 +168,35 @@ test('cache crea lote default cuando la lista queda vacia', () => {
   assert.equal(window.AM_LOTE_ACTIVO, 'default');
   assert.deepEqual(Array.from(window.AM_LOTES, (l) => l.id), ['default']);
   assert.equal(JSON.parse(localStorage.getItem('am_global_lotes_v2')).activo, 'default');
+});
+
+test('contexto de campania prioriza plan activo y normaliza rendimiento heredado', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-a',
+    lotes: [{
+      id: 'lote-a',
+      nombre: 'Papa Estacion Yerua',
+      data: {
+        cultivo: 'Soja',
+        rendimientoObjetivo: 38,
+        coord: '-31.4,-58.1',
+        planificacionSiembra: {
+          verano: { cultivo: 'Sorgo', fechaSiembraConf: '2026-10-30', rendimientoObjetivo: 62 },
+        },
+      },
+    }],
+  });
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+  window.AM_CAMPANIA_GRUPO_ACTIVO = 'verano';
+
+  const ctx = window.amGetContextoCampania(window.amGetLoteActivo());
+
+  assert.equal(ctx.grupo, 'verano');
+  assert.equal(ctx.cultivo, 'sorgo');
+  assert.equal(ctx.cultivoLabel, 'Sorgo');
+  assert.equal(ctx.fechaSiembra, '2026-10-30');
+  assert.equal(ctx.rendimientoObjetivo, 6.2);
 });
 
 test('modulos criticos leen el lote activo via helper central', () => {
@@ -242,6 +307,38 @@ test('Plagas hereda cultivo, fecha y contexto desde lote activo', () => {
   assert.match(sandbox.document.getElementById('plagas-contexto-lote').innerHTML, /2026-06-07/);
 });
 
+test('Plagas prioriza campania activa sobre cultivo legacy del lote', () => {
+  const sandbox = createBrowserSandbox();
+  sandbox.localStorage.setItem('am_global_lotes_v2', JSON.stringify({
+    activo: 'lote-sorgo',
+    lotes: [{
+      id: 'lote-sorgo',
+      nombre: 'Papa Estacion Yerua',
+      data: {
+        cultivo: 'Soja',
+        coord: '-31.4699,-58.1770',
+        planificacionSiembra: {
+          verano: { cultivo: 'Sorgo', fechaSiembraConf: '2026-10-30' },
+        },
+      },
+    }],
+  }));
+  sandbox.document.ensureElement('plagas-input-card');
+  sandbox.document.ensureElement('plagas-contexto-lote');
+  sandbox.document.ensureElement('plagas-siembra');
+  sandbox.document.ensureElement('s-cultivo', { value: 'Soja' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-01-01' });
+
+  vm.runInNewContext(read('js/cache.js'), sandbox, { filename: 'js/cache.js' });
+  sandbox.amCargarLotesGlobales();
+  sandbox.AM_CAMPANIA_GRUPO_ACTIVO = 'verano';
+  vm.runInNewContext(read('js/plagas.js'), sandbox, { filename: 'js/plagas.js' });
+  sandbox.plagasPrepararAutoLote();
+
+  assert.equal(sandbox.document.getElementById('plagas-siembra').value, '2026-10-30');
+  assert.match(sandbox.document.getElementById('plagas-contexto-lote').innerHTML, /sorgo/);
+});
+
 test('Alerta sanitaria hereda cultivo, fecha y coordenadas desde lote activo', () => {
   const lote = {
     id: 'lote-soja',
@@ -272,6 +369,39 @@ test('Alerta sanitaria hereda cultivo, fecha y coordenadas desde lote activo', (
   assert.match(sandbox.document.getElementById('as-contexto-lote').innerHTML, /Papa Ea Grande/);
 });
 
+test('Alerta sanitaria prioriza campania activa sobre cultivo legacy del lote', () => {
+  const sandbox = createBrowserSandbox();
+  sandbox.localStorage.setItem('am_global_lotes_v2', JSON.stringify({
+    activo: 'lote-sorgo',
+    lotes: [{
+      id: 'lote-sorgo',
+      nombre: 'Papa Estacion Yerua',
+      data: {
+        cultivo: 'Soja',
+        coord: '-31.4699,-58.1770',
+        planificacionSiembra: {
+          verano: { cultivo: 'Sorgo', fechaSiembraConf: '2026-10-30' },
+        },
+      },
+    }],
+  }));
+  for (const id of ['as-input-card', 'as-contexto-lote', 'as-lat', 'as-lon', 'as-cultivo', 'as-siembra']) {
+    sandbox.document.ensureElement(id);
+  }
+  sandbox.document.ensureElement('s-cultivo', { value: 'Soja' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-01-01' });
+
+  vm.runInNewContext(read('js/cache.js'), sandbox, { filename: 'js/cache.js' });
+  sandbox.amCargarLotesGlobales();
+  sandbox.AM_CAMPANIA_GRUPO_ACTIVO = 'verano';
+  vm.runInNewContext(read('js/alerta-sanitaria.js'), sandbox, { filename: 'js/alerta-sanitaria.js' });
+  sandbox.asPrepararAutoLote();
+
+  assert.equal(sandbox.document.getElementById('as-cultivo').value, 'sorgo');
+  assert.equal(sandbox.document.getElementById('as-siembra').value, '2026-10-30');
+  assert.match(sandbox.document.getElementById('as-contexto-lote').innerHTML, /Papa Estacion Yerua/);
+});
+
 test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () => {
   const calls = [];
   const document = createDocument();
@@ -291,6 +421,50 @@ test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () 
 });
 
 // Diciembre: todas las plagas de soja y roya están en época
+test('modal de acceso se puede cerrar sin sesion y no bloquea la navegacion', () => {
+  const document = createDocument();
+  const sandbox = createBrowserSandbox({
+    document,
+    location: { hash: '', search: '', pathname: '/app.html' },
+    URLSearchParams,
+    addEventListener() {},
+    $(id) { return document.getElementById(id); },
+    requestAnimationFrame(fn) { if (typeof fn === 'function') fn(); },
+    AM_SB: {
+      auth: {
+        onAuthStateChange() {},
+        signInWithPassword: async () => ({ error: null }),
+        signUp: async () => ({ data: {}, error: null }),
+        signOut: async () => ({}),
+        getSession: async () => ({ data: { session: null } }),
+        resetPasswordForEmail: async () => ({ error: null }),
+        updateUser: async () => ({ error: null }),
+      },
+      from() {
+        return {
+          select() { return this; },
+          update() { return this; },
+          eq() { return this; },
+          maybeSingle: async () => ({ data: null, error: null }),
+        };
+      },
+    },
+    AM_CONFIG: { supabase: {}, claudeProxy: '', ensoProxy: '', soilProxy: '' },
+  });
+  const modal = document.ensureElement('am-modal');
+  modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
+  document.documentElement.classList.add('modal-open');
+
+  vm.runInNewContext(read('js/login.js'), sandbox, { filename: 'js/login.js' });
+  sandbox.AM_SESION = null;
+  sandbox.amCerrarModal();
+
+  assert.equal(modal.classList.contains('hidden'), true);
+  assert.equal(document.body.classList.contains('modal-open'), false);
+  assert.equal(document.documentElement.classList.contains('modal-open'), false);
+});
+
 const MockDate = class extends Date {
   constructor(...args) {
     if (args.length === 0) super('2026-12-15T12:00:00.000Z');
@@ -950,4 +1124,40 @@ test('fenologia soporta sorgo desde planificacion de gruesa', () => {
   const etapas = sandbox.Fenologia.getEtapasCultivo('sorgo');
   assert.ok(etapas.some(e => e.id === 'floracion'), 'sorgo debe tener etapa critica de floracion');
   assert.ok(etapas.some(e => e.id === 'madurez'), 'sorgo debe completar ciclo hasta cosecha');
+});
+
+test('plagas incorpora sorgo sin caer a soja', () => {
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return { id: 'sorgo', nombre: 'Lote Sorgo', data: { cultivo: 'Sorgo' } }; },
+    Date: MockDate,
+  });
+  sandbox.document.ensureElement('s-cultivo', { value: 'sorgo' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-10-20' });
+  vm.runInNewContext(read('js/plagas.js'), sandbox, { filename: 'js/plagas.js' });
+
+  assert.ok(sandbox.amPlagasUtils.PESTS.sorgo.some(p => p.id === 'pulgon_amarillo_sorgo'));
+  const favorable = Array.from({ length: 7 }, () => ({
+    tmean: 24, tmin: 17, hrMean: 62, precip: 0, date: '2026-12-15',
+  }));
+  const riesgos = sandbox.amPlagasUtils.calcPestRisks(favorable, 'V6', 'sorgo');
+  const pas = riesgos.find(p => p.id === 'pulgon_amarillo_sorgo');
+  assert.ok(pas && pas.score > 0 && pas.inVuln && pas.inSeason);
+});
+
+test('alerta sanitaria incorpora enfermedades de sorgo sin caer a soja', () => {
+  const sandbox = createBrowserSandbox({
+    amGetLoteActivo() { return { id: 'sorgo', nombre: 'Lote Sorgo', data: { cultivo: 'Sorgo' } }; },
+    Date: MockDate,
+  });
+  sandbox.document.ensureElement('s-cultivo', { value: 'sorgo' });
+  sandbox.document.ensureElement('s-fecha', { value: '2026-10-20' });
+  vm.runInNewContext(read('js/alerta-sanitaria.js'), sandbox, { filename: 'js/alerta-sanitaria.js' });
+
+  assert.ok(sandbox.asUtils.DISEASES.sorgo.some(d => d.id === 'antracnosis_sorgo'));
+  const favorable = Array.from({ length: 7 }, () => ({
+    tmean: 26, tmin: 18, hrMean: 86, hoursHR75: 12, hoursHR80: 10, hoursHR90: 7, precip: 2, date: '2026-12-15',
+  }));
+  const riesgos = sandbox.asUtils.calcDiseaseRisks(favorable, 'FL', 'sorgo');
+  const antracnosis = riesgos.find(d => d.id === 'antracnosis_sorgo');
+  assert.ok(antracnosis && antracnosis.score > 0 && antracnosis.inVuln && antracnosis.inSeason);
 });

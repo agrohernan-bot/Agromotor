@@ -639,11 +639,17 @@
     var plan = (d.planificacionSiembra && d.planificacionSiembra[grupo]) || {};
     var legacy = grupo === 'verano' ? d.cultivoPlanVerano : grupo === 'invierno' ? d.cultivoPlanInvierno : '';
     var legacyActivoValido = cultivoEnGrupo(d.cultivo, grupo);
+    var cultivoPlan = plan.cultivo || legacy || (legacyActivoValido ? d.cultivo : '');
+    var rendPlan = plan.rendimientoObjetivo;
+    if (!rendPlan && legacyActivoValido) rendPlan = d.rendimientoObjetivo;
+    if (typeof window.amNormalizarRendimientoObjetivo === 'function') {
+      rendPlan = window.amNormalizarRendimientoObjetivo(rendPlan, cultivoPlan);
+    }
     return {
-      cultivo: plan.cultivo || legacy || (legacyActivoValido ? d.cultivo : ''),
+      cultivo: cultivoPlan,
       fechaSiembraPlan: plan.fechaSiembraPlan || (legacyActivoValido ? d.fechaSiembraPlan : ''),
       fechaSiembraConf: plan.fechaSiembraConf || (legacyActivoValido ? d.fechaSiembraConf : ''),
-      rendimientoObjetivo: plan.rendimientoObjetivo || d.rendimientoObjetivo || null
+      rendimientoObjetivo: rendPlan || null
     };
   }
 
@@ -684,17 +690,23 @@
   }
 
   window.dlSetRendimientoObjetivo = function(val, loteId, grupo) {
-    val = Math.round(parseFloat(val) * 10) / 10;
-    if (!val || isNaN(val) || val < 0.5) return;
+    var g = grupo || grupoActualFallback();
     var lote = (window.AM_LOTES || []).find(function(l) { return l.id === loteId; });
     if (!lote) return;
     lote.data = lote.data || {};
-    lote.data.rendimientoObjetivo = val;
-    var g = grupo || grupoActualFallback();
+    var planCultivo = g && lote.data.planificacionSiembra && lote.data.planificacionSiembra[g]
+      ? lote.data.planificacionSiembra[g].cultivo
+      : lote.data.cultivo;
+    val = typeof window.amNormalizarRendimientoObjetivo === 'function'
+      ? window.amNormalizarRendimientoObjetivo(val, planCultivo)
+      : Math.round(parseFloat(val) * 10) / 10;
+    if (!val || isNaN(val) || val < 0.5) return;
     if (g) {
       lote.data.planificacionSiembra = lote.data.planificacionSiembra || {};
       lote.data.planificacionSiembra[g] = lote.data.planificacionSiembra[g] || {};
       lote.data.planificacionSiembra[g].rendimientoObjetivo = val;
+    } else {
+      lote.data.rendimientoObjetivo = val;
     }
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
     if (typeof amToast === 'function') amToast('Rendimiento objetivo: ' + val + ' t/ha', 'ok');

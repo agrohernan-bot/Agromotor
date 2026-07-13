@@ -242,7 +242,73 @@
     ]
   };
 
-  var MOJADURA_DEPENDENT = ['roya','cercospora','tizon_hoja','fusarium','roya_hoja','septoriosis','sclerotinia','tizon_norte'];
+  PHENOLOGY.sorgo = {
+    base: 10, icon: 'ðŸŒ¾',
+    stages: [
+      {gdd:0,   code:'VE',  name:'Emergencia'},
+      {gdd:180, code:'V3',  name:'V3'},
+      {gdd:360, code:'V6',  name:'V6'},
+      {gdd:560, code:'V10', name:'V10'},
+      {gdd:700, code:'EMB', name:'Embuchado'},
+      {gdd:850, code:'FL',  name:'Floracion'},
+      {gdd:1050,code:'GRL', name:'Grano lechoso'},
+      {gdd:1250,code:'GRP', name:'Grano pastoso'},
+      {gdd:1500,code:'MF',  name:'Madurez fisiologica'}
+    ]
+  };
+
+  DISEASES.sorgo = [
+    {
+      id:'antracnosis_sorgo', name:'Antracnosis del Sorgo', sci:'Colletotrichum sublineolum', icon:'ðŸ‚',
+      vuln:['V6','V10','EMB','FL','GRL'],
+      check: function(d){ return d.tmean>=22 && d.tmean<=32 && d.hoursHR80>=8; },
+      checkForecast: function(d){
+        if(d.tmean>=24 && d.tmean<=30 && d.hoursHR80>=10 && d.precip>=1) return 'high';
+        if(d.tmean>=22 && d.tmean<=32 && d.hoursHR80>=6) return 'med';
+        return 'none';
+      },
+      reasons:{ fav:'Calor humedo y lluvia/rocio favorecen infeccion foliar y de panoja', unfav:'Sin humedad foliar suficiente o temperatura fuera de rango' },
+      rec:{ high:'Priorizar monitoreo de hojas, vainas y panoja; evaluar fungicida si hay sintomas y cultivo en ventana critica.', med:'Monitorear manchas rojizas o pajizas con margen oscuro.', low:'Sin accion', none:'Sin riesgo' }
+    },
+    {
+      id:'mancha_gris_sorgo', name:'Mancha Gris del Sorgo', sci:'Cercospora sorghi', icon:'âšª',
+      vuln:['EMB','FL','GRL','GRP'],
+      check: function(d){ return d.tmean>=20 && d.tmean<=30 && d.hoursHR80>=8; },
+      checkForecast: function(d){
+        if(d.tmean>=22 && d.tmean<=30 && d.hoursHR80>=10 && d.precip>=1) return 'high';
+        if(d.tmean>=20 && d.tmean<=30 && d.hoursHR80>=6) return 'med';
+        return 'none';
+      },
+      reasons:{ fav:'Condiciones calidas y humedas favorecen esporulacion y avance en hojas', unfav:'Baja humedad foliar o temperatura fuera de rango' },
+      rec:{ high:'Revisar hojas medias y superiores; considerar control si avanza antes de llenado.', med:'Monitorear lesiones rectangulares entre nervaduras.', low:'Sin accion', none:'Sin riesgo' }
+    },
+    {
+      id:'tizon_sorgo', name:'Tizon Foliar del Sorgo', sci:'Exserohilum turcicum', icon:'ðŸƒ',
+      vuln:['V10','EMB','FL'],
+      check: function(d){ return d.tmean>=18 && d.tmean<=28 && d.hoursHR90>=6; },
+      checkForecast: function(d){
+        if(d.tmean>=20 && d.tmean<=27 && d.hoursHR90>=10) return 'high';
+        if(d.tmean>=18 && d.tmean<=28 && d.hoursHR90>=5) return 'med';
+        return 'none';
+      },
+      reasons:{ fav:'Mojado foliar prolongado con temperatura moderada favorece tizon antes de panojamiento', unfav:'Humedad insuficiente para infeccion' },
+      rec:{ high:'Monitorear lesiones alargadas; mayor impacto si aparece antes de inflorescencia.', med:'Recorrer hojas medias y bajas luego de rocíos o lluvias.', low:'Sin accion', none:'Sin riesgo' }
+    },
+    {
+      id:'ergot_sorgo', name:'Ergot del Sorgo', sci:'Claviceps africana', icon:'ðŸ¯',
+      vuln:['FL'],
+      check: function(d){ return d.tmin>=8 && d.tmin<=14 && d.hrMean>=75; },
+      checkForecast: function(d){
+        if(d.tmin>=10 && d.tmin<=13 && d.hrMean>=80 && d.precip>=1) return 'high';
+        if(d.tmin>=8 && d.tmin<=14 && d.hrMean>=75) return 'med';
+        return 'none';
+      },
+      reasons:{ fav:'Noches frescas en floracion, lluvia y alta humedad predisponen infeccion de floretes', unfav:'Fuera de floracion o sin noches frescas/humedas' },
+      rec:{ high:'Revisar panojas por mielecilla; atender especialmente floracion despareja o materiales susceptibles.', med:'Monitorear durante floracion y despues de lluvias.', low:'Sin accion', none:'Sin riesgo' }
+    }
+  ];
+
+  var MOJADURA_DEPENDENT = ['roya','cercospora','tizon_hoja','fusarium','roya_hoja','septoriosis','sclerotinia','tizon_norte','antracnosis_sorgo','mancha_gris_sorgo','tizon_sorgo','ergot_sorgo'];
 
   // ── UTILIDADES ────────────────────────────────────────
   function todayStr() { return new Date().toISOString().slice(0,10); }
@@ -442,10 +508,13 @@
     var lote = loteActivoAM();
     var d = (lote && lote.data) || {};
     var ck = d.calcKeys || {};
-    var cultivo = normCultivoAM(d.cultivo || ck['am_siembra_cultivo'] || (document.getElementById('s-cultivo') || {}).value || 'soja');
+    var ctxCamp = lote && typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(lote, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+      : null;
+    var cultivo = normCultivoAM((ctxCamp && (ctxCamp.cultivo || ctxCamp.cultivoLabel)) || d.cultivo || ck['am_siembra_cultivo'] || (document.getElementById('s-cultivo') || {}).value || 'soja');
     if (!DISEASES[cultivo]) cultivo = 'soja';
     var coords = coordsLoteAM(lote);
-    var fecha = fechaSiembraLoteAM(lote,cultivo) || (document.getElementById('s-fecha') || {}).value || '';
+    var fecha = (ctxCamp && ctxCamp.fechaSiembra) || fechaSiembraLoteAM(lote,cultivo) || (document.getElementById('s-fecha') || {}).value || '';
     if (coords) {
       if (asEl('lat')) asEl('lat').value = coords.lat.toFixed(5);
       if (asEl('lon')) asEl('lon').value = coords.lon.toFixed(5);
@@ -542,7 +611,8 @@
     roya:[12,1,2,3], cercospora:[1,2,3,4], muerte_subita:[10,11,12,1], tizon_hoja:[12,1,2,3],
     tizon_norte:[11,12,1,2,3], roya_comun:[11,12,1,2], mancha_gris:[12,1,2,3],
     fusarium:[9,10,11], roya_hoja:[7,8,9,10,11], septoriosis:[6,7,8,9,10], oidio:[6,7,8,9],
-    sclerotinia:[11,12,1], roya_girasol:[11,12,1], alternaria:[12,1,2]
+    sclerotinia:[11,12,1], roya_girasol:[11,12,1], alternaria:[12,1,2],
+    antracnosis_sorgo:[11,12,1,2,3], mancha_gris_sorgo:[12,1,2,3], tizon_sorgo:[11,12,1,2], ergot_sorgo:[12,1,2]
   };
 
   function diseaseInSeason(dis,dateStr) {

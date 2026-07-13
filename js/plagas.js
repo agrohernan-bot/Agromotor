@@ -166,9 +166,12 @@ function setContextoPlagas(lote, cultivo, fecha, coords) {
 window.plagasPrepararAutoLote = function() {
   var lote = loteActivoAM();
   var d = (lote && lote.data) || {};
-  var cultivo = normCultivoAM(d.cultivo || (d.calcKeys || {})['am_siembra_cultivo'] || (document.getElementById('s-cultivo') || {}).value || 'soja');
+  var ctxCamp = lote && typeof window.amGetContextoCampania === 'function'
+    ? window.amGetContextoCampania(lote, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+    : null;
+  var cultivo = normCultivoAM((ctxCamp && (ctxCamp.cultivo || ctxCamp.cultivoLabel)) || d.cultivo || (d.calcKeys || {})['am_siembra_cultivo'] || (document.getElementById('s-cultivo') || {}).value || 'soja');
   if (!PESTS[cultivo]) cultivo = 'soja';
-  var fecha = fechaSiembraLoteAM(lote, cultivo) || (document.getElementById('s-fecha') || {}).value || '';
+  var fecha = (ctxCamp && ctxCamp.fechaSiembra) || fechaSiembraLoteAM(lote, cultivo) || (document.getElementById('s-fecha') || {}).value || '';
   var coords = coordsLoteAM(lote);
   var pfEl = document.getElementById('plagas-siembra');
   if (pfEl && fecha) pfEl.value = fecha;
@@ -375,6 +378,69 @@ var PESTS = {
     }
   ]
 };
+
+PHENOLOGY.sorgo = { base:10, icon:'ðŸŒ¾', stages:[
+  {gdd:0,code:'VE',name:'Emergencia'},{gdd:180,code:'V3',name:'V3'},
+  {gdd:360,code:'V6',name:'V6'},{gdd:560,code:'V10',name:'V10'},
+  {gdd:700,code:'EMB',name:'Embuchado'},{gdd:850,code:'FL',name:'Floracion'},
+  {gdd:1050,code:'GRL',name:'Grano lechoso'},{gdd:1250,code:'GRP',name:'Grano pastoso'},
+  {gdd:1500,code:'MF',name:'Madurez fisiologica'}
+]};
+
+PESTS.sorgo = [
+  {
+    id:'pulgon_amarillo_sorgo', name:'Pulgon Amarillo del Sorgo', sci:'Melanaphis sorghi / M. sacchari', icon:'ðŸŸ¡',
+    vuln:['V3','V6','V10','EMB','FL','GRL'],
+    check: function(d) { return d.tmean >= 18 && d.tmean <= 32 && d.precip < 8; },
+    checkF: function(d) {
+      if (d.tmean >= 22 && d.tmean <= 28 && d.precip < 3) return 'high';
+      if (d.tmean >= 18 && d.tmean <= 32 && d.precip < 8) return 'med';
+      return 'none';
+    },
+    reasons: { fav:'Temperatura en rango de desarrollo y baja lluvia reciente: revisar colonias en enves', unfav:'Temperatura o lluvia reducen la probabilidad de explosion poblacional' },
+    rec: { high:'Monitorear 5 puntos de 10 plantas. Umbral: 50 pulgones/hoja en 20% de plantas.',
+           med:'Revisar hojas inferiores y anteultima expandida; buscar melaza y fumagina.', low:'Sin accion', none:'Sin accion' }
+  },
+  {
+    id:'cogollero_sorgo', name:'Cogollero en Sorgo', sci:'Spodoptera frugiperda', icon:'ðŸ›',
+    vuln:['VE','V3','V6','V10'],
+    check: function(d) { return d.tmean >= 20 && d.tmean <= 32 && d.hrMean >= 55; },
+    checkF: function(d) {
+      if (d.tmean >= 24 && d.tmean <= 30 && d.hrMean >= 65) return 'high';
+      if (d.tmean >= 20 && d.hrMean >= 55) return 'med';
+      return 'none';
+    },
+    reasons: { fav:'Calor y humedad moderada favorecen vuelo, oviposicion y dano en cogollo', unfav:'Condiciones poco favorables para actividad larval' },
+    rec: { high:'Monitorear cogollos y raspado fresco; priorizar lotes en implantacion.',
+           med:'Revisar plantas chicas al amanecer y bordes del lote.', low:'Sin accion', none:'Sin accion' }
+  },
+  {
+    id:'diatraea_sorgo', name:'Barrenador del Tallo', sci:'Diatraea saccharalis', icon:'ðŸª²',
+    vuln:['V10','EMB','FL','GRL'],
+    check: function(d) { return d.tmean >= 22 && d.hrMean >= 65; },
+    checkF: function(d) {
+      if (d.tmean >= 25 && d.hrMean >= 75) return 'high';
+      if (d.tmean >= 22 && d.hrMean >= 65) return 'med';
+      return 'none';
+    },
+    reasons: { fav:'Calor humedo durante elongacion y panojamiento favorece barrenado', unfav:'Temperatura o humedad insuficiente' },
+    rec: { high:'Monitorear tallos y panojas; buscar orificios, aserrin y quebrado.',
+           med:'Revisar plantas con entrenudos debilitados.', low:'Sin accion', none:'Sin accion' }
+  },
+  {
+    id:'mosquita_sorgo', name:'Mosquita del Sorgo', sci:'Contarinia sorghicola', icon:'ðŸ¦Ÿ',
+    vuln:['FL'],
+    check: function(d) { return d.tmean >= 20 && d.tmean <= 30 && d.hrMean >= 55 && d.precip < 10; },
+    checkF: function(d) {
+      if (d.tmean >= 23 && d.tmean <= 28 && d.hrMean >= 65 && d.precip < 5) return 'high';
+      if (d.tmean >= 20 && d.tmean <= 30 && d.hrMean >= 55) return 'med';
+      return 'none';
+    },
+    reasons: { fav:'Floracion con temperatura templado-calida favorece presencia en panoja', unfav:'Fuera de floracion o con clima poco favorable' },
+    rec: { high:'Revisar panojas en floracion temprano; foco en siembras escalonadas.',
+           med:'Observar panojas con lupa y golpes suaves sobre bandeja.', low:'Sin accion', none:'Sin accion' }
+  }
+];
 
 // Estado global
 var gState = { selectedSev: 0 };
@@ -667,7 +733,7 @@ function renderMain(params) {
     else if(!pest.inVuln) html+='<br><span class="pc-feno-warn">⏱ Cultivo fuera de la ventana vulnerable - sin alarma ('+pest.vulnStages.join(', ')+')</span>';
     html+='</div>';
     html+='<div class="pc-rec">'+pest.rec+'</div>';
-    html+='<div class="orientativa-tag">⚠️ Estimación orientativa — validar con monitoreo</div>';
+    html+='<div class="orientativa-tag">Riesgo calculado por clima, etapa y estacionalidad</div>';
     if ((pest.riskClass === 'med' || pest.riskClass === 'high') && pest.inSeason && pest.inVuln) {
       var prodSugerido = 'Lambda-cialotrina 5%';
       var dosisSugerida = 0.15;
@@ -882,13 +948,16 @@ window.amAnalizarPlagas = function() {
   // 2. Cultivo (Dashboard es el master, pero validamos)
   var dAuto = (loteAuto && loteAuto.data) || {};
   var cultivoEl = document.getElementById('s-cultivo');
-  var cultivo = normCultivoAM(dAuto.cultivo || (dAuto.calcKeys || {})['am_siembra_cultivo'] || (cultivoEl ? cultivoEl.value : 'soja'));
+  var ctxAuto = loteAuto && typeof window.amGetContextoCampania === 'function'
+    ? window.amGetContextoCampania(loteAuto, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+    : null;
+  var cultivo = normCultivoAM((ctxAuto && (ctxAuto.cultivo || ctxAuto.cultivoLabel)) || dAuto.cultivo || (dAuto.calcKeys || {})['am_siembra_cultivo'] || (cultivoEl ? cultivoEl.value : 'soja'));
   if (!PESTS[cultivo]) cultivo = 'soja';
 
   // 3. Fecha de siembra (Prioridad al input del módulo, fallback al Dashboard)
   var pfEl = document.getElementById('plagas-siembra');
   var sfEl = document.getElementById('s-fecha');
-  var siembra = fechaSiembraLoteAM(loteAuto,cultivo) || ((pfEl && pfEl.value) ? pfEl.value : (sfEl ? sfEl.value : ''));
+  var siembra = (ctxAuto && ctxAuto.fechaSiembra) || fechaSiembraLoteAM(loteAuto,cultivo) || ((pfEl && pfEl.value) ? pfEl.value : (sfEl ? sfEl.value : ''));
 
   // Sincronizar visualmente si se tomó del dashboard
   if (pfEl && !pfEl.value && siembra) pfEl.value = siembra;
@@ -973,6 +1042,13 @@ var PLAGAS_ESTACIONAL = {
     helicoverpa:      [11,12,1],
     trips_girasol:    [10,11,12],
   },
+};
+
+PLAGAS_ESTACIONAL.sorgo = {
+  pulgon_amarillo_sorgo: [11,12,1,2,3],
+  cogollero_sorgo:       [10,11,12,1],
+  diatraea_sorgo:        [12,1,2,3],
+  mosquita_sorgo:        [12,1,2],
 };
 
 window.plagasRenderEstacional = function() {

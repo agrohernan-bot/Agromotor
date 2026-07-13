@@ -3426,7 +3426,7 @@
   <div class="orientativa-banner" style="margin-top:1rem;border-radius:8px;">
     <div class="ob-icon">⚠️</div>
     <div class="ob-text">
-      <strong>Estimación orientativa</strong> — Los modelos evalúan condiciones climáticas favorables para el desarrollo poblacional. No reemplazan el monitoreo.
+      <strong>Riesgo integrado</strong> - El tablero cruza cultivo, etapa fenologica y clima reciente/proyectado para priorizar recorridas e intervenciones.
     </div>
   </div>
 
@@ -4114,12 +4114,16 @@
 // FENOLOGÍA · PLANIFICACIÓN
 // ════════════════════════════════════════════════
 function fpUsarLote() {
-  var ctx = typeof amGetContextoPlanificacion === 'function' ? amGetContextoPlanificacion() : null;
+  var loteActivo = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+  var ctxCamp = loteActivo && typeof amGetContextoCampania === 'function'
+    ? amGetContextoCampania(loteActivo, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+    : null;
+  var ctx = ctxCamp || (typeof amGetContextoPlanificacion === 'function' ? amGetContextoPlanificacion() : null);
   var lat = '', lon = '', fecha = '', cultivo = '';
-  if (ctx && ctx.lote) {
-    var d = ctx.lote.data || {};
-    fecha = ctx.fecha;
-    cultivo = ctx.cultivo;
+  if (ctx && (ctx.lote || ctxCamp)) {
+    var d = ((ctx.lote || loteActivo) && (ctx.lote || loteActivo).data) || {};
+    fecha = ctx.fechaSiembra || ctx.fecha;
+    cultivo = ctx.cultivo || ctx.cultivoLabel;
     if (d.coord) {
       var parts = d.coord.split(',');
       if (parts.length === 2) {
@@ -4221,6 +4225,9 @@ async function fpCalcular() {
 function _fpRender(res) {
   var ensoText = res.faseENSO === 'niño' ? '🌊 El Niño (+18%)' : res.faseENSO === 'niña' ? '🌵 La Niña (−18%)' : '⚖️ Neutro';
   var etapas = res.etapas || [];
+  var etapaFinal = etapas.length ? etapas[etapas.length - 1] : null;
+  var gddCosecha = etapaFinal && etapaFinal.gddAlcanzado != null ? etapaFinal.gddAlcanzado : res.gddTotal;
+  var fechaCosecha = etapaFinal && etapaFinal.fechaInicio ? etapaFinal.fechaInicio : res.fechaFin;
   var rows = etapas.map(function(e) {
     return '<tr style="background:' + (e.esCritica ? 'rgba(255,193,7,.07)' : 'transparent') + '">'
       + '<td style="padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.06)">' + (e.esCritica ? '⭐ ' : '') + e.nombre + '</td>'
@@ -4233,11 +4240,11 @@ function _fpRender(res) {
 
   var html = '<div class="card" style="margin-bottom:1rem">'
     + '<div style="display:flex;flex-wrap:wrap;gap:1.8rem;align-items:flex-end">'
-    + '<div><div style="font-size:1.7rem;font-weight:700;color:var(--accent)">' + Math.round(res.gddTotal || 0) + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">GDD Totales</div></div>'
+    + '<div><div style="font-size:1.7rem;font-weight:700;color:var(--accent)">' + Math.round(gddCosecha || 0) + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">GDD a cosecha</div></div>'
     + '<div><div style="font-size:1.7rem;font-weight:700;color:var(--accent)">' + etapas.length + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Estadios</div></div>'
     + '<div><div style="font-size:1.05rem;font-weight:600">' + ensoText + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">ENSO</div></div>'
     + '<div><div style="font-size:1.05rem;font-weight:600">' + (res.llegaMadurez ? '✅ Ciclo completo' : '⚠️ Ciclo incompleto') + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Madurez</div></div>'
-    + (res.fechaFin ? '<div><div style="font-size:1.05rem;font-weight:600">' + res.fechaFin + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Fecha fin estimada</div></div>' : '')
+    + (fechaCosecha ? '<div><div style="font-size:1.05rem;font-weight:600">' + fechaCosecha + '</div><div style="font-size:.76rem;color:var(--c2);margin-top:.1rem">Fecha cosecha estimada</div></div>' : '')
     + '</div></div>'
     + '<div class="card" style="margin-bottom:1rem;overflow-x:auto">'
     + '<table style="width:100%;border-collapse:collapse;font-size:.86rem">'
@@ -4285,6 +4292,9 @@ function fsUsarLote() {
   var lote = _fsLoteActivo();
   var d = (lote && lote.data) || {};
   var ck = d.calcKeys || {};
+  var ctxCamp = lote && typeof window.amGetContextoCampania === 'function'
+    ? window.amGetContextoCampania(lote, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+    : null;
   var coords = _fsCoordsLote(lote);
   if (!coords) {
     var coordMaster = document.getElementById('s-coord');
@@ -4296,6 +4306,11 @@ function fsUsarLote() {
   if (coords && !isNaN(coords.lat) && !isNaN(coords.lon)) {
     _fsSetVal('fs-lat', coords.lat.toFixed ? coords.lat.toFixed(5) : coords.lat);
     _fsSetVal('fs-lon', coords.lon.toFixed ? coords.lon.toFixed(5) : coords.lon);
+  }
+  if (ctxCamp && (ctxCamp.cultivo || ctxCamp.cultivoLabel || ctxCamp.fechaSiembra)) {
+    if (ctxCamp.fechaSiembra) _fsSetVal('fs-fecha', ctxCamp.fechaSiembra);
+    if (ctxCamp.cultivo || ctxCamp.cultivoLabel) _fsSetVal('fs-cultivo', _fsNormCultivo(ctxCamp.cultivo || ctxCamp.cultivoLabel));
+    return;
   }
   var planes = d.planificacionSiembra || {};
   var cultivoBase = d.cultivo || d.cultivoPlanificacion || ck['am_siembra_cultivo'] || '';
@@ -4371,6 +4386,7 @@ function _fsNormCultivo(c) {
   if (s.indexOf('maiz') >= 0) return 'maiz';
   if (s.indexOf('trigo') >= 0) return 'trigo';
   if (s.indexOf('girasol') >= 0) return 'girasol';
+  if (s.indexOf('sorgo') >= 0) return 'sorgo';
   if (s.indexOf('soja') >= 0) return 'soja';
   return s;
 }
@@ -4510,7 +4526,8 @@ function _fsRendimientoConfig(cultivo) {
     soja:    { nombre: 'Soja',    ky: 0.85, etcMin: 450, etcMax: 650, mmPorTon: 140 },
     maiz:    { nombre: 'Maiz',    ky: 0.90, etcMin: 500, etcMax: 700, mmPorTon: 120 },
     trigo:   { nombre: 'Trigo',   ky: 0.65, etcMin: 300, etcMax: 450, mmPorTon: 90 },
-    girasol: { nombre: 'Girasol', ky: 0.75, etcMin: 450, etcMax: 600, mmPorTon: 150 }
+    girasol: { nombre: 'Girasol', ky: 0.75, etcMin: 450, etcMax: 600, mmPorTon: 150 },
+    sorgo:   { nombre: 'Sorgo',   ky: 0.85, etcMin: 430, etcMax: 620, mmPorTon: 95 }
   };
   return cfg[_fsNormCultivo(cultivo)] || null;
 }
@@ -4519,6 +4536,10 @@ function _fsRendimientoObjetivo(cultivo) {
   var lote = _fsLoteActivo();
   var d = (lote && lote.data) || {};
   var ck = d.calcKeys || {};
+  var ctxCamp = lote && typeof window.amGetContextoCampania === 'function'
+    ? window.amGetContextoCampania(lote, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '', cultivo: cultivo || '' })
+    : null;
+  if (ctxCamp && ctxCamp.rendimientoObjetivo) return ctxCamp.rendimientoObjetivo;
   var cultKey = _fsNormCultivo(cultivo || d.cultivo || ck.am_siembra_cultivo);
   var planes = d.planificacionSiembra || {};
   var grupos = ['verano', 'invierno'];
@@ -4535,7 +4556,9 @@ function _fsRendimientoObjetivo(cultivo) {
     if (_fsNormCultivo(p.cultivo) === cultKey || !cultKey) valores.push(p.rendimientoObjetivo);
   });
   for (var i = 0; i < valores.length; i++) {
-    var n = parseFloat(valores[i]);
+    var n = typeof window.amNormalizarRendimientoObjetivo === 'function'
+      ? window.amNormalizarRendimientoObjetivo(valores[i], cultKey)
+      : parseFloat(valores[i]);
     if (!isNaN(n) && n > 0) return n;
   }
   return cultKey === 'maiz' ? 8.5 : cultKey === 'trigo' ? 3.5 : cultKey === 'girasol' ? 2.4 : cultKey === 'sorgo' ? 6.2 : 3.5;
@@ -4555,14 +4578,18 @@ function _fsAguaPerfilMm() {
   var h2 = parseFloat((document.getElementById('s-h2') || {}).value) || 0;
   var h3 = parseFloat((document.getElementById('s-h3') || {}).value) || 0;
   if (h1 > 0 || h2 > 0 || h3 > 0) {
-    var suelo = (document.getElementById('s-suelo') || {}).value || 'Molisol';
+    var loteAgua = _fsLoteActivo();
+    var ctxAgua = loteAgua && typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(loteAgua, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+      : null;
+    var suelo = (ctxAgua && ctxAgua.suelo) || (document.getElementById('s-suelo') || {}).value || 'Molisol';
     var sgPerfil = Object.assign({}, window._sgDatos || {});
     var labPerfil = window._labDatos || {};
     if (labPerfil.da != null) sgPerfil.da = labPerfil.da;
     if (labPerfil.cc != null) sgPerfil.cc = labPerfil.cc;
     if (labPerfil.pmp != null) sgPerfil.pmp = labPerfil.pmp;
     if (labPerfil.retencionBase) sgPerfil.retencionBase = labPerfil.retencionBase;
-    var cultivoPerfil = (document.getElementById('s-cultivo') || {}).value || '';
+    var cultivoPerfil = (ctxAgua && (ctxAgua.cultivo || ctxAgua.cultivoLabel)) || (document.getElementById('s-cultivo') || {}).value || '';
     var perfil = typeof window.amSoilWaterProfile === 'function'
       ? window.amSoilWaterProfile([
           {theta:h1,depthCm:6,sg:typeof window.amSoilAtDepth==='function'?window.amSoilAtDepth(sgPerfil,3,9):sgPerfil},
@@ -4935,6 +4962,13 @@ function _fsRenderAgendaNutricion(res, etapaActual) {
       ['Botón-floración', 'Boro / ajuste puntual', 'según análisis', 'No aplicar sin diagnóstico; cuidar estrés hídrico.'],
       ['Llenado', 'Sin fertilización de base', 'monitoreo', 'Prioridad: agua, sanidad y cosecha.']
     ];
+  } else if (cultivo === 'sorgo') {
+    items = [
+      ['Siembra', 'P + arranque', dosis('P'), 'Base al arranque, cuidar ubicacion y salinidad de la fuente.'],
+      ['V4-V6', 'N principal', dosis('N'), 'Ventana clave para sostener macollaje, area foliar y potencial.'],
+      ['Embuchado-floracion', 'Ajuste N / sanidad', dosis('N'), 'Solo ajustar si hay agua y respuesta probable; priorizar pulgon amarillo y enfermedades foliares.'],
+      ['Llenado', 'Sin fertilizacion de base', 'monitoreo', 'Prioridad: agua, sanidad y vuelco/cosecha.']
+    ];
   }
   if (!items.length) return '';
   var rows = items.map(function(it) {
@@ -5206,9 +5240,9 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=91"></script>
-<script src="js/config.js?v=198"></script>
+<script src="js/config.js?v=201"></script>
 <script src="js/login.js?v=90"></script>
-<script src="js/cache.js?v=103"></script>
+<script src="js/cache.js?v=104"></script>
 
 <!-- ══ CAPA 1.5: AGROMOTOR v2.0 SYSTEM SCRIPTS ══ -->
 <script src="js/modo-switch.js?v=85"></script>
@@ -5216,33 +5250,33 @@ function _fsRender(res, diasTranscurridos) {
 <script src="js/enso.js?v=88"></script>
 <script src="js/alertas.js?v=85"></script>
 <script src="js/barbecho.js?v=85"></script>
-<script src="js/fenologia.js?v=88"></script>
+<script src="js/fenologia.js?v=89"></script>
 <script src="js/informe-cierre.js?v=85"></script>
 <script src="js/surco-guardrails.js?v=1"></script>
 
 <!-- ══ CAPA 2: NAVEGACIÓN — antes que todo para que switchMod esté disponible ══ -->
-<script src="js/nav.js?v=110"></script>
+<script src="js/nav.js?v=111"></script>
 
 
 
 <!-- ══ CAPA 3: MÓDULOS DE ARRANQUE — cargados al inicio ══ -->
 <script src="js/siembra.js?v=99"></script>
 <script src="js/siembra-apis.js?v=91"></script>
-<script src="js/nutricion.js?v=123"></script>
+<script src="js/nutricion.js?v=124"></script>
 <script src="js/economia.js?v=87"></script>
 <script src="js/maquinaria.js?v=88"></script>
 <script src="js/asistente.js?v=87"></script>
 <script src="js/pdf.js?v=85"></script>
 <script src="js/pdf-modulo.js?v=86"></script>
 <script src="js/onboarding.js?v=85"></script>
-<script src="js/alerta-sanitaria.js?v=92"></script>
+<script src="js/alerta-sanitaria.js?v=94"></script>
 <script src="js/dashboard-ux.js?v=85"></script>
 <script src="js/dashboard.js?v=99"></script>
-<script src="js/dashboard-lotes.js?v=153"></script>
+<script src="js/dashboard-lotes.js?v=154"></script>
 <script src="js/clientes.js?v=1"></script>
 <script src="js/lote-nuevo.js?v=100"></script>
 <script src="js/cultivares.js?v=95"></script>
-<script src="js/score-cultivares.js?v=102"></script>
+<script src="js/score-cultivares.js?v=103"></script>
 <script src="js/siembra-planificacion.js?v=6"></script>
 <script src="js/graficos-economia.js?v=85"></script>
 <script src="js/decision.js?v=85"></script>

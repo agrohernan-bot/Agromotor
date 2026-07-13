@@ -169,6 +169,13 @@ window.ncSetEstrategia = function(s) {
 function ncGv(id) { var e = document.getElementById(id); return e ? (e.value || '') : ''; }
 function ncGf(id) { return parseFloat(document.getElementById(id) && document.getElementById(id).value) || 0; }
 function ncCultStr() {
+  try {
+    var _ltCtx = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
+    if (_ltCtx && typeof window.amGetContextoCampania === 'function') {
+      var _ctx = window.amGetContextoCampania(_ltCtx, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' });
+      if (_ctx && (_ctx.cultivoLabel || _ctx.cultivo)) return _ctx.cultivoLabel || _ctx.cultivo;
+    }
+  } catch(_) {}
   // 1. Buscar en planificacionSiembra el grupo que coincide con el rendimientoObjetivo activo
   try {
     var _lt = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
@@ -658,6 +665,9 @@ window.ncActualizar = function() {
   var ncSup     = document.getElementById('nc-sup');
   var bhRend    = document.getElementById('bh-rend-obj');
   var ecPrecio  = document.getElementById('ec-precio-disp');
+  var ctxNut = lote && typeof window.amGetContextoCampania === 'function'
+    ? window.amGetContextoCampania(lote, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+    : null;
 
   // Superficie desde el lote activo
   if (lote && lote.data) {
@@ -671,11 +681,12 @@ window.ncActualizar = function() {
     }
   }
 
-  if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
+  if (ctxNut && ctxNut.rendimientoObjetivo && ncRend && !ncRend._touched) ncRend.value = ctxNut.rendimientoObjetivo;
+  else if (bhRend && bhRend.value && ncRend && !ncRend._touched) ncRend.value = bhRend.value;
   if (ecPrecio && ecPrecio.value && ncPrecio && !ncPrecio._touched) ncPrecio.value = ecPrecio.value;
 
   // Rendimiento objetivo desde panel de planificación — prioridad máxima, ejecuta último
-  if (lote && lote.data && lote.data.rendimientoObjetivo && ncRend && !ncRend._touched) {
+  if (!ctxNut && lote && lote.data && lote.data.rendimientoObjetivo && ncRend && !ncRend._touched) {
     ncRend.value = lote.data.rendimientoObjetivo;
   }
 };

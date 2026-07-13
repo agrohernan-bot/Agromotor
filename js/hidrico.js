@@ -385,11 +385,15 @@
     bhActualizarEnsoSelector();
     bhRenderContextoRecorrida();
 
-    const cult      = gv('s-cultivo') || 'Soja';
+    const loteActivo = bhLoteActivo();
+    const ctxCamp = loteActivo && typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(loteActivo, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+      : null;
+    const cult      = (ctxCamp && ctxCamp.cultivoLabel) || gv('s-cultivo') || 'Soja';
     if ($('bh-lbl-cult')) $('bh-lbl-cult').textContent = cult;
-    const suelo     = gv('s-suelo') || 'Molisol';
+    const suelo     = (ctxCamp && ctxCamp.suelo) || gv('s-suelo') || 'Molisol';
     if ($('bh-lbl-suelo')) $('bh-lbl-suelo').textContent = suelo;
-    const rendObj   = gi('bh-rend-obj') || 3.5;
+    const rendObj   = (ctxCamp && ctxCamp.rendimientoObjetivo) || gi('bh-rend-obj') || 3.5;
     const aguaPerf  = gi('bh-agua-perfil') || 120;
     const capMax    = gi('bh-cap-max') || 180;
     const precipCiclo = gi('bh-precip') || 550;
@@ -399,7 +403,6 @@
     const eficRiego = gi('bh-efic-riego') / 100 || 0.85;
     const m3Disp    = gi('bh-m3-disp') || 2000;
     const ensoFase  = gv('bh-enso') || 'neutro';
-    const loteActivo = bhLoteActivo();
     const riegoAplicadoEfectivo = bhRiegoAplicadoCiclo(loteActivo);
     bhRenderRiegoAplicado(loteActivo);
 

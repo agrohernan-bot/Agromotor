@@ -888,10 +888,11 @@
   function renderFenologiaMonitoreo(lote) {
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
-    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var grupoFen = typeof window.amGrupoPorCultivo === 'function' ? window.amGrupoPorCultivo(cultivo) : _grupoPorCultivo(cultivo);
+    var ctx = typeof window.amGetContextoCampania === 'function' ? window.amGetContextoCampania(lote) : null;
+    var cultivo = (ctx && ctx.cultivoLabel) || d.cultivo || ck['am_siembra_cultivo'] || '';
+    var grupoFen = (ctx && ctx.grupo) || (typeof window.amGrupoPorCultivo === 'function' ? window.amGrupoPorCultivo(cultivo) : _grupoPorCultivo(cultivo));
     var srFen = grupoFen && d.siembraRealizada ? (d.siembraRealizada[grupoFen] || null) : null;
-    var fechaSiembra = _fechaSiembraEfectiva(d, ck, cultivo);
+    var fechaSiembra = (ctx && ctx.fechaSiembra) || _fechaSiembraEfectiva(d, ck, cultivo);
     var key = normCultivoFen(cultivo);
     var etapas = key ? FEN_ETAPAS_MON[key] : null;
     var ciclo = parseFloat(ck['am_fen_duracion_ciclo']) || (key ? FEN_CICLO_DEFAULT_MON[key] : 0);
@@ -959,12 +960,13 @@
   function renderWidgetMonitoreo(lote) {
     var d  = lote.data || {};
     var ck = d.calcKeys || {};
+    var ctx = typeof window.amGetContextoCampania === 'function' ? window.amGetContextoCampania(lote) : null;
 
     var fenEtapa     = ck['am_fen_etapa_hoy']       || '';
     var fenFechaFin  = ck['am_fen_fecha_etapa_fin']  || '';
     var fenDurCiclo  = parseFloat(ck['am_fen_duracion_ciclo']) || 0;
-    var cultivo      = d.cultivo || ck['am_siembra_cultivo']   || '';
-    var fechaSiembra = _fechaSiembraEfectiva(d, ck, cultivo);
+    var cultivo      = (ctx && ctx.cultivoLabel) || d.cultivo || ck['am_siembra_cultivo']   || '';
+    var fechaSiembra = (ctx && ctx.fechaSiembra) || _fechaSiembraEfectiva(d, ck, cultivo);
     var aguaMm       = parseFloat(ck['am_hidrico_agua_actual_mm'])  || 0;
     var aguaCC       = parseFloat(ck['am_hidrico_cap_max_mm'])      || 0;
     var deficitAcum  = parseFloat(ck['am_hidrico_deficit_acum_mm']) || 0;
@@ -1256,8 +1258,9 @@
     var d = lote.data || {};
     var ck = d.calcKeys || {};
     var loteId = esc(lote.id);
-    var cultivo = d.cultivo || ck['am_siembra_cultivo'] || '';
-    var fecha = _fechaSiembraEfectiva(d, ck, cultivo);
+    var ctx = typeof window.amGetContextoCampania === 'function' ? window.amGetContextoCampania(lote) : null;
+    var cultivo = (ctx && ctx.cultivoLabel) || d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha = (ctx && ctx.fechaSiembra) || _fechaSiembraEfectiva(d, ck, cultivo);
     var etapa = ck['am_fen_etapa_hoy'] || '';
     var clima = _sanClima(hubData || _hubDataCache[lote.id + '_' + (new Date().getMonth() + 1)] || {});
     var plagas = _sanNombresPlagas(cultivo);
@@ -1293,7 +1296,7 @@
     html +=   '<div class="dlw-san-body">';
     if (plagas.length) {
       html += '<div class="dlw-san-focus">Mirar: ' + esc(plagas.slice(0, 3).join(' - ')) + '</div>';
-      html += '<div class="dlw-san-note">Presion estacional para ' + esc(cultivo || 'cultivo') + '. Validar con recorrida y umbrales.</div>';
+      html += '<div class="dlw-san-note">Presion estacional para ' + esc(cultivo || 'cultivo') + '. Priorizar recorrida y umbrales del modulo.</div>';
     } else {
       html += '<div class="dlw-san-focus">Sin plaga estacional dominante este mes</div>';
       html += '<div class="dlw-san-note">Mantener monitoreo semanal y revisar bordes/lotes vecinos.</div>';
@@ -1326,7 +1329,7 @@
     html += '</div>';
 
     html += '</div>';
-    html += '<div class="dlw-san-foot">Orientativo: prioriza que revisar; la decision requiere monitoreo a campo.</div>';
+    html += '<div class="dlw-san-foot">Prioridad de recorrida calculada por cultivo, etapa, estacionalidad y clima del lote.</div>';
     html += '</div>';
     return html;
   }
@@ -2402,11 +2405,14 @@
     activarLote(loteId);
     _loteAbierto    = loteId;
     _seccionAbierta = null;
+    window.AM_CAMPANIA_GRUPO_ACTIVO = '';
     renderPanel();
   };
 
   window.dlAbrirSeccion = function (secKey) {
     _seccionAbierta = secKey;
+    var sec = SECCIONES[secKey] || {};
+    if (sec.grupo) window.AM_CAMPANIA_GRUPO_ACTIVO = sec.grupo;
     renderPanel();
   };
 
@@ -2415,11 +2421,14 @@
   window.dlVolverCards = function () {
     _loteAbierto    = null;
     _seccionAbierta = null;
+    window.AM_CAMPANIA_GRUPO_ACTIVO = '';
     renderPanel();
   };
 
   window.dlAbrirModulo = function (mod, loteId) {
     activarLote(loteId);
+    var secActual = SECCIONES[_seccionAbierta] || {};
+    if (secActual.grupo) window.AM_CAMPANIA_GRUPO_ACTIVO = secActual.grupo;
     if (mod === 'siembra') {
       var _lt = getLote(loteId);
       if (_lt && _lt.data) {
@@ -2458,7 +2467,7 @@
         }
       }
     }
-    _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod };
+    _modContext = { loteId: loteId, secKey: _seccionAbierta, mod: mod, grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' };
     if (typeof switchMod === 'function') switchMod(mod);
     if (mod === 'pulverizacion') {
       setTimeout(function() {
@@ -2643,6 +2652,22 @@
     var lote = getLote(loteId);
     if (!lote) return;
     lote.data = lote.data || {};
+    var plan = ((lote.data || {}).planificacionSiembra || {})[grupo] || {};
+    var cultivoPlan = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+    var fechaPlan = (typeof window.amFechaISO === 'function')
+      ? window.amFechaISO(plan.fechaSiembraConf || plan.fechaSiembraPlan || lote.data.fechaSiembraConf || lote.data.fechaSiembraPlan || '')
+      : (plan.fechaSiembraConf || plan.fechaSiembraPlan || lote.data.fechaSiembraConf || lote.data.fechaSiembraPlan || '');
+    var rendPlan = typeof window.amNormalizarRendimientoObjetivo === 'function'
+      ? window.amNormalizarRendimientoObjetivo(plan.rendimientoObjetivo || lote.data.rendimientoObjetivo, cultivoPlan)
+      : (parseFloat(plan.rendimientoObjetivo || lote.data.rendimientoObjetivo) || null);
+    lote.data.cultivo = cultivoPlan;
+    lote.data.cultivoPlanificacion = cultivoPlan;
+    if (fechaPlan) {
+      lote.data.fechaSiembraPlan = fechaPlan;
+      lote.data.fechaSiembra = fechaPlan;
+    }
+    if (rendPlan) lote.data.rendimientoObjetivo = rendPlan;
+    window.AM_CAMPANIA_GRUPO_ACTIVO = grupo;
     if (typeof amSetFaseGrupo === 'function') amSetFaseGrupo(lote, grupo, 'pre-siembra');
     else {
       lote.data.faseGrupos = lote.data.faseGrupos || {};

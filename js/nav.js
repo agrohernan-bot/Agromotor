@@ -62,6 +62,7 @@ function switchMod(mod) {
     if (typeof amMostrarModalUpgrade === 'function') amMostrarModalUpgrade(mod);
     return;
   }
+  amCerrarModalNavegacion();
 
   var modLazy = {
     'hidrico':       ['hidrico.js'],
@@ -108,20 +109,40 @@ function switchMod(mod) {
   _activarModulo(mod);
 }
 
+function amCerrarModalNavegacion() {
+  var modal = document.getElementById('am-modal');
+  if (modal && !modal.classList.contains('hidden')) {
+    if (typeof amCerrarModal === 'function') {
+      try { amCerrarModal(); } catch(e) {}
+    }
+    modal.classList.add('hidden');
+    modal.style.opacity = '';
+    modal.style.transform = '';
+    modal.style.transition = '';
+  }
+  document.documentElement.classList.remove('modal-open', 'am-modal-open');
+  document.body.classList.remove('modal-open', 'am-modal-open');
+}
+
 function _activarModulo(mod) {
   // Sincronizar master inputs (s-cultivo y s-fecha) con el contexto de la planificación antes de activar el módulo
   var loteCtx = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
   var secCtx = typeof dlGetSeccionAbierta === 'function' ? dlGetSeccionAbierta() : '';
-  if (loteCtx && (secCtx === 'plangruesa' || secCtx === 'planfina')) {
-    var grupoCtx = secCtx === 'planfina' ? 'invierno' : 'verano';
-    var planCtx = (loteCtx.data && loteCtx.data.planificacionSiembra && loteCtx.data.planificacionSiembra[grupoCtx]) || {};
-    var cultCtx = planCtx.cultivo || (grupoCtx === 'invierno' ? 'Trigo' : 'Soja');
-    var fechaCtx = planCtx.fechaSiembraConf || planCtx.fechaSiembraPlan || '';
-
-    var masterCult = document.getElementById('s-cultivo');
-    if (masterCult && cultCtx) masterCult.value = cultCtx;
-    var masterFecha = document.getElementById('s-fecha');
-    if (masterFecha && fechaCtx) masterFecha.value = fechaCtx;
+  if (loteCtx) {
+    var grupoCtx = secCtx === 'planfina' ? 'invierno'
+      : secCtx === 'plangruesa' ? 'verano'
+      : (window.AM_CAMPANIA_GRUPO_ACTIVO || '');
+    var ctxCamp = typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(loteCtx, { grupo: grupoCtx })
+      : null;
+    if (ctxCamp) {
+      var masterCult = document.getElementById('s-cultivo');
+      if (masterCult && ctxCamp.cultivoLabel) masterCult.value = ctxCamp.cultivoLabel;
+      var masterFecha = document.getElementById('s-fecha');
+      if (masterFecha && ctxCamp.fechaSiembra && !masterFecha._touched) masterFecha.value = ctxCamp.fechaSiembra;
+      var masterSuelo = document.getElementById('s-suelo');
+      if (masterSuelo && ctxCamp.suelo) masterSuelo.value = ctxCamp.suelo;
+    }
   }
 
   document.querySelectorAll('.nav-tab:not(.locked)').forEach(function(t) { t.classList.remove('active'); });
@@ -305,14 +326,22 @@ function _activarModulo(mod) {
     var grupo = '';
     if (sec === 'planfina') grupo = 'invierno';
     else if (sec === 'plangruesa') grupo = 'verano';
-
-    if (grupo) {
-      var plan = (lote.data && lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) || {};
-      var cultivo = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
-      var fecha = plan.fechaSiembraConf || plan.fechaSiembraPlan || '';
-      return { cultivo: cultivo, fecha: fecha, grupo: grupo, lote: lote };
+    if (typeof window.amGetContextoCampania === 'function') {
+      var ctx = window.amGetContextoCampania(lote, { grupo: grupo || window.AM_CAMPANIA_GRUPO_ACTIVO || '' });
+      return {
+        cultivo: ctx.cultivoLabel || ctx.cultivo,
+        fecha: ctx.fechaSiembra,
+        grupo: ctx.grupo,
+        rendimientoObjetivo: ctx.rendimientoObjetivo,
+        suelo: ctx.suelo,
+        lote: lote
+      };
     }
-    return null;
+    if (!grupo) return null;
+    var plan = (lote.data && lote.data.planificacionSiembra && lote.data.planificacionSiembra[grupo]) || {};
+    var cultivo = plan.cultivo || (grupo === 'invierno' ? 'Trigo' : 'Soja');
+    var fecha = plan.fechaSiembraConf || plan.fechaSiembraPlan || '';
+    return { cultivo: cultivo, fecha: fecha, grupo: grupo, lote: lote };
   };
   window.amGetContextoPlanificacion = amGetContextoPlanificacion;
 
@@ -430,7 +459,12 @@ function _activarModulo(mod) {
     // Rendimiento objetivo desde planificación (si el usuario no lo cambió manualmente)
     var bhRendEl = document.getElementById('bh-rend-obj');
     var loteHid = typeof amGetLoteActivo === 'function' ? amGetLoteActivo() : null;
-    if (bhRendEl && !bhRendEl._touched && loteHid && loteHid.data && loteHid.data.rendimientoObjetivo) {
+    var ctxHid = loteHid && typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(loteHid, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
+      : null;
+    if (bhRendEl && !bhRendEl._touched && ctxHid && ctxHid.rendimientoObjetivo) {
+      bhRendEl.value = ctxHid.rendimientoObjetivo;
+    } else if (bhRendEl && !bhRendEl._touched && loteHid && loteHid.data && loteHid.data.rendimientoObjetivo) {
       bhRendEl.value = loteHid.data.rendimientoObjetivo;
     }
     if (typeof bhActualizar === 'function') bhActualizar();
@@ -765,5 +799,3 @@ function renderSueloModulo(d) {
   window.renderSueloModulo = renderSueloModulo;
 
 })();
-
-
