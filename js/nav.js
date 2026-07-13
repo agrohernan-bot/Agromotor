@@ -474,6 +474,9 @@ function _activarModulo(mod) {
       var ensoVencido = !ensoTs || (Date.now() - ensoTs.getTime() > 3600000);
       if (ensoVencido) consultarENSO();
     }
+    if (typeof window.amFuentesHealthCheck === 'function') {
+      window.amFuentesHealthCheck(false);
+    }
     // Gráfico diario automático
     setTimeout(function() { if (typeof window.ghDiarioRender === 'function') window.ghDiarioRender(); }, 500);
   }

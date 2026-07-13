@@ -264,6 +264,34 @@ test('AgroENSO genera lectura agronomica accionable por fase actual', () => {
   assert.match(oportunidad.summary, /favorable/i);
 });
 
+test('AgroENSO parsea probabilidades NOAA CPC y cruza anio de campania', () => {
+  const enso = require(path.join(ROOT, 'js/enso.js'));
+  const html = `
+    Issued July 2026
+    ENSO Probabilities based on RONI
+    Season La Nina Neutral El Nino
+    JJA Jun Jul Aug 0 0 100
+    JAS Jul Aug Sep 0 1 99
+    ASO Aug Sep Oct 0 2 98
+    SON Sep Oct Nov 0 3 97
+    OND Oct Nov Dec 0 4 96
+    NDJ Nov Dec Jan 0 5 95
+    DJF Dec Jan Feb 0 6 94
+    JFM Jan Feb Mar 0 7 93
+    FMA Feb Mar Apr 0 8 92
+  `;
+
+  const parsed = enso._parseENSOProbabilities(html);
+
+  assert.equal(parsed.rows.length, 9);
+  assert.equal(parsed.rows[0].season, 'JJA');
+  assert.equal(parsed.rows[0].dominante, 'nino');
+  assert.equal(parsed.rows[0].year, 2026);
+  assert.equal(parsed.rows[8].season, 'FMA');
+  assert.equal(parsed.rows[8].year, 2027);
+  assert.equal(parsed.rows[8].nino, 92);
+});
+
 test('Pulverizacion hereda lote activo y persiste historial en lote.data', () => {
   const pulverizacion = read('js/pulverizacion.js');
 

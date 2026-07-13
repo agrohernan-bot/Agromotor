@@ -182,9 +182,30 @@
     let sinopsis = 'Sinopsis desde base de datos de AgroENSO.';
     let probNino = 20, probNeutro = 55, probNina = 25;
     let cargadoDeDb = false;
+    let probCpc = null;
+
+    if (typeof window.amEnsoGetProbabilidades === 'function') {
+      try {
+        probCpc = await window.amEnsoGetProbabilidades(false);
+        var rowCpc = probCpc && Array.isArray(probCpc.rows) ? probCpc.rows[0] : null;
+        if (rowCpc) {
+          fase = rowCpc.dominante || fase;
+          probNino = rowCpc.nino;
+          probNeutro = rowCpc.neutro;
+          probNina = rowCpc.nina;
+          trimestreStr = rowCpc.season + ' ' + rowCpc.year;
+          sinopsis = 'Pronostico probabilistico NOAA/CPC: ' + rowCpc.label + ' con ' +
+            Math.max(rowCpc.nino, rowCpc.neutro, rowCpc.nina) + '% de ' +
+            (rowCpc.dominante === 'nino' ? 'El Nino' : rowCpc.dominante === 'nina' ? 'La Nina' : 'Neutral') + '.';
+          cargadoDeDb = true;
+        }
+      } catch(e) {
+        console.warn('[ENSO] Probabilidades NOAA/CPC no disponibles:', e.message);
+      }
+    }
 
     // 1. Intentar consultar oni_cache desde Supabase en tiempo real
-    if (typeof window.AM_SB !== 'undefined') {
+    if (!cargadoDeDb && typeof window.AM_SB !== 'undefined') {
       try {
         const { data, error } = await window.AM_SB.from('oni_cache').select('*').eq('id', 1).single();
         if (!error && data) {
@@ -253,7 +274,10 @@
         label: fase==='nino'?'El Niño':fase==='nina'?'La Niña':'Neutro',
         ts: new Date(),
         oni_valor: oniValor,
-        trimestre: trimestreStr
+        trimestre: trimestreStr,
+        probabilidades: probCpc && probCpc.rows ? probCpc.rows : null,
+        probabilidadesFuente: probCpc && probCpc.fuente,
+        probabilidadesIssued: probCpc && probCpc.issued
       };
     }
 
@@ -315,7 +339,8 @@
         ${barra('☀️ La Niña', d.prob_nina, '#C94A2A')}
         <div style="margin-top:.7rem;font-size:.75rem;color:rgba(74,46,26,.6);font-style:italic;line-height:1.5">
           ${d.sinopsis.slice(0,250)}${d.sinopsis.length>250?'...':''}
-        </div>`;
+        </div>
+        ${typeof window.amEnsoRenderTimeline === 'function' ? window.amEnsoRenderTimeline({ limit: 9 }) : ''}`;
     }
 
     if (typeof window.amEnsoUpdateMacroCard === 'function') {

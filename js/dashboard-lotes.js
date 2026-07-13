@@ -79,6 +79,7 @@
   var _climaCache = {};
   var _hubDataCache = {};  // keyed by loteId_month
   var _hydricAutoCache = {};
+  var _ensoProbSolicitado = false;
   var _mapaInstances = {};
   var _dlClienteFiltro = null;
 
@@ -693,6 +694,40 @@
     return html;
   }
 
+  function renderEnsoPlanificacion(lote, grupo) {
+    var ctx = typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(lote, { grupo: grupo || '' })
+      : null;
+    var cultivo = (ctx && (ctx.cultivoLabel || ctx.cultivo)) || '';
+    var fecha = (ctx && ctx.fechaSiembra) || '';
+    var outlook = typeof window.amEnsoGetOutlookCampania === 'function'
+      ? window.amEnsoGetOutlookCampania(cultivo, fecha)
+      : null;
+    if (!outlook && typeof window.amEnsoGetProbabilidades === 'function' && !_ensoProbSolicitado) {
+      _ensoProbSolicitado = true;
+      window.amEnsoGetProbabilidades(false).then(function() {
+        try { renderPanel(); } catch(_) {}
+      });
+    }
+    if (!outlook) return '';
+    var col = outlook.fase === 'nino' ? '#C94A2A' : outlook.fase === 'nina' ? '#4F7DB8' : '#C8A255';
+    var nota = outlook.fase === 'nino'
+      ? 'Mayor probabilidad de excesos y ventanas operativas cortas; cuidar drenaje y sanidad.'
+      : outlook.fase === 'nina'
+        ? 'Mayor riesgo de deficit; ajustar objetivo de rendimiento a reserva y ambiente.'
+        : 'Escenario neutral; priorizar agua util del perfil y pronostico corto.';
+    return '<div class="dlw-panel" style="border-color:rgba(42,90,140,.22)">'
+      + '<div class="dlw-panel-titulo">ENSO probable para la campania</div>'
+      + '<div class="dlw-grid">'
+      + '<div class="dlw-card"><div class="dlw-card-titulo">Periodo critico estimado</div>'
+      + '<div class="dlw-valor" style="color:' + col + '">' + esc(outlook.label) + ' ' + outlook.probabilidad + '%</div>'
+      + '<div class="dlw-meta">' + esc(cultivo || 'Cultivo') + (fecha ? ' - siembra ' + esc(fecha) : '') + ' - ' + esc(outlook.temporada) + '</div></div>'
+      + '<div class="dlw-card"><div class="dlw-card-titulo">Lectura para planificar</div>'
+      + '<div class="dlw-meta">' + esc(nota) + '</div>'
+      + '<div class="dlw-meta">Nina ' + outlook.nina + '% - Neutro ' + outlook.neutro + '% - Nino ' + outlook.nino + '%</div></div>'
+      + '</div></div>';
+  }
+
   // ══════════════════════════════════════════════════════
   // PANTALLA 3: SECCIÓN (lista de módulos)
   // ══════════════════════════════════════════════════════
@@ -727,6 +762,7 @@
     }
     if (secKey === 'planfina' || secKey === 'plangruesa') {
       html += renderWidgetPlanFina(lote);
+      html += renderEnsoPlanificacion(lote, sec.grupo || '');
       // Score de cultivos filtrado por grupo (invierno / verano)
       if (typeof window.dlRenderScoreCultivares === 'function') {
         html += window.dlRenderScoreCultivares(lote, sec.grupo || '');
@@ -998,8 +1034,22 @@
     var colorAgua = pctAgua < 30 ? '#D4522A' : pctAgua < 55 ? '#C8A255' : '#6DBF82';
 
     // ENSO
-    var ensoColor = ensoFase.includes('Niño') ? '#E87A5A' : ensoFase.includes('Niña') ? '#7AAEF5' : '#C8A255';
-    var ensoIco   = ensoFase.includes('Niño') ? '🌡️' : ensoFase.includes('Niña') ? '🌬️' : '⚖️';
+    var ensoOutlook = typeof window.amEnsoGetOutlookCampania === 'function'
+      ? window.amEnsoGetOutlookCampania(cultivo, fechaSiembra)
+      : null;
+    if (!ensoOutlook && typeof window.amEnsoGetProbabilidades === 'function' && !_ensoProbSolicitado) {
+      _ensoProbSolicitado = true;
+      window.amEnsoGetProbabilidades(false).then(function() {
+        try { renderPanel(); } catch(_) {}
+      });
+    }
+    var ensoDominante = (ensoOutlook && ensoOutlook.fase) || (ensoFase || '').toLowerCase();
+    var ensoColor = ensoDominante.indexOf('nino') >= 0 || ensoDominante.indexOf('niño') >= 0 ? '#C94A2A'
+      : ensoDominante.indexOf('nina') >= 0 || ensoDominante.indexOf('niña') >= 0 ? '#4F7DB8'
+      : '#C8A255';
+    var ensoIco = ensoDominante.indexOf('nino') >= 0 || ensoDominante.indexOf('niño') >= 0 ? '🌡️'
+      : ensoDominante.indexOf('nina') >= 0 || ensoDominante.indexOf('niña') >= 0 ? '🌬️'
+      : '⚖️';
 
     var html = '<div class="dlw-panel">';
 
@@ -1049,13 +1099,23 @@
 
     // ENSO + Alertas (columna derecha)
     html += '<div class="dlw-card">';
-    if (ensoFase) {
+    if (ensoOutlook) {
+      html += '<div class="dlw-card-titulo">' + ensoIco + ' ENSO de campania</div>';
+      html += '<div class="dlw-valor" style="color:' + ensoColor + '">' + esc(ensoOutlook.label) + ' ' + ensoOutlook.probabilidad + '%</div>';
+      html += '<div class="dlw-meta">Periodo critico aprox.: ' + esc(ensoOutlook.temporada) + ' (' + esc(ensoOutlook.season) + ')</div>';
+      html += '<div style="display:flex;height:8px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);margin-top:.5rem">'
+        + '<span style="width:' + ensoOutlook.nina + '%;background:#4F7DB8"></span>'
+        + '<span style="width:' + ensoOutlook.neutro + '%;background:#C8A255"></span>'
+        + '<span style="width:' + ensoOutlook.nino + '%;background:#C94A2A"></span>'
+        + '</div>';
+      html += '<div class="dlw-meta">Nina ' + ensoOutlook.nina + '% - Neutro ' + ensoOutlook.neutro + '% - Nino ' + ensoOutlook.nino + '%</div>';
+    } else if (ensoFase) {
       html += '<div class="dlw-card-titulo">' + ensoIco + ' ENSO / Clima</div>';
       html += '<div class="dlw-valor" style="color:' + ensoColor + '">' + esc(ensoFase) + '</div>';
       html += '<div class="dlw-meta">Condición climática de la campaña</div>';
     }
     if (alertasVisibles.length > 0) {
-      html += '<div class="dlw-card-titulo" style="margin-top:' + (ensoFase ? '.75rem' : '0') + '">⚠ Alertas activas</div>';
+      html += '<div class="dlw-card-titulo" style="margin-top:' + ((ensoOutlook || ensoFase) ? '.75rem' : '0') + '">⚠ Alertas activas</div>';
       alertasVisibles.slice(0, 3).forEach(function (a) {
         var txt = typeof a === 'string' ? a : (a.mensaje || a.texto || JSON.stringify(a));
         html += '<div class="dlw-alerta-item">' + esc(txt.substring(0, 80)) + '</div>';
@@ -1162,6 +1222,9 @@
     html += '<div class="dlw-meta">θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · agua total modelada ' + Math.round(perfil.aguaTotalMm) + ' mm</div>';
     if (bajoPmp) {
       html += '<div class="dlw-meta" style="color:#D4522A">0 mm útiles sobre el PMP estimado; no significa 0 mm de agua total.</div>';
+      html += '<div class="dlw-meta" style="color:#D4522A">Diagnostico: theta actual ' +
+        (perfil.thetaVolumetrica*100).toFixed(1) + '% <= PMP ' + (perfil.pmp*100).toFixed(1) +
+        '% vol. Revisar fuente de umbrales si el campo no acompaña.</div>';
     } else {
       html += '<div class="dlw-meta">Inicio de estrés: ' + pctCritico + '% útil · ' +
         (margen >= 0 ? margen + ' puntos por encima' : Math.abs(margen) + ' puntos por debajo') + '</div>';

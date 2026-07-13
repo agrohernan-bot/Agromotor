@@ -15,8 +15,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ONI_URL_TXT  = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt";
+const ENSO_PROB_URL = "https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/";
 const LS_CACHE_KEY = "am_enso_cache_v2";
+const LS_PROB_CACHE_KEY = "am_enso_probabilidades_v1";
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;   // 7 días
+const PROB_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 const ONI_UMBRAL_NINYO = 0.5;
 const ONI_UMBRAL_NINA  = -0.5;
@@ -26,6 +29,8 @@ const AJUSTE_NEUTRO =  0.00;
 const AJUSTE_NINA   = -0.18;   // -18%
 
 const PERIODOS_ONI = ["DJF","JFM","FMA","MAM","AMJ","MJJ","JJA","JAS","ASO","SON","OND","NDJ"];
+const ENSO_MONTHS = { Jan:1, Feb:2, Mar:3, Apr:4, May:5, Jun:6, Jul:7, Aug:8, Sep:9, Oct:10, Nov:11, Dec:12 };
+const ENSO_MONTHS_ES = { Jan:"Ene", Feb:"Feb", Mar:"Mar", Apr:"Abr", May:"May", Jun:"Jun", Jul:"Jul", Aug:"Ago", Sep:"Sep", Oct:"Oct", Nov:"Nov", Dec:"Dic" };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TRADUCTOR DE FASE
@@ -69,6 +74,167 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function ensoDominante(row) {
+  if (!row) return 'neutro';
+  var max = Math.max(row.nino || 0, row.neutro || 0, row.nina || 0);
+  if ((row.nino || 0) === max) return 'nino';
+  if ((row.nina || 0) === max) return 'nina';
+  return 'neutro';
+}
+
+function ensoLabelFase(fase) {
+  return fase === 'nino' ? 'El Nino' : fase === 'nina' ? 'La Nina' : 'Neutro';
+}
+
+function parseIssuedDate(texto) {
+  var m = String(texto || '').match(/Issued\s+([A-Za-z]+)\s+(\d{4})/i);
+  if (!m) return { month: (new Date()).getMonth() + 1, year: (new Date()).getFullYear(), label: '' };
+  var month = ENSO_MONTHS[m[1].slice(0,3)] || ((new Date()).getMonth() + 1);
+  return { month: month, year: parseInt(m[2], 10), label: m[1] + ' ' + m[2] };
+}
+
+function parseENSOProbabilities(html) {
+  var issued = parseIssuedDate(html);
+  var rows = [];
+  var re = /\b([A-Z]{3})\s+([A-Z][a-z]{2})\s+([A-Z][a-z]{2})\s+([A-Z][a-z]{2})\s+(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\b/g;
+  var match;
+  while ((match = re.exec(String(html || ''))) !== null) {
+    var centralMonth = ENSO_MONTHS[match[3]] || 1;
+    var year = rows.length ? rows[rows.length - 1].year : issued.year;
+    if (rows.length && centralMonth < rows[rows.length - 1].centralMonth) year = rows[rows.length - 1].year + 1;
+    else if (!rows.length && centralMonth < issued.month - 1) year = issued.year + 1;
+    var row = {
+      season: match[1],
+      months: [match[2], match[3], match[4]],
+      label: [ENSO_MONTHS_ES[match[2]] || match[2], ENSO_MONTHS_ES[match[3]] || match[3], ENSO_MONTHS_ES[match[4]] || match[4]].join('-'),
+      centralMonth: centralMonth,
+      year: year,
+      nina: parseInt(match[5], 10),
+      neutro: parseInt(match[6], 10),
+      nino: parseInt(match[7], 10),
+      fuente: 'NOAA/CPC RONI'
+    };
+    row.dominante = ensoDominante(row);
+    row.confianza = Math.max(row.nina, row.neutro, row.nino);
+    rows.push(row);
+    if (rows.length >= 9) break;
+  }
+  return { issued: issued.label || '', ts: Date.now(), rows: rows, fuente: 'NOAA/CPC ENSO Probabilities' };
+}
+
+function leerProbCache(strictTtl) {
+  try {
+    var raw = localStorage.getItem(LS_PROB_CACHE_KEY);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (!obj || !Array.isArray(obj.rows) || !obj.rows.length) return null;
+    if (strictTtl && Date.now() - (obj.ts || 0) > PROB_CACHE_TTL_MS) return null;
+    return obj;
+  } catch (_) { return null; }
+}
+
+function escribirProbCache(obj) {
+  if (!obj || !Array.isArray(obj.rows) || !obj.rows.length) return;
+  try { localStorage.setItem(LS_PROB_CACHE_KEY, JSON.stringify(obj)); } catch (_) {}
+}
+
+function getENSOProbabilidadesSync() {
+  return leerProbCache(false);
+}
+
+async function getENSOProbabilidades(force) {
+  if (!force) {
+    var cached = leerProbCache(true);
+    if (cached) return cached;
+  }
+  try {
+    var resp = await fetch(ENSO_PROB_URL, { cache: "no-store" });
+    if (!resp.ok) throw new Error('NOAA ENSO probabilities HTTP ' + resp.status);
+    var html = await resp.text();
+    var parsed = parseENSOProbabilities(html);
+    if (!parsed.rows.length) throw new Error('NOAA ENSO probabilities sin tabla parseable');
+    escribirProbCache(parsed);
+    return parsed;
+  } catch (e) {
+    var fallback = getENSOProbabilidadesSync();
+    if (fallback) {
+      fallback.advertencia = 'Usando ultimo pronostico ENSO cacheado: ' + e.message;
+      return fallback;
+    }
+    return { issued:'', ts:Date.now(), rows:[], fuente:'NOAA/CPC ENSO Probabilities', advertencia:e.message };
+  }
+}
+
+function monthDiff(row, target) {
+  return Math.abs((row.year - target.getFullYear()) * 12 + (row.centralMonth - (target.getMonth() + 1)));
+}
+
+function ensoSeleccionarTemporada(fechaIso, offsetMeses) {
+  var prob = getENSOProbabilidadesSync();
+  if (!prob || !Array.isArray(prob.rows) || !prob.rows.length) return null;
+  var base = fechaIso ? new Date(fechaIso + 'T12:00:00') : new Date();
+  if (isNaN(base.getTime())) base = new Date();
+  base.setMonth(base.getMonth() + (offsetMeses || 0));
+  var rows = prob.rows.slice().sort(function(a,b) { return monthDiff(a, base) - monthDiff(b, base); });
+  return rows[0] || prob.rows[0];
+}
+
+function ensoPeriodoCriticoOffset(cultivo) {
+  var c = String(cultivo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (c.indexOf('maiz') >= 0) return 3;
+  if (c.indexOf('soja') >= 0) return 4;
+  if (c.indexOf('sorgo') >= 0) return 3;
+  if (c.indexOf('girasol') >= 0) return 3;
+  if (c.indexOf('trigo') >= 0 || c.indexOf('cebada') >= 0) return 4;
+  return 3;
+}
+
+function ensoGetOutlookCampania(cultivo, fechaSiembra) {
+  var actual = ensoSeleccionarTemporada('', 0);
+  var critica = ensoSeleccionarTemporada(fechaSiembra, ensoPeriodoCriticoOffset(cultivo));
+  var row = critica || actual;
+  if (!row) return null;
+  return {
+    actual: actual,
+    critica: critica,
+    fase: row.dominante,
+    label: ensoLabelFase(row.dominante),
+    probabilidad: row.confianza,
+    temporada: row.label,
+    season: row.season,
+    nino: row.nino,
+    neutro: row.neutro,
+    nina: row.nina
+  };
+}
+
+function renderENSOTimeline(options) {
+  options = options || {};
+  var prob = getENSOProbabilidadesSync();
+  if (!prob || !Array.isArray(prob.rows) || !prob.rows.length) return '';
+  var colors = { nino:'#C94A2A', neutro:'#2A5A8C', nina:'#4F7DB8' };
+  var rows = prob.rows.slice(0, options.limit || 9);
+  var bars = rows.map(function(r) {
+    var col = colors[r.dominante] || colors.neutro;
+    return '<div title="' + escapeHtml(r.label + ': Nino ' + r.nino + '% · Neutro ' + r.neutro + '% · Nina ' + r.nina + '%') + '" style="min-width:72px;flex:1">'
+      + '<div style="font-size:.62rem;color:rgba(74,46,26,.55);margin-bottom:.22rem">' + escapeHtml(r.season) + '</div>'
+      + '<div style="height:54px;border-radius:7px;background:rgba(74,46,26,.06);display:flex;align-items:flex-end;overflow:hidden;border:1px solid rgba(74,46,26,.08)">'
+      + '<div style="width:100%;height:' + Math.max(6, r.confianza) + '%;background:' + col + ';opacity:.88"></div>'
+      + '</div>'
+      + '<div style="font-size:.66rem;font-weight:800;color:' + col + ';margin-top:.25rem">' + r.confianza + '%</div>'
+      + '<div style="font-size:.6rem;color:rgba(74,46,26,.5)">' + escapeHtml(r.label) + '</div>'
+      + '</div>';
+  }).join('');
+  return '<div style="margin-top:.75rem">'
+    + '<div style="display:flex;justify-content:space-between;gap:.7rem;align-items:center;margin-bottom:.45rem">'
+    + '<div style="font-size:.72rem;font-weight:800;color:rgba(74,46,26,.65)">Pronostico ENSO por trimestre movil</div>'
+    + '<div style="font-size:.62rem;color:rgba(74,46,26,.45)">' + escapeHtml(prob.issued || 'NOAA/CPC') + '</div>'
+    + '</div>'
+    + '<div style="display:flex;gap:.38rem;overflow-x:auto;padding-bottom:.2rem">' + bars + '</div>'
+    + '<div style="font-size:.62rem;color:rgba(74,46,26,.45);line-height:1.35;margin-top:.45rem">Fuente NOAA/CPC RONI · 9 temporadas moviles · actualiza el segundo jueves de cada mes.</div>'
+    + '</div>';
 }
 
 function faseDbToLabel(faseDb) {
@@ -548,6 +714,7 @@ function renderStandardProbabilities(container, infoText) {
   }
 
   html += renderAdvisoryBox(advisory);
+  html += renderENSOTimeline({ limit: 9 });
   container.innerHTML = html;
   if (typeof amEnsoUpdateMacroCard === 'function') {
     amEnsoUpdateMacroCard();
@@ -766,6 +933,11 @@ if (typeof module !== "undefined" && module.exports) {
     getFactorAjuste,
     limpiarCache,
     renderizarBadgeENSO,
+    getENSOProbabilidades,
+    getENSOProbabilidadesSync,
+    parseENSOProbabilities,
+    ensoGetOutlookCampania,
+    renderENSOTimeline,
     AJUSTE_NINYO,
     AJUSTE_NEUTRO,
     AJUSTE_NINA,
@@ -776,6 +948,7 @@ if (typeof module !== "undefined" && module.exports) {
     _buildDetailedAdvisory: buildDetailedAdvisory,
     _faseLocalToDb: faseLocalToDb,
     _parsearONI:     parsearONI,
+    _parseENSOProbabilities: parseENSOProbabilities,
     _clasificarFase: clasificarFase,
     _periodoAFecha:  periodoAFecha,
   };
@@ -788,6 +961,11 @@ if (typeof module !== "undefined" && module.exports) {
     getFactorAjuste,
     limpiarCache,
     renderizarBadgeENSO,
+    getENSOProbabilidades,
+    getENSOProbabilidadesSync,
+    parseENSOProbabilities,
+    ensoGetOutlookCampania,
+    renderENSOTimeline,
     AJUSTE_NINYO,
     AJUSTE_NEUTRO,
     AJUSTE_NINA,
@@ -795,6 +973,10 @@ if (typeof module !== "undefined" && module.exports) {
   window.amEnsoGetImpacto = amEnsoGetImpacto;
   window.amEnsoRenderDetailedPanel = amEnsoRenderDetailedPanel;
   window.amEnsoUpdateMacroCard = amEnsoUpdateMacroCard;
+  window.amEnsoGetProbabilidades = getENSOProbabilidades;
+  window.amEnsoGetProbabilidadesSync = getENSOProbabilidadesSync;
+  window.amEnsoGetOutlookCampania = ensoGetOutlookCampania;
+  window.amEnsoRenderTimeline = renderENSOTimeline;
 }
 
 })();
