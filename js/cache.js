@@ -752,23 +752,20 @@ async function amGuardarLotesRemotos(force) {
     console.warn('Lotes remote save skipped:', up.error.message);
     return;
   }
+}
 
-  const rem = await AM_SB
+async function amEliminarLoteRemoto(loteId) {
+  if (!amLotesRemoteDisponible() || !loteId) return false;
+  const del = await AM_SB
     .from('lotes')
-    .select('lote_id')
-    .eq('user_id', uid);
-
-  if (rem.error || !Array.isArray(rem.data)) return;
-  const actuales = new Set(rows.map(r => r.lote_id));
-  const stale = rem.data.map(r => r.lote_id).filter(id => !actuales.has(id));
-  if (stale.length) {
-    const del = await AM_SB
-      .from('lotes')
-      .delete()
-      .eq('user_id', uid)
-      .in('lote_id', stale);
-    if (del.error) console.warn('Lotes remote delete skipped:', del.error.message);
+    .delete()
+    .eq('user_id', AM_SESION.id)
+    .eq('lote_id', String(loteId));
+  if (del.error) {
+    console.warn('Lote remote delete skipped:', del.error.message);
+    return false;
   }
+  return true;
 }
 
 async function amCargarLotesRemotos(force) {
@@ -834,6 +831,7 @@ async function amCargarLotesRemotos(force) {
 }
 
 window.amGuardarLotesRemotos = amGuardarLotesRemotos;
+window.amEliminarLoteRemoto = amEliminarLoteRemoto;
 window.amCargarLotesRemotos = amCargarLotesRemotos;
 
 const CALC_KEYS = [

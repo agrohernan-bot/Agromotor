@@ -292,6 +292,41 @@ test('cache no sube lote default vacio cuando ya existen lotes reales', async ()
   assert.equal(JSON.parse(localStorage.getItem(key)).lotes[0].id, 'lote-real');
 });
 
+test('cache no borra lotes remotos en sincronizacion automatica', async () => {
+  const { window } = loadCacheWithStorage({
+    'am_lotes_v2_user-3': JSON.stringify({
+      activo: 'local-1',
+      lotes: [{ id: 'local-1', nombre: 'Local 1', data: { coord: '-31,-58', cultivo: 'soja' } }],
+    }),
+  });
+  let deleteCalls = 0;
+  let upsertRows = null;
+  window.AM_SESION = { id: 'user-3' };
+  window.amCargarLotesGlobales();
+  window.AM_SB = {
+    from() {
+      return {
+        upsert(rows) {
+          upsertRows = rows;
+          return Promise.resolve({ error: null });
+        },
+        delete() {
+          deleteCalls += 1;
+          return {
+            eq() { return this; },
+          };
+        },
+      };
+    },
+  };
+
+  await window.amGuardarLotesRemotos(true);
+
+  assert.ok(upsertRows);
+  assert.equal(upsertRows.length, 1);
+  assert.equal(deleteCalls, 0);
+});
+
 test('contexto de campania prioriza plan activo y normaliza rendimiento heredado', () => {
   const initial = JSON.stringify({
     activo: 'lote-a',

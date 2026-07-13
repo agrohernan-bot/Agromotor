@@ -2606,6 +2606,9 @@
     }
     if (_modContext && _modContext.loteId === loteId) _modContext = null;
     if (typeof amGuardarLotesEstado === 'function') amGuardarLotesEstado();
+    if (typeof window.amEliminarLoteRemoto === 'function') {
+      window.amEliminarLoteRemoto(loteId);
+    }
     if (typeof cacheCargar === 'function') cacheCargar();
     if (typeof amRenderSelectLotes === 'function') amRenderSelectLotes();
     if (typeof amToast === 'function') amToast('Lote "' + lote.nombre + '" eliminado', 'ok');
