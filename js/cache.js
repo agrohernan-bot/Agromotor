@@ -23,10 +23,47 @@
     try { return JSON.parse(JSON.stringify(data || {})); }
     catch (_) { return {}; }
   }
+  function amBackupLotesLocal(motivo) {
+    try {
+      const key = getLotesKey();
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      localStorage.setItem('am_lotes_backup_' + (motivo || 'auto') + '_' + stamp, raw);
+    } catch (_) {}
+  }
   function amLotesTieneDatosReales(lote) {
     if (!lote || !lote.data) return false;
     const d = lote.data;
     return !!(d.coord || d.cultivo || d.superficie || d.polygon || d.geojson || d.fecha || d.fechaSiembraPlan);
+  }
+  function amFusionarLotesLocalRemoto(locales, remotos) {
+    const map = new Map();
+    (Array.isArray(remotos) ? remotos : []).forEach(l => {
+      if (!l || l.id == null) return;
+      map.set(String(l.id), l);
+    });
+    (Array.isArray(locales) ? locales : []).forEach(l => {
+      if (!l || l.id == null) return;
+      const id = String(l.id);
+      const remoto = map.get(id);
+      if (!remoto) {
+        map.set(id, l);
+        return;
+      }
+      const localReal = amLotesTieneDatosReales(l);
+      const remotoReal = amLotesTieneDatosReales(remoto);
+      map.set(id, localReal || !remotoReal ? {
+        id: l.id,
+        nombre: l.nombre || remoto.nombre || 'Lote',
+        data: Object.assign({}, remoto.data || {}, l.data || {})
+      } : {
+        id: remoto.id,
+        nombre: remoto.nombre || l.nombre || 'Lote',
+        data: Object.assign({}, l.data || {}, remoto.data || {})
+      });
+    });
+    return Array.from(map.values());
   }
   window.AM_LOTES = [];
   window.AM_LOTE_ACTIVO = 'default';
@@ -261,6 +298,7 @@ function amCargarLotesGlobales() {
     var _legacyData = localStorage.getItem(LOTES_LEGACY_KEY);
     if (_legacyData) {
       if (!localStorage.getItem(_newKey)) localStorage.setItem(_newKey, _legacyData);
+      localStorage.setItem('am_lotes_backup_legacy_' + _uid, _legacyData);
       localStorage.removeItem(LOTES_LEGACY_KEY);
     }
   }
@@ -746,20 +784,30 @@ async function amCargarLotesRemotos(force) {
 
     const remotos = Array.isArray(res.data) ? res.data : [];
     if (remotos.length) {
-      AM_LOTES = remotos.map(r => ({
+      const localesPrevios = Array.isArray(AM_LOTES) ? AM_LOTES.slice() : [];
+      const activoPrevio = AM_LOTE_ACTIVO;
+      const remotosMapeados = remotos.map(r => ({
         id: r.lote_id,
         nombre: r.nombre || 'Lote',
         data: r.data || {}
       }));
-      const activo = remotos.find(r => r.activo) || remotos[0];
-      AM_LOTE_ACTIVO = activo.lote_id;
+      AM_LOTES = amFusionarLotesLocalRemoto(localesPrevios, remotosMapeados);
+      const activoRemoto = remotos.find(r => r.activo);
+      const activoExiste = AM_LOTES.some(l => String(l.id) === String(activoPrevio));
+      AM_LOTE_ACTIVO = activoExiste ? activoPrevio : (activoRemoto ? activoRemoto.lote_id : AM_LOTES[0].id);
       amNormalizarEstadoLotes();
 
+      if (localesPrevios.length > remotos.length) {
+        amBackupLotesLocal('remote_less_than_local');
+      }
       amPersistirLotesLocal();
       amRenderSelectLotes();
       if (typeof cacheCargar === 'function') cacheCargar();
       if (typeof amActualizarBadgesLote === 'function') amActualizarBadgesLote();
       if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
+      if (AM_LOTES.length > remotos.length) {
+        await amGuardarLotesRemotos(true);
+      }
       return true;
     }
 

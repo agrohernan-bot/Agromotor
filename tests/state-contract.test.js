@@ -170,6 +170,71 @@ test('cache crea lote default cuando la lista queda vacia', () => {
   assert.equal(JSON.parse(localStorage.getItem('am_global_lotes_v2')).activo, 'default');
 });
 
+test('cache fusiona lotes remotos sin pisar lotes locales existentes', async () => {
+  const key = 'am_lotes_v2_user-1';
+  const localStorage = createLocalStorage({
+    [key]: JSON.stringify({
+      activo: 'lote-local-2',
+      lotes: [
+        { id: 'lote-local-1', nombre: 'Local 1', data: { coord: '-31,-58', cultivo: 'soja' } },
+        { id: 'lote-local-2', nombre: 'Local 2', data: { coord: '-32,-59', cultivo: 'maiz' } },
+        { id: 'lote-remoto-1', nombre: 'Local enriquecido', data: { coord: '-33,-60', cultivo: 'sorgo', superficie: 20 } },
+      ],
+    }),
+  });
+  let upsertRows = null;
+  const sandbox = {
+    document: createDocument(),
+    localStorage,
+    console: { warn() {}, log() {}, error() {} },
+    setTimeout() {},
+    clearTimeout() {},
+    AM_SESION: { id: 'user-1' },
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  vm.runInNewContext(read('js/cache.js'), sandbox, { filename: 'js/cache.js' });
+  sandbox.amCargarLotesGlobales();
+  sandbox.AM_SB = {
+    from() {
+      return {
+        select(columns) {
+          return {
+            eq() {
+              if (columns === 'lote_id') return Promise.resolve({ data: upsertRows.map(r => ({ lote_id: r.lote_id })) });
+              return {
+                order() {
+                  return Promise.resolve({
+                    data: [
+                      { lote_id: 'lote-remoto-1', nombre: 'Remoto 1', activo: true, data: { cultivo: 'sorgo' } },
+                    ],
+                  });
+                },
+              };
+            },
+          };
+        },
+        upsert(rows) {
+          upsertRows = rows;
+          return Promise.resolve({ error: null });
+        },
+      };
+    },
+  };
+
+  await sandbox.amCargarLotesRemotos(true);
+
+  assert.equal(sandbox.AM_LOTES.length, 3);
+  assert.equal(
+    JSON.stringify(Array.from(sandbox.AM_LOTES, l => l.id).sort()),
+    JSON.stringify(['lote-local-1', 'lote-local-2', 'lote-remoto-1'])
+  );
+  assert.equal(sandbox.AM_LOTE_ACTIVO, 'lote-local-2');
+  assert.ok(upsertRows);
+  assert.equal(upsertRows.length, 3);
+  assert.ok(JSON.parse(localStorage.getItem(key)).lotes.length === 3);
+});
+
 test('contexto de campania prioriza plan activo y normaliza rendimiento heredado', () => {
   const initial = JSON.stringify({
     activo: 'lote-a',
