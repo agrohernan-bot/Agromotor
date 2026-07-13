@@ -37,14 +37,20 @@
     const d = lote.data;
     return !!(d.coord || d.cultivo || d.superficie || d.polygon || d.geojson || d.fecha || d.fechaSiembraPlan);
   }
+  function amLoteDefaultVacio(lote) {
+    return !!(lote && String(lote.id) === 'default' && !amLotesTieneDatosReales(lote));
+  }
   function amFusionarLotesLocalRemoto(locales, remotos) {
     const map = new Map();
+    const remotosConDatos = (Array.isArray(remotos) ? remotos : []).some(amLotesTieneDatosReales);
     (Array.isArray(remotos) ? remotos : []).forEach(l => {
       if (!l || l.id == null) return;
+      if (remotosConDatos && amLoteDefaultVacio(l)) return;
       map.set(String(l.id), l);
     });
     (Array.isArray(locales) ? locales : []).forEach(l => {
       if (!l || l.id == null) return;
+      if (remotosConDatos && amLoteDefaultVacio(l)) return;
       const id = String(l.id);
       const remoto = map.get(id);
       if (!remoto) {
@@ -725,7 +731,9 @@ async function amGuardarLotesRemotos(force) {
   if (!amLotesRemoteDisponible() || (_amLotesRemoteLoading && !force)) return;
   amNormalizarEstadoLotes();
   const uid = AM_SESION.id;
-  const lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
+  let lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
+  const hayLotesReales = lotes.some(amLotesTieneDatosReales);
+  if (hayLotesReales) lotes = lotes.filter(l => !amLoteDefaultVacio(l));
   if (!lotes.length) return;
 
   const rows = lotes.map(l => ({

@@ -235,6 +235,63 @@ test('cache fusiona lotes remotos sin pisar lotes locales existentes', async () 
   assert.ok(JSON.parse(localStorage.getItem(key)).lotes.length === 3);
 });
 
+test('cache no sube lote default vacio cuando ya existen lotes reales', async () => {
+  const key = 'am_lotes_v2_user-2';
+  const localStorage = createLocalStorage({
+    [key]: JSON.stringify({
+      activo: 'default',
+      lotes: [{ id: 'default', nombre: 'Lote Principal', data: { faseGrupos: { verano: 'planificacion', invierno: 'planificacion' } } }],
+    }),
+  });
+  let upsertRows = null;
+  const sandbox = {
+    document: createDocument(),
+    localStorage,
+    console: { warn() {}, log() {}, error() {} },
+    setTimeout() {},
+    clearTimeout() {},
+    AM_SESION: { id: 'user-2' },
+  };
+  sandbox.window = sandbox;
+  sandbox.globalThis = sandbox;
+  vm.runInNewContext(read('js/cache.js'), sandbox, { filename: 'js/cache.js' });
+  sandbox.amCargarLotesGlobales();
+  sandbox.AM_SB = {
+    from() {
+      return {
+        select(columns) {
+          return {
+            eq() {
+              if (columns === 'lote_id') return Promise.resolve({ data: upsertRows.map(r => ({ lote_id: r.lote_id })) });
+              return {
+                order() {
+                  return Promise.resolve({
+                    data: [
+                      { lote_id: 'lote-real', nombre: 'Real', activo: true, data: { coord: '-31,-58', cultivo: 'soja' } },
+                    ],
+                  });
+                },
+              };
+            },
+          };
+        },
+        upsert(rows) {
+          upsertRows = rows;
+          return Promise.resolve({ error: null });
+        },
+      };
+    },
+  };
+
+  await sandbox.amCargarLotesRemotos(true);
+
+  assert.equal(sandbox.AM_LOTES.length, 1);
+  assert.equal(sandbox.AM_LOTES[0].id, 'lote-real');
+  assert.equal(sandbox.AM_LOTE_ACTIVO, 'lote-real');
+  assert.equal(upsertRows, null);
+  assert.equal(JSON.parse(localStorage.getItem(key)).lotes[0].id, 'lote-real');
+});
+
 test('contexto de campania prioriza plan activo y normaliza rendimiento heredado', () => {
   const initial = JSON.stringify({
     activo: 'lote-a',
