@@ -953,6 +953,69 @@ test('dlAplicarSnapshotSiembra conserva fecha legacy y registra snapshot post-si
   assert.equal(lote.data.siembraRealizada.invierno.snapshotPostSiembra.postSiembra.calidadTapado, 'Regular');
 });
 
+test('dashboard de lotes agrupa duplicados visuales y muestra ENSO en la tarjeta', () => {
+  const initial = JSON.stringify({
+    activo: 'real',
+    lotes: [
+      {
+        id: 'real',
+        nombre: 'Papá Estación Yeruá',
+        data: {
+          coord: '-31.40,-58.10',
+          superficie: 152.5,
+          cultivo: 'Trigo',
+          fechaSiembra: '2026-06-07',
+          faseGrupos: { invierno: 'en-curso' },
+        },
+      },
+      {
+        id: 'plan',
+        nombre: 'Papa Estacion Yerua',
+        data: {
+          coord: '-31.40,-58.10',
+          superficie: 152.5,
+          cultivo: 'Soja',
+          fechaSiembra: '2026-10-30',
+          faseGrupos: { verano: 'planificacion' },
+        },
+      },
+    ],
+  });
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.addEventListener = function() {};
+  window.alert = function(msg) { window._lastAlert = msg; };
+  window.amCargarLotesGlobales();
+  window.document.ensureElement('mod-lotes');
+  window.amEnsoGetOutlookCampania = function() {
+    return {
+      fase: 'nino',
+      label: 'El Nino',
+      probabilidad: 62,
+      temporada: 'Oct-Nov-Dic',
+      season: 'OND',
+      nina: 12,
+      neutro: 26,
+      nino: 62,
+    };
+  };
+
+  vm.runInNewContext(read('js/dashboard-lotes.js'), window, { filename: 'js/dashboard-lotes.js' });
+  window.dlInit();
+
+  const visibles = window.dlGetLotesVisibles();
+  assert.equal(visibles.length, 1);
+  assert.equal(visibles[0].id, 'real');
+  assert.equal(visibles[0]._dlDuplicados.length, 1);
+
+  const html = window.document.getElementById('mod-lotes').innerHTML;
+  assert.match(html, /Lotes similares agrupados/);
+  assert.match(html, /ENSO proximo/);
+  assert.match(html, /El Nino 62%/);
+
+  window.dlMostrarDuplicadosLote('real');
+  assert.match(window._lastAlert, /Papa Estacion Yerua/);
+});
+
 test('mapeo geografico Nominatim a IDs de Supabase', () => {
   const prov = "Provincia de Entre Ríos";
   const county = "Departamento Concordia";

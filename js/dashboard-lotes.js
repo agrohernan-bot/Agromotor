@@ -221,6 +221,91 @@
     return null;
   }
 
+  function _normTextoLote(s) {
+    s = String(s || '').toLowerCase().trim();
+    try { s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, ''); } catch(e) {}
+    return s.replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function _superficieLote(lote) {
+    var d = lote && lote.data ? lote.data : {};
+    var sup = parseFloat(d.superficie);
+    if (typeof turf !== 'undefined' && d.geojson && d.geojson.geometry) {
+      try {
+        var areaHa = Math.round(turf.area(d.geojson) / 10000 * 10) / 10;
+        if (areaHa > 0) sup = areaHa;
+      } catch(_e) {}
+    }
+    return isNaN(sup) ? 0 : sup;
+  }
+
+  function _loteIdentidadKey(lote) {
+    var d = lote && lote.data ? lote.data : {};
+    var nombre = _normTextoLote(lote && lote.nombre);
+    var sup = _superficieLote(lote);
+    var coords = _coordsFromLote(lote);
+    var coordKey = coords
+      ? (Math.round(coords.lat * 1000) / 1000) + ',' + (Math.round(coords.lng * 1000) / 1000)
+      : '';
+    if (!nombre || (!sup && !coordKey)) return '';
+    return [nombre, sup ? Math.round(sup * 10) / 10 : '', coordKey || _normTextoLote(d.coord || '')].join('|');
+  }
+
+  function _estadoRank(lote) {
+    var estado = getEstado(lote);
+    if (estado === 'creciendo' || estado === 'cosechando') return 5;
+    if (estado === 'sembrado') return 4;
+    if (estado === 'planificando') return 2;
+    return 1;
+  }
+
+  function _loteTs(lote) {
+    var d = lote && lote.data ? lote.data : {};
+    return parseFloat(d.updatedAt || d.editadoAt || d.createdAt || d.ts || 0) || 0;
+  }
+
+  function _preferirLotePrincipal(a, b) {
+    if (!a) return b;
+    if (!b) return a;
+    var ar = _estadoRank(a), br = _estadoRank(b);
+    if (br !== ar) return br > ar ? b : a;
+    if (String(b.id) === String(window.AM_LOTE_ACTIVO)) return b;
+    if (String(a.id) === String(window.AM_LOTE_ACTIVO)) return a;
+    return _loteTs(b) > _loteTs(a) ? b : a;
+  }
+
+  function _agruparLotesDuplicados(lotes) {
+    var grupos = {};
+    var visibles = [];
+    (Array.isArray(lotes) ? lotes : []).forEach(function(lote) {
+      var key = _loteIdentidadKey(lote);
+      if (!key) {
+        visibles.push(lote);
+        return;
+      }
+      if (!grupos[key]) grupos[key] = { principal: lote, duplicados: [] };
+      else {
+        var previo = grupos[key].principal;
+        var principal = _preferirLotePrincipal(previo, lote);
+        if (principal === previo) grupos[key].duplicados.push(lote);
+        else {
+          grupos[key].principal = lote;
+          grupos[key].duplicados.push(previo);
+        }
+      }
+    });
+    Object.keys(grupos).forEach(function(key) {
+      var g = grupos[key];
+      if (g.duplicados.length) {
+        g.principal._dlDuplicados = g.duplicados.slice();
+      } else if (g.principal && g.principal._dlDuplicados) {
+        delete g.principal._dlDuplicados;
+      }
+      visibles.push(g.principal);
+    });
+    return visibles;
+  }
+
   function _zonaCampana(lote) {
     var coords = _coordsFromLote(lote);
     if (!coords) return 'pampeana_norte';
@@ -346,7 +431,7 @@
       }, 50);
     } else {
       panel.innerHTML = renderCards();
-      var lotes = window.AM_LOTES || [];
+      var lotes = _agruparLotesDuplicados(window.AM_LOTES || []);
       setTimeout(function() {
         _initMiniMaps(lotes);
         _fetchClimaCards(lotes);
@@ -380,6 +465,8 @@
   // ══════════════════════════════════════════════════════
   function renderCards() {
     var lotes  = window.AM_LOTES || [];
+    var lotesVisibles = _agruparLotesDuplicados(lotes);
+    var duplicadosOcultos = Math.max(0, lotes.length - lotesVisibles.length);
     var limite = typeof amGetLoteLimit === 'function' ? amGetLoteLimit() : 5;
 
     var html = '<div class="dl-page dl-page-cards">';
@@ -390,8 +477,9 @@
     html +=     '<h1 class="dl-page-titulo">Mis Lotes</h1>';
     // Mostrar contador solo si hay sesión activa (limite > 1 = logueado)
     var contadorTxt = (limite > 1)
-      ? lotes.length + ' / ' + limite + ' lotes'
-      : lotes.length + (lotes.length === 1 ? ' lote' : ' lotes');
+      ? lotesVisibles.length + ' / ' + limite + ' lotes'
+      : lotesVisibles.length + (lotesVisibles.length === 1 ? ' lote' : ' lotes');
+    if (duplicadosOcultos) contadorTxt += ' - ' + duplicadosOcultos + ' similar agrupado';
     html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + contadorTxt + '</span></p>';
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
@@ -402,8 +490,14 @@
     html += '</div>';
 
     html += renderIntegridadLotes();
+    if (duplicadosOcultos) {
+      html += '<div class="dlw-panel" style="border-color:rgba(200,162,85,.28);margin-bottom:.75rem">'
+        + '<div class="dlw-panel-titulo">Lotes similares agrupados</div>'
+        + '<div class="dlw-meta">Detecte ' + duplicadosOcultos + ' registro similar por nombre, superficie y ubicacion. No lo borre: queda resguardado y accesible desde la tarjeta principal.</div>'
+        + '</div>';
+    }
     var clientesUnicos = {};
-    lotes.forEach(function (l) {
+    lotesVisibles.forEach(function (l) {
       var cn = (l.data && l.data.clienteNombre) ? l.data.clienteNombre.trim() : '';
       clientesUnicos[cn] = (clientesUnicos[cn] || 0) + 1;
     });
@@ -411,7 +505,7 @@
     var hayFiltros = nomClientes.length > 1 || (nomClientes.length === 1 && nomClientes[0] !== '');
     if (hayFiltros) {
       html += '<div class="dl-cliente-filtros">';
-      html += '<button class="am-chip' + (_dlClienteFiltro === null ? ' am-chip-active' : '') + '" onclick="window._dlFiltrar(null)">Todos (' + lotes.length + ')</button>';
+      html += '<button class="am-chip' + (_dlClienteFiltro === null ? ' am-chip-active' : '') + '" onclick="window._dlFiltrar(null)">Todos (' + lotesVisibles.length + ')</button>';
       nomClientes.slice().sort(function(a,b){ if(!a)return 1;if(!b)return -1;return a.localeCompare(b,'es'); }).forEach(function(cn) {
         var activo = _dlClienteFiltro === cn;
         html += '<button class="am-chip' + (activo ? ' am-chip-active' : '') + '" onclick="window._dlFiltrar(\'' + esc(cn).replace(/'/g,"\\'") + '\')">' + esc(cn || 'Sin cliente') + ' (' + clientesUnicos[cn] + ')</button>';
@@ -419,9 +513,9 @@
       html += '</div>';
     }
 
-    var lotesRender = lotes;
+    var lotesRender = lotesVisibles;
     if (_dlClienteFiltro !== null) {
-      lotesRender = lotes.filter(function (l) {
+      lotesRender = lotesVisibles.filter(function (l) {
         return ((l.data && l.data.clienteNombre) ? l.data.clienteNombre.trim() : '') === _dlClienteFiltro;
       });
     }
@@ -442,7 +536,7 @@
     });
 
     // Slots vacíos hasta el límite (máx 6 en pantalla)
-    var slots = Math.min(limite, 6) - lotes.length;
+    var slots = Math.min(limite, 6) - lotesVisibles.length;
     for (var i = 0; i < slots; i++) {
       html += '<div class="dl-card dl-card-slot" onclick="window.dlCrearLote()">';
       html +=   '<div class="dl-slot-inner"><span class="dl-slot-ico">＋</span><span class="dl-slot-txt">Nuevo lote</span></div>';
@@ -465,6 +559,39 @@
       + '<div class="dlw-meta">' + a.total + ' lotes en este dispositivo - ' + a.reales + ' con datos - ' + a.backups + ' backups locales</div></div>'
       + '<div style="font-size:.74rem;font-weight:800;color:' + col + '">' + (a.remoto ? 'Sync remota activa' : 'Solo local') + '</div>'
       + '</div></div>';
+  }
+
+  function renderDuplicadosLote(lote) {
+    var dup = lote && Array.isArray(lote._dlDuplicados) ? lote._dlDuplicados : [];
+    if (!dup.length) return '';
+    var label = dup.length === 1 ? '1 registro similar resguardado' : dup.length + ' registros similares resguardados';
+    return '<div onclick="event.stopPropagation();window.dlMostrarDuplicadosLote&&window.dlMostrarDuplicadosLote(\'' + esc(lote.id) + '\')" '
+      + 'style="margin:.55rem 0 .15rem;padding:.42rem .55rem;border-radius:8px;background:rgba(200,162,85,.12);border:1px solid rgba(200,162,85,.28);color:#E8D08A;font-size:.68rem;font-weight:800;cursor:pointer">'
+      + label + ' - revisar'
+      + '</div>';
+  }
+
+  function renderEnsoResumenCard(lote, cultivo, fecha) {
+    if (typeof window.amEnsoGetOutlookCampania !== 'function') return '';
+    var outlook = window.amEnsoGetOutlookCampania(cultivo, fecha);
+    if (!outlook) {
+      if (typeof window.amEnsoGetProbabilidades === 'function' && !_ensoProbSolicitado) {
+        _ensoProbSolicitado = true;
+        window.amEnsoGetProbabilidades(false).then(function() {
+          try { renderPanel(); } catch(_) {}
+        });
+      }
+      return '<div class="dl-kv"><span class="dl-kv-k">ENSO</span><span class="dl-kv-v">cargando proyeccion</span></div>';
+    }
+    var col = outlook.fase === 'nino' ? '#C94A2A' : outlook.fase === 'nina' ? '#7AAEF5' : '#C8A255';
+    return '<div onclick="event.stopPropagation();window.dlAbrirLote(\'' + esc(lote.id) + '\');setTimeout(function(){window.dlAbrirSeccion&&window.dlAbrirSeccion(\'monitoreo\')},30)" '
+      + 'style="margin-top:.45rem;padding:.48rem .55rem;border-radius:8px;background:rgba(42,90,140,.12);border:1px solid rgba(42,90,140,.28);cursor:pointer">'
+      + '<div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center">'
+      + '<span style="font-size:.68rem;color:rgba(237,224,196,.62);font-weight:800">ENSO proximo</span>'
+      + '<strong style="font-size:.74rem;color:' + col + '">' + esc(outlook.label) + ' ' + outlook.probabilidad + '%</strong>'
+      + '</div>'
+      + '<div style="font-size:.62rem;color:rgba(237,224,196,.58);margin-top:.18rem">' + esc(outlook.temporada || outlook.season || 'campania') + ' - ver meses</div>'
+      + '</div>';
   }
 
   function renderCard(lote) {
@@ -539,7 +666,9 @@
       html += '</div>';
     }
     if (coords) html += '<div id="dl-clima-' + esc(lote.id) + '"></div>';
+    html += renderEnsoResumenCard(lote, cultivo, fecha);
     html += renderBarraCiclo(ck, fecha);
+    html += renderDuplicadosLote(lote);
     if (!tieneDatos && estado === 'vacio') {
       html += '<div class="dl-card-empty">Tocá para comenzar a planificar este lote</div>';
     }
@@ -1218,7 +1347,7 @@
         (d.probabilidad >= 50 || d.estresPronostico ? '1' : '.55') + '"></span>';
     });
     html += '</div></div>';
-    html += '<div id="dl-enso-meses" style="display:none;margin-top:.65rem">' +
+    html += '<div id="dl-enso-meses" style="display:block;margin-top:.65rem">' +
       (typeof window.amEnsoRenderMonthlyOutlook === 'function' ? window.amEnsoRenderMonthlyOutlook({ limit: 9 }) : '') +
       '</div>';
     return html;
@@ -2948,6 +3077,25 @@
 
   window.dlInit = init;
   window.dlGetCampanaPlanificacion = getCampanaPlanificacion;
+  window.dlGetLotesVisibles = function() {
+    return _agruparLotesDuplicados(window.AM_LOTES || []);
+  };
+  window.dlMostrarDuplicadosLote = function(loteId) {
+    var lote = getLote(loteId);
+    var dup = lote && Array.isArray(lote._dlDuplicados) ? lote._dlDuplicados : [];
+    if (!dup.length) {
+      if (typeof amToast === 'function') amToast('No hay registros similares agrupados.', 'ok');
+      return;
+    }
+    var detalle = dup.map(function(d, idx) {
+      var data = d.data || {};
+      var ck = data.calcKeys || {};
+      var cultivo = data.cultivo || ck['am_siembra_cultivo'] || '';
+      var fecha = _fechaSiembraEfectiva(data, ck, cultivo);
+      return (idx + 1) + '. ' + (d.nombre || d.id) + (cultivo ? ' - ' + cultivo : '') + (fecha ? ' - ' + fecha : '');
+    }).join('\n');
+    alert('Registros similares resguardados para "' + (lote.nombre || lote.id) + '":\n\n' + detalle + '\n\nNo se borraron. Se ocultan del listado para evitar duplicados visuales.');
+  };
   window.addEventListener('am:hydric-event', function(ev) {
     var loteId = ev && ev.detail && ev.detail.loteId;
     if (loteId && _hydricAutoCache[loteId]) delete _hydricAutoCache[loteId];
