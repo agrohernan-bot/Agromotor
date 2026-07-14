@@ -1,4 +1,5 @@
 const ONI_URL = 'https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt';
+const ENSO_PROB_URL = 'https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/probabilities/';
 const PERIODOS_ONI = ['DJF', 'JFM', 'FMA', 'MAM', 'AMJ', 'MJJ', 'JJA', 'JAS', 'ASO', 'SON', 'OND', 'NDJ'];
 
 function parsearONI(texto) {
@@ -24,6 +25,24 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    if (req.query && (req.query.type === 'probabilities' || req.query.probabilities === '1')) {
+      const upstreamProb = await fetch(ENSO_PROB_URL, {
+        headers: { 'User-Agent': 'AgroMotor/1.0 ENSO probabilities proxy' },
+      });
+
+      if (!upstreamProb.ok) {
+        return res.status(502).json({ error: `NOAA CPC probabilities HTTP ${upstreamProb.status}` });
+      }
+
+      const html = await upstreamProb.text();
+      res.setHeader('Cache-Control', 's-maxage=21600, stale-while-revalidate=86400');
+      return res.status(200).json({
+        fuente: 'noaa_cpc_probabilities_proxy',
+        html,
+        ts: new Date().toISOString(),
+      });
+    }
+
     const upstream = await fetch(ONI_URL, {
       headers: { 'User-Agent': 'AgroMotor/1.0 ENSO proxy' },
     });

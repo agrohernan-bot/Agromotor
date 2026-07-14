@@ -150,9 +150,21 @@ async function getENSOProbabilidades(force) {
     if (cached) return cached;
   }
   try {
-    var resp = await fetch(ENSO_PROB_URL, { cache: "no-store" });
-    if (!resp.ok) throw new Error('NOAA ENSO probabilities HTTP ' + resp.status);
-    var html = await resp.text();
+    var html = '';
+    var proxyUrl = (typeof window !== 'undefined' && window.AM_CONFIG && window.AM_CONFIG.ensoProxy)
+      ? window.AM_CONFIG.ensoProxy + '?type=probabilities'
+      : '';
+    if (proxyUrl) {
+      var proxyResp = await fetch(proxyUrl, { cache: "no-store" });
+      if (!proxyResp.ok) throw new Error('ENSO probabilities proxy HTTP ' + proxyResp.status);
+      var payload = await proxyResp.json();
+      html = payload && payload.html ? payload.html : '';
+      if (!html) throw new Error('ENSO probabilities proxy sin HTML');
+    } else {
+      var resp = await fetch(ENSO_PROB_URL, { cache: "no-store" });
+      if (!resp.ok) throw new Error('NOAA ENSO probabilities HTTP ' + resp.status);
+      html = await resp.text();
+    }
     var parsed = parseENSOProbabilities(html);
     if (!parsed.rows.length) throw new Error('NOAA ENSO probabilities sin tabla parseable');
     escribirProbCache(parsed);
