@@ -1000,7 +1000,7 @@ test('dashboard de lotes agrupa duplicados visuales y muestra ENSO en la tarjeta
         id: 'plan',
         nombre: 'Papa Estacion Yerua',
         data: {
-          coord: '-31.40,-58.10',
+          coord: '-31.44,-58.18',
           superficie: 152.5,
           cultivo: 'Soja',
           fechaSiembra: '2026-10-30',

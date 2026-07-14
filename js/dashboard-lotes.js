@@ -248,7 +248,8 @@
       ? (Math.round(coords.lat * 1000) / 1000) + ',' + (Math.round(coords.lng * 1000) / 1000)
       : '';
     if (!nombre || (!sup && !coordKey)) return '';
-    return [nombre, sup ? Math.round(sup * 10) / 10 : '', coordKey || _normTextoLote(d.coord || '')].join('|');
+    if (sup) return [nombre, Math.round(sup * 10) / 10].join('|');
+    return [nombre, coordKey || _normTextoLote(d.coord || '')].join('|');
   }
 
   function _estadoRank(lote) {
