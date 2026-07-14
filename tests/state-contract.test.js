@@ -502,6 +502,34 @@ test('AgroENSO parsea probabilidades NOAA CPC y cruza anio de campania', () => {
   assert.equal(parsed.rows[8].nino, 92);
 });
 
+test('AgroENSO parsea tabla HTML actual de probabilidades NOAA CPC', () => {
+  const enso = require(path.join(ROOT, 'js/enso.js'));
+  const html = `
+    Issued July 2026
+    <table id="probabilities-table">
+      <tbody>
+        <tr><th scope="row"><abbr>JJA <span class="tooltip">Jun Jul Aug</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>JAS <span class="tooltip">Jul Aug Sep</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>ASO <span class="tooltip">Aug Sep Oct</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>SON <span class="tooltip">Sep Oct Nov</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>OND <span class="tooltip">Oct Nov Dec</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>NDJ <span class="tooltip">Nov Dec Jan</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>DJF <span class="tooltip">Dec Jan Feb</span></abbr></th><td>0</td><td>0</td><td>100</td></tr>
+        <tr><th scope="row"><abbr>JFM <span class="tooltip">Jan Feb Mar</span></abbr></th><td>0</td><td>1</td><td>99</td></tr>
+        <tr><th scope="row"><abbr>FMA <span class="tooltip">Feb Mar Apr</span></abbr></th><td>0</td><td>3</td><td>97</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  const parsed = enso._parseENSOProbabilities(html);
+
+  assert.equal(parsed.rows.length, 9);
+  assert.equal(parsed.rows[0].label, 'Jun-Jul-Ago');
+  assert.equal(parsed.rows[0].nino, 100);
+  assert.equal(parsed.rows[8].year, 2027);
+  assert.equal(parsed.rows[8].neutro, 3);
+});
+
 test('AgroENSO renderiza outlook mensual de campania', () => {
   const enso = require(path.join(ROOT, 'js/enso.js'));
   const oldLocalStorage = global.localStorage;

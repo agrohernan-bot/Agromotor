@@ -98,6 +98,31 @@ function parseIssuedDate(texto) {
 function parseENSOProbabilities(html) {
   var issued = parseIssuedDate(html);
   var rows = [];
+  var tableRe = /<tr[^>]*>\s*<th[^>]*scope=["']row["'][^>]*>\s*<abbr[^>]*>\s*([A-Z]{3})\s*<span[^>]*>\s*([A-Za-z]{3})\s+([A-Za-z]{3})\s+([A-Za-z]{3})[\s\S]*?<\/abbr>\s*<\/th>\s*<td[^>]*>\s*(\d{1,3})\s*<\/td>\s*<td[^>]*>\s*(\d{1,3})\s*<\/td>\s*<td[^>]*>\s*(\d{1,3})\s*<\/td>\s*<\/tr>/gi;
+  var tableMatch;
+  while ((tableMatch = tableRe.exec(String(html || ''))) !== null) {
+    var centralTableMonth = ENSO_MONTHS[tableMatch[3]] || 1;
+    var tableYear = rows.length ? rows[rows.length - 1].year : issued.year;
+    if (rows.length && centralTableMonth < rows[rows.length - 1].centralMonth) tableYear = rows[rows.length - 1].year + 1;
+    else if (!rows.length && centralTableMonth < issued.month - 1) tableYear = issued.year + 1;
+    var tableRow = {
+      season: tableMatch[1],
+      months: [tableMatch[2], tableMatch[3], tableMatch[4]],
+      label: [ENSO_MONTHS_ES[tableMatch[2]] || tableMatch[2], ENSO_MONTHS_ES[tableMatch[3]] || tableMatch[3], ENSO_MONTHS_ES[tableMatch[4]] || tableMatch[4]].join('-'),
+      centralMonth: centralTableMonth,
+      year: tableYear,
+      nina: parseInt(tableMatch[5], 10),
+      neutro: parseInt(tableMatch[6], 10),
+      nino: parseInt(tableMatch[7], 10),
+      fuente: 'NOAA/CPC RONI'
+    };
+    tableRow.dominante = ensoDominante(tableRow);
+    tableRow.confianza = Math.max(tableRow.nina, tableRow.neutro, tableRow.nino);
+    rows.push(tableRow);
+    if (rows.length >= 9) break;
+  }
+  if (rows.length) return { issued: issued.label || '', ts: Date.now(), rows: rows, fuente: 'NOAA/CPC ENSO Probabilities' };
+
   var re = /\b([A-Z]{3})\s+([A-Z][a-z]{2})\s+([A-Z][a-z]{2})\s+([A-Z][a-z]{2})\s+(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\b/g;
   var match;
   while ((match = re.exec(String(html || ''))) !== null) {
