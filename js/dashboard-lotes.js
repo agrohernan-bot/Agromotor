@@ -322,6 +322,12 @@
   function renderPanel() {
     var panel = document.getElementById('mod-lotes');
     if (!panel) return;
+    if (typeof window.amEnsoGetProbabilidades === 'function' && !_ensoProbSolicitado) {
+      _ensoProbSolicitado = true;
+      window.amEnsoGetProbabilidades(false).then(function() {
+        try { renderPanel(); } catch(_) {}
+      });
+    }
 
     _destroyMiniMaps();
     if (_seccionAbierta && _loteAbierto) {
@@ -389,11 +395,13 @@
     html +=     '<p class="dl-page-sub">Seleccioná un lote para trabajar · <span id="dl-counter">' + contadorTxt + '</span></p>';
     html +=   '</div>';
     html +=   '<div class="dl-header-actions">';
+    html +=     '<button class="dl-btn-clasica" onclick="window.dlMostrarRecuperacionLotes && window.dlMostrarRecuperacionLotes()" title="Ver historial y restaurar lotes">Recuperar</button>';
     html +=     '<button class="dl-btn-nuevo" onclick="window.dlCrearLote()">➕ Nuevo lote</button>';
     html +=     '<button class="dl-btn-clasica" onclick="window.amMostrarModalClientes && window.amMostrarModalClientes()" title="Gestionar clientes">Clientes</button>';
     html +=   '</div>';
     html += '</div>';
 
+    html += renderIntegridadLotes();
     var clientesUnicos = {};
     lotes.forEach(function (l) {
       var cn = (l.data && l.data.clienteNombre) ? l.data.clienteNombre.trim() : '';
@@ -445,6 +453,18 @@
     html += '</div>'; // .dl-page
 
     return html;
+  }
+
+  function renderIntegridadLotes() {
+    if (typeof window.amAuditarIntegridadLotes !== 'function') return '';
+    var a = window.amAuditarIntegridadLotes();
+    var col = a.ok ? '#6DBF82' : '#D4522A';
+    return '<div class="dlw-panel" style="border-color:rgba(109,191,130,.2);margin-bottom:.75rem">'
+      + '<div style="display:flex;justify-content:space-between;gap:.7rem;align-items:center;flex-wrap:wrap">'
+      + '<div><div class="dlw-panel-titulo">Respaldo de lotes</div>'
+      + '<div class="dlw-meta">' + a.total + ' lotes en este dispositivo - ' + a.reales + ' con datos - ' + a.backups + ' backups locales</div></div>'
+      + '<div style="font-size:.74rem;font-weight:800;color:' + col + '">' + (a.remoto ? 'Sync remota activa' : 'Solo local') + '</div>'
+      + '</div></div>';
   }
 
   function renderCard(lote) {
@@ -725,7 +745,8 @@
       + '<div class="dlw-card"><div class="dlw-card-titulo">Lectura para planificar</div>'
       + '<div class="dlw-meta">' + esc(nota) + '</div>'
       + '<div class="dlw-meta">Nina ' + outlook.nina + '% - Neutro ' + outlook.neutro + '% - Nino ' + outlook.nino + '%</div></div>'
-      + '</div></div>';
+      + '</div></div>'
+      + (typeof window.amEnsoRenderMonthlyOutlook === 'function' ? window.amEnsoRenderMonthlyOutlook({ limit: 9 }) : '');
   }
 
   // ══════════════════════════════════════════════════════
@@ -1109,6 +1130,7 @@
         + '<span style="width:' + ensoOutlook.nino + '%;background:#C94A2A"></span>'
         + '</div>';
       html += '<div class="dlw-meta">Nina ' + ensoOutlook.nina + '% - Neutro ' + ensoOutlook.neutro + '% - Nino ' + ensoOutlook.nino + '%</div>';
+      html += '<button type="button" onclick="window.dlToggleEnsoMeses && window.dlToggleEnsoMeses()" style="margin-top:.5rem;background:rgba(42,90,140,.18);border:1px solid rgba(42,90,140,.3);color:#DDF6E4;border-radius:8px;padding:.35rem .65rem;font-size:.72rem;font-weight:700">Ver proximos meses</button>';
     } else if (ensoFase) {
       html += '<div class="dlw-card-titulo">' + ensoIco + ' ENSO / Clima</div>';
       html += '<div class="dlw-valor" style="color:' + ensoColor + '">' + esc(ensoFase) + '</div>';
@@ -1196,6 +1218,9 @@
         (d.probabilidad >= 50 || d.estresPronostico ? '1' : '.55') + '"></span>';
     });
     html += '</div></div>';
+    html += '<div id="dl-enso-meses" style="display:none;margin-top:.65rem">' +
+      (typeof window.amEnsoRenderMonthlyOutlook === 'function' ? window.amEnsoRenderMonthlyOutlook({ limit: 9 }) : '') +
+      '</div>';
     return html;
   }
 
@@ -1207,7 +1232,8 @@
     var bajoPmp = perfil.thetaVolumetrica <= perfil.pmp || pct <= 0;
     var enEstres = !bajoPmp && pct < pctCritico;
     var color = (bajoPmp || enEstres) ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
-    var estado = bajoPmp ? '≤ PMP estimado'
+    var confianzaHidrica = perfil.fuenteUmbrales === 'laboratorio' ? 'alta' : 'media';
+    var estado = bajoPmp ? 'Posible PMP estimado'
       : enEstres ? 'Estrés hídrico'
       : pct < 60 ? 'Reserva moderada'
       : 'Bien hidratado';
@@ -1224,7 +1250,7 @@
       html += '<div class="dlw-meta" style="color:#D4522A">0 mm útiles sobre el PMP estimado; no significa 0 mm de agua total.</div>';
       html += '<div class="dlw-meta" style="color:#D4522A">Diagnostico: theta actual ' +
         (perfil.thetaVolumetrica*100).toFixed(1) + '% <= PMP ' + (perfil.pmp*100).toFixed(1) +
-        '% vol. Revisar fuente de umbrales si el campo no acompaña.</div>';
+        '% vol. Confianza ' + confianzaHidrica + '; revisar con laboratorio si el campo no acompana.</div>';
     } else {
       html += '<div class="dlw-meta">Inicio de estrés: ' + pctCritico + '% útil · ' +
         (margen >= 0 ? margen + ' puntos por encima' : Math.abs(margen) + ' puntos por debajo') + '</div>';
@@ -1746,9 +1772,9 @@
     var pct = Math.round(perfil.pct);
     var color = pct < 30 ? '#D4522A' : pct < 60 ? '#C8A255' : '#6DBF82';
     var bajoPmp = perfil.thetaVolumetrica <= perfil.pmp || pct <= 0;
-    var valorPct = bajoPmp ? '≤ PMP' : pct + '%';
+    var valorPct = bajoPmp ? 'PMP est.' : pct + '%';
     var detalleAgua = bajoPmp
-      ? 'θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · 0 mm útiles estimados (no es 0 mm totales)'
+      ? 'θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · 0 mm utiles estimados sobre PMP (no es 0 mm totales)'
       : 'θ ' + (perfil.thetaVolumetrica*100).toFixed(1) + '% vol · ' + Math.round(perfil.aguaUtilMm) + ' mm útiles';
     var title = 'Open-Meteo ' + perfil.profundidadCm + ' cm · θ ' +
       (perfil.thetaVolumetrica * 100).toFixed(1) + '% vol · PMP ' +
@@ -2581,6 +2607,51 @@
     if (typeof window.dlMostrarModalNuevoLote === 'function') {
       window.dlMostrarModalNuevoLote(loteId);
     }
+  };
+
+  window.dlMostrarRecuperacionLotes = async function () {
+    if (typeof window.amListarVersionesLote !== 'function') {
+      if (typeof amToast === 'function') amToast('Historial remoto no disponible', 'error');
+      return;
+    }
+    var versiones = await window.amListarVersionesLote(null, 30);
+    var html = '<div class="am-modal-backdrop" id="dl-recuperacion-modal" style="position:fixed;inset:0;background:rgba(0,0,0,.62);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem">'
+      + '<div style="width:min(760px,96vw);max-height:86vh;overflow:auto;background:#102018;border:1px solid rgba(109,191,130,.28);border-radius:14px;padding:1rem;color:#EDE0C4;box-shadow:0 24px 80px rgba(0,0,0,.45)">'
+      + '<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;margin-bottom:.8rem">'
+      + '<div><div style="font-size:1rem;font-weight:900">Recuperar lotes</div><div style="font-size:.72rem;color:rgba(237,224,196,.62)">Historial remoto de versiones guardadas</div></div>'
+      + '<button onclick="document.getElementById(\'dl-recuperacion-modal\').remove()" style="background:transparent;border:1px solid rgba(237,224,196,.25);color:#EDE0C4;border-radius:8px;padding:.35rem .65rem">Cerrar</button>'
+      + '</div>';
+    if (!versiones.length) {
+      html += '<div style="font-size:.82rem;color:rgba(237,224,196,.7)">Aun no hay versiones remotas para restaurar.</div>';
+    } else {
+      versiones.forEach(function(v) {
+        var snap = v.snapshot || {};
+        var data = snap.data || {};
+        html += '<div style="border-top:1px solid rgba(237,224,196,.12);padding:.7rem 0;display:flex;justify-content:space-between;gap:.75rem;align-items:center">'
+          + '<div><div style="font-weight:800">' + esc(snap.nombre || v.nombre || v.lote_id) + '</div>'
+          + '<div style="font-size:.7rem;color:rgba(237,224,196,.58)">' + esc(v.accion || '') + ' - ' + esc(new Date(v.created_at).toLocaleString('es-AR')) + '</div>'
+          + '<div style="font-size:.72rem;color:rgba(237,224,196,.7)">' + esc(data.cultivo || 'Sin cultivo') + (data.superficie ? ' - ' + esc(data.superficie) + ' ha' : '') + '</div></div>'
+          + '<button onclick="window.dlRestaurarVersionLote(\'' + esc(v.id) + '\')" style="background:#2A5A3A;border:1px solid rgba(109,191,130,.45);color:#fff;border-radius:8px;padding:.45rem .75rem;font-weight:800">Restaurar</button>'
+          + '</div>';
+      });
+    }
+    html += '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+  };
+
+  window.dlRestaurarVersionLote = async function (versionId) {
+    if (!confirm('Restaurar esta version del lote?')) return;
+    var ok = typeof window.amRestaurarVersionLote === 'function' ? await window.amRestaurarVersionLote(versionId) : false;
+    var modal = document.getElementById('dl-recuperacion-modal');
+    if (modal) modal.remove();
+    if (typeof amToast === 'function') amToast(ok ? 'Lote restaurado' : 'No se pudo restaurar', ok ? 'ok' : 'error');
+    renderPanel();
+  };
+
+  window.dlToggleEnsoMeses = function () {
+    var el = document.getElementById('dl-enso-meses');
+    if (!el) return;
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
   };
 
   window.dlEliminarLote = function (loteId) {

@@ -237,6 +237,28 @@ function renderENSOTimeline(options) {
     + '</div>';
 }
 
+function renderENSOMonthlyOutlook(options) {
+  options = options || {};
+  var prob = getENSOProbabilidadesSync();
+  if (!prob || !Array.isArray(prob.rows) || !prob.rows.length) return '';
+  var colors = { nino:'#C94A2A', neutro:'#C8A255', nina:'#4F7DB8' };
+  var rows = prob.rows.slice(0, options.limit || 9);
+  var html = '<div class="dlw-panel" style="border-color:rgba(42,90,140,.22)">'
+    + '<div class="dlw-panel-titulo">ENSO proximos meses</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:.45rem">';
+  rows.forEach(function(r) {
+    var fase = r.dominante;
+    var col = colors[fase] || colors.neutro;
+    html += '<div class="dlw-card" style="min-height:82px;border-left:3px solid ' + col + '">'
+      + '<div class="dlw-card-titulo">' + escapeHtml(r.label + ' ' + r.year) + '</div>'
+      + '<div class="dlw-valor" style="font-size:1rem;color:' + col + '">' + escapeHtml(ensoLabelFase(fase)) + ' ' + r.confianza + '%</div>'
+      + '<div class="dlw-meta">Nina ' + r.nina + '% - Neutro ' + r.neutro + '% - Nino ' + r.nino + '%</div>'
+      + '</div>';
+  });
+  html += '</div><div class="dlw-meta" style="margin-top:.55rem">Fuente NOAA/CPC RONI - trimestres moviles como aproximacion mensual de campania.</div></div>';
+  return html;
+}
+
 function faseDbToLabel(faseDb) {
   if (faseDb === 'ElNino') return 'El Nino';
   if (faseDb === 'LaNina') return 'La Nina';
@@ -938,6 +960,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseENSOProbabilities,
     ensoGetOutlookCampania,
     renderENSOTimeline,
+    renderENSOMonthlyOutlook,
     AJUSTE_NINYO,
     AJUSTE_NEUTRO,
     AJUSTE_NINA,
@@ -966,6 +989,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseENSOProbabilities,
     ensoGetOutlookCampania,
     renderENSOTimeline,
+    renderENSOMonthlyOutlook,
     AJUSTE_NINYO,
     AJUSTE_NEUTRO,
     AJUSTE_NINA,
@@ -977,6 +1001,7 @@ if (typeof module !== "undefined" && module.exports) {
   window.amEnsoGetProbabilidadesSync = getENSOProbabilidadesSync;
   window.amEnsoGetOutlookCampania = ensoGetOutlookCampania;
   window.amEnsoRenderTimeline = renderENSOTimeline;
+  window.amEnsoRenderMonthlyOutlook = renderENSOMonthlyOutlook;
 }
 
 })();

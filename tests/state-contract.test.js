@@ -502,6 +502,29 @@ test('AgroENSO parsea probabilidades NOAA CPC y cruza anio de campania', () => {
   assert.equal(parsed.rows[8].nino, 92);
 });
 
+test('AgroENSO renderiza outlook mensual de campania', () => {
+  const enso = require(path.join(ROOT, 'js/enso.js'));
+  const oldLocalStorage = global.localStorage;
+  global.localStorage = createLocalStorage({
+    am_enso_probabilidades_v1: JSON.stringify({
+      ts: Date.now(),
+      issued: 'July 2026',
+      rows: [
+        { season:'JJA', label:'Jun-Jul-Ago', year:2026, nina:0, neutro:0, nino:100, dominante:'nino', confianza:100 },
+        { season:'JAS', label:'Jul-Ago-Sep', year:2026, nina:10, neutro:70, nino:20, dominante:'neutro', confianza:70 },
+      ],
+    }),
+  });
+  try {
+    const html = enso.renderENSOMonthlyOutlook({ limit: 2 });
+    assert.match(html, /ENSO proximos meses/);
+    assert.match(html, /Jun-Jul-Ago 2026/);
+    assert.match(html, /El Nino 100%/);
+  } finally {
+    global.localStorage = oldLocalStorage;
+  }
+});
+
 test('Pulverizacion hereda lote activo y persiste historial en lote.data', () => {
   const pulverizacion = read('js/pulverizacion.js');
 

@@ -778,6 +778,75 @@ async function amGuardarVersionesLotesRemotos(rows, accion) {
   }
 }
 
+async function amListarVersionesLote(loteId, limite) {
+  if (!amLotesRemoteDisponible()) return [];
+  let q = AM_SB
+    .from('lotes_versiones')
+    .select('id,lote_id,nombre,accion,snapshot,created_at')
+    .eq('user_id', AM_SESION.id);
+  if (loteId) q = q.eq('lote_id', String(loteId));
+  q = q
+    .order('created_at', { ascending: false })
+    .limit(limite || 20);
+  const res = await q;
+  if (res.error || !Array.isArray(res.data)) return [];
+  return res.data;
+}
+
+async function amRestaurarVersionLote(versionId) {
+  if (!amLotesRemoteDisponible() || !versionId) return false;
+  const res = await AM_SB
+    .from('lotes_versiones')
+    .select('id,lote_id,nombre,snapshot')
+    .eq('user_id', AM_SESION.id)
+    .eq('id', String(versionId))
+    .maybeSingle();
+  if (res.error || !res.data) return false;
+  const v = res.data;
+  const snap = v.snapshot || {};
+  const lote = {
+    id: v.lote_id,
+    nombre: snap.nombre || v.nombre || 'Lote restaurado',
+    data: amLotesDataJson(snap.data || {})
+  };
+  amNormalizarEstadoLotes();
+  const idx = AM_LOTES.findIndex(l => String(l.id) === String(lote.id));
+  if (idx >= 0) AM_LOTES[idx] = Object.assign({}, AM_LOTES[idx], lote);
+  else AM_LOTES.push(lote);
+  AM_LOTE_ACTIVO = lote.id;
+  amNormalizarEstadoLotes();
+  amPersistirLotesLocal();
+  await amGuardarVersionesLotesRemotos([{
+    user_id: AM_SESION.id,
+    lote_id: String(lote.id),
+    nombre: String(lote.nombre || 'Lote'),
+    data: amLotesDataJson(lote.data),
+    activo: true
+  }], 'restore_user');
+  await amGuardarLotesRemotos(true);
+  amRenderSelectLotes();
+  if (typeof cacheCargar === 'function') cacheCargar();
+  if (typeof window.dlRefrescar === 'function') window.dlRefrescar();
+  return true;
+}
+
+function amAuditarIntegridadLotes() {
+  const lotes = Array.isArray(AM_LOTES) ? AM_LOTES : [];
+  const reales = lotes.filter(amLotesTieneDatosReales);
+  let backups = 0;
+  try {
+    backups = Object.keys(localStorage || {}).filter(k => k.indexOf('am_lotes_backup_') === 0).length;
+  } catch (_) {}
+  return {
+    total: lotes.length,
+    reales: reales.length,
+    defaultsVacios: lotes.filter(amLoteDefaultVacio).length,
+    backups: backups,
+    remoto: amLotesRemoteDisponible(),
+    ok: reales.length > 0 || lotes.length <= 1
+  };
+}
+
 async function amEliminarLoteRemoto(loteId) {
   if (!amLotesRemoteDisponible() || !loteId) return false;
   try {
@@ -884,6 +953,9 @@ async function amCargarLotesRemotos(force) {
 window.amGuardarLotesRemotos = amGuardarLotesRemotos;
 window.amEliminarLoteRemoto = amEliminarLoteRemoto;
 window.amGuardarVersionesLotesRemotos = amGuardarVersionesLotesRemotos;
+window.amListarVersionesLote = amListarVersionesLote;
+window.amRestaurarVersionLote = amRestaurarVersionLote;
+window.amAuditarIntegridadLotes = amAuditarIntegridadLotes;
 window.amCargarLotesRemotos = amCargarLotesRemotos;
 
 const CALC_KEYS = [
