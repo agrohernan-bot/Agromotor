@@ -50,6 +50,13 @@ function cacheHeader(endpoint) {
   return 's-maxage=86400, stale-while-revalidate=604800';
 }
 
+function setCacheHeaders(res, endpoint) {
+  const cdnCache = cacheHeader(endpoint);
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+  res.setHeader('CDN-Cache-Control', cdnCache);
+  res.setHeader('Vercel-CDN-Cache-Control', cdnCache);
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET');
@@ -70,7 +77,7 @@ module.exports = async function handler(req, res) {
     const body = await r.text();
     const contentType = r.headers.get('content-type') || 'application/json; charset=utf-8';
     res.setHeader('Content-Type', contentType);
-    res.setHeader('Cache-Control', cacheHeader(upstream.endpoint));
+    setCacheHeaders(res, upstream.endpoint);
     return res.status(r.status).send(body);
   } catch (e) {
     return res.status(502).json({ ok: false, error: e instanceof Error ? e.message : String(e) });
