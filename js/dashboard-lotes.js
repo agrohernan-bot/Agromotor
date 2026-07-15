@@ -83,6 +83,36 @@
   var _mapaInstances = {};
   var _dlClienteFiltro = null;
 
+  function _openMeteoProxyUrl(directUrl, endpoint) {
+    var proxy = window.AM_CONFIG && window.AM_CONFIG.weatherProxy;
+    if (!proxy) return null;
+    try {
+      var parsed = new URL(directUrl);
+      parsed.searchParams.set('endpoint', endpoint || 'forecast');
+      return proxy + '?' + parsed.searchParams.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function _fetchOpenMeteoJson(directUrl, endpoint) {
+    var proxyUrl = _openMeteoProxyUrl(directUrl, endpoint);
+    var directo = function() {
+      return fetch(directUrl).then(function(r) {
+        if (!r.ok) throw new Error('Open-Meteo HTTP ' + r.status);
+        return r.json();
+      });
+    };
+
+    if (!proxyUrl) return directo();
+    return fetch(proxyUrl).then(function(r) {
+      if (!r.ok) throw new Error('AgroMotor weather proxy HTTP ' + r.status);
+      return r.json();
+    }).catch(function() {
+      return directo();
+    });
+  }
+
   var CULTIVOS_CAMPANA = {
     planfina: ['Trigo', 'Cebada', 'Colza'],
     plangruesa: ['Soja', 'Maíz', 'Girasol', 'Sorgo']
@@ -1980,8 +2010,7 @@
                 '&current=temperature_2m,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
                 '&daily=precipitation_probability_max,et0_fao_evapotranspiration' +
                 '&forecast_days=1&timezone=auto';
-      fetch(url)
-        .then(function(r) { return r.ok ? r.json() : null; })
+      _fetchOpenMeteoJson(url, 'forecast')
         .then(function(data) {
           if (!data) return;
           var temp = data.current ? data.current.temperature_2m : null;
@@ -2049,14 +2078,14 @@
 
     try {
       var [omData, nasaProps, ensoResult, hydricAuto] = await Promise.all([
-        fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
+        _fetchOpenMeteoJson('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng +
           '&current=temperature_2m,relative_humidity_2m,wind_speed_10m,soil_temperature_0cm,' +
           'soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm' +
           '&hourly=soil_moisture_3_to_9cm,soil_moisture_9_to_27cm,soil_moisture_27_to_81cm,' +
           'et0_fao_evapotranspiration,precipitation,precipitation_probability' +
           '&daily=et0_fao_evapotranspiration,precipitation_probability_max,precipitation_sum,' +
           'temperature_2m_max,temperature_2m_min,weather_code' +
-          '&timezone=auto&forecast_days=16').then(function(r) { return r.json(); }),
+          '&timezone=auto&forecast_days=16', 'forecast'),
         (typeof window.buscarNASAPower === 'function'
           ? window.buscarNASAPower(lat, lng, mes)
           : Promise.resolve(null)),
