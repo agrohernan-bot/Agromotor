@@ -1040,6 +1040,12 @@ test('dashboard de lotes agrupa duplicados visuales y muestra ENSO en la tarjeta
   assert.match(html, /ENSO proximo/);
   assert.match(html, /El Nino 62%/);
 
+  window.dlAbrirLote('real');
+  window.dlAbrirSeccion('monitoreo');
+  const monitoreoHtml = window.document.getElementById('mod-lotes').innerHTML;
+  assert.match(monitoreoHtml, /ENSO de campania/);
+  assert.match(monitoreoHtml, /El Nino 62%/);
+
   window.dlMostrarDuplicadosLote('real');
   assert.match(window._lastAlert, /Papa Estacion Yerua/);
 });

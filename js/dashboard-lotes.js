@@ -879,6 +879,48 @@
       + (typeof window.amEnsoRenderMonthlyOutlook === 'function' ? window.amEnsoRenderMonthlyOutlook({ limit: 9 }) : '');
   }
 
+  function renderEnsoMonitoreo(lote) {
+    var ctx = typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(lote)
+      : null;
+    var d = lote.data || {};
+    var ck = d.calcKeys || {};
+    var cultivo = (ctx && (ctx.cultivoLabel || ctx.cultivo)) || d.cultivo || ck['am_siembra_cultivo'] || '';
+    var fecha = (ctx && ctx.fechaSiembra) || _fechaSiembraEfectiva(d, ck, cultivo);
+    var outlook = typeof window.amEnsoGetOutlookCampania === 'function'
+      ? window.amEnsoGetOutlookCampania(cultivo, fecha)
+      : null;
+    if (!outlook) {
+      if (typeof window.amEnsoGetProbabilidades === 'function' && !_ensoProbSolicitado) {
+        _ensoProbSolicitado = true;
+        window.amEnsoGetProbabilidades(false).then(function() {
+          try { renderPanel(); } catch(_) {}
+        });
+      }
+      return '<div class="dlw-panel" style="border-color:rgba(42,90,140,.22)">'
+        + '<div class="dlw-panel-titulo">ENSO de campania</div>'
+        + '<div class="dlw-meta">Cargando proyeccion mensual NOAA/CPC...</div>'
+        + '</div>';
+    }
+    var col = outlook.fase === 'nino' ? '#C94A2A' : outlook.fase === 'nina' ? '#4F7DB8' : '#C8A255';
+    return '<div class="dlw-panel" style="border-color:rgba(42,90,140,.22)">'
+      + '<div class="dlw-panel-titulo">ENSO de campania</div>'
+      + '<div class="dlw-grid">'
+      + '<div class="dlw-card"><div class="dlw-card-titulo">Periodo a monitorear</div>'
+      + '<div class="dlw-valor" style="color:' + col + '">' + esc(outlook.label) + ' ' + outlook.probabilidad + '%</div>'
+      + '<div class="dlw-meta">' + esc(cultivo || 'Cultivo') + (fecha ? ' - siembra ' + esc(fecha) : '') + ' - ' + esc(outlook.temporada) + '</div></div>'
+      + '<div class="dlw-card"><div class="dlw-card-titulo">Probabilidades</div>'
+      + '<div class="dlw-meta">Nina ' + outlook.nina + '% - Neutro ' + outlook.neutro + '% - Nino ' + outlook.nino + '%</div>'
+      + '<div style="display:flex;height:8px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.08);margin-top:.5rem">'
+      + '<span style="width:' + outlook.nina + '%;background:#4F7DB8"></span>'
+      + '<span style="width:' + outlook.neutro + '%;background:#C8A255"></span>'
+      + '<span style="width:' + outlook.nino + '%;background:#C94A2A"></span>'
+      + '</div></div>'
+      + '</div>'
+      + (typeof window.amEnsoRenderMonthlyOutlook === 'function' ? window.amEnsoRenderMonthlyOutlook({ limit: 9 }) : '')
+      + '</div>';
+  }
+
   // ══════════════════════════════════════════════════════
   // PANTALLA 3: SECCIÓN (lista de módulos)
   // ══════════════════════════════════════════════════════
@@ -907,6 +949,7 @@
       html += renderPreSiembraWidget(lote, loteId);
       html += renderWidgetPlanFina(lote);
       html += renderFenologiaMonitoreo(lote);
+      html += renderEnsoMonitoreo(lote);
       html += renderWidgetMonitoreo(lote);
       html += renderSanidadMonitoreo(lote);
       html += renderDatosLotePanel(loteId);
