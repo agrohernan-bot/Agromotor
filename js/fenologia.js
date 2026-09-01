@@ -386,13 +386,12 @@ async function _fetchOpenMeteoSegmento(baseUrl, lat, lon, fechaIni, fechaFin) {
   const params = new URLSearchParams(paramsObj);
 
   const url = `${baseUrl}?${params}`;
-  const resp = await fetch(url, { signal: AbortSignal.timeout(20000) });
-
-  if (!resp.ok) {
-    throw new Error(`OpenMeteo HTTP ${resp.status} (${baseUrl})`);
-  }
-
-  const json = await resp.json();
+  const endpoint = baseUrl === OPENMETEO_FORECAST_BASE ? "forecast"
+    : baseUrl === OPENMETEO_ARCHIVE_BASE ? "era5" : "archive";
+  const json = await window.amOpenMeteo.fetchJson(url, {
+    endpoint,
+    signal: AbortSignal.timeout(20000)
+  });
   const dates  = json.daily?.time ?? [];
   const tmaxArr = json.daily?.temperature_2m_max ?? [];
   const tminArr = json.daily?.temperature_2m_min ?? [];
@@ -756,10 +755,12 @@ async function omHumedadSuelo(lat, lon, fechaInicio, fechaFin) {
     end_date:   _formatISO(fechaFin),
   });
 
-  const resp = await fetch(`${baseUrl}?${params}`, { signal: AbortSignal.timeout(20000) });
-  if (!resp.ok) throw new Error(`OpenMeteo humedad suelo HTTP ${resp.status}`);
-
-  const json  = await resp.json();
+  const endpoint = baseUrl === OPENMETEO_FORECAST_BASE ? "forecast"
+    : baseUrl === OPENMETEO_ARCHIVE_BASE ? "era5" : "archive";
+  const json = await window.amOpenMeteo.fetchJson(`${baseUrl}?${params}`, {
+    endpoint,
+    signal: AbortSignal.timeout(20000)
+  });
   const times = json.hourly?.time ?? [];
   const sm0   = esArchivo
     ? (json.hourly?.soil_moisture_0_to_7cm ?? [])

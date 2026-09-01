@@ -461,8 +461,8 @@
 
     try {
       var results = await Promise.all([
-        fetch(urlArch, { signal: ctrl.signal }).then(function(r) { return r.json(); }),
-        fetch(urlFore, { signal: ctrl.signal }).then(function(r) { return r.json(); }),
+        window.amOpenMeteo.fetchJson(urlArch, { endpoint:'archive', signal:ctrl.signal }),
+        window.amOpenMeteo.fetchJson(urlFore, { endpoint:'forecast', signal:ctrl.signal }),
       ]);
       clearTimeout(timer);
       var arch = results[0], fore = results[1];

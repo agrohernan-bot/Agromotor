@@ -7,28 +7,6 @@
 
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-  async function fetchOpenMeteoSeguro(url,urlFallback){
-    async function leer(res){
-      if(res.ok)return res.json();
-      let detalle='';
-      try{
-        const err=await res.json();
-        detalle=err?.reason?': '+err.reason:'';
-      }catch(_){}
-      throw new Error('Open-Meteo HTTP '+res.status+detalle);
-    }
-    try{
-      return await leer(await fetch(url));
-    }catch(e){
-      console.warn('[Siembra] Open-Meteo intento principal fallo:',e.message);
-      try{
-        return await leer(await fetch(urlFallback));
-      }catch(e2){
-        throw new Error(e2.message||e.message);
-      }
-    }
-  }
-
   async function buscarAPI(){
     const[lat,lon]=parsCoord(gv('s-coord'));
     if(lat===null){alert('Formato no reconocido.\nEjemplos:\n• 33°23\'42.55"S 60°11\'29.87"W\n• -33.395, -60.192');return}
@@ -117,7 +95,10 @@
       const urlFallback='https://api.open-meteo.com/v1/forecast?'+
         meteoBase+'&past_days=3&forecast_days=16'+meteoVars;
 
-      const data=await fetchOpenMeteoSeguro(url,urlFallback);
+      const data=await window.amOpenMeteo.fetchJson(url, {
+        endpoint:'forecast',
+        fallbackUrl:urlFallback
+      });
 
       // Procesar hourly → avg diario
       const h=data.hourly||{},ht=h.time||[];

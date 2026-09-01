@@ -30,6 +30,7 @@ const ASSETS_LOCAL = [
   './icons/icon-maskable-512.png',
   './js/store.js',
   './js/config.js',
+  './js/weather-client.js',
   './js/core.js',
   './js/login.js',
   './js/cache.js',
