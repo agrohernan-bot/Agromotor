@@ -248,13 +248,12 @@ function amMostrarModal(vista = 'planes') {
 }
 
 function amCerrarModal() {
-  if (!AM_SESION) {
-    var visible = document.querySelector('#am-vista-registro:not(.hidden), #am-vista-login:not(.hidden), #am-vista-planes:not(.hidden)');
-    var err = visible ? visible.querySelector('.alert.danger') : null;
-    if (err) amMostrarError(err, 'NecesitÃ¡s iniciar sesiÃ³n para ingresar a AgroMotor.');
+  const modal = $('am-modal');
+  if (!modal) {
+    document.documentElement.classList.remove('modal-open');
+    document.body.classList.remove('modal-open');
     return;
   }
-  const modal = $('am-modal');
   modal.style.transition = 'opacity .25s ease, transform .25s ease';
   modal.style.opacity = '0';
   modal.style.transform = 'scale(0.96)';
