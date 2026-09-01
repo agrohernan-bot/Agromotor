@@ -111,11 +111,23 @@ function amGetLoteActivo() {
 }
 
 function amGrupoPorCultivo(cultivo) {
-  var c = String(cultivo || '').toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  var c = amNormCultivo(cultivo);
   if (['trigo', 'cebada', 'colza'].indexOf(c) >= 0) return 'invierno';
   if (['soja', 'maiz', 'girasol', 'sorgo'].indexOf(c) >= 0) return 'verano';
   return '';
+}
+
+function amDuracionFenologicaDefault(cultivo) {
+  var c = amNormCultivo(cultivo);
+  return {
+    soja: 150,
+    maiz: 150,
+    trigo: 190,
+    cebada: 180,
+    colza: 170,
+    girasol: 130,
+    sorgo: 135
+  }[c] || 150;
 }
 
 function amNormCultivo(cultivo) {
@@ -273,6 +285,17 @@ function amGetContextoCampania(lote, opts) {
   );
   if (!rend) rend = amRendimientoDefault(cultivoNorm);
   var suelo = opts.suelo || d['sg-textura'] || ck['am_siembra_suelo'] || d.suelo || d.tipoSuelo || '';
+  var cultivoCalc = amNormCultivo(ck['am_siembra_cultivo'] || ck.am_cultivo || '');
+  var duracionGuardada = cultivoCalc === cultivoNorm ? parseInt(ck['am_fen_duracion_ciclo'], 10) : 0;
+  var duracionFenologica = parseInt(
+    opts.duracionDias || plan.duracionFenologica || plan.duracionCiclo
+      || (plan.parametrosFenologia && plan.parametrosFenologia.duracionDias)
+      || duracionGuardada,
+    10
+  );
+  if (!isFinite(duracionFenologica) || duracionFenologica < 60) {
+    duracionFenologica = amDuracionFenologicaDefault(cultivoNorm);
+  }
   return {
     lote: lote,
     loteId: lote && lote.id,
@@ -284,6 +307,7 @@ function amGetContextoCampania(lote, opts) {
     fechaSiembra: fecha,
     rendimientoObjetivo: rend,
     suelo: suelo,
+    duracionFenologica: duracionFenologica,
     superficie: d.superficie || '',
     coord: d.coord || '',
     plan: plan || {},
@@ -1259,6 +1283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.amNormalizarRendimientoObjetivo = amNormalizarRendimientoObjetivo;
   window.amGetGrupoCampaniaActivo = amGetGrupoCampaniaActivo;
   window.amGetContextoCampania = amGetContextoCampania;
+  window.amDuracionFenologicaDefault = amDuracionFenologicaDefault;
   window.amFechaISO = amFechaISO;
 
   // Exposición global

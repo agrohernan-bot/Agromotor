@@ -541,10 +541,7 @@ function _activarModulo(mod) {
     if (typeof window.histCampanasRender === 'function') window.histCampanasRender();
   }
   if (mod === 'fen-plan' || mod === 'fen-seg') {
-    // Asegurar carga si aún no se completó el lazy-load de 8s
-    if (typeof fpCalcular !== 'function') {
-      amCargarModulo('fenologia.js');
-    }
+    var activarFenologia = function() {
     // Sincronizar coordenadas del lote
     var coord = document.getElementById('s-coord');
     if (coord && coord.value) {
@@ -582,6 +579,10 @@ function _activarModulo(mod) {
         if (typeof fsCalcular === 'function') fsCalcular();
       }, 250);
     }
+    };
+    // No disparar el cálculo hasta que el motor haya terminado de cargar.
+    if (!window.Fenologia) amCargarModulo('fenologia.js', activarFenologia);
+    else activarFenologia();
   }
 }
 

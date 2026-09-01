@@ -4120,18 +4120,13 @@ function fpUsarLote() {
     ? amGetContextoCampania(loteActivo, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '' })
     : null;
   var ctx = ctxCamp || (typeof amGetContextoPlanificacion === 'function' ? amGetContextoPlanificacion() : null);
-  var lat = '', lon = '', fecha = '', cultivo = '';
+  var lat = '', lon = '', fecha = '', cultivo = '', duracion = 0;
   if (ctx && (ctx.lote || ctxCamp)) {
-    var d = ((ctx.lote || loteActivo) && (ctx.lote || loteActivo).data) || {};
     fecha = ctx.fechaSiembra || ctx.fecha;
     cultivo = ctx.cultivo || ctx.cultivoLabel;
-    if (d.coord) {
-      var parts = d.coord.split(',');
-      if (parts.length === 2) {
-        lat = parseFloat(parts[0].trim());
-        lon = parseFloat(parts[1].trim());
-      }
-    }
+    duracion = parseInt(ctx.duracionFenologica, 10) || 0;
+    var coords = _fsCoordsLote(ctx.lote || loteActivo);
+    if (coords) { lat = coords.lat; lon = coords.lon; }
   } else {
     var coordSrc = document.getElementById('s-coord');
     if (coordSrc && coordSrc.value) {
@@ -4153,6 +4148,10 @@ function fpUsarLote() {
     var norm = cultivo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     document.getElementById('fp-cultivo').value = norm;
   }
+  if (!duracion && typeof amDuracionFenologicaDefault === 'function') {
+    duracion = amDuracionFenologicaDefault(cultivo);
+  }
+  if (duracion) document.getElementById('fp-duracion').value = duracion;
 }
 
 function fpPrepararDetalleLote() {
@@ -4452,8 +4451,11 @@ async function fsCalcular() {
 
   try {
     var loteCalc = _fsLoteActivo();
-    var ckCalc = (loteCalc && loteCalc.data && loteCalc.data.calcKeys) || {};
-    var duracionPlan = parseInt(ckCalc['am_fen_duracion_ciclo']) || (cultivo === 'trigo' ? 190 : cultivo === 'girasol' ? 130 : cultivo === 'sorgo' ? 135 : 150);
+    var ctxCalc = loteCalc && typeof window.amGetContextoCampania === 'function'
+      ? window.amGetContextoCampania(loteCalc, { grupo: window.AM_CAMPANIA_GRUPO_ACTIVO || '', cultivo: cultivo })
+      : null;
+    var duracionPlan = parseInt(ctxCalc && ctxCalc.duracionFenologica, 10)
+      || (typeof window.amDuracionFenologicaDefault === 'function' ? window.amDuracionFenologicaDefault(cultivo) : 150);
     var duracion = esFechaFutura ? duracionPlan : Math.max(diasTranscurridos + 18, 60);
     var modoFen = esFechaFutura ? 'planificacion' : 'seguimiento';
     var res = await window.Fenologia.calcularFenologia({ cultivo: cultivo, fechaSiembra: fechaSiembra, lat: lat, lon: lon, duracionDias: duracion, modo: modoFen });
@@ -5241,7 +5243,7 @@ function _fsRender(res, diasTranscurridos) {
 <!-- ══ CAPA 1: CORE — primero siempre ══ -->
 <script src="js/store.js?v=85"></script>
 <script src="js/core.js?v=91"></script>
-<script src="js/config.js?v=214"></script>
+<script src="js/config.js?v=215"></script>
 <script src="js/weather-client.js?v=1"></script>
 <script src="js/login.js?v=90"></script>
 <script src="js/cache.js?v=109"></script>

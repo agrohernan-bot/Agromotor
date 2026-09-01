@@ -880,7 +880,7 @@
     var cultEl=asEl('cultivo');
     if(cultEl){
       var cultMotor=(document.getElementById('s-cultivo')||{}).value||'';
-      var cultMap={soja:'soja',maiz:'maiz','maíz':'maiz',trigo:'trigo',girasol:'girasol'};
+      var cultMap={soja:'soja',maiz:'maiz','maíz':'maiz',trigo:'trigo',girasol:'girasol',sorgo:'sorgo','sorgo granífero':'sorgo','sorgo granifero':'sorgo'};
       var mapped=cultMap[cultMotor.toLowerCase()];
       if(mapped) cultEl.value=mapped;
     }

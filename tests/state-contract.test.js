@@ -409,6 +409,34 @@ test('contexto de campania prioriza plan activo y normaliza rendimiento heredado
   assert.equal(ctx.rendimientoObjetivo, 6.2);
 });
 
+test('contexto de campania incluye Sorgo granifero en verano y no hereda parametros de otro cultivo', () => {
+  const initial = JSON.stringify({
+    activo: 'lote-sorgo-gruesa',
+    lotes: [{
+      id: 'lote-sorgo-gruesa',
+      nombre: 'Sorgo Gruesa',
+      data: {
+        cultivo: 'Sorgo granífero',
+        fechaSiembraPlan: '2026-11-12',
+        calcKeys: {
+          am_siembra_cultivo: 'Trigo',
+          am_fen_duracion_ciclo: '190',
+        },
+      },
+    }],
+  });
+  const { window } = loadCacheWithStorage({ am_global_lotes_v2: initial });
+  window.amCargarLotesGlobales();
+
+  const ctx = window.amGetContextoCampania(window.amGetLoteActivo());
+
+  assert.equal(window.amGrupoPorCultivo('Sorgo granífero'), 'verano');
+  assert.equal(ctx.grupo, 'verano');
+  assert.equal(ctx.cultivo, 'sorgo');
+  assert.equal(ctx.fechaSiembra, '2026-11-12');
+  assert.equal(ctx.duracionFenologica, 135);
+});
+
 test('modulos criticos leen el lote activo via helper central', () => {
   const modules = [
     'js/plagas.js',
@@ -698,7 +726,8 @@ test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () 
     document,
     fsPrepararDetalleLote() { calls.push('fsPrepararDetalleLote'); },
     fsCalcular() { calls.push('fsCalcular'); },
-    fpCalcular() {},  // marca fenologia.js como ya cargado
+    Fenologia: {},
+    fpCalcular() {},
     scrollTo() {},
   });
 
@@ -707,6 +736,32 @@ test('nav.js llama a fsPrepararDetalleLote y fsCalcular al activar fen-seg', () 
 
   assert.ok(calls.includes('fsPrepararDetalleLote'), 'debe llamar fsPrepararDetalleLote al activar fen-seg');
   assert.ok(calls.includes('fsCalcular'), 'debe llamar fsCalcular al activar fen-seg');
+});
+
+test('nav.js espera que cargue el motor antes de calcular fenologia', () => {
+  const calls = [];
+  const document = createDocument();
+  document.scripts = [];
+  const sandbox = createBrowserSandbox({
+    document,
+    fpPrepararDetalleLote() { calls.push('preparar'); },
+    fpCalcular() { calls.push('calcular'); },
+    scrollTo() {},
+  });
+  document.head = {
+    appendChild(script) {
+      calls.push('cargar:' + script.src);
+      assert.equal(calls.length, 1, 'no debe calcular antes del onload');
+      sandbox.Fenologia = {};
+      script.onload();
+    },
+  };
+
+  vm.runInNewContext(read('js/nav.js'), sandbox, { filename: 'js/nav.js' });
+  sandbox._activarModulo('fen-plan');
+
+  assert.match(calls[0], /^cargar:js\/fenologia\.js\?v=/);
+  assert.deepEqual(calls.slice(1), ['preparar', 'calcular']);
 });
 
 // Diciembre: todas las plagas de soja y roya están en época
@@ -1479,9 +1534,52 @@ test('fenologia soporta sorgo desde planificacion de gruesa', () => {
   vm.runInNewContext(read('js/fenologia.js'), sandbox, { filename: 'js/fenologia.js' });
 
   assert.ok(sandbox.Fenologia.getCultivosDisponibles().includes('sorgo'));
+  assert.equal(sandbox.Fenologia.CULTIVOS.sorgo.tBase, 10);
+  assert.equal(sandbox.Fenologia.CULTIVOS.sorgo.tCeiling, 34);
   const etapas = sandbox.Fenologia.getEtapasCultivo('sorgo');
   assert.ok(etapas.some(e => e.id === 'floracion'), 'sorgo debe tener etapa critica de floracion');
   assert.ok(etapas.some(e => e.id === 'madurez'), 'sorgo debe completar ciclo hasta cosecha');
+});
+
+test('Fenologia Planificacion hereda cultivo, fecha, coordenadas y duracion de Sorgo', () => {
+  const app = read('app.html');
+  const inicio = app.indexOf('function fpUsarLote()');
+  const fin = app.indexOf('\nfunction fpPrepararDetalleLote()', inicio);
+  assert.ok(inicio >= 0 && fin > inicio, 'debe existir fpUsarLote');
+
+  const lote = {
+    id: 'lote-sorgo',
+    nombre: 'Sorgo Gruesa',
+    data: {
+      geojson: { geometry: { coordinates: [[[-60.2, -32.1], [-60.0, -32.1], [-60.1, -31.9]]] } },
+    },
+  };
+  const sandbox = createBrowserSandbox({
+    AM_CAMPANIA_GRUPO_ACTIVO: 'verano',
+    amGetLoteActivo() { return lote; },
+    amGetContextoCampania() {
+      return {
+        lote,
+        grupo: 'verano',
+        cultivo: 'sorgo',
+        fechaSiembra: '2026-11-12',
+        duracionFenologica: 135,
+      };
+    },
+    _fsCoordsLote() { return { lat: -32.03333, lon: -60.1 }; },
+  });
+  ['fp-lat', 'fp-lon', 'fp-fecha', 'fp-cultivo', 'fp-duracion'].forEach((id) => {
+    sandbox.document.ensureElement(id);
+  });
+
+  vm.runInNewContext(app.slice(inicio, fin), sandbox, { filename: 'app.html#fpUsarLote' });
+  sandbox.fpUsarLote();
+
+  assert.equal(sandbox.document.getElementById('fp-cultivo').value, 'sorgo');
+  assert.equal(sandbox.document.getElementById('fp-fecha').value, '2026-11-12');
+  assert.equal(sandbox.document.getElementById('fp-lat').value, -32.03333);
+  assert.equal(sandbox.document.getElementById('fp-lon').value, -60.1);
+  assert.equal(sandbox.document.getElementById('fp-duracion').value, 135);
 });
 
 test('plagas incorpora sorgo sin caer a soja', () => {
