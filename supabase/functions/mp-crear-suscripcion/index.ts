@@ -16,9 +16,10 @@ const CORS = {
 // Precios en ARS (configurable). USD ref es la base.
 // Aproximamos al dólar oficial ~ARS 1400 (ajustá con BCRA si querés precio dinámico).
 const PLANES_AR = {
-  asesor:  { ars: 50000,  usd: 35,  nombre: 'AgroMotor Asesor' },
-  pro:     { ars: 130000, usd: 90,  nombre: 'AgroMotor Pro ⭐' },
-  empresa: { ars: 320000, usd: 230, nombre: 'AgroMotor Empresa' },
+  asesor:  { ars: 50000, usd: 35, nombre: 'AgroMotor Profesional' },
+  // Aliases para perfiles históricos; todos contratan la modalidad vigente.
+  pro:     { ars: 50000, usd: 35, nombre: 'AgroMotor Profesional' },
+  empresa: { ars: 50000, usd: 35, nombre: 'AgroMotor Profesional' },
 };
 
 serve(async (req: Request) => {

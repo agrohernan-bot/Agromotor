@@ -18,5 +18,5 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Run state contract tests
-        run: node --test tests/state-contract.test.js
+      - name: Run complete test suite
+        run: node --test tests/*.test.js

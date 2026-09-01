@@ -121,13 +121,12 @@ El monitoreo NDVI nunca calcula sustitutos fenológicos. Intenta Agromonitoring,
 ## 💰 Modelo comercial
 
 ```
-Demo        Gratis · 1 lote · solo Siembra
-Asesor      USD 35/mes · 5 lotes · IA 30 cons/mes
-Pro     ⭐  USD 90/mes · 25 lotes · IA 100 cons/mes · PDF brandeable
-Empresa     USD 230/mes · 75 lotes · IA 300 cons/mes · NDVI · API
+Prueba          30 días sin cargo · sin medio de pago
+Profesional     USD 35/mes · 20 lotes · IA 30 cons/mes · todos los módulos
+Lotes extra     USD 1/lote/mes
 ```
 
-Acceso gratuito de lanzamiento hasta el 1 de agosto de 2026 para cuentas registradas. Luego, continuidad mediante plan pago con cobro automático mensual via Mercado Pago Preapproval.
+La prueba no genera cobros automáticos. La continuidad requiere que el profesional elija y autorice expresamente la suscripción mediante Mercado Pago.
 
 ## 🧠 Lógica agronómica de referencia
 

@@ -4,10 +4,10 @@
 
 ## 🎉 Sistema funcionando end-to-end
 
-Se completó el primer test real con tu cuenta. **Todo el stack funciona**:
+Se completó el primer test real con una cuenta de QA. **Todo el stack funciona**:
 
 ```
-agrohernan@gmail.com (plan Pro · Trial 14 días · Mat TEST-001 CIAER-ER)
+Cuenta QA administrada fuera del repositorio (Plan Profesional)
    ↓
 Login JWT + RLS verificadas
    ↓
@@ -70,7 +70,7 @@ https://supabase.com/dashboard/project/xsbaqlqztppdpdcjgazz/auth/url-configurati
 ### 5. Probar cuando todo esté listo
 
 - Abrí https://agromotor.com.ar (debe mostrar landing)
-- Probar login con `agrohernan@gmail.com` / `AgroMotor2026!` (probar también desde móvil)
+- Probar login con una cuenta de QA administrada fuera del repositorio (probar también desde móvil)
 - Hacer 2-3 consultas al asistente
 
 ## 🚀 Estado del proyecto
@@ -86,30 +86,19 @@ https://supabase.com/dashboard/project/xsbaqlqztppdpdcjgazz/auth/url-configurati
 | Dominio agromotor.com.ar | ✅ En Vercel | SSL automático |
 | Deploy | ✅ Vercel | `vercel.json` |
 
-## 💰 Estructura de planes activa
+## 💰 Estructura comercial activa
 
-| Plan | Precio | Lotes | IA/mes | Featured |
-|---|---|---|---|---|
-| Demo | Gratis | 1 | 0 | — |
-| Asesor | USD 35/mes | 5 | 30 | — |
-| **Pro** | **USD 90/mes** | **25** | **100** | ⭐ Más popular |
-| Empresa | USD 230/mes | 75 | 300 | — |
+| Modalidad | Precio | Lotes | IA/mes |
+|---|---|---|---|
+| Prueba Profesional | 30 días sin cargo | 20 | 30 |
+| Profesional | USD 35/mes | 20 | 30 |
+| Lotes adicionales | USD 1/lote/mes | Según necesidad | — |
 
 Founders deal: primeros 100 users → precio bloqueado de por vida.
 
-## 🧪 Cuenta de prueba creada
+## 🧪 Cuentas de prueba
 
-- **Email:** agrohernan@gmail.com
-- **Password:** AgroMotor2026!
-- **Plan:** Pro · Trial hasta 22/05/2026 (14 días)
-- **Matrícula:** TEST-001 · CIAER-ER (Concepción del Uruguay)
-- **IA usadas:** 2/100
-
-Cuando configures correctamente, podés actualizar la matrícula real en Supabase con:
-```sql
-UPDATE profiles SET matricula_numero = 'TU_NUMERO_REAL', cpia = 'CIAER-ER'
-WHERE id = (SELECT id FROM auth.users WHERE email = 'agrohernan@gmail.com');
-```
+Las credenciales de QA se administran fuera del repositorio. Nunca documentar emails, contraseñas, tokens ni datos de acceso operativos en archivos versionados.
 
 ## 📝 Pendientes técnicos (ordenados por valor)
 
